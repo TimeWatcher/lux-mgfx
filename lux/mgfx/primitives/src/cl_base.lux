@@ -1,0 +1,117 @@
+import * as geometryImport from "@lux/mgfx/geometry"
+import * as roundrectImport from "@lux/mgfx/roundrect"
+import * as styleImport from "@lux/mgfx/style"
+
+local geometry = geometryImport
+local roundrect = roundrectImport
+local style = styleImport
+
+local getConVar = GetConVar
+local matrixCtor = Matrix
+local mathAbs = math.abs
+local mathClamp = math.Clamp
+local mathFloor = math.floor
+local mathMax = math.max
+local mathMin = math.min
+local mathCos = math.cos
+local mathRad = math.rad
+local mathSin = math.sin
+local mathSqrt = math.sqrt
+local renderCopyRenderTargetToTexture = render?.CopyRenderTargetToTexture
+local surfaceDrawLine = surface.DrawLine
+local surfaceSetMaterial = surface.SetMaterial
+local surfaceSetDrawColor = surface.SetDrawColor
+local toNumber = tonumber
+local typeOf = type
+local makeColor = Color
+
+local drawTransformedPoly = geometry.drawTransformedPoly
+local drawTexturedQuad = geometry.drawTexturedQuad
+local hasTransform = geometry.hasTransform
+local splitStyleTransform = geometry.splitStyleTransform
+local withTransform = geometry.withTransform
+
+local paramMatrixProbe = matrixCtor ~= nil then matrixCtor() else nil
+local paramMatrixSetUnpacked = paramMatrixProbe?.SetUnpacked
+local paramMatrices = {}
+local primitiveMaterials = {}
+local primitiveBlurRT = nil
+local primitiveMatOK = (material) => material ~= nil and material.IsError ~= nil and not material:IsError()
+local primitiveHasShaders = () => false
+local forceFallbackCvar = nil
+local lineVertsScratch = { {}, {}, {}, {} }
+local lineFallbackVertsScratch = { {}, {}, {}, {} }
+local chamferStyle = {}
+local lineStyle = {}
+local polyStyle = {}
+local defaultLineColor = makeColor(255, 255, 255, 32)
+local transparentColor = makeColor(0, 0, 0, 0)
+local LINE_AA_FRINGE = 1
+local LINE_NO_CAPS_UV_OFFSET = 8
+
+fn configurePrimitives(owner) {
+  owner = owner ?? {}
+  local materialState = owner._MaterialState ?? {}
+  primitiveMaterials = owner._Materials ?? materialState.materials ?? primitiveMaterials ?? {}
+  primitiveBlurRT = owner._BlurRT ?? materialState.blurRT ?? primitiveBlurRT
+  primitiveMatOK = owner.MaterialOK ?? materialState.matOK ?? primitiveMatOK
+  primitiveHasShaders = owner.hasShaders ?? primitiveHasShaders
+  true
+}
+
+fn materialOK(material) =
+  primitiveMatOK ~= nil and primitiveMatOK(material)
+
+fn shadersActive() {
+  if forceFallbackCvar == nil and getConVar ~= nil {
+    forceFallbackCvar = getConVar("mgfx_force_fallback") ?? false
+  }
+  if forceFallbackCvar ~= nil and forceFallbackCvar ~= false and forceFallbackCvar:GetBool() {
+    return false
+  }
+
+  primitiveHasShaders ~= nil and primitiveHasShaders()
+}
+
+fn setupParamMatrix(material,
+  a0, a1, a2, a3,
+  b0, b1, b2, b3,
+  c0, c1, c2, c3,
+  d0, d1, d2, d3) {
+  if material == nil or paramMatrixSetUnpacked == nil or matrixCtor == nil {
+    return false
+  }
+
+  local matrix = paramMatrices[material]
+  if matrix == nil {
+    matrix = matrixCtor()
+    paramMatrices[material] = matrix
+  }
+
+  paramMatrixSetUnpacked(matrix,
+    a0 ?? 0, b0 ?? 0, c0 ?? 0, d0 ?? 0,
+    a1 ?? 0, b1 ?? 0, c1 ?? 0, d1 ?? 0,
+    a2 ?? 0, b2 ?? 0, c2 ?? 0, d2 ?? 0,
+    a3 ?? 0, b3 ?? 0, c3 ?? 0, d3 ?? 0
+  )
+  material:SetMatrix("$viewprojmat", matrix)
+  true
+}
+
+fn fillColor(fill, fallback = nil) {
+  if style.isColor(fill) {
+    return fill
+  }
+
+  if typeOf(fill) == "table" {
+    return fill.colorA ?? fill.color ?? fallback ?? color_white
+  }
+
+  fallback ?? color_white
+}
+
+fn pointXY(point) {
+  return toNumber(point.x ?? point[1]) ?? 0,
+    toNumber(point.y ?? point[2]) ?? 0
+}
+

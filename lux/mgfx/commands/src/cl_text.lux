@@ -1,0 +1,36 @@
+export client fn text(command) {
+  if alreadyRecord(command) {
+    return command
+  }
+
+  makeText(command[1], command[2], command[3], command[4], command[5], command[6], command[7], command[8], command[9])
+}
+
+export client fn textValues(command) {
+  return field(command, "text", 2),
+    field(command, "font", 3),
+    field(command, "x", 4),
+    field(command, "y", 5),
+    field(command, "color", 6),
+    field(command, "ax", 7),
+    field(command, "ay", 8),
+    field(command, "style", 9)
+}
+
+export client fn textBox(command) {
+  if alreadyRecord(command) {
+    return command
+  }
+
+  makeTextBox(command[1], command[2], command[3], command[4], command[5], command[6], command[7], command[8])
+}
+
+export client fn textBoxValues(command) {
+  return field(command, "text", 2),
+    field(command, "font", 3),
+    field(command, "x", 4),
+    field(command, "y", 5),
+    field(command, "w", 6),
+    field(command, "h", 7),
+    field(command, "style", 8)
+}

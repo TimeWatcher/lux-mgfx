@@ -1,0 +1,314 @@
+local TEXT_DEMO_CJK_FACE = "Noto Sans SC"
+
+local textDemoStrings = {
+  { "MGFX TEXT FX", "MGFXTextDemoTitle" },
+    { "gradient face / outline / glow / shadow / numeric / cjk", "MGFXTextDemoSmall" },
+    { "OUTLINE 128,450 中文描边", "MGFXTextDemoCJK" },
+    { "GLOW 外发光 soft halo", "MGFXTextDemoCJK" },
+    { "SHADOW 软阴影不走整段文字 RT", "MGFXTextDemoCJK" },
+    { "FACE polish Aa 123 中文正常", "MGFXTextDemoCJK" },
+    { "SOLID clean fill 中文纯色 Aa123", "MGFXTextDemoCJK" },
+    { "128,450  +100 XP", "MGFXTextDemoNum" },
+    { "Bold  Thin  Italic  Slanted", "MGFXTextDemoBody" },
+    { "TextBox: 自动测量、ellipsis、矩形锚定，表格和栏位不再手写每个字符 baseline。", "MGFXTextDemoSmall" }
+}
+
+fn ensureTextDemoFonts(owner) {
+  if textDemoFontsReady {
+    return true
+  }
+
+  if surfaceCreateFont ~= nil {
+    surfaceCreateFont("MGFXTextDemoNativeCJK", {
+        font = TEXT_DEMO_CJK_FACE,
+        size = 18,
+        weight = 400,
+        antialias = true,
+        extended = true
+    })
+  }
+
+  local register = owner?.RegisterTextFont
+  if register == nil {
+    return false
+  }
+
+  local ok = true
+  ok = register("MGFXTextDemoTitle", { face = "Bahnschrift", size = 34, weight = 650, lineHeight = 42 }) and ok
+  ok = register("MGFXTextDemoBody", { face = "Bahnschrift", size = 18, weight = 520, lineHeight = 24 }) and ok
+  ok = register("MGFXTextDemoSmall", { face = TEXT_DEMO_CJK_FACE, size = 15, weight = 400, lineHeight = 22 }) and ok
+  ok = register("MGFXTextDemoCJK", { face = TEXT_DEMO_CJK_FACE, size = 18, weight = 400, lineHeight = 26 }) and ok
+  ok = register("MGFXTextDemoNum", { face = "Bahnschrift", size = 26, weight = 700, lineHeight = 32 }) and ok
+
+  textDemoFontsReady = ok == true
+  textDemoFontsReady
+}
+
+fn drawTextDemo(owner) {
+  ensureTextDemoFonts(owner)
+  local sw = ScrW()
+  local sh = ScrH()
+  local strong = textDemoFx ~= nil and textDemoFx:GetBool() or false
+  local glowW = strong then 7 else 4
+  local strokeW = strong then 1.05 else 0.8
+  local panelW = mathMin(840, sw - 96)
+
+  owner.StartScreen(sw, sh)
+  owner.RoundedBoxEx(48, 48, panelW, 430, {
+      radius = 10,
+      fill = makeColor(4, 14, 20, 220),
+      stroke = makeColor(90, 190, 255, 60),
+      strokeWidth = 1,
+      innerGlow = { color = makeColor(80, 200, 255, 24), size = 16, opacity = 0.5 }
+  })
+  owner.TextEx("MGFX TEXT FX", "MGFXTextDemoTitle", 76, 83, nil, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER, {
+      fill = owner.LinearGradient(0, 0, 1, 0, {
+        { 0, makeColor(104, 210, 255, 255) },
+        { 0.55, makeColor(238, 248, 255, 255) },
+        { 1, makeColor(255, 204, 112, 255) }
+    }),
+      stroke = { width = 0.9, softness = 0.55, color = makeColor(2, 9, 12, 185) },
+      shadow = { x = 0, y = 2, blur = 5, color = makeColor(0, 0, 0, 145) },
+      glow = { size = glowW, color = makeColor(66, 188, 255, 64), opacity = 0.58, softness = 0.56 },
+      surface = { strength = 0.14 }
+  })
+  owner.TextEx("gradient face / outline / glow / shadow / numeric / cjk", "MGFXTextDemoSmall", 78, 116, makeColor(178, 204, 214), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER, {
+      shadow = { x = 0, y = 1, blur = 2, color = makeColor(0, 0, 0, 110) }
+  })
+
+  owner.TextEx("OUTLINE", "MGFXTextDemoBody", 78, 160, makeColor(238, 246, 252), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER, {
+      stroke = { width = strokeW, softness = 0.58, color = makeColor(0, 0, 0, 178) },
+      shadow = { x = 0, y = 2, blur = 4, color = makeColor(0, 0, 0, 125) }
+  })
+  owner.TextEx("128,450 中文描边", "MGFXTextDemoCJK", 178, 160, makeColor(246, 250, 255), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER, {
+      stroke = { width = strokeW, softness = 0.62, color = makeColor(0, 0, 0, 164) },
+      shadow = { x = 0, y = 2, blur = 4, color = makeColor(0, 0, 0, 115) }
+  })
+
+  owner.TextEx("GLOW", "MGFXTextDemoBody", 78, 204, makeColor(205, 244, 255), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER, {
+      stroke = { width = 0.65, softness = 0.58, color = makeColor(2, 10, 16, 142) },
+      glow = { size = glowW + 1, color = makeColor(70, 205, 255, 88), opacity = 0.72, softness = 0.62 },
+      surface = { strength = 0.08 }
+  })
+  owner.TextEx("外发光 / soft halo", "MGFXTextDemoCJK", 178, 204, makeColor(211, 245, 255), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER, {
+      stroke = { width = 0.65, softness = 0.60, color = makeColor(2, 10, 16, 136) },
+      glow = { size = glowW + 1, color = makeColor(70, 205, 255, 86), opacity = 0.70, softness = 0.62 },
+      surface = { strength = 0.06 }
+  })
+
+  owner.TextEx("SHADOW", "MGFXTextDemoBody", 78, 248, makeColor(255, 222, 166), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER, {
+      shadow = { x = 4, y = 5, blur = 8, color = makeColor(0, 0, 0, 175) },
+      stroke = { width = 0.55, softness = 0.65, color = makeColor(46, 24, 2, 110) }
+  })
+  owner.TextEx("软阴影不走整段文字 RT", "MGFXTextDemoCJK", 178, 248, makeColor(255, 224, 178), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER, {
+      shadow = { x = 4, y = 5, blur = 8, color = makeColor(0, 0, 0, 165) },
+      stroke = { width = 0.55, softness = 0.65, color = makeColor(46, 24, 2, 105) }
+  })
+
+  owner.TextEx("FACE", "MGFXTextDemoBody", 78, 292, makeColor(232, 240, 245), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER, {
+      stroke = { width = 0.55, softness = 0.64, color = makeColor(0, 0, 0, 108) },
+      surface = { strength = 0.16 },
+      shadow = { x = 0, y = 2, blur = 4, color = makeColor(0, 0, 0, 105) }
+  })
+  owner.TextEx("polish Aa 123 中文正常", "MGFXTextDemoCJK", 178, 292, makeColor(232, 242, 246), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER, {
+      stroke = { width = 0.50, softness = 0.66, color = makeColor(0, 0, 0, 96) },
+      surface = { strength = 0.08 },
+      shadow = { x = 0, y = 2, blur = 4, color = makeColor(0, 0, 0, 100) }
+  })
+
+  owner.TextEx("SOLID", "MGFXTextDemoBody", 78, 326, makeColor(232, 238, 242), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+  owner.TextEx("clean fill 中文纯色 Aa123", "MGFXTextDemoCJK", 178, 326, makeColor(232, 238, 242), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+  owner.TextEx("NATIVE", "MGFXTextDemoBody", 78, 354, makeColor(190, 222, 230), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+  owner.TextEx("plain TextEx route 中文 Aa123", "MGFXTextDemoCJK", 178, 354, makeColor(220, 238, 240), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+
+  owner.TextEx("128,450", "MGFXTextDemoNum", 514, 160, makeColor(232, 248, 255), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER, {
+      stroke = { width = 0.65, softness = 0.58, color = makeColor(0, 0, 0, 148) },
+      glow = { size = 5, color = makeColor(66, 190, 255, 44), opacity = 0.55, softness = 0.5 },
+      shadow = { x = 0, y = 2, blur = 5, color = makeColor(0, 0, 0, 135) },
+      surface = { strength = 0.12 }
+  })
+  owner.TextEx("+100 XP", "MGFXTextDemoNum", 514, 194, makeColor(178, 221, 255), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER, {
+      stroke = { width = 0.55, softness = 0.60, color = makeColor(0, 0, 0, 130) },
+      shadow = { x = 0, y = 2, blur = 4, color = makeColor(0, 0, 0, 120) }
+  })
+
+  owner.TextEx("Bold", "MGFXTextDemoBody", 514, 246, makeColor(238, 245, 249), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER, {
+      bold = true,
+      stroke = { width = 0.50, softness = 0.62, color = makeColor(0, 0, 0, 105) },
+      shadow = { x = 0, y = 2, blur = 4, color = makeColor(0, 0, 0, 110) }
+  })
+  owner.TextEx("Thin", "MGFXTextDemoBody", 594, 246, makeColor(190, 228, 238), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER, {
+      thin = true,
+      stroke = { width = 0.30, softness = 0.68, color = makeColor(0, 0, 0, 72) },
+      shadow = { x = 0, y = 1, blur = 3, color = makeColor(0, 0, 0, 85) }
+  })
+  owner.TextEx("Italic", "MGFXTextDemoBody", 664, 246, makeColor(238, 245, 249), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER, {
+      italic = true,
+      stroke = { width = 0.42, softness = 0.64, color = makeColor(0, 0, 0, 96) },
+      shadow = { x = 0, y = 2, blur = 4, color = makeColor(0, 0, 0, 105) }
+  })
+
+  owner.TextEx("bold / thin 中文", "MGFXTextDemoSmall", 514, 292, makeColor(178, 222, 234), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER, {
+      bold = true,
+      stroke = { width = 0.22, softness = 0.70, color = makeColor(0, 0, 0, 60) },
+      glow = { size = 3, color = makeColor(90, 210, 255, 38), opacity = 0.42, softness = 0.46 },
+      shadow = { x = 0, y = 1, blur = 3, color = makeColor(0, 0, 0, 78) }
+  })
+
+  owner.TextBoxEx("TextBox: 自动测量、ellipsis、矩形锚定，表格和栏位不再手写每个字符 baseline。", "MGFXTextDemoSmall", 78, 394, panelW - 156, 42, {
+      color = makeColor(214, 226, 220),
+      alignX = "left",
+      alignY = "center",
+      overflow = "ellipsis",
+      stroke = { width = 0.22, softness = 0.70, color = makeColor(0, 0, 0, 58) },
+      shadow = { x = 0, y = 1, blur = 3, color = makeColor(0, 0, 0, 95) }
+  })
+  owner.EndScreen()
+
+  draw.SimpleText("NATIVE", "DermaDefault", 78, 374, makeColor(190, 222, 230), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+  draw.SimpleText("native compare 中文 Aa123", "MGFXTextDemoNativeCJK", 178, 374, makeColor(220, 238, 240), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+
+  local stats = ownerStats(owner)
+  local status = owner.GetTextRendererStatus ~= nil then owner.GetTextRendererStatus() else {}
+  local fxLabel = strong then "strong" else "normal"
+  local composedEnabled = owner.TextComposedEnabled ~= nil and owner.TextComposedEnabled()
+  local composedLabel = composedEnabled then "on" else "off"
+  draw.SimpleText(stringFormat("text composed:%d native:%d bakes:%d blits:%d entries:%d fx:%s",
+    stats.textShaderDraws ?? status.shaderDraws ?? 0,
+    stats.textNativeDraws ?? status.nativeDraws ?? 0,
+    stats.textComposedBakes ?? status.composedBakes ?? 0,
+    stats.textComposedBlits ?? status.composedBlits ?? 0,
+    status.composedEntries ?? stats.textComposedEntries ?? 0,
+    fxLabel), "DermaDefault", 56, 500, makeColor(210, 230, 235))
+  draw.SimpleText(stringFormat("composed bakes:%d blits:%d entries:%d evicts:%d  (mgfx_text_composed %s)",
+    stats.textComposedBakes ?? status.composedBakes ?? 0,
+    stats.textComposedBlits ?? status.composedBlits ?? 0,
+    stats.textComposedEntries ?? status.composedEntries ?? 0,
+    stats.textComposedEvicts ?? status.composedEvicts ?? 0,
+    composedLabel), "DermaDefault", 56, 514, makeColor(170, 230, 200))
+}
+
+export client fn toggleTextDemo(owner, mode = "toggle") {
+  if hookRemove ~= nil {
+    hookRemove("HUDPaint", "MGFXTextDemo")
+  }
+
+  if mode == "0" or mode == "off" or mode == "close" or (mode == "toggle" and textDemoEnabled) {
+    textDemoEnabled = false
+    printFn("[MGFX] text demo off")
+    return false
+  }
+
+  if hookAdd ~= nil {
+    hookAdd("HUDPaint", "MGFXTextDemo", () => drawTextDemo(owner))
+  }
+
+  textDemoEnabled = true
+  printFn("[MGFX] text demo on")
+  true
+}
+
+export client fn traceTextDemo(owner) {
+  ensureTextDemoFonts(owner)
+  local resolve = owner?.DebugResolveText
+  if resolve == nil {
+    printFn("[MGFX] text trace unavailable")
+    return false
+  }
+
+  for index = 1, #textDemoStrings {
+    local item = textDemoStrings[index]
+    local info = resolve(item[1], item[2])
+    local missing = info?.missing ?? {}
+    printFn(stringFormat("[MGFX] demo text %d font=%s atlas=%s kind=%s route=%s routeKind=%s missing=%d",
+      index,
+      toString(item[2]),
+      toString(info?.atlasKey),
+      toString(info?.kind),
+      toString(info?.routeAtlas),
+      toString(info?.routeKind),
+      #missing))
+    if #missing > 0 {
+      printFn("[MGFX]   missing chars: " .. tableConcat(missing, ""))
+    }
+  }
+
+  true
+}
+
+export client fn toggleAtlasDebug(owner) {
+  atlasDebugEnabled = not atlasDebugEnabled
+  if hookRemove ~= nil {
+    hookRemove("HUDPaint", "MGFXTextAtlasDebug")
+  }
+
+  if not atlasDebugEnabled {
+    printFn("[MGFX] atlas debug overlay OFF")
+    return false
+  }
+
+  local debugDraw = owner?.DebugDrawTextAtlas
+  if hookAdd ~= nil and debugDraw ~= nil {
+    hookAdd("HUDPaint", "MGFXTextAtlasDebug", () => debugDraw())
+    printFn("[MGFX] atlas debug overlay ON")
+    return true
+  }
+
+  printFn("[MGFX] atlas debug unavailable")
+  false
+}
+
+export client fn toggleTextStress(owner) {
+  textStressEnabled = not textStressEnabled
+  if hookRemove ~= nil {
+    hookRemove("HUDPaint", "MGFXTextStress")
+  }
+
+  if not textStressEnabled {
+    printFn("[MGFX] text stress OFF")
+    return false
+  }
+
+  local register = owner?.RegisterTextFont
+  if register ~= nil {
+    register("MGFXStressNum", { face = "Bahnschrift", size = 40, weight = 900, lineHeight = 48 })
+  }
+
+  local style = {
+    stroke = { width = 1, color = makeColor(0, 0, 0, 190), samples = 10 },
+      shadow = { x = 1, y = 1, blur = 2, color = makeColor(0, 0, 0, 150) }
+  }
+
+  if hookAdd ~= nil {
+    hookAdd("HUDPaint", "MGFXTextStress", () => {
+        local cols = 8
+        local rows = 5
+        local cw = 168
+        local ch = 76
+        local x0 = 40
+        local y0 = 150
+        local frame = FrameNumber ~= nil then FrameNumber() else mathFloor(sysTime() * 60)
+        for index = 0, cols * rows - 1 {
+          local cx = x0 + (index % cols) * cw
+          local cy = y0 + mathFloor(index / cols) * ch
+          surfaceSetDrawColor(18, 22, 28, 235)
+          surfaceDrawRect(cx, cy, cw - 6, ch - 6)
+          surfaceSetDrawColor(60, 70, 84, 255)
+          surfaceDrawOutlinedRect(cx, cy, cw - 6, ch - 6)
+      }
+
+        owner.StartScreen(ScrW(), ScrH())
+        for index = 0, cols * rows - 1 {
+          local value = stringFormat("%02d:%02d", (frame + index * 7) % 100, (frame * (index + 1)) % 100)
+          local cx = x0 + (index % cols) * cw + (cw - 6) * 0.5
+          local cy = y0 + mathFloor(index / cols) * ch + (ch - 6) * 0.5
+          owner.TextEx(value, "MGFXStressNum", cx, cy, makeColor(130, 230, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, style)
+      }
+        owner.EndScreen()
+        draw.SimpleText("MGFX stress: " .. (cols * rows) .. " changing FX-composed numbers/frame -- watch for BLANK cells (toggle mgfx_text_atlas to inspect slots)", "DermaDefaultBold", x0, y0 - 18, makeColor(255, 220, 120))
+    })
+  }
+
+  printFn("[MGFX] text stress ON")
+  true
+}

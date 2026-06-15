@@ -1,0 +1,204 @@
+fn compactMeasureOrder() {
+  if measureOrderHead <= 128 {
+    return
+  }
+
+  local write = 1
+  for read = measureOrderHead, measureOrderTail {
+    measureOrder[write] = measureOrder[read]
+    if write ~= read {
+      measureOrder[read] = nil
+    }
+    write += 1
+  }
+  for index = write, measureOrderTail {
+    measureOrder[index] = nil
+  }
+  measureOrderHead = 1
+  measureOrderTail = measureOrderCount
+}
+
+fn cacheMeasure(key, value) {
+  measureCache[key] = value
+  measureOrderTail += 1
+  measureOrder[measureOrderTail] = key
+  measureOrderCount += 1
+
+  while measureOrderCount > MEASURE_LIMIT {
+    local oldKey = measureOrder[measureOrderHead]
+    measureOrder[measureOrderHead] = nil
+    measureOrderHead += 1
+    measureOrderCount -= 1
+    if oldKey ~= nil {
+      measureCache[oldKey] = nil
+    }
+  }
+
+  compactMeasureOrder()
+}
+
+fn setFontSafe(font) {
+  if surfaceSetFont ~= nil {
+    local target = font ?? "DermaDefault"
+    if protectedCall == nil or protectedCall(surfaceSetFont, target) {
+      return target
+    }
+    surfaceSetFont("DermaDefault")
+  }
+
+  "DermaDefault"
+}
+
+fn lineHeightFor(nativeFont, alias = nil, textStyle = nil, oversample = 1) {
+  local declared = toNumber(textStyle?.lineHeight ?? textStyle?.lineheight ?? alias?.lineHeight)
+  if declared ~= nil {
+    return declared
+  }
+
+  setFontSafe(nativeFont)
+  local _, h = surfaceGetTextSize("Mg")
+  mathMax(1, (h ?? 16) / normalizeOversample(oversample))
+}
+
+fn measureLine(nativeFont, text, tracking = 0, oversample = 1) {
+  setFontSafe(nativeFont)
+  local raw = toString(text ?? "")
+  local w, h = surfaceGetTextSize(raw)
+  local extra = toNumber(tracking) ?? 0
+  if extra ~= 0 and #raw > 1 {
+    local chars = textChars(raw)
+    if #chars > 1 {
+      w += (#chars - 1) * extra * normalizeOversample(oversample)
+    }
+  }
+  w / normalizeOversample(oversample)
+}
+
+fn layoutFor(value, font = "DermaDefault", textStyle = nil, noOversample = false, plainFace = false) {
+  local resolved = resolveStyle(textStyle ?? {})
+  local nativeFont, alias, oversample = nativeFor(font, resolved, noOversample, plainFace)
+  local tracking = toNumber(resolved.tracking ?? resolved.letterSpacing) ?? alias.tracking ?? 0
+  local lineHeight = lineHeightFor(nativeFont, alias, resolved, oversample)
+  local lines = stringExplode("\n", toString(value ?? ""), false)
+  local maxW = 0
+
+  for index = 1, #lines {
+    local text = lines[index]
+    local w = measureLine(nativeFont, text, tracking, oversample)
+    lines[index] = { text = text, w = w, y = (index - 1) * lineHeight }
+    maxW = mathMax(maxW, w)
+  }
+
+  {
+    font = nativeFont,
+      alias = alias,
+      lines = lines,
+      w = maxW,
+      h = mathMax(lineHeight, #lines * lineHeight),
+      lineHeight = lineHeight,
+      tracking = tracking,
+      oversample = oversample
+  }
+}
+
+export client fn measure(value, font = "DermaDefault") {
+  local nativeFont, alias, oversample = nativeFor(font)
+  local tracking = alias.tracking ?? 0
+  local key = tableConcat({ toString(font ?? ""), nativeFont, toString(tracking), toString(oversample), toString(value ?? "") }, "\31")
+  local cached = measureCache[key]
+
+  if cached ~= nil {
+    profile.measures += 1
+    return cached.w, cached.h
+  }
+
+  local layout = layoutFor(value, font)
+  local out = { w = layout.w, h = layout.h }
+  cacheMeasure(key, out)
+  profile.measures += 1
+  return out.w, out.h
+}
+
+fn ellipsize(value, font, maxW) {
+  local text = toString(value ?? "")
+  if maxW <= 0 {
+    return text
+  }
+
+  local w = measure(text, font)
+  if w <= maxW {
+    return text
+  }
+
+  local suffix = "..."
+  local suffixW = measure(suffix, font)
+  local lo = 0
+  local hi = #text
+  while lo < hi {
+    local mid = mathCeil((lo + hi) / 2)
+    local candidate = stringSub(text, 1, mid) .. suffix
+    local candidateW = measure(candidate, font)
+    if candidateW <= maxW {
+      lo = mid
+    } else {
+      hi = mid - 1
+    }
+  }
+
+  stringSub(text, 1, lo) .. suffix
+}
+
+fn wrapText(value, font, maxW, overflow = nil) {
+  local text = toString(value ?? "")
+  local width = toNumber(maxW) ?? 0
+  if width <= 0 {
+    return stringExplode("\n", text, false)
+  }
+
+  if overflow == "ellipsis" or overflow == "truncate" {
+    return { ellipsize(text, font, width) }
+  }
+
+  local out = {}
+  local rawLines = stringExplode("\n", text, false)
+  for rawIndex = 1, #rawLines {
+    local words = stringExplode(" ", rawLines[rawIndex], false)
+    local line = ""
+    for index = 1, #words {
+      local word = words[index]
+      local nextLine = line == "" then word else line .. " " .. word
+      local nextW = measure(nextLine, font)
+      if nextW > width and line ~= "" {
+        out[#out + 1] = line
+        line = word
+      } else {
+        line = nextLine
+      }
+    }
+    out[#out + 1] = line
+  }
+
+  out
+}
+
+export client fn measureBox(value, font, w, textStyle = nil) {
+  local resolved = resolveStyle(textStyle ?? {})
+  local lines = wrapText(value, font ?? resolved.font ?? "DermaDefault", toNumber(w) ?? 0, resolved.overflow)
+  local maxW = 0
+  for index = 1, #lines {
+    local lw = measure(lines[index], font ?? resolved.font ?? "DermaDefault")
+    maxW = mathMax(maxW, lw)
+  }
+
+  local nativeFont, alias, oversample = nativeFor(font ?? resolved.font ?? "DermaDefault", resolved)
+  local lineHeight = lineHeightFor(nativeFont, alias, resolved, oversample)
+  return maxW, #lines * lineHeight, lines
+}
+
+fn clearMeasureCache() {
+  clearTable(measureCache)
+  clearTable(measureOrder)
+  measureOrderHead = 1
+  measureOrderTail = 0
+  measureOrderCount = 0
+}

@@ -1,0 +1,339 @@
+fn textComposedEnabled() {
+  if not textComposerCapable() or atlasFailed {
+    return false
+  }
+
+  if composedCvar == nil and getConVar ~= nil {
+    composedCvar = getConVar("mgfx_text_composed") ?? false
+  }
+
+  if composedCvar == false or composedCvar == nil {
+    return true
+  }
+
+  composedCvar:GetBool()
+}
+
+fn textComposeBudget() {
+  if budgetCvar == nil and getConVar ~= nil {
+    budgetCvar = getConVar("mgfx_text_composed_budget") ?? false
+  }
+
+  if budgetCvar == false or budgetCvar == nil {
+    return DEFAULT_BUDGET
+  }
+
+  mathMax(0, budgetCvar:GetInt())
+}
+
+fn clearRenderTargetAlpha(rt, w = ATLAS_W, h = ATLAS_H) {
+  if rt == nil or renderPushRenderTarget == nil or renderClear == nil or renderPopRenderTarget == nil {
+    return false
+  }
+
+  renderPushRenderTarget(rt, 0, 0, w, h)
+  if renderSetScissorRect ~= nil {
+    renderSetScissorRect(0, 0, 0, 0, false)
+  }
+  if renderOverrideAlphaWriteEnable ~= nil {
+    renderOverrideAlphaWriteEnable(true, true)
+  }
+  renderClear(0, 0, 0, 0, true, true)
+  if renderOverrideAlphaWriteEnable ~= nil {
+    renderOverrideAlphaWriteEnable(false)
+  }
+  renderPopRenderTarget()
+  restoreScissor()
+  true
+}
+
+fn beginAtlasDraw() {
+  local alpha = surfaceGetAlphaMultiplier ~= nil then surfaceGetAlphaMultiplier() else 1
+  local cr = nil
+  local cg = nil
+  local cb = nil
+  if renderGetColorModulation ~= nil {
+    cr, cg, cb = renderGetColorModulation()
+  }
+  local blend = renderGetBlend ~= nil then renderGetBlend() else nil
+
+  if surfaceSetAlphaMultiplier ~= nil {
+    surfaceSetAlphaMultiplier(1)
+  }
+  if renderSetColorModulation ~= nil {
+    renderSetColorModulation(1, 1, 1)
+  }
+  if renderSetBlend ~= nil {
+    renderSetBlend(1)
+  }
+
+  return alpha, cr, cg, cb, blend
+}
+
+fn endAtlasDraw(alpha, cr, cg, cb, blend) {
+  if surfaceSetAlphaMultiplier ~= nil {
+    surfaceSetAlphaMultiplier(alpha ?? 1)
+  }
+  if renderSetColorModulation ~= nil and cr ~= nil {
+    renderSetColorModulation(cr, cg, cb)
+  }
+  if renderSetBlend ~= nil and blend ~= nil {
+    renderSetBlend(blend)
+  }
+}
+
+fn clearAtlasSlot(x, y, w, h) {
+  if surfaceDrawRect == nil or surfaceSetDrawColor == nil {
+    return false
+  }
+
+  x = mathFloor(mathMax(0, x ?? 0))
+  y = mathFloor(mathMax(0, y ?? 0))
+  w = mathCeil(mathMin(ATLAS_W - x, w ?? 0))
+  h = mathCeil(mathMin(ATLAS_H - y, h ?? 0))
+  if w <= 0 or h <= 0 {
+    return false
+  }
+
+  local cr = nil
+  local cg = nil
+  local cb = nil
+  if renderGetColorModulation ~= nil {
+    cr, cg, cb = renderGetColorModulation()
+  }
+  local blend = renderGetBlend ~= nil then renderGetBlend() else nil
+  local alpha = surfaceGetAlphaMultiplier ~= nil then surfaceGetAlphaMultiplier() else 1
+
+  if surfaceSetAlphaMultiplier ~= nil {
+    surfaceSetAlphaMultiplier(1)
+  }
+  if renderSetColorModulation ~= nil {
+    renderSetColorModulation(1, 1, 1)
+  }
+  if renderSetBlend ~= nil {
+    renderSetBlend(1)
+  }
+  if renderOverrideAlphaWriteEnable ~= nil {
+    renderOverrideAlphaWriteEnable(true, true)
+  }
+  if renderOverrideBlend ~= nil {
+    renderOverrideBlend(true, BLEND_ONE, BLEND_ZERO, BLENDFUNC_ADD, BLEND_ONE, BLEND_ZERO, BLENDFUNC_ADD)
+  }
+
+  surfaceSetDrawColor(0, 0, 0, 0)
+  surfaceDrawRect(x, y, w, h)
+
+  if renderOverrideBlend ~= nil {
+    renderOverrideBlend(false)
+  }
+  if renderOverrideAlphaWriteEnable ~= nil {
+    renderOverrideAlphaWriteEnable(false)
+  }
+  if surfaceSetAlphaMultiplier ~= nil {
+    surfaceSetAlphaMultiplier(alpha)
+  }
+  if renderSetColorModulation ~= nil and cr ~= nil {
+    renderSetColorModulation(cr, cg, cb)
+  }
+  if renderSetBlend ~= nil and blend ~= nil {
+    renderSetBlend(blend)
+  }
+
+  true
+}
+
+fn createAtlasMaterial(name, rt) {
+  if createMaterial == nil or rt == nil or rt.GetName == nil {
+    return nil
+  }
+
+  createMaterial(name, "UnlitGeneric", {
+    ["$basetexture"] = rt:GetName(),
+      ["$translucent"] = 1,
+      ["$vertexalpha"] = 1,
+      ["$vertexcolor"] = 1,
+      ["$ignorez"] = 1,
+      ["$nocull"] = 1,
+      ["$linearread_basetexture"] = 0
+  })
+}
+
+fn createAtlasPage(index) {
+  if getRenderTargetEx == nil or bitBor == nil {
+    return nil
+  }
+
+  local stamp = sysTime ~= nil then sysTime() else index
+  local flags = bitBor(256, 4, 8)
+  local rt = getRenderTargetEx(
+    "MGFXTextComposeAtlas_" .. toString(index) .. "_" .. toString(stamp),
+    ATLAS_W,
+    ATLAS_H,
+    RT_SIZE_LITERAL,
+    MATERIAL_RT_DEPTH_SEPARATE,
+    flags,
+    0,
+    IMAGE_FORMAT_BGRA8888
+  )
+  if rt == nil {
+    return nil
+  }
+
+  local pageMaterial = createAtlasMaterial("MGFXTextComposeAtlas_" .. toString(index) .. "_" .. toString(stamp), rt)
+  local page = {
+    index = index,
+      rt = rt,
+      material = pageMaterial,
+      w = ATLAS_W,
+      h = ATLAS_H,
+      x = 0,
+      y = 0,
+      rowH = 0,
+      generation = 1
+  }
+
+  if createPageTextMaterials ~= nil {
+    local mats = createPageTextMaterials(rt)
+    page.composeMat = mats?.compose
+    page.faceMat = mats?.face
+  }
+
+  atlasPages[index] = page
+  atlas = atlas ?? page
+  atlasMat = atlasMat ?? pageMaterial
+  clearRenderTargetAlpha(rt, ATLAS_W, ATLAS_H)
+  page
+}
+
+fn ensureTargets() {
+  if atlasPages[1] ~= nil {
+    return true
+  }
+
+  createAtlasPage(1) ~= nil
+}
+
+fn resetAtlasPage(page) {
+  if page == nil {
+    return nil
+  }
+
+  page.x = 0
+  page.y = 0
+  page.rowH = 0
+  page.generation = (page.generation ?? 0) + 1
+  if page.rt ~= nil {
+    clearRenderTargetAlpha(page.rt, page.w ?? ATLAS_W, page.h ?? ATLAS_H)
+  }
+
+  page
+}
+
+fn resetAtlasPages() {
+  atlasEpoch += 1
+  for _, page in ipairs(atlasPages) {
+    resetAtlasPage(page)
+  }
+  atlas = atlasPages[1]
+  atlasMat = atlas?.material ?? atlasMat
+}
+
+fn tryAllocOnPage(page, w, h, gutter) {
+  if page == nil {
+    return nil
+  }
+
+  local cellW = w + gutter * 2
+  local cellH = h + gutter * 2
+  if cellW > page.w or cellH > page.h {
+    return nil
+  }
+
+  if page.x + cellW > page.w {
+    page.x = 0
+    page.y += page.rowH
+    page.rowH = 0
+  }
+
+  if page.y + cellH > page.h {
+    return nil
+  }
+
+  local x = page.x + gutter
+  local y = page.y + gutter
+  page.x += cellW
+  page.rowH = mathMax(page.rowH, cellH)
+  return x, y
+}
+
+fn ensureAtlasPage(index) {
+  if atlasPages[index] ~= nil {
+    return atlasPages[index]
+  }
+  if index > MAX_ATLAS_PAGES {
+    return nil
+  }
+
+  createAtlasPage(index)
+}
+
+fn allocAtlasSlot(w, h, gutter) {
+  if not ensureTargets() {
+    return nil
+  }
+
+  w = mathCeil(w)
+  h = mathCeil(h)
+  gutter = mathCeil(mathMax(0, toNumber(gutter) ?? 0))
+
+  for index = 1, MAX_ATLAS_PAGES {
+    local page = ensureAtlasPage(index)
+    if page == nil {
+      break
+    }
+
+    local x, y = tryAllocOnPage(page, w, h, gutter)
+    if x ~= nil {
+      if index > SOFT_ATLAS_PAGES {
+        atlasNeedsReset = true
+      }
+      return page, x, y
+    }
+  }
+
+  if not atlasNeedsReset {
+    atlasNeedsReset = true
+    clearComposedCache()
+    atlasNeedsReset = false
+    for index = 1, MAX_ATLAS_PAGES {
+      local page = ensureAtlasPage(index)
+      if page == nil {
+        break
+      }
+      local x, y = tryAllocOnPage(page, w, h, gutter)
+      if x ~= nil {
+        return page, x, y
+      }
+    }
+  }
+
+  nil
+}
+
+fn clearComposedCache() {
+  clearTable(composedCache)
+  composedCacheCount = 0
+  bakesThisFrame = 0
+  atlasNeedsReset = false
+  resetAtlasPages()
+  true
+}
+
+fn atlasFillRatio() {
+  local usedH = 0
+  for _, page in ipairs(atlasPages) {
+    usedH += mathMin(page.h ?? ATLAS_H, (page.y ?? 0) + (page.rowH ?? 0))
+  }
+
+  #atlasPages > 0 then usedH / (#atlasPages * ATLAS_H) else 0
+}

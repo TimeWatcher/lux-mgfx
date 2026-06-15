@@ -1,0 +1,17 @@
+local toNumber = tonumber
+local typeOf = type
+
+fn field(command, name, index) {
+  if command[name] ~= nil {
+    return command[name]
+  }
+
+  command[index]
+}
+
+export client fn name(command) =
+  command.op ?? command[1]
+
+fn alreadyRecord(command) =
+  typeOf(command) == "table" and command.op ~= nil
+

@@ -1,0 +1,212 @@
+fn clearTable(t) {
+  for key, _ in pairs(t ?? {}) {
+    t[key] = nil
+  }
+
+  t
+}
+
+fn copyValue(value) {
+  if typeOf(value) ~= "table" {
+    return value
+  }
+
+  local out = {}
+  for key, item in pairs(value) {
+    out[key] = copyValue(item)
+  }
+  out
+}
+
+fn copyRawStyleInto(out, input) {
+  if typeOf(input) ~= "table" {
+    return out
+  }
+
+  for key, value in pairs(input) {
+    if key ~= "extends" and key ~= "base" and not (typeOf(key) == "string" and stringSub(key, 1, 6) == "__mgfx") {
+      out[key] = copyValue(value)
+    }
+  }
+
+  out
+}
+
+fn normalizeFontWeight(value, fallback = 500) {
+  local weight = toNumber(value)
+  if weight == nil {
+    return fallback ?? 500
+  }
+  if weight > 0 and weight <= 10 {
+    weight = weight <= 1 then 850 else weight * 100
+  }
+  mathClamp(mathFloor(weight + 0.5), 100, 1000)
+}
+
+fn normalizeOversample(value) {
+  local nextValue = toNumber(value) ?? 1
+  mathClamp(nextValue, 1, 4)
+}
+
+fn oversampleForSize(size) {
+  local nextSize = toNumber(size) ?? 16
+  if nextSize >= 28 {
+    return 3
+  }
+  2
+}
+
+fn fontKey(face, size, weight, italic) =
+  tableConcat({ toString(face ?? ""), toString(size ?? ""), toString(weight ?? ""), italic == true then "i" else "n" }, "\31")
+
+fn ensureNativeFont(face, size, weight, italic = false) {
+  local key = fontKey(face, size, weight, italic)
+  local existing = nativeFonts[key]
+  if existing ~= nil {
+    return existing
+  }
+
+  local suffix = utilCRC ~= nil then utilCRC(key) else toString(tableCount(nativeFonts) + 1)
+  local name = "MGFXTextNative_" .. suffix
+  nativeFonts[key] = name
+  if surfaceCreateFont ~= nil {
+    surfaceCreateFont(name, {
+      font = face ?? "DermaDefault",
+      size = mathFloor(size ?? 16),
+      weight = normalizeFontWeight(weight, 500),
+      antialias = true,
+      extended = true,
+      italic = italic == true
+    })
+  }
+
+  name
+}
+
+export client fn registerFont(fontName, spec = nil) {
+  if fontName == nil {
+    return false
+  }
+
+  local name = toString(fontName)
+  local input = spec ?? {}
+  local face = input.face ?? input.font
+  local size = toNumber(input.size)
+  local weight = toNumber(input.weight)
+  local sourceFont = input.sourceFont ?? input.nativeFont
+  local oversample = 1
+
+  if face ~= nil {
+    size = size ?? 16
+    oversample = normalizeOversample(input.oversample ?? oversampleForSize(size))
+    weight = normalizeFontWeight(weight, face == DEFAULT_CJK_FACE then 400 else 500)
+    sourceFont = ensureNativeFont(face, size * oversample, weight, input.italic == true)
+  } else {
+    sourceFont = sourceFont ?? name
+  }
+
+  fonts[name] = {
+    mode = face ~= nil then "alias" else "native",
+    sourceFont = sourceFont,
+    face = face,
+    size = size,
+    weight = weight,
+    oversample = oversample,
+    syntheticWeight = input.syntheticWeight == true or input.allowSyntheticWeight == true,
+    lineHeight = toNumber(input.lineHeight ?? input.lineheight),
+    tracking = toNumber(input.tracking ?? input.letterSpacing) ?? 0,
+    atlas = face ~= nil then "__composed" else "__native"
+  }
+
+  true
+}
+
+fn aliasFor(font) {
+  local key = toString(font ?? "")
+  local alias = fonts[key]
+  if alias ~= nil {
+    return alias
+  }
+
+  {
+    mode = "native",
+    sourceFont = font ?? "DermaDefault",
+    oversample = 1,
+    tracking = 0,
+    atlas = "__native"
+  }
+}
+
+fn nativeFor(font, textStyle = nil, noOversample = false, plainFace = false) {
+  local alias = aliasFor(font)
+  local oversample = noOversample or textStyle?.__mgfxNoOversample then 1 else normalizeOversample(alias.oversample)
+
+  if alias.face ~= nil {
+    local weight = alias.weight ?? 500
+    if textStyle?.syntheticNativeWeight == true {
+      if plainFace ~= true and textStyle?.bold == true {
+        weight += 220
+      }
+      if plainFace ~= true and textStyle?.thin == true {
+        weight = mathMin(weight, 350)
+      }
+      if toNumber(textStyle?.weight) ~= nil {
+        weight = normalizeFontWeight(textStyle.weight, weight)
+      }
+    }
+
+    return ensureNativeFont(alias.face, (alias.size ?? 16) * oversample, weight, textStyle?.italic == true), alias, oversample
+  }
+
+  return alias.sourceFont ?? font ?? "DermaDefault", alias, 1
+}
+
+fn copyStyleInto(out, input) {
+  local resolved = resolveStyle(input)
+  for key, value in pairs(resolved) {
+    out[key] = copyValue(value)
+  }
+
+  out
+}
+
+export client fn defineStyle(name, textStyle = nil) {
+  if name == nil {
+    return nil
+  }
+
+  styles[toString(name)] = resolveStyle(textStyle ?? {})
+  styles[toString(name)]
+}
+
+export client fn getStyle(name) =
+  styles[toString(name ?? "")]
+
+export client fn resolveStyle(textStyle = nil) {
+  if typeOf(textStyle) == "string" {
+    return copyValue(styles[toString(textStyle)] ?? {})
+  }
+
+  if typeOf(textStyle) ~= "table" {
+    return {}
+  }
+
+  if textStyle[RESOLVED_STYLE_MARK] == true {
+    return copyValue(textStyle)
+  }
+
+  local out = {}
+  local base = textStyle.extends ?? textStyle.base
+  if base ~= nil {
+    if typeOf(base) == "table" and base[1] ~= nil and not style.isColor(base) {
+      for _, item in ipairs(base) {
+        copyRawStyleInto(out, resolveStyle(item))
+      }
+    } else {
+      copyRawStyleInto(out, resolveStyle(base))
+    }
+  }
+  copyRawStyleInto(out, textStyle)
+  out[RESOLVED_STYLE_MARK] = true
+  out
+}

@@ -1,0 +1,162 @@
+export client fn chamferTuple(cuts, w, h) {
+  local tl
+  local tr
+  local br
+  local bl
+
+  if typeOf(cuts) == "table" {
+    tl = toNumber(cuts.tl ?? cuts[1]) ?? 0
+    tr = toNumber(cuts.tr ?? cuts[2]) ?? tl
+    br = toNumber(cuts.br ?? cuts[3]) ?? tr
+    bl = toNumber(cuts.bl ?? cuts[4]) ?? br
+  } else {
+    tl = toNumber(cuts) ?? 0
+    tr = tl
+    br = tl
+    bl = tl
+  }
+
+  local limit = mathMin(mathAbs(w), mathAbs(h)) * 0.5
+  return mathClamp(tl, 0, limit),
+    mathClamp(tr, 0, limit),
+    mathClamp(br, 0, limit),
+    mathClamp(bl, 0, limit)
+}
+
+export client fn chamferPoints(x, y, w, h, cuts) {
+  local tl, tr, br, bl = chamferTuple(cuts, w, h)
+  local points = {}
+
+  local add = (px, py) => {
+    local last = points[#points]
+    if last ~= nil {
+      local sameX = mathAbs(last.x - px) < 0.001
+      local sameY = mathAbs(last.y - py) < 0.001
+      if sameX and sameY {
+        return
+      }
+    }
+
+    points[#points + 1] = { x = px, y = py }
+  }
+
+  add(x + tl, y)
+  add(x + w - tr, y)
+  add(x + w, y + tr)
+  add(x + w, y + h - br)
+  add(x + w - br, y + h)
+  add(x + bl, y + h)
+  add(x, y + h - bl)
+  add(x, y + tl)
+
+  if #points > 1 {
+    local first = points[1]
+    local last = points[#points]
+    if mathAbs(first.x - last.x) < 0.001 and mathAbs(first.y - last.y) < 0.001 {
+      points[#points] = nil
+    }
+  }
+
+  points
+}
+
+fn signedArea(points) {
+  local area = 0
+  for index = 1, #points {
+    local ax, ay = pointXY(points[index])
+    local bx, by = pointXY(points[index % #points + 1])
+    area += ax * by - bx * ay
+  }
+
+  area * 0.5
+}
+
+fn isConvex(points) {
+  local sign = nil
+  for index = 1, #points {
+    local ax, ay = pointXY(points[index])
+    local bx, by = pointXY(points[index % #points + 1])
+    local cx, cy = pointXY(points[(index + 1) % #points + 1])
+    local cross = (bx - ax) * (cy - by) - (by - ay) * (cx - bx)
+    if mathAbs(cross) > 0.000001 {
+      local current = cross > 0
+      if sign == nil {
+        sign = current
+      } else if sign ~= current {
+        return false
+      }
+    }
+  }
+
+  true
+}
+
+export client fn normalizePoly(points) {
+  local count = #(points ?? {})
+  if count < 3 or count > 8 {
+    return nil, "DrawPoly expects 3 to 8 vertices"
+  }
+
+  if not isConvex(points) {
+    return nil, "DrawPoly expects a convex polygon"
+  }
+
+  local ordered = {}
+  for index = 1, count {
+    local x, y = pointXY(points[index])
+    ordered[index] = { x = x, y = y }
+  }
+
+  if signedArea(ordered) < 0 {
+    local reversed = {}
+    for index = count, 1, -1 {
+      reversed[#reversed + 1] = ordered[index]
+    }
+    ordered = reversed
+  }
+
+  local minX = ordered[1].x
+  local minY = ordered[1].y
+  local maxX = minX
+  local maxY = minY
+  for index = 2, count {
+    local point = ordered[index]
+    minX = mathMin(minX, point.x)
+    minY = mathMin(minY, point.y)
+    maxX = mathMax(maxX, point.x)
+    maxY = mathMax(maxY, point.y)
+  }
+
+  local w = maxX - minX
+  local h = maxY - minY
+  if w <= 0 or h <= 0 {
+    return nil, "DrawPoly bounds are empty"
+  }
+
+  for index = 1, count {
+    ordered[index] = { x = ordered[index].x - minX, y = ordered[index].y - minY }
+  }
+
+  return {
+    x = minX,
+      y = minY,
+      w = w,
+      h = h,
+      count = count,
+      points = ordered
+  }
+}
+
+fn polyDrawVerts(poly) {
+  local verts = {}
+  for index, point in ipairs(poly.points) {
+    verts[index] = {
+      x = poly.x + point.x,
+        y = poly.y + point.y,
+        u = point.x / poly.w,
+        v = point.y / poly.h
+    }
+  }
+
+  verts
+}

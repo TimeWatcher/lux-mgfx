@@ -1,0 +1,101 @@
+enum CommandOp repr string {
+  DrawRoundedBox = "DrawRoundedBox",
+  DrawChamferBox = "DrawChamferBox",
+  DrawPoly = "DrawPoly",
+  DrawImage = "DrawImage",
+  DrawLine = "DrawLine",
+  PushClip = "PushClip",
+  PopClip = "PopClip",
+  DrawProgressBar = "DrawProgressBar",
+  DrawSegmentBar = "DrawSegmentBar",
+  DrawRing = "DrawRing",
+  DrawArc = "DrawArc",
+  DrawSector = "DrawSector",
+  DrawText = "DrawText",
+  DrawTextBox = "DrawTextBox"
+}
+
+export client fn bounds(command) {
+  local op = name(command)
+
+  match op {
+    CommandOp.DrawText => {
+      local c = text(command)
+      return c.x, c.y, 0, 0
+    }
+    CommandOp.DrawTextBox | CommandOp.PushClip => {
+      local c = match op {
+        CommandOp.DrawTextBox => textBox(command)
+        _ => clip(command)
+      }
+      return c.x, c.y, c.w, c.h
+    }
+    CommandOp.DrawRing | CommandOp.DrawArc => {
+      local c = match op {
+        CommandOp.DrawRing => ring(command)
+        _ => arc(command)
+      }
+      local r = toNumber(c.radius) ?? 0
+      return c.x - r, c.y - r, r * 2, r * 2
+    }
+    CommandOp.DrawSector => {
+      local c = sector(command)
+      local r = toNumber(c.outerRadius) ?? 0
+      return c.x - r, c.y - r, r * 2, r * 2
+    }
+    CommandOp.DrawPoly => {
+      return 0, 0, 0, 0
+    }
+    _ => {
+      local c = normalize(command)
+      return c.x ?? 0,
+        c.y ?? 0,
+        c.w ?? 0,
+        c.h ?? 0
+    }
+  }
+}
+
+export client fn normalize(command) =
+  match name(command) {
+    CommandOp.DrawRoundedBox => roundedBox(command)
+    CommandOp.DrawChamferBox => chamferBox(command)
+    CommandOp.DrawPoly => poly(command)
+    CommandOp.DrawImage => image(command)
+    CommandOp.DrawLine => line(command)
+    CommandOp.PushClip | CommandOp.PopClip => clip(command)
+    CommandOp.DrawProgressBar => progressBar(command)
+    CommandOp.DrawSegmentBar => segmentBar(command)
+    CommandOp.DrawRing => ring(command)
+    CommandOp.DrawArc => arc(command)
+    CommandOp.DrawSector => sector(command)
+    CommandOp.DrawText => text(command)
+    CommandOp.DrawTextBox => textBox(command)
+    _ => command
+  }
+
+export client fn normalizeAll(commands) {
+  local out = {}
+  for index = 1, #(commands ?? {}) {
+    out[index] = normalize(commands[index])
+  }
+
+  out
+}
+
+export client fn values(command) {
+  match name(command) {
+    CommandOp.DrawRoundedBox | CommandOp.DrawChamferBox => roundedBoxValues(command)
+    CommandOp.DrawPoly => polyValues(command)
+    CommandOp.DrawImage => imageValues(command)
+    CommandOp.DrawLine => lineValues(command)
+    CommandOp.PushClip | CommandOp.PopClip => clipValues(command)
+    CommandOp.DrawProgressBar | CommandOp.DrawSegmentBar => progressBarValues(command)
+    CommandOp.DrawRing => ringValues(command)
+    CommandOp.DrawArc => arcValues(command)
+    CommandOp.DrawSector => sectorValues(command)
+    CommandOp.DrawText => textValues(command)
+    CommandOp.DrawTextBox => textBoxValues(command)
+    _ => nil
+  }
+}

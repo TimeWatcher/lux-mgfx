@@ -1,0 +1,49 @@
+Lux MGFX Non-Commercial License
+Version 1.0
+
+SPDX-License-Identifier: LicenseRef-Lux-MGFX-NC
+
+Copyright (c) 2026 TimeWatcher.
+
+This license applies to the MGFX package under lux/mgfx/ and to generated Lua
+or derivative works that include MGFX package code, unless a file says
+otherwise.
+
+1. Permission for non-commercial use
+
+You may use, copy, modify, merge, publish, distribute, and sublicense MGFX for
+non-commercial purposes, subject to the conditions in this license.
+
+2. Commercial use requires a separate license
+
+Commercial use is not permitted under this license. Any commercial use of MGFX
+requires a separate written license from the copyright holder.
+
+For this license, "commercial use" means use that is primarily intended for or
+directed toward commercial advantage, monetary compensation, paid services,
+revenue-generating products, advertising-supported products, sponsored work,
+client work, paid server offerings, or other business activity.
+
+3. Redistribution conditions
+
+If you distribute MGFX or a derivative work containing MGFX, you must:
+
+- keep this license notice with the distributed copy;
+- keep copyright notices and attribution notices;
+- clearly mark files that you modified; and
+- apply this same license to MGFX-derived portions of the work.
+
+4. No trademark license
+
+This license does not grant permission to use the Lux or MGFX names, logos,
+icons, or branding assets except as needed to describe the origin of the
+software.
+
+5. Disclaimer
+
+MGFX IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM,
+OUT OF, OR IN CONNECTION WITH MGFX OR THE USE OR OTHER DEALINGS IN MGFX.

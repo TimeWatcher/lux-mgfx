@@ -1,0 +1,97 @@
+export client fn mask(kind, spec = nil) {
+  if typeOf(kind) == "table" {
+    local out = tableCopy(kind)
+    if out.kind == nil and out.shape ~= nil {
+      out.kind = out.shape
+    }
+    out.__mgfxMask = true
+    return out
+  }
+
+  local out = typeOf(spec) == "table" then tableCopy(spec) else {}
+  out.kind = kind ?? out.kind
+  if out.kind == nil and out.shape ~= nil {
+    out.kind = out.shape
+  }
+  out.__mgfxMask = true
+  out
+}
+
+fn roundedMaskStyle(resolved) =
+  {
+    kind = "rounded",
+    radius = resolved.radius ?? 0
+  }
+
+fn chamferMaskStyle() =
+  {
+    kind = "chamfer",
+    cuts = 0
+  }
+
+fn circleMaskStyle() =
+  {
+    kind = "circle"
+  }
+
+fn capsuleMaskStyle() =
+  {
+    kind = "capsule"
+  }
+
+fn stringMaskStyle(kind, resolved) =
+  match kind {
+    "round" | "rounded" | "roundedbox" | "roundrect" => roundedMaskStyle(resolved)
+    "chamfer" | "bevel" => chamferMaskStyle()
+    "circle" => circleMaskStyle()
+    "capsule" | "pill" => capsuleMaskStyle()
+    _ => nil
+  }
+
+fn canonicalMaskKind(kind) =
+  match kind {
+    "round" | "roundrect" | "roundedbox" => "rounded"
+    "bevel" => "chamfer"
+    "pill" => "capsule"
+    "alpha" | "image" => "texture"
+    _ => kind
+  }
+
+export client fn imageMaskStyle(maskValue, drawStyle = nil) {
+  local resolved = drawStyle ?? {}
+  stopif maskValue == false or maskValue == "none", nil
+
+  if maskValue == nil {
+    return resolved.radius ~= nil then roundedMaskStyle(resolved) else nil
+  }
+
+  if typeOf(maskValue) == "string" {
+    return stringMaskStyle(stringLower(maskValue), resolved)
+  }
+
+  stopif typeOf(maskValue) ~= "table", nil
+
+  local out = tableCopy(maskValue)
+  out.kind = out.kind ?? out.shape ?? (out.source ~= nil then "texture" else nil) ?? (out.material ~= nil then "texture" else nil) ?? (out.texture ~= nil then "texture" else nil)
+
+  if typeOf(out.kind) == "string" {
+    out.kind = canonicalMaskKind(stringLower(out.kind))
+  }
+
+  match out.kind {
+    "chamfer" => {
+      if out.cuts == nil {
+        out.cuts = 0
+      }
+    }
+    "rounded" => {
+      if out.radius == nil {
+        out.radius = resolved.radius ?? 0
+      }
+    }
+    _ => nil
+  }
+
+  out
+}
+

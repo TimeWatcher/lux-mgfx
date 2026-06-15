@@ -1,0 +1,163 @@
+import * as geometryImport from "@lux/mgfx/geometry"
+import * as paintImport from "@lux/mgfx/paint"
+import * as primitivesImport from "@lux/mgfx/primitives"
+import * as roundrectImport from "@lux/mgfx/roundrect"
+import * as styleImport from "@lux/mgfx/style"
+import * as textImport from "@lux/mgfx/text"
+
+local geometry = geometryImport
+local paint = paintImport
+local primitives = primitivesImport
+local roundrect = roundrectImport
+local style = styleImport
+local text = textImport
+
+local getConVar = GetConVar
+local matrixCtor = Matrix
+local makeColor = Color
+local mathClamp = math.Clamp
+local mathCos = math.cos
+local mathFloor = math.floor
+local mathAbs = math.abs
+local mathMax = math.max
+local mathMin = math.min
+local mathRad = math.rad
+local mathSin = math.sin
+local renderCopyRenderTargetToTexture = render?.CopyRenderTargetToTexture
+local surfaceSetDrawColor = surface.SetDrawColor
+local surfaceSetMaterial = surface.SetMaterial
+local toNumber = tonumber
+local typeOf = type
+
+local drawTexturedQuad = geometry.drawTexturedQuad
+local hasTransform = geometry.hasTransform
+local paramMatrixProbe = matrixCtor ~= nil then matrixCtor() else nil
+local paramMatrixSetUnpacked = paramMatrixProbe?.SetUnpacked
+local paramMatrices = {}
+local widgetMaterials = {}
+local widgetBlurRT = nil
+local widgetMatOK = (material) => material ~= nil and material.IsError ~= nil and not material:IsError()
+local widgetHasShaders = () => false
+local forceFallbackCvar = nil
+local progressStyle = {}
+local segmentStyle = {}
+local ringStyle = {}
+local arcStyle = {}
+local sectorStyle = {}
+local imageStyleScratch = {}
+local iconStyleScratch = {}
+
+local defaultProgressTrack = makeColor(10, 18, 24, 190)
+local defaultProgressStroke = makeColor(255, 255, 255, 18)
+local defaultSegmentFill = makeColor(255, 120, 72, 230)
+local defaultSegmentTrack = makeColor(255, 255, 255, 22)
+local defaultRingFill = makeColor(255, 255, 255, 180)
+local transparentColor = makeColor(0, 0, 0, 0)
+
+fn configureWidgets(owner) {
+  owner = owner ?? {}
+  local materialState = owner._MaterialState ?? {}
+  widgetMaterials = owner._Materials ?? materialState.materials ?? widgetMaterials ?? {}
+  widgetBlurRT = owner._BlurRT ?? materialState.blurRT ?? widgetBlurRT
+  widgetMatOK = owner.MaterialOK ?? materialState.matOK ?? widgetMatOK
+  widgetHasShaders = owner.hasShaders ?? widgetHasShaders
+  true
+}
+
+fn materialOK(material) =
+  widgetMatOK ~= nil and widgetMatOK(material)
+
+fn shadersActive() {
+  if forceFallbackCvar == nil and getConVar ~= nil {
+    forceFallbackCvar = getConVar("mgfx_force_fallback") ?? false
+  }
+  if forceFallbackCvar ~= nil and forceFallbackCvar ~= false and forceFallbackCvar:GetBool() {
+    return false
+  }
+
+  widgetHasShaders ~= nil and widgetHasShaders()
+}
+
+fn setupParamMatrix(material,
+  a0, a1, a2, a3,
+  b0, b1, b2, b3,
+  c0, c1, c2, c3,
+  d0, d1, d2, d3) {
+  if material == nil or paramMatrixSetUnpacked == nil or matrixCtor == nil {
+    return false
+  }
+
+  local matrix = paramMatrices[material]
+  if matrix == nil {
+    matrix = matrixCtor()
+    paramMatrices[material] = matrix
+  }
+
+  paramMatrixSetUnpacked(matrix,
+    a0 ?? 0, b0 ?? 0, c0 ?? 0, d0 ?? 0,
+    a1 ?? 0, b1 ?? 0, c1 ?? 0, d1 ?? 0,
+    a2 ?? 0, b2 ?? 0, c2 ?? 0, d2 ?? 0,
+    a3 ?? 0, b3 ?? 0, c3 ?? 0, d3 ?? 0
+  )
+  material:SetMatrix("$viewprojmat", matrix)
+  true
+}
+
+fn setupAuxConstants(material,
+  a0, a1, a2, a3,
+  b0, b1, b2, b3,
+  c0, c1, c2, c3) {
+  if material == nil {
+    return false
+  }
+  material:SetFloat("$c0_x", a0 ?? 0)
+  material:SetFloat("$c0_y", a1 ?? 0)
+  material:SetFloat("$c0_z", a2 ?? 0)
+  material:SetFloat("$c0_w", a3 ?? 0)
+  material:SetFloat("$c1_x", b0 ?? 0)
+  material:SetFloat("$c1_y", b1 ?? 0)
+  material:SetFloat("$c1_z", b2 ?? 0)
+  material:SetFloat("$c1_w", b3 ?? 0)
+  material:SetFloat("$c2_x", c0 ?? 0)
+  material:SetFloat("$c2_y", c1 ?? 0)
+  material:SetFloat("$c2_z", c2 ?? 0)
+  material:SetFloat("$c2_w", c3 ?? 0)
+  true
+}
+
+fn copyInto(out, value) {
+  for key, _ in pairs(out) {
+    out[key] = nil
+  }
+
+  if typeOf(value) == "table" {
+    for key, item in pairs(value) {
+      out[key] = item
+    }
+  }
+
+  out
+}
+
+fn colorAt(fill, t) =
+  style.colorAtFill(fill, t)
+
+fn fxFlags(drawStyle) {
+  local fx = typeOf(drawStyle.fx) == "table" and drawStyle.fx or nil
+  if fx == nil {
+    return false, false, false, 0
+  }
+
+  local glow = fx.glow == true or typeOf(fx.glow) == "table"
+  local sheen = fx.sheen == true or typeOf(fx.sheen) == "table"
+  local marker = fx.marker == true or typeOf(fx.marker) == "table"
+  local ticks = 0
+  local tickSpec = fx.ticks
+  if typeOf(tickSpec) == "number" {
+    ticks = tickSpec
+  } else if typeOf(tickSpec) == "table" {
+    ticks = tickSpec.count ?? 0
+  }
+
+  return glow, sheen, marker, mathClamp(mathFloor(toNumber(ticks) ?? 0), 0, 31)
+}

@@ -1,0 +1,11 @@
+export client fn textEx(value, font, x, y, color, ax = 0, ay = 0, textStyle = nil) =
+  text.drawEx(value, font, x, y, color, ax, ay, textStyle)
+
+export client fn textDraw(value, font, x, y, color, ax = 0, ay = 0) =
+  text.draw(value, font, x, y, color, ax, ay)
+
+export client fn textBoxEx(value, font, x, y, w, h, textStyle = nil) =
+  text.boxEx(value, font, x, y, w, h, textStyle)
+
+export client fn textBox(value, font, x, y, w, h, color, alignX = TEXT_ALIGN_LEFT, alignY = TEXT_ALIGN_TOP) =
+  text.box(value, font, x, y, w, h, color, alignX, alignY)

@@ -1,0 +1,72 @@
+import * as m from "@lux/compile/macro"
+
+fn emptyTable(span) =
+  m.table({}, span)
+
+fn targetRef(name, span) =
+  m.path({ "TARGET", name }, span)
+
+fn tableSlot(tableName, id, span) =
+  m.index(m.ident(tableName, span), m.number(id, span), span)
+
+fn keyArgs(keys, span) {
+  local out = {}
+  for index = 1, #keys {
+    out[#out + 1] = m.string(keys[index], span)
+  }
+
+  return out
+}
+
+fn targetKeys(spec, groups) {
+  if spec.keyGroup ~= nil {
+    return groups[spec.keyGroup] ?? {}
+  }
+
+  spec.keys ?? {}
+}
+
+fn matrixEntry(spec, groups, span) =
+  m.table({
+      m.named("family", m.string(spec.family, span), span),
+      m.named("coverage", m.string(spec.coverage, span), span),
+      m.named("keys", m.call(m.ident("keySet", span), keyArgs(targetKeys(spec, groups), span), span), span)
+  }, span)
+
+fn baseStatements(span) =
+  {
+    m.exportRuntime("client", m.constOne("TARGET", emptyTable(span), span), span),
+    m.exportRuntime("client", m.constOne("TARGET_NAME", emptyTable(span), span), span),
+    m.localOne("matrix", emptyTable(span), span)
+  }
+
+fn pushTargetInit(out, spec, groups, span) {
+  out[#out + 1] = m.assignOne(targetRef(spec.name, span), m.number(spec.id, span), span)
+  out[#out + 1] = m.assignOne(tableSlot("TARGET_NAME", spec.id, span), m.string("MGFX.TARGET." .. spec.name, span), span)
+  out[#out + 1] = m.assignOne(tableSlot("matrix", spec.id, span), matrixEntry(spec, groups, span), span)
+
+  return out
+}
+
+fn capabilityStatements(spec, span) {
+  local statements = baseStatements(span)
+  local targets = spec.targets ?? {}
+  local groups = spec.groups ?? {}
+  for index = 1, #targets {
+    pushTargetInit(statements, targets[index], groups, span)
+  }
+
+  return statements
+}
+
+export macro fn defineCapabilities(ctx, call) {
+  if not m.expectArgCount(ctx, call, 1, "`defineCapabilities` expects a capability declaration table") {
+    return nil
+  }
+
+  if not m.requireStatement(ctx, call, "`defineCapabilities` can only be used as a statement") {
+    return nil
+  }
+
+  return m.stmts(capabilityStatements(m.data(call.args[1]), call.span))
+}

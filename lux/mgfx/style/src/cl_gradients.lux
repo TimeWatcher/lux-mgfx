@@ -1,0 +1,215 @@
+export client fn normalizeStops(stops) {
+  stopif typeOf(stops) ~= "table", nil
+
+  local out = {}
+  for index, stop in ipairs(stops) {
+    local position = nil
+    local color = nil
+
+    if isColor(stop) {
+      color = stop
+      position = (#stops <= 1) then 0 else (index - 1) / (#stops - 1)
+    } else if typeOf(stop) == "table" {
+      position = stop.pos ?? stop.t ?? stop.offset ?? stop[1]
+      color = stop.color ?? stop[2]
+    }
+
+    if color ~= nil {
+      out[#out + 1] = {
+        pos = mathClamp(toNumber(position) ?? ((#stops <= 1) then 0 else (index - 1) / (#stops - 1)), 0, 1),
+        color = colorOr(color)
+      }
+    }
+  }
+
+  stopif #out == 0, nil
+
+  tableSort(out, (a, b) => a.pos < b.pos)
+
+  if out[1].pos > 0 {
+    tableInsert(out, 1, { pos = 0, color = out[1].color })
+  }
+
+  if out[#out].pos < 1 {
+    out[#out + 1] = { pos = 1, color = out[#out].color }
+  }
+
+  out
+}
+
+export client fn stopsVisible(stops) {
+  for _, stop in ipairs(stops ?? {}) {
+    local color = stop.color ?? stop[2]
+    if color ~= nil {
+      if alpha(color.a) > 0 {
+        return true
+      }
+    }
+  }
+
+  false
+}
+
+export client fn firstLastStops(stops) {
+  local normalized = normalizeStops(stops)
+  stopif normalized == nil, colorOr(nil), colorOr(nil), nil
+
+  return normalized[1].color, normalized[#normalized].color, normalized
+}
+
+export client fn colorAtStops(stops, t) {
+  local normalized = normalizeStops(stops)
+  if normalized == nil {
+    return colorOr(nil)
+  }
+
+  local amount = mathClamp(toNumber(t) ?? 0, 0, 1)
+  for index = 1, #normalized - 1 {
+    local a = normalized[index]
+    local b = normalized[index + 1]
+    if amount <= b.pos {
+      local span = mathMax(0.0001, b.pos - a.pos)
+      return lerpColor((amount - a.pos) / span, a.color, b.color)
+    }
+  }
+
+  normalized[#normalized].color
+}
+
+export client fn solid(color) {
+  local c = colorOr(color)
+  local cache = ensureSolidCache()
+  local cached = cache[c]
+  if cached ~= nil {
+    return cached
+  }
+
+  cached = {
+    kind = FILL_SOLID,
+    colorA = c,
+    colorB = c,
+    _mgfxFillVisible = alpha(c.a) > 0
+  }
+  cache[c] = cached
+  cached
+}
+
+fn gradient(kind, a, b, stops, extra) {
+  local base = {
+    kind = kind,
+    colorA = a,
+    colorB = b,
+    stops = stops,
+    _mgfxStopsNormalized = true,
+    _mgfxLutCacheSafe = true,
+    _mgfxFillVisible = stopsVisible(stops)
+  }
+
+  if extra ~= nil {
+    for key, value in pairs(extra) {
+      base[key] = value
+    }
+  }
+
+  base
+}
+
+fn twoColorStops(a, b) =
+  {
+    { pos = 0, color = a },
+    { pos = 1, color = b }
+  }
+
+export client fn linearGradient(x1, y1, x2, y2, stopsOrColorA, colorB) {
+  local colorA
+  local stops
+
+  if typeOf(stopsOrColorA) == "table" and not isColor(stopsOrColorA) {
+    colorA, colorB, stops = firstLastStops(stopsOrColorA)
+  } else {
+    colorA = colorOr(stopsOrColorA)
+    colorB = colorOr(colorB, colorA)
+    stops = twoColorStops(colorA, colorB)
+  }
+
+  return gradient(FILL_LINEAR, colorA, colorB, stops, {
+    x1 = toNumber(x1) ?? 0,
+    y1 = toNumber(y1) ?? 0,
+    x2 = toNumber(x2) ?? 1,
+    y2 = toNumber(y2) ?? 1
+  })
+}
+
+export client fn linearGradientStops(x1, y1, x2, y2, stops) =
+  linearGradient(x1, y1, x2, y2, stops)
+
+export client fn radialGradient(cx, cy, radius, stopsOrColorA, colorB) {
+  local colorA
+  local stops
+
+  if typeOf(stopsOrColorA) == "table" and not isColor(stopsOrColorA) {
+    colorA, colorB, stops = firstLastStops(stopsOrColorA)
+  } else {
+    colorA = colorOr(stopsOrColorA)
+    colorB = colorOr(colorB, colorA)
+    stops = twoColorStops(colorA, colorB)
+  }
+
+  return gradient(FILL_RADIAL, colorA, colorB, stops, {
+    cx = toNumber(cx) ?? 0.5,
+    cy = toNumber(cy) ?? 0.5,
+    radius = toNumber(radius) ?? 0.5
+  })
+}
+
+export client fn conicGradient(cx, cy, rotation, stopsOrColorA, colorB) {
+  local colorA
+  local stops
+
+  if typeOf(stopsOrColorA) == "table" and not isColor(stopsOrColorA) {
+    colorA, colorB, stops = firstLastStops(stopsOrColorA)
+  } else {
+    colorA = colorOr(stopsOrColorA)
+    colorB = colorOr(colorB, colorA)
+    stops = twoColorStops(colorA, colorB)
+  }
+
+  return gradient(FILL_CONIC, colorA, colorB, stops, {
+    cx = toNumber(cx) ?? 0.5,
+    cy = toNumber(cy) ?? 0.5,
+    rotation = toNumber(rotation) ?? 0
+  })
+}
+
+export client fn ringRadialGradient(stopsOrColorA, colorB) =
+  do {
+    local fill = radialGradient(0.5, 0.5, 0.5, stopsOrColorA, colorB)
+    fill.radialSpace = "ring"
+    fill.localRadial = true
+    fill
+  }
+
+export client fn sectorRadialGradient(stopsOrColorA, colorB) =
+  ringRadialGradient(stopsOrColorA, colorB)
+
+export client fn shapeAngularGradient(stopsOrColorA, colorB = nil, rotation = nil) {
+  if typeOf(stopsOrColorA) == "table" and not isColor(stopsOrColorA) and typeOf(colorB) == "number" and rotation == nil {
+    rotation = colorB
+    colorB = nil
+  }
+
+  local fill = conicGradient(0.5, 0.5, rotation ?? 0, stopsOrColorA, colorB)
+  fill.angularSpace = "shape"
+  fill.localAngular = true
+  return fill
+}
+
+export client fn ringAngularGradient(stopsOrColorA, colorB, rotation = 0) =
+  shapeAngularGradient(stopsOrColorA, colorB, rotation)
+
+export client fn arcAngularGradient(stopsOrColorA, colorB, rotation = 0) =
+  shapeAngularGradient(stopsOrColorA, colorB, rotation)
+
+export client fn sectorAngularGradient(stopsOrColorA, colorB, rotation = 0) =
+  shapeAngularGradient(stopsOrColorA, colorB, rotation)
+

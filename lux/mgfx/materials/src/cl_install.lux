@@ -1,0 +1,12 @@
+export client fn install(owner) {
+  local state = create(owner)
+  owner._MaterialState = state
+  owner._Materials = state.materials
+  owner._BlurRT = state.blurRT
+  owner.MaterialOK = matOK
+  owner.GetMaterialState = () => state
+  owner.hasShaders = () => hasShaders(state)
+  owner.shaderStatus = () => shaderStatus(state)
+  owner.TextureFallbackMaterial = textureFallbackMaterial
+  owner
+}

@@ -1,0 +1,108 @@
+import * as m from "@lux/compile/macro"
+
+fn commandIdent(span) =
+  m.ident("command", span)
+
+fn commandIndex(command, index, span) =
+  m.index(command, m.number(index, span), span)
+
+fn appendCommandArgs(command, count, index, out, span) {
+  if index > count {
+    return out
+  }
+
+  out[index] = commandIndex(command, index, span)
+  return appendCommandArgs(command, count, index + 1, out, span)
+}
+
+fn commandArgs(command, count, span) =
+  appendCommandArgs(command, count, 1, {}, span)
+
+fn normalizeFn(name, builder, valueFields, span) {
+  local command = commandIdent(span)
+  local count = #valueFields + 1
+  local body = m.block({
+      m.ifStmt(
+        m.call(m.ident("alreadyRecord", span), { command }, span),
+        { m.returnOne(command, span) },
+        nil,
+        span
+      ),
+      m.returnOne(
+        m.call(m.ident(builder, span), commandArgs(command, count, span), span),
+        span
+      )
+  }, nil, span)
+
+  return m.exportRuntime("client", m.fnDecl(name, { "command" }, body, span), span)
+}
+
+fn appendValueArgs(command, valueFields, index, out, span) {
+  if index > #valueFields {
+    return out
+  }
+
+  out[#out + 1] = m.call(m.ident("field", span), {
+      command,
+      m.string(valueFields[index], span),
+      m.number(index + 1, span)
+  }, span)
+
+  return appendValueArgs(command, valueFields, index + 1, out, span)
+}
+
+fn valueArgs(command, valueFields, span) =
+  appendValueArgs(command, valueFields, 1, {}, span)
+
+fn valuesFn(name, valueFields, span) {
+  local command = commandIdent(span)
+  local body = m.block({
+      m.returnMany(valueArgs(command, valueFields, span), span)
+  }, nil, span)
+
+  return m.exportRuntime("client", m.fnDecl(name .. "Values", { "command" }, body, span), span)
+}
+
+fn commandShape(name, builder, valueFields, span) =
+  {
+    normalizeFn(name, builder, valueFields, span),
+    valuesFn(name, valueFields, span)
+  }
+
+fn aliasFn(name, target, span) {
+  local command = commandIdent(span)
+  local body = m.call(m.ident(target, span), { command }, span)
+  return m.exportRuntime("client", m.fnDecl(name, { "command" }, body, span), span)
+}
+
+fn appendCommandStatements(ctx, specs, index, out, span) {
+  if index > #specs {
+    return out
+  }
+
+  local spec = specs[index]
+  if spec.alias ~= nil {
+    out[#out + 1] = aliasFn(spec.alias, spec.target, span)
+  } else {
+    local generated = commandShape(spec.name, spec.builder, spec.fields ?? {}, span)
+    out[#out + 1] = generated[1]
+    out[#out + 1] = generated[2]
+  }
+
+  return appendCommandStatements(ctx, specs, index + 1, out, span)
+}
+
+fn commandStatements(ctx, specs, span) =
+  appendCommandStatements(ctx, specs, 1, {}, span)
+
+export macro fn defineCommands(ctx, call) {
+  if not m.expectArgCount(ctx, call, 1, "`defineCommands` expects a command declaration table") {
+    return nil
+  }
+
+  if not m.requireStatement(ctx, call, "`defineCommands` can only be used as a statement") {
+    return nil
+  }
+
+  return m.stmts(commandStatements(ctx, m.data(call.args[1]), call.span))
+}

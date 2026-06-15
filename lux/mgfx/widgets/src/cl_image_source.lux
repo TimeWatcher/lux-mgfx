@@ -1,0 +1,64 @@
+local imageMakeMaterial = Material
+local imageCreateMaterial = CreateMaterial
+local imageSysTime = SysTime
+local imageSourceSerial = 0
+local imageMaterialCache = {}
+local imageTextureFallbackMaterial = nil
+local imageWhiteTexture = nil
+
+fn imageTextureSource(source) {
+  if typeOf(source) == "string" {
+    local cached = imageMaterialCache[source]
+    if cached == nil {
+      local material = imageMakeMaterial ~= nil then imageMakeMaterial(source, "smooth noclamp") else nil
+      cached = material ~= nil and material.IsError ~= nil and not material:IsError() then material else false
+      imageMaterialCache[source] = cached
+    }
+
+    if cached == false {
+      return nil, nil
+    }
+
+    return cached:GetTexture("$basetexture"), cached
+  }
+
+  if source ~= nil and source.GetTexture ~= nil {
+    return source:GetTexture("$basetexture"), source
+  }
+
+  if source ~= nil and source.GetName ~= nil {
+    return source, nil
+  }
+
+  return nil, nil
+}
+
+fn imageWhiteTextureSource() {
+  if imageWhiteTexture ~= nil {
+    return imageWhiteTexture ~= false and imageWhiteTexture or nil
+  }
+
+  local texture = imageTextureSource("color/white")
+  imageWhiteTexture = texture ?? false
+  return imageWhiteTexture ~= false and imageWhiteTexture or nil
+}
+
+fn imageFallbackMaterialForTexture(texture) {
+  if texture == nil or imageCreateMaterial == nil {
+    return nil
+  }
+
+  if imageTextureFallbackMaterial == nil {
+    imageSourceSerial += 1
+    local suffix = imageSysTime ~= nil then imageSysTime() else imageSourceSerial
+    imageTextureFallbackMaterial = imageCreateMaterial("mgfx_texture_fallback_" .. suffix, "UnlitGeneric", {
+      ["$basetexture"] = "color/white",
+        ["$translucent"] = "1",
+        ["$vertexalpha"] = "1",
+        ["$vertexcolor"] = "1"
+    })
+  }
+
+  imageTextureFallbackMaterial:SetTexture("$basetexture", texture)
+  imageTextureFallbackMaterial
+}

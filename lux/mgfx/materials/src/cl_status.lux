@@ -1,0 +1,64 @@
+export client fn hasShaders(state) {
+  if renderGetDXLevel ~= nil {
+    local dxLevel = renderGetDXLevel()
+    if dxLevel ~= nil and dxLevel < 90 {
+      return false
+    }
+  }
+
+  state ~= nil and state.shaderVersion ~= "" and matOK(state.materials.roundrect)
+}
+
+export client fn shaderStatus(state) {
+  local materials = state?.materials ?? {}
+  return {
+    loaded = hasShaders(state),
+      version = state?.shaderVersion ?? "",
+      mount = state?.shaderMountName ?? "external/custom",
+      roundrect = materials.roundrect,
+      roundrectFx = materials.roundrect_fx,
+      roundrectSolid = materials.roundrect_solid,
+      roundrectStroke = materials.roundrect_stroke,
+      paramProbe = materials.param_probe,
+      chamfer = materials.chamfer,
+      blur = materials.roundrect_blur,
+      image = materials.roundrect_texture,
+      chamferImage = materials.chamfer_texture,
+      imageMask = materials.image_mask,
+      imageMaskOuterGlow = materials.image_mask_outerglow,
+      imageMaskBackdrop = materials.image_mask_backdrop,
+      chamferStroke = materials.chamfer_stroke,
+      innerGlow = materials.roundrect_innerglow,
+      chamferInnerGlow = materials.chamfer_innerglow,
+      outerGlow = materials.roundrect_outerglow,
+      chamferOuterGlow = materials.chamfer_outerglow,
+      progress = materials.progress,
+      progressFx = materials.progress_fx,
+      segmentbar = materials.segmentbar,
+      line = materials.line,
+      textCompose = materials.text_compose,
+      pattern = materials.roundrect_pattern,
+      chamferPattern = materials.chamfer_pattern,
+      polyPattern = materials.poly_pattern,
+      ring = materials.ring,
+      ringFx = materials.ring_fx,
+      ringBackdrop = materials.ring_backdrop,
+      ringStroke = materials.ring_stroke,
+      ringInnerGlow = materials.ring_innerglow,
+      ringOuterGlow = materials.ring_outerglow,
+      ringPattern = materials.ring_pattern,
+      polyStroke = materials.poly_stroke,
+      poly3 = materials.poly3,
+      poly3Blur = materials.poly3_blur,
+      poly4 = materials.poly4,
+      poly4Blur = materials.poly4_blur,
+      poly5 = materials.poly5,
+      poly5Blur = materials.poly5_blur,
+      poly6 = materials.poly6,
+      poly6Blur = materials.poly6_blur,
+      poly7 = materials.poly7,
+      poly7Blur = materials.poly7_blur,
+      poly8 = materials.poly8,
+      poly8Blur = materials.poly8_blur
+  }
+}

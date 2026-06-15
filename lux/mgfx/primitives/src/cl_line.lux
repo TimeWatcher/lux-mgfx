@@ -1,0 +1,185 @@
+fn setupLineConstants(material, fill) {
+  local colorA = fill.colorA ?? color_white
+  local colorB = fill.colorB ?? colorA
+  local r, g, b, a = style.color01(colorA)
+  local br, bg, bb, ba = style.color01(colorB)
+  setupParamMatrix(material,
+    r, g, b, a,
+    br, bg, bb, ba,
+    0, 0, 1, 0,
+    0, 0, 0, 0
+  )
+  style.bindGradientLut(material, fill)
+}
+
+fn drawLineShaderVerts(verts, fill) {
+  local material = primitiveMaterials.line
+  if not shadersActive() or not materialOK(material) {
+    return false
+  }
+
+  setupLineConstants(material, fill)
+  surfaceSetMaterial(material)
+  surfaceSetDrawColor(255, 255, 255, 255)
+  drawTransformedPoly(verts)
+  true
+}
+
+fn lineQuadVertsInto(out, x1, y1, x2, y2, strokeWidth, noCaps, fringeOverride = nil) {
+  local dx = x2 - x1
+  local dy = y2 - y1
+  local len = mathSqrt(dx * dx + dy * dy)
+  if len <= 0 {
+    return nil
+  }
+
+  local tx = dx / len
+  local ty = dy / len
+  local nx = -ty
+  local ny = tx
+  local fringe = fringeOverride == nil then LINE_AA_FRINGE else mathMax(0, fringeOverride)
+  local capFringe = noCaps then 0 else fringe
+  local halfWidth = strokeWidth * 0.5 + fringe
+  local u0 = -capFringe / len
+  local u1 = 1 + capFringe / len
+  local vPad = fringe / mathMax(strokeWidth, 0.001)
+  local vOffset = noCaps then LINE_NO_CAPS_UV_OFFSET else 0
+  local v0 = vOffset - vPad
+  local v1 = vOffset + 1 + vPad
+  local sx = x1 - tx * capFringe
+  local sy = y1 - ty * capFringe
+  local ex = x2 + tx * capFringe
+  local ey = y2 + ty * capFringe
+
+  out[1].x = sx + nx * halfWidth
+  out[1].y = sy + ny * halfWidth
+  out[1].u = u0
+  out[1].v = v0
+  out[2].x = ex + nx * halfWidth
+  out[2].y = ey + ny * halfWidth
+  out[2].u = u1
+  out[2].v = v0
+  out[3].x = ex - nx * halfWidth
+  out[3].y = ey - ny * halfWidth
+  out[3].u = u1
+  out[3].v = v1
+  out[4].x = sx - nx * halfWidth
+  out[4].y = sy - ny * halfWidth
+  out[4].u = u0
+  out[4].v = v1
+
+  out
+}
+
+fn drawLineRect(x, y, w, h, fill, resolved) {
+  if resolved.radius ~= nil or resolved.outerGlow ~= nil or resolved.backdrop ~= nil {
+    return roundrect.roundedBoxEx(x, y, w, h, {
+      radius = resolved.radius ?? 0,
+        backdrop = resolved.backdrop,
+        fill = fill,
+        outerGlow = resolved.outerGlow
+    })
+  }
+
+  drawTransformedPoly({
+    { x = x, y = y },
+      { x = x + w, y = y },
+      { x = x + w, y = y + h },
+      { x = x, y = y + h }
+  })
+}
+
+fn drawLineFallbackVerts(verts, fill, backdrop = nil) {
+  polyEx({
+    { x = verts[1].x, y = verts[1].y },
+      { x = verts[2].x, y = verts[2].y },
+      { x = verts[3].x, y = verts[3].y },
+      { x = verts[4].x, y = verts[4].y }
+  }, {
+    backdrop = backdrop,
+      fill = fill
+  })
+}
+
+fn drawLineQuad(x1, y1, x2, y2, strokeWidth, noCaps, verts, fill, resolved) {
+  if resolved.backdrop ~= nil {
+    local backdropVerts = lineQuadVertsInto(lineFallbackVertsScratch, x1, y1, x2, y2, strokeWidth, noCaps, 0)
+    if backdropVerts ~= nil {
+      drawLineFallbackVerts(backdropVerts, style.solid(makeColor(0, 0, 0, 0)), resolved.backdrop)
+    }
+  }
+
+  if resolved.radius == nil and resolved.outerGlow == nil and drawLineShaderVerts(verts, fill) {
+    return
+  }
+
+  local fallbackVerts = lineQuadVertsInto(lineFallbackVertsScratch, x1, y1, x2, y2, strokeWidth, noCaps, 0)
+  drawLineFallbackVerts(fallbackVerts ?? verts, fill, nil)
+}
+
+export client fn drawLineImmediate(x1, y1, x2, y2, color = nil, width = nil, drawStyle = nil) {
+  local resolved = drawStyle ?? {}
+  local strokeWidth = mathMax(0, style.strokeWidth(width ?? resolved.width ?? resolved.strokeWidth, 1))
+  if strokeWidth <= 0 {
+    return
+  }
+
+  local fill = style.fillFromStyle(resolved.fill ?? resolved.color ?? color ?? defaultLineColor)
+  if not style.fillVisible(fill) and resolved.backdrop == nil {
+    return
+  }
+
+  if mathAbs(y2 - y1) < 0.001 {
+    local x = mathMin(x1, x2)
+    local w = mathAbs(x2 - x1)
+    if w <= 0 {
+      return
+    }
+    local y = y1 - strokeWidth * 0.5
+    if resolved.radius ~= nil or resolved.outerGlow ~= nil {
+      return drawLineRect(x, y, w, strokeWidth, fill, resolved)
+    }
+  }
+
+  if mathAbs(x2 - x1) < 0.001 {
+    local y = mathMin(y1, y2)
+    local h = mathAbs(y2 - y1)
+    if h <= 0 {
+      return
+    }
+    local x = x1 - strokeWidth * 0.5
+    if resolved.radius ~= nil or resolved.outerGlow ~= nil {
+      return drawLineRect(x, y, strokeWidth, h, fill, resolved)
+    }
+  }
+
+  local noCaps = resolved.noCaps == true
+  local verts = lineQuadVertsInto(lineVertsScratch, x1, y1, x2, y2, strokeWidth, noCaps)
+  if verts == nil {
+    return
+  }
+
+  drawLineQuad(x1, y1, x2, y2, strokeWidth, noCaps, verts, fill, resolved)
+}
+
+export client fn lineEx(x1, y1, x2, y2, drawStyle = nil) {
+  local resolved = drawStyle ?? {}
+  local transform, stripped = splitStyleTransform(resolved)
+  if transform == nil {
+    return drawLineImmediate(x1, y1, x2, y2, nil, nil, stripped)
+  }
+
+  local width = mathMax(1, style.strokeWidth(stripped.width ?? stripped.strokeWidth, 1))
+  local pad = width * 0.5
+  local bx = mathMin(x1, x2) - pad
+  local by = mathMin(y1, y2) - pad
+  local bw = mathAbs(x2 - x1) + pad * 2
+  local bh = mathAbs(y2 - y1) + pad * 2
+  withTransform(transform, bx, by, bw, bh, () => drawLineImmediate(x1, y1, x2, y2, nil, nil, stripped))
+}
+
+export client fn line(x1, y1, x2, y2, width = 1, fill = nil) {
+  lineStyle.width = width
+  lineStyle.fill = fill
+  drawLineImmediate(x1, y1, x2, y2, nil, nil, lineStyle)
+}

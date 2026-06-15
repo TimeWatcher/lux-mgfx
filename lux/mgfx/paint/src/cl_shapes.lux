@@ -1,0 +1,118 @@
+export client fn roundedBoxEx(x, y, w, h, drawStyle = nil) {
+  local resolved = drawStyle ?? {}
+  local radius = style.radiusScalar(resolved.radius ?? resolved.r ?? 0, w, h)
+  local fill = resolved.fill ?? resolved.color
+  local stroke = resolved.stroke
+  local strokeWidth = resolved.strokeWidth
+
+  if style.fillVisible(fill) {
+    drawRoundedBox(radius, x, y, w, h, fillColor(fill))
+  }
+
+  strokeRect(x, y, w, h, stroke, strokeWidth)
+}
+
+export client fn roundedBox(x, y, w, h, radius, fill, stroke = nil, strokeWidth = nil) =
+  roundedBoxEx(x, y, w, h, {
+    radius = radius,
+      fill = fill,
+      stroke = stroke,
+      strokeWidth = strokeWidth
+  })
+
+export client fn chamferBoxEx(x, y, w, h, drawStyle = nil) {
+  local resolved = drawStyle ?? {}
+  local cuts = resolved.cuts ?? 0
+  local tl, tr, br, bl = style.radiusTuple(cuts, w, h)
+  local points = {
+    { x = x + tl, y = y },
+      { x = x + w - tr, y = y },
+      { x = x + w, y = y + tr },
+      { x = x + w, y = y + h - br },
+      { x = x + w - br, y = y + h },
+      { x = x + bl, y = y + h },
+      { x = x, y = y + h - bl },
+      { x = x, y = y + tl }
+  }
+
+  polyEx(points, resolved)
+}
+
+export client fn chamferBox(x, y, w, h, cuts, fill, stroke = nil, strokeWidth = nil) =
+  chamferBoxEx(x, y, w, h, {
+    cuts = cuts,
+      fill = fill,
+      stroke = stroke,
+      strokeWidth = strokeWidth
+  })
+
+export client fn polyEx(points, drawStyle = nil) {
+  local resolved = drawStyle ?? {}
+  local fill = resolved.fill ?? resolved.color
+
+  if style.fillVisible(fill) {
+    setColor(fillColor(fill))
+    geometryDrawTransformedPoly(points)
+  }
+}
+
+export client fn poly(points, fill, stroke = nil, strokeWidth = nil) =
+  polyEx(points, {
+    fill = fill,
+      stroke = stroke,
+      strokeWidth = strokeWidth
+  })
+
+export client fn lineEx(x1, y1, x2, y2, drawStyle = nil) {
+  local resolved = drawStyle ?? {}
+  local width = mathMax(1, mathFloor(style.strokeWidth(resolved.width ?? resolved.strokeWidth, 1)))
+  local fill = fillColor(resolved.fill ?? resolved.color ?? resolved.stroke)
+
+  setColor(fill)
+
+  if width <= 1 {
+    surfaceDrawLine(x1, y1, x2, y2)
+    return
+  }
+
+  local dx = x2 - x1
+  local dy = y2 - y1
+  local len = mathMax(0.0001, mathSqrt(dx * dx + dy * dy))
+  local nx = -dy / len * width * 0.5
+  local ny = dx / len * width * 0.5
+
+  geometryDrawTransformedPoly({
+    { x = x1 + nx, y = y1 + ny },
+      { x = x2 + nx, y = y2 + ny },
+      { x = x2 - nx, y = y2 - ny },
+      { x = x1 - nx, y = y1 - ny }
+  })
+}
+
+export client fn line(x1, y1, x2, y2, width = 1, fill = nil) =
+  lineEx(x1, y1, x2, y2, { width = width, fill = fill })
+
+export client fn circleEx(cx, cy, radius, drawStyle = nil) {
+  local resolved = drawStyle ?? {}
+  local points = circlePoly(cx, cy, radius, resolved.segments ?? 48)
+  polyEx(points, resolved)
+}
+
+export client fn circle(cx, cy, radius, fill, stroke = nil, strokeWidth = nil) =
+  circleEx(cx, cy, radius, {
+    fill = fill,
+      stroke = stroke,
+      strokeWidth = strokeWidth
+  })
+
+export client fn capsuleEx(x, y, w, h, drawStyle = nil) {
+  local radius = mathMin(w, h) * 0.5
+  roundedBoxEx(x, y, w, h, { ...(drawStyle ?? {}), radius = radius })
+}
+
+export client fn capsule(x, y, w, h, fill, stroke = nil, strokeWidth = nil) =
+  capsuleEx(x, y, w, h, {
+    fill = fill,
+      stroke = stroke,
+      strokeWidth = strokeWidth
+  })

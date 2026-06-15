@@ -1,0 +1,300 @@
+local chamferFillFallbackStyle = {}
+local chamferStrokeFallbackStyle = { fill = transparentColor }
+local transparentFill = { kind = style.FILL_SOLID, colorA = transparentColor, colorB = transparentColor }
+
+enum ChamferFillView repr existing(kind = "kind") {
+  Linear(kind = style.FILL_LINEAR, x1: number, y1: number, x2: number, y2: number),
+  Radial(kind = style.FILL_RADIAL, cx: number, cy: number, radius: number),
+  Conic(kind = style.FILL_CONIC, cx: number, cy: number, rotation: number)
+}
+
+fn chamferFillParams(material, fill) {
+  local p0 = 0
+  local p1 = 0
+  local p2 = 1
+  local p3 = 0
+
+  match fill {
+    ChamferFillView.Linear { x1, y1, x2, y2 } => {
+      p0 = x1 ?? 0
+      p1 = y1 ?? 0
+      p2 = x2 ?? 1
+      p3 = y2 ?? 1
+      style.bindGradientLut(material, fill)
+    }
+    ChamferFillView.Radial { cx, cy, radius } => {
+      p0 = cx ?? 0.5
+      p1 = cy ?? 0.5
+      p2 = radius ?? 0.5
+      p3 = 0
+      style.bindGradientLut(material, fill)
+    }
+    ChamferFillView.Conic { cx, cy, rotation } => {
+      p0 = cx ?? 0.5
+      p1 = cy ?? 0.5
+      p2 = style.normalizedRotation(rotation)
+      p3 = 0
+      style.bindGradientLut(material, fill)
+    }
+    _ => nil
+  }
+
+  return p0, p1, p2, p3
+}
+
+fn setupPrimitiveAuxConstants(material,
+  a0, a1, a2, a3,
+  b0, b1, b2, b3,
+  c0, c1, c2, c3) {
+    stopif material == nil, false
+
+    material:SetFloat("$c0_x", a0 ?? 0)
+    material:SetFloat("$c0_y", a1 ?? 0)
+    material:SetFloat("$c0_z", a2 ?? 0)
+    material:SetFloat("$c0_w", a3 ?? 0)
+    material:SetFloat("$c1_x", b0 ?? 0)
+    material:SetFloat("$c1_y", b1 ?? 0)
+    material:SetFloat("$c1_z", b2 ?? 0)
+    material:SetFloat("$c1_w", b3 ?? 0)
+    material:SetFloat("$c2_x", c0 ?? 0)
+    material:SetFloat("$c2_y", c1 ?? 0)
+    material:SetFloat("$c2_z", c2 ?? 0)
+    material:SetFloat("$c2_w", c3 ?? 0)
+    true
+  }
+
+fn setupPrimitiveFillConstants(material, w, h, fill, stroke, strokeWidth, radius = 0) {
+  stopif material == nil, false
+
+  fill = fill ?? transparentFill
+  local colorA = fill.colorA ?? color_white
+  local colorB = fill.colorB ?? colorA
+  local strokeColor = stroke ?? transparentColor
+  local fillKind = fill.kind ?? style.FILL_SOLID
+  local packedStyle = mathClamp(style.strokeWidth(strokeWidth, 0), 0, 255) + mathClamp(fillKind, 0, 3) * 256
+  local r, g, b, a = style.color01(colorB)
+  local p0, p1, p2, p3 = chamferFillParams(material, fill)
+
+  local sr, sg, sb, sa = style.color01(strokeColor)
+  setupParamMatrix(material,
+    r, g, b, a,
+    w, h, packedStyle, radius,
+    p0, p1, p2, p3,
+    sr, sg, sb, sa
+  )
+  style.setDrawColor(colorA)
+  true
+}
+
+fn drawChamferInnerGlowSpec(x, y, w, h, cuts, spec) {
+  stopif spec == nil or not shadersActive() or not materialOK(primitiveMaterials.chamfer_innerglow), false
+
+  local color = spec.color
+  stopif color == nil or (color.a ?? 255) <= 0, false
+
+  local tl, tr, br, bl = chamferTuple(cuts, w, h)
+  local material = primitiveMaterials.chamfer_innerglow
+  local r, g, b, a = style.color01(color)
+  setupParamMatrix(material,
+    r, g, b, a,
+    w, h, 0, 0,
+    tl, tr, br, bl,
+    mathMax(0.001, toNumber(spec.width) ?? 8),
+    mathMax(0, toNumber(spec.strength) ?? 1),
+    mathMax(0.001, toNumber(spec.falloff) ?? 1.65),
+    0
+  )
+  surfaceSetMaterial(material)
+  surfaceSetDrawColor(255, 255, 255, 255)
+  drawTexturedQuad(x, y, w, h)
+  true
+}
+
+fn drawChamferOuterGlowSpec(x, y, w, h, cuts, spec) {
+  stopif spec == nil or not shadersActive() or not materialOK(primitiveMaterials.chamfer_outerglow), false
+
+  local color = spec.color
+  stopif color == nil or (color.a ?? 255) <= 0, false
+
+  local spread = mathMax(1, toNumber(spec.spread ?? spec.width) ?? 18)
+  local tl, tr, br, bl = chamferTuple(cuts, w, h)
+  local material = primitiveMaterials.chamfer_outerglow
+  local r, g, b, a = style.color01(color)
+  setupParamMatrix(material,
+    r, g, b, a,
+    w + spread * 2, h + spread * 2, spread, spread,
+    tl, tr, br, bl,
+    mathMax(0.001, toNumber(spec.width) ?? spread),
+    mathMax(0, toNumber(spec.strength) ?? 1),
+    mathMax(0.001, toNumber(spec.falloff) ?? 1.9),
+    0
+  )
+  surfaceSetMaterial(material)
+  surfaceSetDrawColor(255, 255, 255, 255)
+  drawTexturedQuad(x - spread, y - spread, w + spread * 2, h + spread * 2)
+  true
+}
+
+fn drawChamferPattern(x, y, w, h, cuts, pattern) {
+  local spec = roundrect.patternStyle(pattern)
+  stopif spec == nil or not shadersActive() or not materialOK(primitiveMaterials.chamfer_pattern), false
+
+  local color = spec.color ?? spec.tint
+  stopif color ~= nil and (color.a ?? 255) <= 0, false
+
+  local tl, tr, br, bl = chamferTuple(cuts, w, h)
+  local angle = mathRad(toNumber(spec.angle) ?? 135)
+  local smoke = match spec.kind {
+    "smoke" => true
+    _ => false
+  }
+  local material = primitiveMaterials.chamfer_pattern
+  local r, g, b, a = style.color01(style.asColor(spec.color ?? spec.tint, makeColor(255, 255, 255, 24)))
+  local pz = 1
+  local pw = 1
+  if smoke {
+    local density = mathClamp(mathFloor((toNumber(spec.density) ?? 0.48) * 255 + 0.5), 0, 255)
+    local softness = mathClamp(mathFloor((toNumber(spec.softness) ?? 0.3) * 255 + 0.5), 0, 255)
+    local warp = mathClamp(mathFloor((toNumber(spec.warp) ?? 0.85) * 255 + 0.5), 0, 255)
+    pz = mathMax(1, toNumber(spec.scale) ?? 140)
+    pw = density + softness * 256 + warp * 65536
+  } else {
+    pz = mathMax(1, toNumber(spec.spacing) ?? 12)
+    pw = mathMax(0.25, toNumber(spec.width) ?? 2)
+  }
+
+  setupParamMatrix(material,
+    r, g, b, a,
+    w, h, roundrect.patternOffset(spec), (smoke and 1 or 0) + (smoke and (toNumber(spec.seed) ?? 0) or 0),
+    mathCos(angle), mathSin(angle), pz, pw,
+    tl, tr, br, bl
+  )
+  surfaceSetMaterial(material)
+  surfaceSetDrawColor(255, 255, 255, 255)
+  drawTexturedQuad(x, y, w, h)
+  true
+}
+
+fn drawChamferStroke(x, y, w, h, cuts, stroke, strokeWidth) {
+  stopif not style.strokeVisible(stroke, strokeWidth) or not shadersActive() or not materialOK(primitiveMaterials.chamfer_stroke), false
+
+  local tl, tr, br, bl = chamferTuple(cuts, w, h)
+  local material = primitiveMaterials.chamfer_stroke
+  local r, g, b, a = style.color01(stroke)
+  setupParamMatrix(material,
+    r, g, b, a,
+    w, h, mathMax(0, style.strokeWidthValue(strokeWidth, 0)), 0,
+    tl, tr, br, bl,
+    0, 0, 0, 0
+  )
+  surfaceSetMaterial(material)
+  surfaceSetDrawColor(255, 255, 255, 255)
+  drawTexturedQuad(x, y, w, h)
+  true
+}
+
+fn drawChamferBasePass(x, y, w, h, cuts, fill, stroke, strokeWidth, innerSpec) {
+  stopif not shadersActive() or not materialOK(primitiveMaterials.chamfer), false
+
+  local tl, tr, br, bl = chamferTuple(cuts, w, h)
+  local material = primitiveMaterials.chamfer
+  local glowR = 0
+  local glowG = 0
+  local glowB = 0
+  local glowA = 0
+  local glowWidth = 0
+  local glowStrength = 0
+  local glowFalloff = 1
+  if innerSpec ~= nil {
+    glowR, glowG, glowB, glowA = style.color01(innerSpec.color ?? transparentColor)
+    glowWidth = mathMax(0.001, toNumber(innerSpec.width) ?? 8)
+    glowStrength = mathMax(0, toNumber(innerSpec.strength) ?? 1)
+    glowFalloff = mathMax(0.001, toNumber(innerSpec.falloff) ?? 1.65)
+  }
+
+  setupPrimitiveAuxConstants(material,
+    tl, tr, br, bl,
+    glowR, glowG, glowB, glowA,
+    glowWidth, glowStrength, glowFalloff, 0
+  )
+  setupPrimitiveFillConstants(material, w, h, fill ?? transparentFill, stroke, strokeWidth, 0)
+  surfaceSetMaterial(material)
+  drawTexturedQuad(x, y, w, h)
+  true
+}
+
+fn copyChamferStyleInto(out, source, fillOnly) {
+  for key, _ in pairs(out) {
+    out[key] = nil
+  }
+
+  for key, value in pairs(source ?? {}) {
+    out[key] = value
+  }
+
+  if fillOnly {
+    out.stroke = nil
+    out.strokeWidth = 0
+    out.pattern = nil
+  }
+
+  out
+}
+
+fn drawChamferFallback(x, y, w, h, cuts, drawStyle, fillOnly = false) {
+  local fallback = copyChamferStyleInto(chamferFillFallbackStyle, drawStyle, fillOnly)
+  polyEx(chamferPoints(x, y, w, h, cuts), fallback)
+}
+
+fn drawChamferStrokeFallback(x, y, w, h, cuts, stroke, strokeWidth) {
+  chamferStrokeFallbackStyle.stroke = stroke
+  chamferStrokeFallbackStyle.strokeWidth = strokeWidth
+  polyEx(chamferPoints(x, y, w, h, cuts), chamferStrokeFallbackStyle)
+}
+
+fn drawChamferBoxImmediate(x, y, w, h, drawStyle = nil, resolvedCuts = nil) {
+  local resolved = drawStyle ?? {}
+  local cuts = resolvedCuts ?? resolved.cuts ?? 0
+  local outer = roundrect.outerGlowStyle(resolved.outerGlow)
+  if outer ~= nil {
+    drawChamferOuterGlowSpec(x, y, w, h, cuts, outer)
+  }
+
+  local fill = style.fillFromStyle(resolved.fill ?? resolved.color)
+  local strokeWidth = style.strokeWidthValue(resolved.strokeWidth, 0)
+  local fillVisible = style.fillVisible(fill)
+  local strokeVisible = style.strokeVisible(resolved.stroke, strokeWidth)
+  local inner = roundrect.innerGlowStyle(resolved.innerGlow)
+  local pattern = resolved.pattern
+  local baseDrawn = false
+  local baseDrewStroke = false
+  local baseDrewInner = false
+
+  if resolved.shadow == nil and resolved.backdrop == nil and (fillVisible or strokeVisible or inner ~= nil) {
+    if pattern == nil {
+      baseDrawn = drawChamferBasePass(x, y, w, h, cuts, fill, resolved.stroke, strokeWidth, inner)
+      baseDrewStroke = baseDrawn and strokeVisible
+      baseDrewInner = baseDrawn and inner ~= nil
+    } else if fillVisible {
+      baseDrawn = drawChamferBasePass(x, y, w, h, cuts, fill, nil, 0, nil)
+    }
+  }
+
+  if not baseDrawn and (fillVisible or resolved.shadow ~= nil or resolved.backdrop ~= nil) {
+    drawChamferFallback(x, y, w, h, cuts, resolved, true)
+  }
+
+  if pattern ~= nil {
+    drawChamferPattern(x, y, w, h, cuts, pattern)
+  }
+
+  if strokeVisible and not baseDrewStroke {
+    if not drawChamferStroke(x, y, w, h, cuts, resolved.stroke, strokeWidth) {
+      drawChamferStrokeFallback(x, y, w, h, cuts, resolved.stroke, strokeWidth)
+    }
+  }
+
+  if inner ~= nil and not baseDrewInner {
+    drawChamferInnerGlowSpec(x, y, w, h, cuts, inner)
+  }
+}

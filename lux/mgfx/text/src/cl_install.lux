@@ -1,0 +1,50 @@
+import * as frameImport from "@lux/mgfx/frame"
+
+local frame = frameImport
+
+export client fn install(owner) {
+  owner.stats = owner.stats ?? {}
+  local materialState = owner._MaterialState ?? {}
+  local renderer = createTextRenderer({
+    M = owner,
+      owner = owner,
+      stats = owner.stats,
+      materials = owner._Materials ?? materialState.materials ?? {},
+      createPageTextMaterials = materialState.CreatePageTextMaterials,
+      matOK = owner.MaterialOK ?? materialState.matOK,
+      profiler = owner.Profiler,
+      restoreScissor = frame.restoreScissor,
+      gradientLutForFill = owner.GradientLutForFill
+  })
+
+  owner.RegisterTextFont = renderer.RegisterFont
+  owner.DefineTextStyle = renderer.DefineStyle
+  owner.GetTextStyle = renderer.GetStyle
+  owner.ResolveTextStyle = renderer.ResolveStyle
+  owner.PushTextStyle = renderer.PushStyle
+  owner.PopTextStyle = renderer.PopStyle
+  owner.MakeTextRecord = renderer.MakeRecord
+  owner.MeasureText = renderer.MeasureText
+  owner.MeasureTextBox = renderer.MeasureTextBox
+  owner.PrewarmText = renderer.PrewarmText
+  owner.TextBatchEx = renderer.Flush
+  owner.Text = renderer.DrawTextImmediate
+  owner.TextEx = renderer.DrawTextImmediate
+  owner.TextBox = renderer.DrawTextBoxImmediate
+  owner.TextBoxEx = renderer.DrawTextBoxImmediate
+  owner.ClearTextMeasureCache = renderer.ClearMeasureCache
+  owner.ClearTextComposedCache = renderer.ClearComposedCache
+  owner.TextComposedEnabled = renderer.ComposedEnabled
+  owner.SetTextProfileActive = renderer.SetProfileActive
+  owner.ResetTextProfile = renderer.ResetProfile
+  owner.GetTextProfileSnapshot = renderer.ProfileSnapshot
+  owner.ResetTextFrameStats = renderer.ResetFrameStats
+  owner.GetTextRendererStatus = renderer.Status
+  owner.DebugResolveText = renderer.DebugResolve
+  owner.DebugDrawTextAtlas = renderer.DebugDrawAtlas
+  owner._CreateTextRenderer = createTextRenderer
+  owner._TextRenderer = renderer
+  owner._TextStyles = styles
+  owner._TextFonts = fonts
+  owner
+}

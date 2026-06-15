@@ -1,0 +1,95 @@
+export client fn innerGlowStyle(glow) {
+  stopif glow == nil or glow == false, nil
+
+  if glow == true {
+    return {
+      color = makeColor(76, 190, 255, 34),
+      width = 7,
+      strength = 1,
+      falloff = style.glowSoftnessToFalloff(0.55)
+    }
+  }
+
+  if style.isColor(glow) {
+    return {
+      color = glow,
+      width = 7,
+      strength = 1,
+      falloff = style.glowSoftnessToFalloff(0.55)
+    }
+  }
+
+  stopif typeOf(glow) ~= "table", nil
+
+  return {
+    color = style.asColor(glow.color ?? glow.tint, makeColor(76, 190, 255, 34)),
+    width = mathMax(1, toNumber(glow.size ?? glow.width) ?? 7),
+    strength = toNumber(glow.opacity ?? glow.strength) ?? 1,
+    falloff = toNumber(glow.falloff) ?? style.glowSoftnessToFalloff(glow.softness, 0.55)
+  }
+}
+
+export client fn outerGlowStyle(glow) {
+  stopif glow == nil or glow == false, nil
+
+  if glow == true {
+    return {
+      color = makeColor(76, 190, 255, 88),
+      width = 18,
+      spread = 18,
+      strength = 1,
+      falloff = style.glowSoftnessToFalloff(0.54)
+    }
+  }
+
+  if style.isColor(glow) {
+    return {
+      color = glow,
+      width = 18,
+      spread = 18,
+      strength = 1,
+      falloff = style.glowSoftnessToFalloff(0.54)
+    }
+  }
+
+  stopif typeOf(glow) ~= "table", nil
+
+  local width = mathMax(1, toNumber(glow.size ?? glow.width ?? glow.spread) ?? 18)
+  return {
+    color = style.asColor(glow.color ?? glow.tint, makeColor(76, 190, 255, 88)),
+    width = width,
+    spread = mathMax(1, toNumber(glow.spread) ?? width),
+    strength = toNumber(glow.opacity ?? glow.strength) ?? 1,
+    falloff = toNumber(glow.falloff) ?? style.glowSoftnessToFalloff(glow.softness, 0.54)
+  }
+}
+
+export client fn patternStyle(pattern) {
+  stopif pattern == nil or pattern == false, nil
+
+  if pattern == true {
+    return style.stripePattern(makeColor(255, 255, 255, 20), 10, 2, 135)
+  }
+
+  if typeOf(pattern) == "table" {
+    local knownPattern = match pattern.kind {
+      "stripe" | "smoke" => true
+      _ => false
+    }
+    stopif knownPattern, pattern
+
+    return style.stripePattern(pattern)
+  }
+
+  nil
+}
+
+export client fn patternOffset(pattern) {
+  local offset = toNumber(pattern?.offset) ?? 0
+  local speed = toNumber(pattern?.speed) ?? 0
+  if speed ~= 0 and realTime ~= nil {
+    offset += realTime() * speed
+  }
+
+  offset
+}

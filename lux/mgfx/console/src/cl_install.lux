@@ -1,0 +1,116 @@
+export client fn selftest(owner) {
+  local status = shaderStatus(owner)
+  local materials = owner?._Materials ?? {}
+  local failed = 0
+
+  printFn("[MGFX] selftest begin")
+  printFn("[MGFX] version: " .. toString(status.version))
+  printFn("[MGFX] shaders: " .. (status.loaded then "loaded" else "fallback"))
+
+  for index = 1, #requiredMaterialKeys {
+    local key = requiredMaterialKeys[index]
+    local ok = materialsPkg.matOK(materials[key])
+    if not ok {
+      failed += 1
+    }
+    printFn("[MGFX] material " .. key .. ": " .. (ok then "ok" else "error"))
+  }
+
+  for index = 1, #requiredApis {
+    local key = requiredApis[index]
+    local ok = isFunction(owner[key])
+    if not ok {
+      failed += 1
+    }
+    printFn("[MGFX] api " .. key .. ": " .. (ok then "ok" else "missing"))
+  }
+
+  for index = 1, #requiredTargets {
+    local key = requiredTargets[index]
+    local ok = owner.TARGET ~= nil and owner.TARGET[key] ~= nil
+    if not ok {
+      failed += 1
+    }
+    printFn("[MGFX] target " .. key .. ": " .. (ok then "ok" else "missing"))
+  }
+
+  printFn("[MGFX] selftest end failures=" .. toString(failed))
+  failed == 0
+}
+
+fn reloadMGFX(owner) {
+  local reload = owner?.Reload ?? owner?._LuxReload
+  if reload == nil {
+    printFn("[MGFX] reload unavailable: owner has no Lux reload hook")
+    return false
+  }
+
+  printFn("[MGFX] reload begin")
+  local ok, result = pcall(reload)
+  if not ok {
+    printFn("[MGFX] reload failed: " .. toString(result))
+    return false
+  }
+
+  local status = shaderStatus(owner)
+  printFn("[MGFX] reload end version=" .. toString(status.version) .. " shaders=" .. toString(status.loaded))
+  true
+}
+
+export client fn install(owner) {
+  owner._AddCommand = owner._AddCommand ?? rawAddCommand
+  owner._TextDemoStrings = textDemoStrings
+  addCommand(owner, "mgfx_reload", () => reloadMGFX(owner), "Reload Lux MGFX into the current API table.")
+  addCommand(owner, "mgfx_hot_reload", () => reloadMGFX(owner), "Reload Lux MGFX into the current API table.")
+  addCommand(owner, "mgfx_status", () => status(owner), "Print MGFX runtime status.")
+  addCommand(owner, "mgfx_profile_status", () => profileStatus(owner), "Print MGFX profiler rows.")
+  addCommand(owner, "mgfx_profile_reset", () => profileReset(owner), "Reset MGFX profiler rows.")
+  addCommand(owner, "mgfx_text_status", () => textStatusCommand(owner), "Print MGFX text renderer status.")
+  addCommand(owner, "mgfx_text_cache_clear", () => textCacheClear(owner), "Clear MGFX text measure cache.")
+  addCommand(owner, "mgfx_text_composed_clear", () => textComposedClear(owner), "Clear MGFX composed text cache.")
+  addCommand(owner, "mgfx_text_atlas", () => toggleAtlasDebug(owner), "Toggle MGFX text atlas debug overlay.")
+  addCommand(owner, "mgfx_text_stress", () => toggleTextStress(owner), "Toggle MGFX text stress overlay.")
+  addCommand(owner, "mgfx_text_demo", (_cmd = nil, _argString = nil, args = nil) => toggleTextDemo(owner, args?.[1] ?? "toggle"), "Toggle MGFX text demo overlay.")
+  addCommand(owner, "mgfx_text_trace_demo", () => traceTextDemo(owner), "Print MGFX text demo font/atlas route diagnostics.")
+  addCommand(owner, "mgfx_param_probe", () => toggleParamProbe(owner), "Toggle MGFX shader parameter probe.")
+  addCommand(owner, "mgfx_param_bench_stop", () => stopParamBench(), "Stop MGFX shader parameter benchmark.")
+  addCommand(owner, "mgfx_param_bench", (_cmd = nil, _argString = nil, args = nil) => runParamBench(owner, args), "Run MGFX shader parameter benchmark.")
+  addCommand(owner, "mgfx_selftest", () => selftest(owner), "Run MGFX API/material selftest.")
+
+  owner.Status = () => status(owner)
+  owner.SelfTest = () => selftest(owner)
+  owner.ReloadCommand = () => reloadMGFX(owner)
+  owner.ProfileStatus = () => profileStatus(owner)
+  owner.ResetProfileCommand = () => profileReset(owner)
+  owner.ToggleTextDemo = (mode = "toggle") => toggleTextDemo(owner, mode)
+  owner.TraceTextDemo = () => traceTextDemo(owner)
+  owner.ToggleTextStress = () => toggleTextStress(owner)
+  owner.ToggleParamProbe = () => toggleParamProbe(owner)
+  owner.RunParamBench = (args = nil) => runParamBench(owner, args)
+  owner.StopParamBench = () => stopParamBench()
+  owner._ConsoleCommands = commandNames
+  owner
+}
+
+export client fn uninstall(owner = nil) {
+  for index = 1, #commandNames {
+    removeCommand(commandNames[index])
+  }
+
+  if hookRemove ~= nil {
+    hookRemove("HUDPaint", "MGFXTextDemo")
+    hookRemove("HUDPaint", "MGFXTextStress")
+    hookRemove("HUDPaint", "MGFXTextAtlasDebug")
+    hookRemove("HUDPaint", "MGFXParamProbe")
+  }
+  if timerRemove ~= nil {
+    timerRemove(paramBenchTimer)
+  }
+
+  commandNames = {}
+  textDemoEnabled = false
+  textStressEnabled = false
+  atlasDebugEnabled = false
+  paramProbeEnabled = false
+  true
+}

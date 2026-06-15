@@ -1,0 +1,82 @@
+export client fn setProfileActive(active) {
+  profile.active = active == true
+  profile.active
+}
+
+export client fn resetProfile() {
+  profile.draws = 0
+  profile.measures = 0
+  clearTable(profile.times)
+  clearTable(profile.counts)
+}
+
+export client fn profileSnapshot(reset = false) {
+  local out = {
+    active = profile.active,
+      draws = profile.draws,
+      measures = profile.measures,
+      times = tableCopy(profile.times ?? {}),
+      counts = tableCopy(profile.counts ?? {})
+  }
+  if reset {
+    resetProfile()
+  }
+
+  out
+}
+
+fn countTable(input) {
+  if input == nil {
+    return 0
+  }
+
+  if tableCount ~= nil {
+    return tableCount(input)
+  }
+
+  local count = 0
+  for _, _ in pairs(input) {
+    count += 1
+  }
+
+  count
+}
+
+fn resetRendererFrameStats(stats) {
+  stats.textDraws = 0
+  stats.textNativeDraws = 0
+  stats.textShaderDraws = 0
+  stats.textComposedBakes = 0
+  stats.textComposedBlits = 0
+  stats.textComposedDraws = 0
+  stats.textComposedBatchDraws = 0
+  stats.textComposedBatchedRecords = 0
+  stats.textComposedFaceDraws = 0
+  stats.textComposedFxDraws = 0
+  stats.textComposedRequests = 0
+  stats.textComposedBatches = 0
+  stats.textComposedReadyBatches = 0
+  stats.textComposedFallbackBatches = 0
+  stats.textComposedFallbackRecords = 0
+  stats.textComposedPrewarmFails = 0
+  stats.textComposedPrewarmRestarts = 0
+  stats.textComposedEntries = stats.textComposedEntries ?? 0
+  stats.textComposedEvicts = stats.textComposedEvicts ?? 0
+  stats.textMeasureHits = stats.textMeasureHits ?? 0
+  stats.textMeasureMisses = stats.textMeasureMisses ?? 0
+  stats.textEntryCacheHits = stats.textEntryCacheHits ?? 0
+  stats.textEntryCacheMisses = stats.textEntryCacheMisses ?? 0
+  stats.textFallbacks = stats.textFallbacks ?? 0
+  stats.textDataDraws = 0
+  stats.textDataBatches = 0
+  stats.textAtlasUploads = 0
+  stats.textAtlasGlyphs = 0
+  stats.textAtlasResets = stats.textAtlasResets ?? 0
+  stats.textCacheSize = measureOrderCount
+  stats
+}
+
+fn statAdd(stats, key, amount = 1) {
+  stats[key] = (stats[key] ?? 0) + amount
+  stats[key]
+}

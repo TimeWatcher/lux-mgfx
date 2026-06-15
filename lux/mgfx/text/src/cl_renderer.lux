@@ -1,0 +1,282 @@
+export client fn createTextRenderer(deps = nil) {
+  deps = deps ?? {}
+  configureTextRenderer(deps)
+
+  local owner = deps.M ?? deps.owner ?? {}
+  local stats = deps.stats ?? owner.stats ?? {}
+  owner.stats = stats
+
+  local renderer = {}
+  local styleStack = {}
+  local immediateRecordBatch = {}
+
+  resetRendererFrameStats(stats)
+
+  renderer.RegisterFont = (fontName, spec = nil) =>
+    registerFont(fontName, spec ?? {})
+
+  renderer.DefineStyle = (name, textStyle = nil) => {
+    if name == nil {
+      return nil
+    }
+
+    defineStyle(toString(name), renderer.ResolveStyle(textStyle ?? {}))
+  }
+
+  renderer.GetStyle = (name) =>
+    getStyle(toString(name ?? ""))
+
+  renderer.PushStyle = (textStyle = nil) => {
+    styleStack[#styleStack + 1] = renderer.ResolveStyle(textStyle ?? {})
+    #styleStack
+  }
+
+  renderer.PopStyle = () => {
+    if #styleStack == 0 {
+      return false
+    }
+
+    styleStack[#styleStack] = nil
+    true
+  }
+
+  renderer.ResolveStyle = (textStyle = nil) => {
+    if typeOf(textStyle) == "table" and textStyle[RESOLVED_STYLE_MARK] == true {
+      return tableCopy(textStyle)
+    }
+
+    local resolved = {}
+    for index = 1, #styleStack {
+      copyStyleInto(resolved, styleStack[index])
+    }
+    copyStyleInto(resolved, textStyle ?? {})
+    resolved[RESOLVED_STYLE_MARK] = true
+    resolved
+  }
+
+  renderer.MakeRecord = (value, font, x, y, color, ax = nil, ay = nil, textStyle = nil) => {
+    local resolved = renderer.ResolveStyle(textStyle ?? {})
+    {
+      text = toString(value ?? ""),
+        font = resolved.font ?? font ?? "DermaDefault",
+        x = toNumber(x) ?? 0,
+        y = toNumber(y) ?? 0,
+        color = style.asColor ~= nil
+          then style.asColor(color ?? resolved.color ?? resolved.fill, white)
+          else style.colorOr(color ?? resolved.color ?? resolved.fill, white),
+        alignX = resolved.alignX ?? resolved.align ?? ax ?? TEXT_ALIGN_LEFT,
+        alignY = resolved.alignY ?? resolved.valign ?? ay ?? TEXT_ALIGN_TOP,
+        style = resolved
+    }
+  }
+
+  renderer.NormalizeRecord = (record) => {
+    if record == nil {
+      return nil
+    }
+
+    local resolved = renderer.ResolveStyle(record.style ?? {})
+    record.text = toString(record.text ?? record.value ?? "")
+    record.font = resolved.font ?? record.font ?? "DermaDefault"
+    record.x = toNumber(record.x) ?? 0
+    record.y = toNumber(record.y) ?? 0
+    record.color = style.asColor ~= nil
+      then style.asColor(record.color ?? resolved.color ?? resolved.fill, white)
+      else style.colorOr(record.color ?? resolved.color ?? resolved.fill, white)
+    record.alignX = resolved.alignX ?? resolved.align ?? record.alignX ?? record.ax ?? TEXT_ALIGN_LEFT
+    record.alignY = resolved.alignY ?? resolved.valign ?? record.alignY ?? record.ay ?? TEXT_ALIGN_TOP
+    record.style = resolved
+    record
+  }
+
+  renderer.Flush = (records, reason = nil) =>
+    do {
+      local normalized = records ?? {}
+      for index = 1, #normalized {
+        renderer.NormalizeRecord(normalized[index])
+      }
+      flushTextRecords(normalized, stats)
+    }
+
+  renderer.DrawRecordImmediate = (record) => {
+    if record == nil {
+      return nil
+    }
+
+    immediateRecordBatch[1] = record
+    local out = renderer.Flush(immediateRecordBatch, "immediate")
+    immediateRecordBatch[1] = nil
+    out
+  }
+
+  renderer.DrawTextImmediate = (value, font, x, y, color, ax = nil, ay = nil, textStyle = nil) =>
+    renderer.DrawRecordImmediate(renderer.MakeRecord(value, font, x, y, color, ax, ay, textStyle))
+
+  renderer.DrawTextBoxImmediate = (value, font, x, y, w, h, textStyle = nil) => {
+    local resolved = renderer.ResolveStyle(textStyle ?? {})
+    local resolvedFont = resolved.font ?? font ?? "DermaDefault"
+    local lines = wrapText(value, resolvedFont, toNumber(w) ?? 0, resolved.overflow)
+    local nativeFont, alias, oversample = nativeFor(resolvedFont, resolved)
+    local lineHeight = lineHeightFor(nativeFont, alias, resolved, oversample)
+    local totalH = #lines * lineHeight
+    local startY = (toNumber(y) ?? 0) + ((toNumber(h) ?? totalH) - totalH) * alignFactor(resolved.alignY ?? resolved.valign ?? TEXT_ALIGN_TOP, true)
+    local ax = resolved.alignX ?? resolved.align ?? TEXT_ALIGN_LEFT
+    local tx = (toNumber(x) ?? 0) + (toNumber(w) ?? 0) * alignFactor(ax)
+    local lineStyle = textBoxLineStyle(resolved)
+
+    for index = 1, #lines {
+      renderer.DrawTextImmediate(lines[index], resolvedFont, tx, startY + (index - 1) * lineHeight, lineStyle.color ?? lineStyle.fill, ax, TEXT_ALIGN_TOP, lineStyle)
+    }
+  }
+
+  renderer.MeasureText = (value, font = "DermaDefault") =>
+    measure(value, font)
+
+  renderer.MeasureTextBox = (value, font, w, textStyle = nil) =>
+    measureBox(value, font, w, renderer.ResolveStyle(textStyle ?? {}))
+
+  renderer.PrewarmText = (value, font, textStyle = nil) => {
+    local record = renderer.MakeRecord(value, font, 0, 0, nil, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP, textStyle ?? {})
+    if not recordNeedsComposedEntry(record) {
+      return false
+    }
+
+    entryFor(record, stats, true) ~= nil
+  }
+
+  renderer.ClearMeasureCache = () => {
+    clearMeasureCache()
+    stats.textCacheSize = 0
+    true
+  }
+
+  renderer.ClearComposedCache = () => {
+    clearComposedCache()
+    stats.textComposedEntries = 0
+    true
+  }
+
+  renderer.ComposedEnabled = () =>
+    textComposedEnabled()
+
+  renderer.SetBatchBackend = () =>
+    false
+
+  renderer.SetProfileActive = (active) =>
+    setProfileActive(active)
+
+  renderer.ResetProfile = () =>
+    resetProfile()
+
+  renderer.ProfileSnapshot = (reset = false) =>
+    profileSnapshot(reset)
+
+  renderer.ResetFrameStats = () =>
+    resetRendererFrameStats(stats)
+
+  renderer.DebugResolve = (value, font = "DermaDefault", textStyle = nil) => {
+    local record = renderer.MakeRecord(value, font, 0, 0, nil, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP, textStyle ?? {})
+    local nativeFont, alias, oversample = nativeFor(record.font, record.style)
+    local layout = layoutFor(record.text, record.font, record.style)
+    local needsComposed = recordNeedsComposedEntry(record)
+    {
+      text = record.text,
+        font = record.font,
+        nativeFont = nativeFont,
+        atlasKey = needsComposed then "__composed" else "__native",
+        kind = needsComposed then "composed" else "native",
+        routeAtlas = needsComposed then "__composed" else "__native",
+        routeKind = needsComposed then "compose" else "native",
+        mode = alias.mode ?? "native",
+        missing = {},
+        w = layout.w,
+        h = layout.h,
+        oversample = oversample
+    }
+  }
+
+  renderer.Status = () => {
+    {
+      mode = "native+composer",
+        fontCount = countTable(fonts),
+        styleCount = countTable(styles),
+        styleStackDepth = #styleStack,
+        cacheSize = measureOrderCount,
+        composedEnabled = textComposedEnabled(),
+        composedAtlas = atlas?.rt,
+        composedAtlasW = atlas?.w ?? 0,
+        composedAtlasH = atlas?.h ?? 0,
+        composedAtlasPages = #atlasPages,
+        composedAtlasMaxPages = MAX_ATLAS_PAGES,
+        composedAtlasFill = atlasFillRatio(),
+        composedEntries = composedCacheCount,
+        composedFailed = atlasFailed,
+        draws = stats.textDraws ?? 0,
+        nativeDraws = stats.textNativeDraws ?? 0,
+        shaderDraws = stats.textShaderDraws ?? 0,
+        composedDraws = stats.textComposedDraws ?? 0,
+        composedBakes = stats.textComposedBakes ?? 0,
+        composedBlits = stats.textComposedBlits ?? 0,
+        measureHits = stats.textMeasureHits ?? 0,
+        measureMisses = stats.textMeasureMisses ?? 0,
+        staticAtlasCount = 0,
+        declaredAtlasCount = 0,
+        atlasCount = 0
+    }
+  }
+
+  renderer.DebugDrawAtlas = () => {
+    if #atlasPages == 0 {
+      if drawSimpleText ~= nil {
+        drawSimpleText("[MGFX] atlas: no pages allocated yet", "DermaDefaultBold", 20, 20, makeColor(255, 120, 120))
+      }
+      return false
+    }
+
+    debugViewMat = debugViewMat ?? createMaterial("MGFXAtlasDebugView", "UnlitGeneric", {
+      ["$basetexture"] = "color/white",
+        ["$translucent"] = "0",
+        ["$vertexcolor"] = "1",
+        ["$ignorez"] = "1"
+    })
+
+    local count = #atlasPages
+    local cols = mathMin(count, 4)
+    local pad = 8
+    local screenW = ScrW ~= nil then ScrW() else 1280
+    local thumbW = mathFloor((screenW - 40 - pad * (cols - 1)) / cols)
+    local thumbH = mathFloor(thumbW * ATLAS_H / ATLAS_W)
+    local x0 = 20
+    local y0 = 40
+
+    if drawSimpleText ~= nil {
+      drawSimpleText("MGFX atlas " .. ATLAS_W .. "x" .. ATLAS_H .. " pages=" .. count, "DermaDefaultBold", x0, 14, makeColor(160, 230, 255))
+    }
+
+    for index, page in ipairs(atlasPages) {
+      local col = (index - 1) % cols
+      local row = mathFloor((index - 1) / cols)
+      local px = x0 + col * (thumbW + pad)
+      local py = y0 + row * (thumbH + 20)
+      if page.rt ~= nil and debugViewMat ~= nil and surfaceSetMaterial ~= nil and surfaceDrawTexturedRect ~= nil {
+        debugViewMat:SetTexture("$basetexture", page.rt)
+        surfaceSetMaterial(debugViewMat)
+        surfaceSetDrawColor(255, 255, 255, 255)
+        surfaceDrawTexturedRect(px, py, thumbW, thumbH)
+      }
+      if surfaceDrawOutlinedRect ~= nil {
+        surfaceSetDrawColor(70, 80, 92, 255)
+        surfaceDrawOutlinedRect(px, py, thumbW, thumbH)
+      }
+      if drawSimpleText ~= nil {
+        drawSimpleText("page " .. index, "DermaDefaultBold", px + 2, py - 13, makeColor(255, 220, 120))
+      }
+    }
+
+    true
+  }
+
+  renderer
+}
+
+export client { _CreateTextRenderer = createTextRenderer }

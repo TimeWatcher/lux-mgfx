@@ -1,0 +1,32 @@
+export client fn makeRoundedBox(op, x, y, w, h, style) =
+  { op = op, x = x, y = y, w = w, h = h, style = style }
+
+export client fn makePoly(op, points, style) =
+  { op = op, points = points, style = style }
+
+export client fn makeImage(op, x, y, w, h, source, style) =
+  { op = op, x = x, y = y, w = w, h = h, source = source, style = style }
+
+export client fn makeLine(op, x1, y1, x2, y2, style) =
+  { op = op, x1 = x1, y1 = y1, x2 = x2, y2 = y2, style = style }
+
+export client fn makeClip(op, x, y, w, h) =
+  { op = op, x = x, y = y, w = w, h = h }
+
+export client fn makeProgress(op, x, y, w, h, value, style) =
+  { op = op, x = x, y = y, w = w, h = h, value = value, style = style }
+
+export client fn makeRing(op, x, y, radius, width, drawStyle) =
+  { op = op, x = x, y = y, radius = radius, width = width, style = drawStyle }
+
+export client fn makeArc(op, x, y, radius, width, startDeg, endDeg, drawStyle) =
+  { op = op, x = x, y = y, radius = radius, width = width, startDeg = startDeg, endDeg = endDeg, style = drawStyle }
+
+export client fn makeSector(op, x, y, innerRadius, outerRadius, startDeg, endDeg, drawStyle) =
+  { op = op, x = x, y = y, innerRadius = innerRadius, outerRadius = outerRadius, startDeg = startDeg, endDeg = endDeg, style = drawStyle }
+
+export client fn makeText(op, text, font, x, y, color, ax, ay, drawStyle) =
+  { op = op, text = text, font = font, x = x, y = y, color = color, ax = ax, ay = ay, style = drawStyle }
+
+export client fn makeTextBox(op, text, font, x, y, w, h, drawStyle) =
+  { op = op, text = text, font = font, x = x, y = y, w = w, h = h, style = drawStyle }

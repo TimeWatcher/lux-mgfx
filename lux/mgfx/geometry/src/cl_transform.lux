@@ -1,0 +1,237 @@
+export client fn hasTransform() =
+  #transformStack > 0
+
+fn transformNeedsGrid() {
+  for index = 1, #transformStack {
+    local t = transformStack[index]
+    if t.kind == "projected" or t.perspective > 0 or mathAbs(t.rotateX) > 0.0001 or mathAbs(t.rotateY) > 0.0001 or t.steps > 1 {
+      return true
+    }
+  }
+
+  false
+}
+
+fn transformSteps() {
+  local steps = 1
+  for index = 1, #transformStack {
+    local t = transformStack[index]
+    if t.kind == "projected" or t.perspective > 0 or mathAbs(t.rotateX) > 0.0001 or mathAbs(t.rotateY) > 0.0001 {
+      steps = mathMax(steps, t.steps > 0 then t.steps else 10)
+    } else {
+      steps = mathMax(steps, t.steps > 0 then t.steps else 1)
+    }
+  }
+
+  mathClamp(steps, 1, 24)
+}
+
+fn applyOneTransform(t, x, y) {
+  if t.kind == "projected" {
+    local u = (x - t.x) / t.w
+    local v = (y - t.y) / t.h
+    local topX = t.tlx + (t.trx - t.tlx) * u
+    local topY = t.tly + (t.try - t.tly) * u
+    local bottomX = t.blx + (t.brx - t.blx) * u
+    local bottomY = t.bly + (t.bry - t.bly) * u
+    return topX + (bottomX - topX) * v, topY + (bottomY - topY) * v
+  }
+
+  local lx = x - t.originX
+  local ly = y - t.originY
+  local sx = lx * t.scaleX + ly * t.skewX
+  local sy = ly * t.scaleY + lx * t.skewY
+  local sz = 0
+
+  if mathAbs(t.rotateX) > 0.0001 {
+    local c = mathCos(t.rotateX)
+    local s = mathSin(t.rotateX)
+    sy, sz = sy * c - sz * s, sy * s + sz * c
+  }
+
+  if mathAbs(t.rotateY) > 0.0001 {
+    local c = mathCos(t.rotateY)
+    local s = mathSin(t.rotateY)
+    sx, sz = sx * c + sz * s, -sx * s + sz * c
+  }
+
+  if mathAbs(t.rotate) > 0.0001 {
+    local c = mathCos(t.rotate)
+    local s = mathSin(t.rotate)
+    sx, sy = sx * c - sy * s, sx * s + sy * c
+  }
+
+  sz = sz + (t.translateZ ?? 0)
+  local p = t.perspective
+  if p > 0 {
+    local denom = mathMax(0.05, p - sz)
+    local factor = p / denom
+    sx = sx * factor
+    sy = sy * factor
+  }
+
+  return t.originX + sx + t.translateX, t.originY + sy + t.translateY
+}
+
+fn inverseOneTransform(t, sx, sy, guessX = nil, guessY = nil) {
+  local x = toNumber(guessX) ?? sx
+  local y = toNumber(guessY) ?? sy
+  local eps = 0.5
+
+  for _ = 1, 10 {
+    local fx, fy = applyOneTransform(t, x, y)
+    local ex = fx - sx
+    local ey = fy - sy
+    if mathAbs(ex) + mathAbs(ey) < 0.01 {
+      return x, y
+    }
+
+    local ax, ay = applyOneTransform(t, x + eps, y)
+    local bx, by = applyOneTransform(t, x, y + eps)
+    local j00 = (ax - fx) / eps
+    local j10 = (ay - fy) / eps
+    local j01 = (bx - fx) / eps
+    local j11 = (by - fy) / eps
+    local det = j00 * j11 - j01 * j10
+    if mathAbs(det) < 0.000001 {
+      return x, y
+    }
+
+    x = x - (ex * j11 - j01 * ey) / det
+    y = y - (j00 * ey - ex * j10) / det
+  }
+
+  return x, y
+}
+
+export client fn transformPoint(x, y) {
+  for index = #transformStack, 1, -1 {
+    x, y = applyOneTransform(transformStack[index], x, y)
+  }
+
+  return x, y
+}
+
+fn transformSpecPoint(spec, px, py, x = nil, y = nil, w = nil, h = nil) {
+  local t = compileTransform(spec, x, y, w, h)
+  if t == nil {
+    return px, py
+  }
+
+  applyOneTransform(t, px, py)
+}
+
+fn untransformSpecPoint(spec, sx, sy, x = nil, y = nil, w = nil, h = nil) {
+  local t = compileTransform(spec, x, y, w, h)
+  if t == nil {
+    return sx, sy
+  }
+
+  inverseOneTransform(t, sx, sy, sx, sy)
+}
+
+export client fn untransformPoint(sx, sy) {
+  for index = 1, #transformStack {
+    sx, sy = inverseOneTransform(transformStack[index], sx, sy, sx, sy)
+  }
+
+  return sx, sy
+}
+
+fn transformedVertex(out, x, y, u, v) {
+  out.x, out.y = transformPoint(x, y)
+  out.u = u
+  out.v = v
+  out
+}
+
+export client fn drawTransformedPoly(verts) {
+  if not hasTransform() {
+    surfaceDrawPoly(verts)
+    stats.draws = (stats.draws ?? 0) + 1
+    return
+  }
+
+  local out = transformPolyScratch
+  for index = 1, #verts {
+    local src = verts[index]
+    local dst = out[index] ?? {}
+    out[index] = dst
+    dst.x, dst.y = transformPoint(src.x ?? src[1] ?? 0, src.y ?? src[2] ?? 0)
+    dst.u = src.u
+    dst.v = src.v
+    dst.color = src.color
+  }
+
+  for index = #verts + 1, #out {
+    out[index] = nil
+  }
+
+  surfaceDrawPoly(out)
+  stats.draws = (stats.draws ?? 0) + 1
+}
+
+export client fn pushTransform(spec, x = nil, y = nil, w = nil, h = nil) {
+  local t = compileTransform(spec, x, y, w, h)
+  if t == nil {
+    return false
+  }
+
+  transformStack[#transformStack + 1] = t
+  true
+}
+
+export client fn popTransform() {
+  transformStack[#transformStack] = nil
+}
+
+export client fn withTransform(spec, x, y, w, h, callback) {
+  if spec == nil {
+    return callback()
+  }
+
+  if not pushTransform(spec, x, y, w, h) {
+    return callback()
+  }
+
+  local ok, a, b, c, d = pcallFn(callback)
+  popTransform()
+  if not ok {
+    errorFn(a, 2)
+  }
+
+  return a, b, c, d
+}
+
+export client fn splitStyleTransform(drawStyle) {
+  if typeOf(drawStyle) ~= "table" {
+    return nil, drawStyle
+  }
+
+  local nextTransform = drawStyle.transform
+  if nextTransform == nil {
+    return nil, drawStyle
+  }
+
+  local stripped = copyStyle(drawStyle)
+  stripped.transform = nil
+  return nextTransform, stripped
+}
+
+export client fn transform(spec = nil) =
+  copyStyle(spec ?? {})
+
+export client fn projectedQuad(spec = nil) {
+  local out = copyStyle(spec ?? {})
+  out.kind = "projectedQuad"
+  out
+}
+
+export client fn pointerTilt(x, y, spec = nil) {
+  local out = copyStyle(spec ?? {})
+  out.kind = "pointerTilt"
+  out.x = x
+  out.y = y
+  out
+}
+

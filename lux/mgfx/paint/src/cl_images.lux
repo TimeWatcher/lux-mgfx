@@ -1,0 +1,29 @@
+export client fn imageEx(x, y, w, h, source, drawStyle = nil) {
+  local resolved = geometryImageStyle(drawStyle)
+  local material = source
+
+  if typeOf(source) == "string" {
+    material = makeMaterial(source, resolved.materialFlags ?? "smooth")
+  }
+
+  if material == nil {
+    rectFill(x, y, w, h, resolved.fill ?? makeColor(255, 255, 255, 32))
+    return
+  }
+
+  local u0, v0, u1, v1 = geometryImageUV(resolved, material)
+  x, y, w, h, u0, v0, u1, v1 = geometryImageFitRect(x, y, w, h, material, resolved, u0, v0, u1, v1)
+
+  surfaceSetMaterial(material)
+  setColor(geometryImageTint(resolved))
+  geometryDrawTexturedRectUV(x, y, w, h, u0, v0, u1, v1)
+}
+
+export client fn image(x, y, w, h, source, radius = nil, tint = nil) =
+  imageEx(x, y, w, h, source, { radius = radius, tint = tint })
+
+export client fn iconEx(x, y, w, h, source, drawStyle = nil) =
+  imageEx(x, y, w, h, source, drawStyle)
+
+export client fn icon(x, y, w, h, source, tint = nil) =
+  iconEx(x, y, w, h, source, { tint = tint })

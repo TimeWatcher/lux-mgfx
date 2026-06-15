@@ -1,0 +1,37 @@
+export client fn polyEx(points, drawStyle = nil) {
+  local resolved = drawStyle ?? {}
+  local transform, stripped = splitStyleTransform(resolved)
+  local poly = normalizePoly(points)
+
+  if transform ~= nil and poly ~= nil {
+    return withTransform(transform, poly.x, poly.y, poly.w, poly.h, () => polyEx(points, stripped))
+  }
+
+  drawPolyImmediate(points, stripped)
+}
+
+export client fn poly(points, fill, stroke = nil, strokeWidth = nil) {
+  polyStyle.fill = fill
+  polyStyle.stroke = stroke
+  polyStyle.strokeWidth = strokeWidth
+  polyEx(points, polyStyle)
+}
+
+export client fn chamferBoxEx(x, y, w, h, drawStyle = nil) {
+  local resolved = drawStyle ?? {}
+  local transform, stripped = splitStyleTransform(resolved)
+  local cuts = stripped.cuts ?? 0
+  if transform ~= nil {
+    return withTransform(transform, x, y, w, h, () => chamferBoxEx(x, y, w, h, stripped))
+  }
+
+  drawChamferBoxImmediate(x, y, w, h, stripped, cuts)
+}
+
+export client fn chamferBox(x, y, w, h, cuts, fill, stroke = nil, strokeWidth = nil) {
+  chamferStyle.cuts = cuts
+  chamferStyle.fill = fill
+  chamferStyle.stroke = stroke
+  chamferStyle.strokeWidth = strokeWidth
+  chamferBoxEx(x, y, w, h, chamferStyle)
+}

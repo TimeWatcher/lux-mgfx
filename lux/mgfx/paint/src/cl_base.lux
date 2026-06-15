@@ -1,0 +1,84 @@
+import * as frameImport from "@lux/mgfx/frame"
+import * as geometryImport from "@lux/mgfx/geometry"
+import * as styleImport from "@lux/mgfx/style"
+
+local frame = frameImport
+local geometry = geometryImport
+local style = styleImport
+
+local geometryDrawTexturedRectUV = geometry.drawTexturedRectUV
+local geometryDrawTransformedPoly = geometry.drawTransformedPoly
+local geometryImageFitRect = geometry.imageFitRect
+local geometryImageStyle = geometry.imageStyle
+local geometryImageTint = geometry.imageTint
+local geometryImageUV = geometry.imageUV
+local drawRoundedBox = _G.draw.RoundedBox
+local surfaceSetDrawColor = surface.SetDrawColor
+local surfaceDrawOutlinedRect = surface.DrawOutlinedRect
+local surfaceDrawRect = surface.DrawRect
+local surfaceDrawLine = surface.DrawLine
+local surfaceSetMaterial = surface.SetMaterial
+local mathClamp = math.Clamp
+local mathCos = math.cos
+local mathFloor = math.floor
+local mathMax = math.max
+local mathMin = math.min
+local mathPi = math.pi
+local mathRad = math.rad
+local mathSin = math.sin
+local mathSqrt = math.sqrt
+local makeColor = Color
+local makeMaterial = Material
+local toNumber = tonumber
+local typeOf = type
+
+fn fillColor(fill, fallback = nil) {
+  if style.isColor(fill) {
+    return fill
+  }
+
+  if typeOf(fill) == "table" {
+    return fill.colorA ?? fill.color ?? fallback ?? color_white
+  }
+
+  fallback ?? color_white
+}
+
+fn setColor(color) {
+  local c = style.colorOr(color)
+  surfaceSetDrawColor(c.r ?? 255, c.g ?? 255, c.b ?? 255, style.alpha(c.a))
+}
+
+fn strokeRect(x, y, w, h, stroke, width) {
+  local strokeW = mathFloor(style.strokeWidth(width, 1))
+  if not style.strokeVisible(stroke, strokeW) {
+    return
+  }
+
+  setColor(stroke)
+  for index = 0, strokeW - 1 {
+    surfaceDrawOutlinedRect(x + index, y + index, w - index * 2, h - index * 2)
+  }
+}
+
+fn rectFill(x, y, w, h, fill) {
+  if not style.fillVisible(fill) {
+    return
+  }
+
+  setColor(fillColor(fill))
+  surfaceDrawRect(x, y, w, h)
+}
+
+fn circlePoly(cx, cy, radius, segments = 48) {
+  local out = {}
+  for index = 1, segments {
+    local angle = mathRad((index - 1) / segments * 360)
+    out[index] = {
+      x = cx + mathCos(angle) * radius,
+        y = cy + mathSin(angle) * radius
+    }
+  }
+
+  out
+}

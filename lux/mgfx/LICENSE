@@ -1,0 +1,12 @@
+MGFX package license notice
+===========================
+
+SPDX-License-Identifier: LicenseRef-Lux-MGFX-NC
+
+Unless a file says otherwise, source code under this directory is licensed
+under the Lux MGFX Non-Commercial License.
+
+Non-commercial use is permitted under that license. Commercial use requires a
+separate written license from the copyright holder.
+
+See ../../LICENSE-MGFX-NC from the package repository root.

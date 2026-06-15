@@ -1,0 +1,91 @@
+export client fn drawTexturedQuadUV(x, y, w, h, u0, v0, u1, v1) {
+  if not hasTransform() {
+    local verts = quadVerts
+    verts[1].x = x
+    verts[1].y = y
+    verts[1].u = u0
+    verts[1].v = v0
+    verts[2].x = x + w
+    verts[2].y = y
+    verts[2].u = u1
+    verts[2].v = v0
+    verts[3].x = x + w
+    verts[3].y = y + h
+    verts[3].u = u1
+    verts[3].v = v1
+    verts[4].x = x
+    verts[4].y = y + h
+    verts[4].u = u0
+    verts[4].v = v1
+    surfaceDrawPoly(verts)
+    stats.draws = (stats.draws ?? 0) + 1
+    return
+  }
+
+  local steps = transformNeedsGrid() then transformSteps() else 1
+  local draws = 0
+  for gy = 0, steps - 1 {
+    local yA = y + h * gy / steps
+    local yB = y + h * (gy + 1) / steps
+    local vA = v0 + (v1 - v0) * gy / steps
+    local vB = v0 + (v1 - v0) * (gy + 1) / steps
+
+    for gx = 0, steps - 1 {
+      local xA = x + w * gx / steps
+      local xB = x + w * (gx + 1) / steps
+      local uA = u0 + (u1 - u0) * gx / steps
+      local uB = u0 + (u1 - u0) * (gx + 1) / steps
+      local verts = transformQuadVerts
+      transformedVertex(verts[1], xA, yA, uA, vA)
+      transformedVertex(verts[2], xB, yA, uB, vA)
+      transformedVertex(verts[3], xB, yB, uB, vB)
+      transformedVertex(verts[4], xA, yB, uA, vB)
+      surfaceDrawPoly(verts)
+      draws += 1
+    }
+  }
+
+  stats.draws = (stats.draws ?? 0) + draws
+}
+
+export client fn drawTexturedQuad(x, y, w, h) =
+  drawTexturedQuadUV(x, y, w, h, 0, 0, 1, 1)
+
+export client fn drawCreatedMaterialTexturedRectUV(x, y, w, h, u0, v0, u1, v1) {
+  local du = 0.5 / 32
+  local dv = 0.5 / 32
+  u0, v0 = (u0 - du) / (1 - 2 * du), (v0 - dv) / (1 - 2 * dv)
+  u1, v1 = (u1 - du) / (1 - 2 * du), (v1 - dv) / (1 - 2 * dv)
+
+  if hasTransform() {
+    drawTexturedQuadUV(x, y, w, h, u0, v0, u1, v1)
+  } else {
+    surfaceDrawTexturedRectUV(x, y, w, h, u0, v0, u1, v1)
+    stats.draws = (stats.draws ?? 0) + 1
+  }
+}
+
+export client fn drawTexturedRectUV(x, y, w, h, u0, v0, u1, v1) {
+  if hasTransform() {
+    drawTexturedQuadUV(x, y, w, h, u0, v0, u1, v1)
+  } else {
+    surfaceDrawTexturedRectUV(x, y, w, h, u0, v0, u1, v1)
+    stats.draws = (stats.draws ?? 0) + 1
+  }
+}
+
+export client fn textureSize(texture) {
+  local tw = 1
+  local th = 1
+
+  if texture ~= nil and texture.Width ~= nil {
+    tw = toNumber(texture:Width()) ?? tw
+  }
+
+  if texture ~= nil and texture.Height ~= nil {
+    th = toNumber(texture:Height()) ?? th
+  }
+
+  return mathMax(1, tw), mathMax(1, th)
+}
+

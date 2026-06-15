@@ -1,0 +1,58 @@
+export client fn imageEx(x, y, w, h, source, drawStyle = nil) {
+  local resolved = geometry.imageStyle(drawStyle)
+  local transform, stripped = geometry.splitStyleTransform(resolved)
+  if transform ~= nil {
+    return geometry.withTransform(transform, x, y, w, h, () => imageImmediate(x, y, w, h, source, stripped))
+  }
+
+  imageImmediate(x, y, w, h, source, stripped)
+}
+
+export client fn image(x, y, w, h, source, radius = nil, tint = nil) {
+  imageStyleScratch.radius = radius
+  imageStyleScratch.tint = tint
+  imageStyleScratch.alpha = nil
+  imageStyleScratch.fit = nil
+  imageStyleScratch.objectFit = nil
+  imageStyleScratch.uv = nil
+  imageStyleScratch.crop = nil
+  imageStyleScratch.stroke = nil
+  imageStyleScratch.strokeWidth = nil
+  imageStyleScratch.fill = nil
+  imageStyleScratch.background = nil
+  imageStyleScratch.mask = nil
+  imageStyleScratch.outerGlow = nil
+  imageStyleScratch.innerGlow = nil
+  imageStyleScratch.backdrop = nil
+  imageStyleScratch.shadow = nil
+  imageEx(x, y, w, h, source, imageStyleScratch)
+}
+
+export client fn iconEx(x, y, w, h, source, drawStyle = nil) {
+  local resolved = geometry.imageStyle(drawStyle)
+  if resolved.fit == nil and resolved.objectFit == nil {
+    resolved.fit = "contain"
+  }
+
+  imageEx(x, y, w, h, source, resolved)
+}
+
+export client fn icon(x, y, w, h, source, tint = nil) {
+  iconStyleScratch.tint = tint
+  iconStyleScratch.fit = "contain"
+  iconStyleScratch.radius = nil
+  iconStyleScratch.alpha = nil
+  iconStyleScratch.objectFit = nil
+  iconStyleScratch.uv = nil
+  iconStyleScratch.crop = nil
+  iconStyleScratch.stroke = nil
+  iconStyleScratch.strokeWidth = nil
+  iconStyleScratch.fill = nil
+  iconStyleScratch.background = nil
+  iconStyleScratch.mask = nil
+  iconStyleScratch.outerGlow = nil
+  iconStyleScratch.innerGlow = nil
+  iconStyleScratch.backdrop = nil
+  iconStyleScratch.shadow = nil
+  iconEx(x, y, w, h, source, iconStyleScratch)
+}

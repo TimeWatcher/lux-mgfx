@@ -1,0 +1,269 @@
+fn alignFactor(value, vertical = false) {
+  match value {
+    "center" | "middle" => 0.5
+    "right" | "bottom" => 1
+    _ => {
+      if value == TEXT_ALIGN_CENTER or (vertical and value == TEXT_ALIGN_CENTER) {
+        return 0.5
+      }
+
+      value == TEXT_ALIGN_RIGHT or value == TEXT_ALIGN_BOTTOM then 1 else 0
+    }
+  }
+}
+
+fn colorAtFill(fill, t = 0) {
+  stopif typeOf(fill) ~= "table", style.colorOr(fill, white)
+  stopif style.isColor(fill), fill
+  stopif style.colorAtFill ~= nil, style.colorAtFill(fill, t)
+
+  style.colorOr(fill.colorA ?? fill.color ?? fill.fill, white)
+}
+
+fn setTextColor(color) {
+  local c = style.colorOr(color, white)
+  if surfaceSetTextColor ~= nil {
+    surfaceSetTextColor(c.r ?? 255, c.g ?? 255, c.b ?? 255, c.a ?? 255)
+  }
+}
+
+fn drawLineText(nativeFont, text, x, y, color, tracking = 0, oversample = 1) {
+  setFontSafe(nativeFont)
+  setTextColor(color)
+  local raw = toString(text ?? "")
+  local extra = toNumber(tracking) ?? 0
+
+  if extra == 0 {
+    surfaceSetTextPos(x, y)
+    surfaceDrawText(raw)
+    return
+  }
+
+  local cursor = x
+  local chars = textChars(raw)
+  for index = 1, #chars {
+    local ch = chars[index]
+    surfaceSetTextPos(cursor, y)
+    surfaceDrawText(ch)
+    local cw = surfaceGetTextSize(ch)
+    cursor += (cw ?? 0) + extra * normalizeOversample(oversample)
+  }
+}
+
+fn drawLayout(layout, x, y, fill, fallbackColor = white) {
+  local oversample = normalizeOversample(layout.oversample)
+  for index = 1, #layout.lines {
+    local line = layout.lines[index]
+    local t = #layout.lines <= 1 then 0 else (index - 1) / (#layout.lines - 1)
+    drawLineText(layout.font, line.text, x, y + line.y * oversample, colorAtFill(fill ?? fallbackColor, t), layout.tracking, oversample)
+  }
+}
+
+fn normalizeShadow(value) {
+  stopif value == nil or value == false, nil
+
+  if value == true {
+    value = {}
+  }
+  if typeOf(value) ~= "table" {
+    value = { blur = toNumber(value) ?? 0 }
+  }
+
+  {
+    x = toNumber(value.x ?? value.offsetX ?? value[1]) ?? 1,
+      y = toNumber(value.y ?? value.offsetY ?? value[2]) ?? 1,
+      blur = toNumber(value.blur ?? value.radius ?? value[3]) ?? 0,
+      strength = toNumber(value.strength ?? value.opacity) ?? 1,
+      color = style.colorOr(value.color ?? value.tint, makeColor(0, 0, 0, 180))
+  }
+}
+
+fn normalizeStroke(value) {
+  stopif value == nil or value == false, nil
+
+  if value == true {
+    value = {}
+  }
+  if typeOf(value) ~= "table" {
+    value = { width = toNumber(value) ?? 1 }
+  }
+
+  local width = mathMax(0, toNumber(value.width ?? value.size ?? value[1]) ?? 1)
+  stopif width <= 0, nil
+
+  {
+    width = width,
+      samples = mathClamp(mathCeil(width * 6), 8, 32),
+      softness = toNumber(value.softness) ?? 0,
+      color = style.colorOr(value.color ?? value.tint, makeColor(0, 0, 0, 220))
+  }
+}
+
+fn normalizeGlow(value) {
+  stopif value == nil or value == false, nil
+
+  if value == true {
+    value = {}
+  }
+  if typeOf(value) ~= "table" {
+    value = { width = toNumber(value) ?? 6 }
+  }
+
+  local width = mathMax(0, toNumber(value.width ?? value.radius ?? value[1]) ?? 6)
+  stopif width <= 0, nil
+
+  {
+    width = width,
+      samples = mathClamp(mathCeil(width * 2), 8, 36),
+      strength = toNumber(value.strength ?? value.opacity) ?? 0.45,
+      color = style.colorOr(value.color ?? value.tint, makeColor(255, 255, 255, 120))
+  }
+}
+
+fn scaledColor(input, scale) {
+  local color = style.colorOr(input, white)
+  makeColor(color.r ?? 255, color.g ?? 255, color.b ?? 255, mathClamp(mathFloor((color.a ?? 255) * (scale ?? 1)), 0, 255))
+}
+
+fn snapTextPos(x, y, textStyle = nil) {
+  if textStyle?.pixelSnap == false {
+    return x, y
+  }
+  return mathFloor((x ?? 0) + 0.5), mathFloor((y ?? 0) + 0.5)
+}
+
+fn drawNativeFallbackRecord(record) {
+  local textStyle = record.style ?? {}
+  local layout = layoutFor(record.text, record.font, textStyle, true)
+  local x = (record.x ?? 0) - layout.w * alignFactor(record.alignX)
+  local y = (record.y ?? 0) - layout.h * alignFactor(record.alignY, true)
+  x, y = snapTextPos(x, y, textStyle)
+
+  local fill = textStyle.fill ?? textStyle.color ?? record.color ?? white
+  local shadow = normalizeShadow(textStyle.shadow)
+  local stroke = normalizeStroke(textStyle.stroke ?? textStyle.outline)
+  local glow = normalizeGlow(textStyle.glow)
+
+  profile.draws += 1
+
+  if shadow ~= nil {
+    drawLayout(layout, x + shadow.x, y + shadow.y, scaledColor(shadow.color, shadow.strength), shadow.color)
+  }
+
+  if glow ~= nil {
+    for index = 1, glow.samples {
+      local a = index / glow.samples * math.pi * 2
+      local r = glow.width * (0.35 + 0.65 * index / glow.samples)
+      drawLayout(layout, x + mathCos(a) * r, y + mathSin(a) * r, scaledColor(glow.color, glow.strength / glow.samples * 2), glow.color)
+    }
+  }
+
+  if stroke ~= nil {
+    for index = 1, stroke.samples {
+      local a = index / stroke.samples * math.pi * 2
+      drawLayout(layout, x + mathCos(a) * stroke.width, y + mathSin(a) * stroke.width, stroke.color, stroke.color)
+    }
+  }
+
+  drawLayout(layout, x, y, fill, record.color ?? white)
+  record
+}
+
+fn drawNativePlainRecord(record) {
+  local textStyle = record.style ?? {}
+  local fill = textStyle.fill ?? textStyle.color ?? record.color ?? white
+  if fillNeedsShader(fill) {
+    fill = record.color ?? white
+  }
+
+  local nativeFont, alias = nativeFor(record.font, textStyle, true, true)
+  local tracking = toNumber(textStyle.tracking ?? textStyle.letterSpacing) ?? alias.tracking ?? 0
+  local raw = toString(record.text ?? "")
+
+  if tracking == 0 and stringFind(raw, "\n", 1, true) == nil and textStyle.lineHeight == nil and alias.lineHeight == nil and not fillNeedsShader(fill) and drawSimpleText ~= nil {
+    local x, y = snapTextPos(record.x ?? 0, record.y ?? 0, textStyle)
+    drawSimpleText(raw, setFontSafe(nativeFont), x, y, style.colorOr(fill, record.color ?? white), record.alignX ?? TEXT_ALIGN_LEFT, record.alignY ?? TEXT_ALIGN_TOP)
+    return record
+  }
+
+  local layout = layoutFor(raw, record.font, textStyle, true, true)
+  local x = (record.x ?? 0) - layout.w * alignFactor(record.alignX)
+  local y = (record.y ?? 0) - layout.h * alignFactor(record.alignY, true)
+  x, y = snapTextPos(x, y, textStyle)
+  drawLayout(layout, x, y, fill, record.color ?? white)
+  record
+}
+
+export client fn draw(value, font, x, y, color, ax = 0, ay = 0) =
+  drawEx(value, font, x, y, color, ax, ay, nil)
+
+export client fn drawEx(value, font, x, y, color, ax = 0, ay = 0, textStyle = nil) {
+  local resolved = resolveStyle(textStyle ?? {})
+  local record = {
+    text = toString(value ?? ""),
+      font = resolved.font ?? font ?? "DermaDefault",
+      x = toNumber(x) ?? 0,
+      y = toNumber(y) ?? 0,
+      color = style.colorOr(color ?? resolved.color ?? resolved.fill, white),
+      alignX = resolved.alignX ?? resolved.align ?? ax ?? TEXT_ALIGN_LEFT,
+      alignY = resolved.alignY ?? resolved.valign ?? ay ?? TEXT_ALIGN_TOP,
+      style = resolved
+  }
+
+  drawNativeFallbackRecord(record)
+}
+
+export client fn box(value, font, x, y, w, h, color, alignX = TEXT_ALIGN_LEFT, alignY = TEXT_ALIGN_TOP) =
+  boxEx(value, font, x, y, w, h, {
+    color = color,
+      alignX = alignX,
+      alignY = alignY
+  })
+
+fn textBoxLineStyle(textStyle) {
+  local out = copyValue(textStyle ?? {})
+  out.alignY = TEXT_ALIGN_TOP
+  out.valign = TEXT_ALIGN_TOP
+  out
+}
+
+export client fn boxEx(value, font, x, y, w, h, textStyle = nil) {
+  local resolved = resolveStyle(textStyle ?? {})
+  local resolvedFont = resolved.font ?? font ?? "DermaDefault"
+  local lines = wrapText(value, resolvedFont, toNumber(w) ?? 0, resolved.overflow)
+  local nativeFont, alias, oversample = nativeFor(resolvedFont, resolved)
+  local lineHeight = lineHeightFor(nativeFont, alias, resolved, oversample)
+  local totalH = #lines * lineHeight
+  local startY = (toNumber(y) ?? 0) + ((toNumber(h) ?? totalH) - totalH) * alignFactor(resolved.alignY ?? resolved.valign ?? TEXT_ALIGN_TOP, true)
+  local ax = resolved.alignX ?? resolved.align ?? TEXT_ALIGN_LEFT
+  local tx = (toNumber(x) ?? 0) + (toNumber(w) ?? 0) * alignFactor(ax)
+  local lineStyle = textBoxLineStyle(resolved)
+
+  for index = 1, #lines {
+    drawEx(lines[index], resolvedFont, tx, startY + (index - 1) * lineHeight, lineStyle.color ?? lineStyle.fill, ax, TEXT_ALIGN_TOP, lineStyle)
+  }
+}
+
+export client fn batch(records) {
+  for index = 1, #(records ?? {}) {
+    local record = records[index]
+    drawNativeFallbackRecord({
+      text = record.text,
+      font = record.font,
+      x = record.x,
+      y = record.y,
+      color = record.color,
+      alignX = record.alignX ?? record.ax,
+      alignY = record.alignY ?? record.ay,
+      style = resolveStyle(record.style ?? {})
+    })
+  }
+
+  records
+}
+
+export client fn prewarm(value, font, textStyle = nil) {
+  local resolved = resolveStyle(textStyle ?? {})
+  local layout = layoutFor(value, font ?? resolved.font ?? "DermaDefault", resolved)
+  layout ~= nil
+}

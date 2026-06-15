@@ -1,0 +1,253 @@
+fn setupParamProbeMatrix(mat, columnPacked) {
+  if not materialsPkg.matOK(mat) or paramProbeMatrix == nil or paramProbeSetUnpacked == nil {
+    return false
+  }
+
+  local pulse = math.sin(realTime() * 2.2) * 0.2 + 0.2
+  if columnPacked {
+    paramProbeSetUnpacked(paramProbeMatrix,
+      1.0, 0.05, 0.05, 1.0,
+      0.05, 1.0, 0.05, 1.0,
+      0.05, 0.05, 1.0, pulse,
+      1.0, 1.0, 1.0, 1.0)
+  } else {
+    paramProbeSetUnpacked(paramProbeMatrix,
+      1.0, 0.05, 0.05, 1.0,
+      0.05, 1.0, 0.05, 1.0,
+      0.05, 0.05, 1.0, 1.0,
+      1.0, 1.0, pulse, 1.0)
+  }
+
+  mat:SetMatrix("$viewprojmat", paramProbeMatrix)
+  true
+}
+
+fn drawParamProbeBlock(mat, x, y, w, h, columnPacked) {
+  if not setupParamProbeMatrix(mat, columnPacked) {
+    return false
+  }
+
+  surfaceSetMaterial(mat)
+  surfaceSetDrawColor(255, 255, 255, 255)
+  surfaceDrawTexturedRectUV(x, y, w, h, -0.015625, -0.015625, 1.015625, 1.015625)
+  true
+}
+
+fn drawParamProbe(owner) {
+  local mat = owner?._Materials?.param_probe
+  local x = 42
+  local y = 128
+  local w = 360
+  local h = 76
+  if not materialsPkg.matOK(mat) or paramProbeMatrix == nil or paramProbeSetUnpacked == nil {
+    draw.SimpleText("MGFX param probe unavailable", "DermaDefaultBold", x, y, makeColor(255, 90, 90))
+    return
+  }
+
+  draw.SimpleText("row-packed control", "DermaDefaultBold", x, y - 16, color_white)
+  drawParamProbeBlock(mat, x, y, w, h, false)
+  local y2 = y + h + 42
+  draw.SimpleText("column-packed candidate", "DermaDefaultBold", x, y2 - 16, color_white)
+  drawParamProbeBlock(mat, x, y2, w, h, true)
+}
+
+export client fn toggleParamProbe(owner) {
+  paramProbeEnabled = not paramProbeEnabled
+  if hookRemove ~= nil {
+    hookRemove("HUDPaint", "MGFXParamProbe")
+  }
+
+  if paramProbeEnabled and hookAdd ~= nil {
+    hookAdd("HUDPaint", "MGFXParamProbe", () => drawParamProbe(owner))
+    printFn("[MGFX] param probe ON")
+    return true
+  }
+
+  printFn("[MGFX] param probe OFF")
+  false
+}
+
+fn printBenchResult(name, iterations, elapsedMs, emptyMs, sink) {
+  local netMs = mathMax(0, elapsedMs - (emptyMs ?? 0))
+  printFn(stringFormat("[MGFX] param bench %-26s raw=%8.3fms net=%8.3fms %.3fus/iter sink=%.3f",
+    name,
+    elapsedMs,
+    netMs,
+    netMs * 1000 / mathMax(1, iterations),
+    sink))
+}
+
+fn runParamBenchSlice(test, mat, matrix, setUnpacked, first, last) {
+  local sink = 0
+  if test == "empty" {
+    for index = first, last {
+      local value = (index % 1024) * 0.0009765625
+      sink += value
+    }
+  } else if test == "SetFloat x8" {
+    for index = first, last {
+      local value = (index % 1024) * 0.0009765625
+      mat:SetFloat("$c0_x", value)
+      mat:SetFloat("$c0_y", value + 0.01)
+      mat:SetFloat("$c0_z", value + 0.02)
+      mat:SetFloat("$c0_w", value + 0.03)
+      mat:SetFloat("$c1_x", value + 0.04)
+      mat:SetFloat("$c1_y", value + 0.05)
+      mat:SetFloat("$c1_z", value + 0.06)
+      mat:SetFloat("$c1_w", value + 0.07)
+      sink += value
+    }
+  } else if test == "SetFloat x16" {
+    for index = first, last {
+      local value = (index % 1024) * 0.0009765625
+      mat:SetFloat("$c0_x", value)
+      mat:SetFloat("$c0_y", value + 0.01)
+      mat:SetFloat("$c0_z", value + 0.02)
+      mat:SetFloat("$c0_w", value + 0.03)
+      mat:SetFloat("$c1_x", value + 0.04)
+      mat:SetFloat("$c1_y", value + 0.05)
+      mat:SetFloat("$c1_z", value + 0.06)
+      mat:SetFloat("$c1_w", value + 0.07)
+      mat:SetFloat("$c2_x", value + 0.08)
+      mat:SetFloat("$c2_y", value + 0.09)
+      mat:SetFloat("$c2_z", value + 0.10)
+      mat:SetFloat("$c2_w", value + 0.11)
+      mat:SetFloat("$c3_x", value + 0.12)
+      mat:SetFloat("$c3_y", value + 0.13)
+      mat:SetFloat("$c3_z", value + 0.14)
+      mat:SetFloat("$c3_w", value + 0.15)
+      sink += value
+    }
+  } else if test == "SetUnpacked only" {
+    for index = first, last {
+      local value = (index % 1024) * 0.0009765625
+      setUnpacked(matrix,
+        value, value + 0.04, value + 0.08, value + 0.12,
+        value + 0.01, value + 0.05, value + 0.09, value + 0.13,
+        value + 0.02, value + 0.06, value + 0.10, value + 0.14,
+        value + 0.03, value + 0.07, value + 0.11, value + 0.15)
+      sink += value
+    }
+  } else if test == "SetMatrix only" {
+    for index = first, last {
+      local value = (index % 1024) * 0.0009765625
+      mat:SetMatrix("$viewprojmat", matrix)
+      sink += value
+    }
+  } else if test == "SetUnpacked + SetMatrix" {
+    for index = first, last {
+      local value = (index % 1024) * 0.0009765625
+      setUnpacked(matrix,
+        value, value + 0.04, value + 0.08, value + 0.12,
+        value + 0.01, value + 0.05, value + 0.09, value + 0.13,
+        value + 0.02, value + 0.06, value + 0.10, value + 0.14,
+        value + 0.03, value + 0.07, value + 0.11, value + 0.15)
+      mat:SetMatrix("$viewprojmat", matrix)
+      sink += value
+    }
+  }
+
+  sink
+}
+
+export client fn stopParamBench() {
+  if timerRemove ~= nil {
+    timerRemove(paramBenchTimer)
+  }
+
+  printFn("[MGFX] param bench stopped")
+  true
+}
+
+export client fn runParamBench(owner, args = nil) {
+  local materials = owner?._Materials ?? {}
+  local mat = materials.param_probe ?? materials.roundrect
+  if not materialsPkg.matOK(mat) {
+    printFn("[MGFX] param bench unavailable: material error")
+    return false
+  }
+
+  local matrix = paramBenchMatrix
+  local setUnpacked = paramBenchSetUnpacked
+  if matrix == nil or setUnpacked == nil {
+    printFn("[MGFX] param bench unavailable: Matrix:SetUnpacked missing")
+    return false
+  }
+
+  if timerCreate == nil or timerRemove == nil or sysTime == nil {
+    printFn("[MGFX] param bench unavailable: timer/SysTime missing")
+    return false
+  }
+
+  local iterations = mathClamp(toNumber(args?.[1]) ?? 3000, 250, 10000)
+  local roundCount = mathClamp(toNumber(args?.[2]) ?? 2, 1, 5)
+  local batchSize = mathClamp(toNumber(args?.[3]) ?? 100, 10, 250)
+  timerRemove(paramBenchTimer)
+
+  local tests = {
+    "empty",
+      "SetFloat x8",
+      "SetFloat x16",
+      "SetUnpacked only",
+      "SetMatrix only",
+      "SetUnpacked + SetMatrix"
+  }
+  local state = {
+    round = 1,
+      testIndex = 1,
+      iter = 1,
+      elapsedMs = 0,
+      emptyMs = 0,
+      sink = 0
+  }
+
+  printFn(stringFormat("[MGFX] param bench begin iterations=%d rounds=%d batch=%d material=%s", iterations, roundCount, batchSize, toString(mat)))
+  printFn("[MGFX] param bench note: sliced across frames; use mgfx_param_bench_stop to cancel.")
+
+  timerCreate(paramBenchTimer, 0, 0, () => {
+      local testName = tests[state.testIndex]
+      if testName == nil {
+        printFn("[MGFX] param bench end")
+        timerRemove(paramBenchTimer)
+        return
+    }
+
+      local last = mathMin(iterations, state.iter + batchSize - 1)
+      local started = sysTime()
+      state.sink += runParamBenchSlice(testName, mat, matrix, setUnpacked, state.iter, last)
+      state.elapsedMs += (sysTime() - started) * 1000
+      state.iter = last + 1
+
+      if state.iter <= iterations {
+        return
+    }
+
+      if testName == "empty" {
+        state.emptyMs = state.elapsedMs
+        printBenchResult(testName, iterations, state.elapsedMs, 0, state.sink)
+    } else {
+        printBenchResult(testName, iterations, state.elapsedMs, state.emptyMs, state.sink)
+    }
+
+      state.testIndex += 1
+      state.iter = 1
+      state.elapsedMs = 0
+      state.sink = 0
+
+      if state.testIndex > #tests {
+        state.round += 1
+        if state.round > roundCount {
+          printFn("[MGFX] param bench end")
+          timerRemove(paramBenchTimer)
+          return
+      }
+
+        state.testIndex = 1
+        state.emptyMs = 0
+        printFn(stringFormat("[MGFX] param bench round %d/%d", state.round, roundCount))
+    }
+  })
+
+  true
+}
+

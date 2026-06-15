@@ -1,0 +1,1059 @@
+local concommandAdd = concommand?.Add
+local concommandRemove = concommand?.Remove
+local createClientConVar = CreateClientConVar
+local getConVar = GetConVar
+local guiIsGameUIVisible = gui?.IsGameUIVisible
+local guiMousePos = gui?.MousePos
+local hookAdd = hook?.Add
+local hookRemove = hook?.Remove
+local inputGetCursorPos = input?.GetCursorPos
+local isString = isstring
+local lerp = Lerp
+local localPlayer = LocalPlayer
+local makeAngle = Angle
+local makeColor = Color
+local makeVector = Vector
+local mathClamp = math.Clamp
+local mathRound = math.Round
+local printFn = print
+local realFrameTime = RealFrameTime
+local realTime = RealTime
+local surfaceCreateFont = surface?.CreateFont
+local surfaceGetTextSize = surface?.GetTextSize
+local surfaceSetAlphaMultiplier = surface?.SetAlphaMultiplier
+local surfaceSetFont = surface?.SetFont
+local toNumber = tonumber
+local vguiCreate = vgui?.Create
+local vguiCursorVisible = vgui?.CursorVisible
+local vguiRegister = vgui?.Register
+
+local api = nil
+local wheelPanel = nil
+local currentFontScale = -1
+local debugCvar = createClientConVar ~= nil then createClientConVar("mgfx_wheel_debug", "0", true, false, "MGFX wheel demo: show pointer telemetry.") else nil
+
+fn cursorVisible() = vguiCursorVisible ~= nil and vguiCursorVisible() or false
+fn gameUiVisible() = guiIsGameUIVisible ~= nil and guiIsGameUIVisible() or false
+fn mousePos() {
+  if guiMousePos ~= nil {
+    return guiMousePos()
+  }
+
+  return 0, 0
+}
+
+fn addCommand(owner, name, callback, helpText = nil) {
+  local add = owner?._AddCommand ?? concommandAdd
+  if add == nil {
+    return false
+  }
+
+  if owner?._AddCommand == nil and concommandRemove ~= nil and string.sub(name, 1, 5) == "mgfx_" {
+    concommandRemove(name)
+  }
+
+  add(name, callback, nil, helpText)
+  true
+}
+
+fn valid(value) =
+  value ~= nil and IsValid(value)
+
+local COLORS = {
+  bg = makeColor(10, 12, 17, 230),
+    wedge = makeColor(23, 24, 29, 86),
+    wedgeSel = makeColor(30, 31, 37, 100),
+    wedgeHot = makeColor(84, 20, 10, 142),
+    wedgePress = makeColor(116, 26, 8, 160),
+    hub = makeColor(22, 23, 28, 112),
+    hubEdge = makeColor(255, 255, 255, 12),
+    ember = makeColor(232, 58, 18),
+    emberHot = makeColor(255, 110, 48),
+    accent = makeColor(255, 70, 24),
+    ink = makeColor(245, 246, 248, 252),
+    muted = makeColor(170, 174, 182, 205),
+    shadow = makeColor(0, 0, 0, 140),
+}
+
+local ACTIONS = {
+  {title = "High five", pose = "highfive"},
+    {title = "Crouch wave", pose = "crouch"},
+    {title = "Arms behind", pose = "behind"},
+    {title = "Hands up", pose = "handsup"},
+}
+
+local SEG_SPAN = 360 / #ACTIONS
+local WHEEL_START = -180 -- first segment is the upper-left quadrant
+local SEG_OUTSET_RATIO = 0.026
+local SEG_OUTSET_MIN = 5
+local SEG_OUTSET_MAX = 9
+local HUB_GAP_RATIO = 0.04
+local HUB_GAP_MIN = 10
+local HUB_GAP_MAX = 15
+local LIGHT_ALPHA_STEPS = 16
+
+local math_cos = math.cos
+local math_deg = math.deg
+local math_exp = math.exp
+local math_floor = math.floor
+local math_max = math.max
+local math_min = math.min
+local math_pi = math.pi
+local math_rad = math.rad
+local math_sin = math.sin
+local math_sqrt = math.sqrt
+
+-- atan2 that works no matter which math library variant the branch ships.
+local nativeAtan2 = math.atan2
+local math_atan = math.atan
+fn atan2(y, x) {
+  if nativeAtan2 { return nativeAtan2(y, x) }
+  if x > 0 { return math_atan(y / x) }
+  if x < 0 {
+    if y >= 0 { return math_atan(y / x) + math_pi }
+    return math_atan(y / x) - math_pi
+  }
+  if y > 0 { return math_pi * 0.5 }
+  if y < 0 { return -math_pi * 0.5 }
+  return 0
+}
+
+fn ensureFonts(scale) {
+  scale = mathRound(scale * 100) / 100
+  if currentFontScale == scale { return }
+  currentFontScale = scale
+
+  local font = (name, face, size, weight) => {
+    surfaceCreateFont(name, {
+        font = face,
+        size = math.max(8, mathRound(size * scale)),
+        weight = weight,
+        antialias = true,
+        extended = true,
+    })
+  }
+
+  font("MGFXWheelTitle", "Bahnschrift", 23, 600)
+  font("MGFXWheelHint", "Bahnschrift", 14, 600)
+  font("MGFXWheelMonoSmall", "Consolas", 12, 400)
+}
+
+fn colorAlpha(color, alpha) {
+  return makeColor(color.r or 255, color.g or 255, color.b or 255, mathClamp(mathRound(alpha or 255), 0, 255))
+}
+
+fn mixColor(a, b, t) {
+  t = mathClamp(toNumber(t) or 0, 0, 1)
+  return makeColor(
+    lerp(t, a.r or 0, b.r or 0),
+    lerp(t, a.g or 0, b.g or 0),
+    lerp(t, a.b or 0, b.b or 0),
+    lerp(t, a.a == nil and 255 or a.a, b.a == nil and 255 or b.a)
+  )
+}
+
+fn easeOutCubic(t) {
+  t = mathClamp(toNumber(t) or 0, 0, 1)
+  local inv = 1 - t
+  return 1 - inv * inv * inv
+}
+
+fn pulse01(t) {
+  t = mathClamp(toNumber(t) or 1, 0, 1)
+  return math_sin(t * math_pi) * (1 - t * 0.22)
+}
+
+fn quantizedOpacity(value) {
+  local step = mathClamp(math_floor((toNumber(value) or 0) * LIGHT_ALPHA_STEPS + 0.5), 0, LIGHT_ALPHA_STEPS)
+  return step / LIGHT_ALPHA_STEPS
+}
+
+fn pointerLightFill(nx, ny, radius, opacity) {
+  local o = quantizedOpacity(opacity)
+  return api.RadialGradient(nx, ny, radius, {
+      {0.00, makeColor(255, 168, 110, math_floor(98 * o + 0.5))},
+      {0.30, makeColor(255, 92, 42, math_floor(62 * o + 0.5))},
+      {0.68, makeColor(255, 58, 24, math_floor(20 * o + 0.5))},
+      {1.00, makeColor(255, 58, 24, 0)},
+  })
+}
+
+-- UI damping uses real time so the wheel stays fluid even if the game pauses.
+fn damp(current, target, speed) {
+  local amount = 1 - math_exp(-(speed or 12) * (realFrameTime ~= nil then realFrameTime() else 0.016))
+  return lerp(amount, current or target or 0, target or 0)
+}
+
+fn normalizeDeg(angle) {
+  angle = angle % 360
+  if angle < 0 { angle = angle + 360 }
+  return angle
+}
+
+fn angleDelta(fromDeg, toDeg) {
+  return ((toDeg - fromDeg + 180) % 360) - 180
+}
+
+fn dampAngle(current, target, speed) {
+  current = current or target or 0
+  return current + angleDelta(current, target or 0) * (1 - math_exp(-(speed or 12) * (realFrameTime ~= nil then realFrameTime() else 0.016)))
+}
+
+fn anglePoint(cx, cy, radius, deg) {
+  local a = math_rad(deg)
+  return cx + math_cos(a) * radius, cy + math_sin(a) * radius
+}
+
+fn segmentRange(index) {
+  local startDeg = WHEEL_START + (index - 1) * SEG_SPAN
+  return startDeg, startDeg + SEG_SPAN
+}
+
+fn segmentMid(index) {
+  local startDeg, endDeg = segmentRange(index)
+  return (startDeg + endDeg) * 0.5
+}
+
+fn segmentCenter(cx, cy, index, outset) {
+  return anglePoint(cx, cy, outset or 0, segmentMid(index))
+}
+
+fn indexFromAngle(deg) {
+  local relative = normalizeDeg(deg - WHEEL_START)
+  return (math_floor(relative / SEG_SPAN) % #ACTIONS) + 1
+}
+
+-- Static fill values, built once and reused every frame.
+local FILLS
+fn ensureFills() {
+  if FILLS { return FILLS }
+  FILLS = {
+    hub = COLORS.hub,
+  }
+  return FILLS
+}
+
+local PREVIEW_MODEL_FALLBACK = "models/player/group01/male_07.mdl"
+local ZERO_ANGLE = makeAngle(0, 0, 0)
+
+local PREVIEW_POSES = {
+  highfive = {
+    ["ValveBiped.Bip01_R_UpperArm"] = makeAngle(-78, -18, 58),
+      ["ValveBiped.Bip01_R_Forearm"] = makeAngle(-34, -4, 10),
+      ["ValveBiped.Bip01_R_Hand"] = makeAngle(4, 10, 4),
+      ["ValveBiped.Bip01_L_UpperArm"] = makeAngle(18, 10, -12),
+  },
+    crouch = {
+    ["ValveBiped.Bip01_R_UpperArm"] = makeAngle(-55, -8, 38),
+      ["ValveBiped.Bip01_R_Forearm"] = makeAngle(-24, 0, 6),
+      ["ValveBiped.Bip01_L_UpperArm"] = makeAngle(44, 8, -24),
+      ["ValveBiped.Bip01_L_Forearm"] = makeAngle(22, 0, -8),
+      ["ValveBiped.Bip01_R_Thigh"] = makeAngle(12, 0, 0),
+      ["ValveBiped.Bip01_L_Thigh"] = makeAngle(-12, 0, 0),
+  },
+    behind = {
+    ["ValveBiped.Bip01_R_UpperArm"] = makeAngle(58, -18, 30),
+      ["ValveBiped.Bip01_R_Forearm"] = makeAngle(56, 0, -8),
+      ["ValveBiped.Bip01_L_UpperArm"] = makeAngle(58, 18, -30),
+      ["ValveBiped.Bip01_L_Forearm"] = makeAngle(56, 0, 8),
+  },
+    handsup = {
+    ["ValveBiped.Bip01_R_UpperArm"] = makeAngle(-78, -18, 46),
+      ["ValveBiped.Bip01_R_Forearm"] = makeAngle(-48, -2, 8),
+      ["ValveBiped.Bip01_L_UpperArm"] = makeAngle(-78, 18, -46),
+      ["ValveBiped.Bip01_L_Forearm"] = makeAngle(-48, 2, -8),
+  },
+}
+
+fn resetPreviewBones(ent) {
+  if not valid(ent) or not ent.ManipulateBoneAngles { return }
+  for _, name in ipairs({
+      "ValveBiped.Bip01_R_UpperArm",
+      "ValveBiped.Bip01_R_Forearm",
+      "ValveBiped.Bip01_R_Hand",
+      "ValveBiped.Bip01_L_UpperArm",
+      "ValveBiped.Bip01_L_Forearm",
+      "ValveBiped.Bip01_L_Hand",
+      "ValveBiped.Bip01_R_Thigh",
+      "ValveBiped.Bip01_L_Thigh",
+  }) {
+    local bone = ent:LookupBone(name)
+    if bone { ent:ManipulateBoneAngles(bone, ZERO_ANGLE) }
+  }
+}
+
+fn applyPreviewPose(ent, pose) {
+  if not valid(ent) or not ent.ManipulateBoneAngles { return }
+  resetPreviewBones(ent)
+  local spec = PREVIEW_POSES[pose]
+  if not spec { return }
+  for boneName, ang in pairs(spec) {
+    local bone = ent:LookupBone(boneName)
+    if bone { ent:ManipulateBoneAngles(bone, ang) }
+  }
+}
+
+fn poseLine(x1, y1, x2, y2, width, color, alpha) {
+  api.LineEx(x1, y1, x2, y2, {
+      width = width + 2,
+      fill = makeColor(0, 0, 0, math_floor(alpha * 0.18)),
+  })
+  api.LineEx(x1, y1, x2, y2, {
+      width = width,
+      fill = colorAlpha(color, alpha),
+  })
+}
+
+fn drawPoseFigure(x, y, scale, pose, alpha, color) {
+  alpha = mathClamp(alpha or 220, 0, 255)
+  local col = color or makeColor(244, 246, 250)
+  local width = math_max(2, scale * 0.12)
+  local headR = scale * 0.16
+  local headY = y - scale * 0.58
+  local neckY = y - scale * 0.38
+  local hipY = y + scale * 0.18
+  local shoulderY = y - scale * 0.28
+  local shoulderW = scale * 0.23
+  local hipW = scale * 0.15
+
+  api.CircleEx(x, headY, headR + 1.5, {fill = makeColor(0, 0, 0, math_floor(alpha * 0.16))})
+  api.CircleEx(x, headY, headR, {fill = colorAlpha(col, alpha)})
+  poseLine(x, neckY, x, hipY, width, col, alpha)
+
+  if pose == "behind" {
+    poseLine(x - shoulderW, shoulderY, x - scale * 0.2, headY + scale * 0.02, width, col, alpha)
+    poseLine(x + shoulderW, shoulderY, x + scale * 0.2, headY + scale * 0.02, width, col, alpha)
+    poseLine(x - scale * 0.2, headY + scale * 0.02, x - scale * 0.06, headY - scale * 0.11, width, col, alpha)
+    poseLine(x + scale * 0.2, headY + scale * 0.02, x + scale * 0.06, headY - scale * 0.11, width, col, alpha)
+    poseLine(x - hipW, hipY, x - scale * 0.23, y + scale * 0.66, width, col, alpha)
+    poseLine(x + hipW, hipY, x + scale * 0.21, y + scale * 0.66, width, col, alpha)
+  } else if pose == "crouch" {
+    poseLine(x - shoulderW, shoulderY, x - scale * 0.45, y - scale * 0.03, width, col, alpha)
+    poseLine(x + shoulderW, shoulderY, x + scale * 0.32, y - scale * 0.58, width, col, alpha)
+    poseLine(x + scale * 0.32, y - scale * 0.58, x + scale * 0.31, y - scale * 0.78, width, col, alpha)
+    poseLine(x - hipW, hipY, x - scale * 0.46, y + scale * 0.45, width, col, alpha)
+    poseLine(x - scale * 0.46, y + scale * 0.45, x - scale * 0.16, y + scale * 0.58, width, col, alpha)
+    poseLine(x + hipW, hipY, x + scale * 0.44, y + scale * 0.43, width, col, alpha)
+    poseLine(x + scale * 0.44, y + scale * 0.43, x + scale * 0.16, y + scale * 0.58, width, col, alpha)
+  } else if pose == "handsup" {
+    poseLine(x - shoulderW, shoulderY, x - scale * 0.34, y - scale * 0.72, width, col, alpha)
+    poseLine(x + shoulderW, shoulderY, x + scale * 0.34, y - scale * 0.72, width, col, alpha)
+    poseLine(x - scale * 0.34, y - scale * 0.72, x - scale * 0.34, y - scale * 0.9, width, col, alpha)
+    poseLine(x + scale * 0.34, y - scale * 0.72, x + scale * 0.34, y - scale * 0.9, width, col, alpha)
+    poseLine(x - hipW, hipY, x - scale * 0.22, y + scale * 0.67, width, col, alpha)
+    poseLine(x + hipW, hipY, x + scale * 0.24, y + scale * 0.67, width, col, alpha)
+  } else if pose == "highfive" {
+    poseLine(x - shoulderW, shoulderY, x - scale * 0.52, y - scale * 0.08, width, col, alpha)
+    poseLine(x + shoulderW, shoulderY, x + scale * 0.38, y - scale * 0.7, width, col, alpha)
+    poseLine(x + scale * 0.38, y - scale * 0.7, x + scale * 0.4, y - scale * 0.94, width, col, alpha)
+    poseLine(x - hipW, hipY, x - scale * 0.22, y + scale * 0.66, width, col, alpha)
+    poseLine(x + hipW, hipY, x + scale * 0.2, y + scale * 0.66, width, col, alpha)
+  } else if pose == "point" {
+    poseLine(x - shoulderW, shoulderY, x - scale * 0.3, y - scale * 0.02, width, col, alpha)
+    poseLine(x + shoulderW, shoulderY, x + scale * 0.62, y - scale * 0.34, width, col, alpha)
+    poseLine(x - hipW, hipY, x - scale * 0.22, y + scale * 0.66, width, col, alpha)
+    poseLine(x + hipW, hipY, x + scale * 0.2, y + scale * 0.66, width, col, alpha)
+  } else if pose == "salute" {
+    poseLine(x - shoulderW, shoulderY, x - scale * 0.26, y + scale * 0.05, width, col, alpha)
+    poseLine(x + shoulderW, shoulderY, x + scale * 0.42, y - scale * 0.5, width, col, alpha)
+    poseLine(x + scale * 0.42, y - scale * 0.5, x + scale * 0.12, y - scale * 0.66, width, col, alpha)
+    poseLine(x - hipW, hipY, x - scale * 0.16, y + scale * 0.66, width, col, alpha)
+    poseLine(x + hipW, hipY, x + scale * 0.16, y + scale * 0.66, width, col, alpha)
+  } else { -- wave
+    poseLine(x - shoulderW, shoulderY, x - scale * 0.56, y - scale * 0.16, width, col, alpha)
+    poseLine(x + shoulderW, shoulderY, x + scale * 0.36, y - scale * 0.68, width, col, alpha)
+    poseLine(x + scale * 0.36, y - scale * 0.68, x + scale * 0.32, y - scale * 0.88, width, col, alpha)
+    poseLine(x - hipW, hipY, x - scale * 0.23, y + scale * 0.66, width, col, alpha)
+    poseLine(x + hipW, hipY, x + scale * 0.21, y + scale * 0.66, width, col, alpha)
+  }
+}
+
+-- Small mouse glyph: rounded body, seam, and the active button filled.
+fn drawMouseGlyph(x, y, side, alpha) {
+  local w, h = 11, 15
+  api.RoundedBoxEx(x, y, w, h, {
+      radius = 5,
+      fill = makeColor(255, 255, 255, math_floor(18 * alpha)),
+      stroke = makeColor(255, 255, 255, math_floor(150 * alpha)),
+      strokeWidth = 1,
+  })
+  api.LineEx(x + w * 0.5, y + 1.5, x + w * 0.5, y + h * 0.42, {
+      width = 1,
+      fill = makeColor(255, 255, 255, math_floor(90 * alpha)),
+  })
+  local bw, bh = 3.6, 5
+  local bx = side == "right" and (x + w * 0.5 + 0.6) or (x + w * 0.5 - 0.6 - bw)
+  api.RoundedBoxEx(bx, y + 1.6, bw, bh, {
+      radius = 2,
+      fill = makeColor(255, 255, 255, math_floor(215 * alpha)),
+  })
+}
+
+fn drawGearGlyph(cx, cy, radius, alpha) {
+  alpha = alpha or 1
+  api.CircleEx(cx, cy, radius, {
+      fill = makeColor(255, 255, 255, math_floor(208 * alpha)),
+  })
+  api.CircleEx(cx, cy, radius * 0.42, {
+      fill = makeColor(34, 36, 42, math_floor(230 * alpha)),
+  })
+  for i = 0, 7 {
+    local deg = i * 45
+    local x1, y1 = anglePoint(cx, cy, radius * 0.72, deg)
+    local x2, y2 = anglePoint(cx, cy, radius * 1.18, deg)
+    api.LineEx(x1, y1, x2, y2, {
+        width = 3,
+        fill = makeColor(255, 255, 255, math_floor(208 * alpha)),
+    })
+  }
+}
+
+fn drawText(value, font, x, y, color, ax, ay, alphaMul) {
+  alphaMul = alphaMul or 1
+  draw.SimpleText(value, font, x + 1, y + 1, colorAlpha(COLORS.shadow, (COLORS.shadow.a or 255) * 0.6 * alphaMul), ax or TEXT_ALIGN_LEFT, ay or TEXT_ALIGN_TOP)
+  draw.SimpleText(value, font, x, y, colorAlpha(color, (color.a or 255) * alphaMul), ax or TEXT_ALIGN_LEFT, ay or TEXT_ALIGN_TOP)
+}
+
+local PANEL = {}
+
+local POINTER_HOOK = "MGFXWheelDemoPointer"
+
+fn PANEL:Init() {
+  self:SetSize(ScrW(), ScrH())
+  self:SetPos(0, 0)
+  self:MakePopup()
+  self:SetKeyboardInputEnabled(true)
+  self:SetMouseInputEnabled(true)
+
+  self.Created = realTime()
+  self.SelectedIndex = 1
+  self.HoverIndex = nil
+  self.SelectPulse = 0
+  self.ClickPulse = 0
+  self.ClickPulseIndex = nil
+  self.MouseDown = false
+
+  local w, h = self:GetSize()
+  self.VirtualX = w * 0.5
+  self.VirtualY = h * 0.5
+  self.PointerSource = "idle"
+  self.LastCursorAt = 0
+  self.LastGuiX, self.LastGuiY = mousePos()
+  if input and input.GetCursorPos {
+    self.LastInputX, self.LastInputY = inputGetCursorPos()
+  }
+
+  self.SmoothX = self.VirtualX
+  self.SmoothY = self.VirtualY
+  self.GlowAngle = segmentMid(self.SelectedIndex)
+  self.DotAngle = segmentMid(self.SelectedIndex)
+  self.LightIndex = self.SelectedIndex
+
+  self.Anims = {}
+  for i = 1, #ACTIONS {
+    self.Anims[i] = {
+      hover = 0,
+        selected = i == self.SelectedIndex and 1 or 0,
+        press = 0,
+    }
+  }
+
+  self.ModelPanel = vguiCreate("DModelPanel", self)
+  if valid(self.ModelPanel) {
+    self.ModelPanel:SetVisible(false)
+    self.ModelPanel:SetMouseInputEnabled(false)
+    self.ModelPanel:SetKeyboardInputEnabled(false)
+    self.ModelPanel:SetFOV(25)
+    self.ModelPanel:SetCamPos(makeVector(58, -138, 60))
+    self.ModelPanel:SetLookAt(makeVector(0, 0, 48))
+    self.ModelPanel.LayoutEntity = (panel, ent) => {
+      if not valid(self) or not valid(ent) { return }
+      local action = ACTIONS[self.HoverIndex or self.SelectedIndex] or ACTIONS[1]
+      ent:SetAngles(makeAngle(0, 8 + math_sin(realTime() * 0.55) * 1.5, 0))
+      applyPreviewPose(ent, action.pose)
+      if panel.RunAnimation { panel:RunAnimation() }
+    }
+  }
+
+  local panel = self
+  if hookAdd ~= nil {
+    hookAdd("CreateMove", POINTER_HOOK, (cmd) => {
+        if not valid(panel) {
+          if hookRemove ~= nil {
+            hookRemove("CreateMove", POINTER_HOOK)
+        }
+          return
+      }
+        panel:ApplyAnalogDelta(cmd:GetMouseX(), cmd:GetMouseY())
+    })
+  }
+}
+
+fn PANEL:OnRemove() {
+  if hookRemove ~= nil {
+    hookRemove("CreateMove", POINTER_HOOK)
+  }
+  if api ~= nil and api._WheelDemoPanel == self {
+    api._WheelDemoPanel = nil
+  }
+}
+
+fn PANEL:UpdatePreviewModel(action) {
+  local panel = self.ModelPanel
+  if not valid(panel) { return false }
+
+  local model = PREVIEW_MODEL_FALLBACK
+  local ply = localPlayer ~= nil and localPlayer()
+  if valid(ply) and isString(ply:GetModel()) and ply:GetModel() ~= "" {
+    model = ply:GetModel()
+  }
+
+  if self.PreviewModel ~= model {
+    panel:SetModel(model)
+    self.PreviewModel = model
+    local ent = panel.Entity
+    if valid(ent) {
+      local seq = ent:LookupSequence("idle_all_01")
+      if seq and seq >= 0 {
+        ent:ResetSequence(seq)
+        ent:SetCycle(0.18)
+        ent:SetPlaybackRate(0)
+      }
+      if valid(ply) {
+        ent:SetSkin(ply:GetSkin() or 0)
+        for i = 0, math_min((ply:GetNumBodyGroups() or 0) - 1, 8) {
+          ent:SetBodygroup(i, ply:GetBodygroup(i) or 0)
+        }
+      }
+    }
+  }
+
+  local ent = panel.Entity
+  if valid(ent) and action {
+    applyPreviewPose(ent, action.pose)
+  }
+  return valid(ent)
+}
+
+fn PANEL:LayoutPreview(w, h, action) {
+  local panel = self.ModelPanel
+  if not valid(panel) {
+    self.PreviewVisible = false
+    return false
+  }
+
+  local cx, _, outerR = self:WheelMetrics(w, h)
+  local available = cx - outerR - 64
+  local visible = w >= 1100 and h >= 620 and available > 360
+  panel:SetVisible(visible)
+  self.PreviewVisible = visible
+  if not visible { return false }
+
+  local panelW = mathClamp(available + w * 0.07, 420, w * 0.58)
+  panel:SetPos(math_floor(-w * 0.035), math_floor(-h * 0.02))
+  panel:SetSize(math_floor(panelW), math_floor(h * 1.08))
+  panel:SetFOV(mathClamp(27 - (h - 720) * 0.006, 20, 27))
+  panel:SetCamPos(makeVector(56, -136, 60))
+  panel:SetLookAt(makeVector(0, 0, 48))
+  local ok = self:UpdatePreviewModel(action)
+  panel:SetVisible(ok)
+  self.PreviewVisible = ok
+  return ok
+}
+
+fn PANEL:AdoptPointer(x, y, source) {
+  x, y = toNumber(x), toNumber(y)
+  if not x or not y { return }
+  local w, h = self:GetWide(), self:GetTall()
+  self.VirtualX = mathClamp(x, 0, w)
+  self.VirtualY = mathClamp(y, 0, h)
+  self.PointerSource = source
+  self.LastCursorAt = realTime()
+}
+
+fn PANEL:OnCursorMoved(x, y) {
+  self:AdoptPointer(x, y, "event")
+}
+
+fn PANEL:PollCursorSources() {
+  local px, py = self:GetPos()
+
+  local gx, gy = mousePos()
+  if gx ~= self.LastGuiX or gy ~= self.LastGuiY {
+    self.LastGuiX, self.LastGuiY = gx, gy
+    self:AdoptPointer(gx - px, gy - py, "cursor")
+  }
+
+  if input and input.GetCursorPos {
+    local ix, iy = inputGetCursorPos()
+    if ix ~= self.LastInputX or iy ~= self.LastInputY {
+      self.LastInputX, self.LastInputY = ix, iy
+      self:AdoptPointer(ix - px, iy - py, "input")
+    }
+  }
+}
+
+-- Raw mouse deltas keep the wheel alive when no cursor source is updating
+-- (engine kept the mouse captured). Harmless otherwise: a working popup eats
+-- the deltas, so cmd:GetMouseX/Y are zero.
+fn PANEL:ApplyAnalogDelta(dx, dy) {
+  dx, dy = toNumber(dx) or 0, toNumber(dy) or 0
+  if dx == 0 and dy == 0 { return }
+  if cursorVisible() and realTime() - (self.LastCursorAt or 0) < 0.25 { return }
+
+  local w, h = self:GetWide(), self:GetTall()
+  local cx, cy, outerR = self:WheelMetrics(w, h)
+  local nx = (self.VirtualX or cx) + dx * 0.9
+  local ny = (self.VirtualY or cy) + dy * 0.9
+
+  local ddx, ddy = nx - cx, ny - cy
+  local dist = math_sqrt(ddx * ddx + ddy * ddy)
+  local maxR = outerR * 1.25
+  if dist > maxR {
+    nx = cx + ddx / dist * maxR
+    ny = cy + ddy / dist * maxR
+  }
+
+  self.VirtualX = mathClamp(nx, 0, w)
+  self.VirtualY = mathClamp(ny, 0, h)
+  self.PointerSource = "analog"
+}
+
+fn PANEL:WheelMetrics(w, h) {
+  local outerR = mathClamp(math_min(w, h) * 0.295, 210, 330)
+  local innerR = outerR * 0.525
+  local hubGap = mathClamp(outerR * HUB_GAP_RATIO, HUB_GAP_MIN, HUB_GAP_MAX)
+  local hubR = innerR - hubGap
+  local cx = w >= 1100 and w * 0.79 or w * 0.5
+  local cy = h * 0.51
+  return cx, cy, outerR, innerR, hubR
+}
+
+fn PANEL:HitIndex(mx, my) {
+  local w, h = self:GetWide(), self:GetTall()
+  local cx, cy, _, innerR = self:WheelMetrics(w, h)
+  local dx, dy = mx - cx, my - cy
+  local dist = math_sqrt(dx * dx + dy * dy)
+  if dist < innerR * 0.96 { return nil }
+  local deg = math_deg(atan2(dy, dx))
+  return indexFromAngle(deg)
+}
+
+fn PANEL:Think() {
+  local sw, sh = ScrW(), ScrH()
+  if self:GetWide() ~= sw or self:GetTall() ~= sh {
+    self:SetSize(sw, sh)
+    self:SetPos(0, 0)
+  }
+
+  -- Reclaim the popup if something stole focus and the engine re-captured
+  -- the mouse (console close, other addons toggling input states).
+  if not cursorVisible() and not gameUiVisible() {
+    self:MakePopup()
+  }
+
+  self:PollCursorSources()
+}
+
+fn PANEL:OnMousePressed(code) {
+  if code == MOUSE_RIGHT {
+    self:Remove()
+    return
+  }
+  if code ~= MOUSE_LEFT { return }
+
+  self.MouseDown = true
+  local hit = self:HitIndex(self.VirtualX or 0, self.VirtualY or 0)
+  if hit {
+    self.SelectedIndex = hit
+    self.SelectPulse = realTime()
+    self.ClickPulse = realTime()
+    self.ClickPulseIndex = hit
+  }
+}
+
+fn PANEL:OnMouseReleased(code) {
+  if code == MOUSE_LEFT {
+    self.MouseDown = false
+  }
+}
+
+fn PANEL:OnMouseWheeled(delta) {
+  local count = #ACTIONS
+  self.SelectedIndex = ((self.SelectedIndex - 1 - delta) % count) + 1
+  self.SelectPulse = realTime()
+  return true
+}
+
+fn PANEL:OnKeyCodePressed(code) {
+  if code == KEY_ESCAPE or code == KEY_BACKSPACE {
+    self:Remove()
+    return
+  }
+  local slot = code - KEY_0
+  if slot >= 1 and slot <= #ACTIONS {
+    self.SelectedIndex = slot
+    self.SelectPulse = realTime()
+  }
+}
+
+fn PANEL:Paint(w, h) {
+  ensureFonts(math_min(w / 1280, h / 900))
+  self:PollCursorSources()
+
+  local now = realTime()
+  local intro = easeOutCubic((now - (self.Created or now)) / 0.18)
+
+  local cx, cy, outerR, innerR, hubR = self:WheelMetrics(w, h)
+  local k = 0.95 + 0.05 * intro
+  outerR, innerR, hubR = outerR * k, innerR * k, hubR * k
+  local segOutset = mathClamp(outerR * SEG_OUTSET_RATIO, SEG_OUTSET_MIN, SEG_OUTSET_MAX) * intro
+
+  local mx = mathClamp(self.VirtualX or cx, 0, w)
+  local my = mathClamp(self.VirtualY or cy, 0, h)
+  self.SmoothX = damp(self.SmoothX or mx, mx, 26)
+  self.SmoothY = damp(self.SmoothY or my, my, 26)
+
+  local dx, dy = mx - cx, my - cy
+  local pointerDist = math_sqrt(dx * dx + dy * dy)
+  local pointerAngle = pointerDist > 0.5 and normalizeDeg(math_deg(atan2(dy, dx))) or segmentMid(self.SelectedIndex)
+
+  local hoverIndex = self:HitIndex(mx, my)
+  self.HoverIndex = hoverIndex
+  if hoverIndex {
+    self.LightIndex = hoverIndex
+  }
+  local activeIndex = hoverIndex or self.SelectedIndex
+  local activeAction = ACTIONS[activeIndex] or ACTIONS[1]
+  self:LayoutPreview(w, h, activeAction)
+
+  for i = 1, #ACTIONS {
+    local anim = self.Anims[i]
+    local hovered = i == hoverIndex
+    anim.hover = damp(anim.hover, hovered and 1 or 0, hovered and 22 or 13)
+    anim.selected = damp(anim.selected, i == self.SelectedIndex and 1 or 0, 10)
+    anim.press = damp(anim.press, (self.MouseDown and hovered) and 1 or 0, 26)
+  }
+
+  local pulseT = mathClamp((now - (self.SelectPulse or 0)) / 0.4, 0, 1)
+  local flash = 1 - easeOutCubic(pulseT)
+  local clickT = mathClamp((now - (self.ClickPulse or 0)) / 0.36, 0, 1)
+  local clickPulse = pulse01(clickT)
+
+  local wheelPad = segOutset + mathClamp(outerR * 0.06, 10, 22)
+  local wheelX = cx - outerR - wheelPad
+  local wheelY = cy - outerR - wheelPad
+  local wheelSize = outerR * 2 + wheelPad * 2
+  local tiltStrength = intro * mathClamp(pointerDist / math_max(outerR * 0.65, 1), 0, 1) * 0.82
+  local wheelTransform = api ~= nil and api.PointerTilt ~= nil and api.PointerTilt(mx, my, {
+      origin = "50% 50%",
+      perspective = math_max(760, outerR * 4.8),
+      maxRotateX = 3.2,
+      maxRotateY = 4.8,
+      strength = tiltStrength,
+      scale = 1 + tiltStrength * 0.008,
+      steps = 12,
+  }) or nil
+  local localMx, localMy = mx, my
+  if wheelTransform and api.UntransformPoint ~= nil {
+    localMx, localMy = api.UntransformPoint(mx, my, wheelTransform, wheelX, wheelY, wheelSize, wheelSize)
+  }
+  local localDx, localDy = localMx - cx, localMy - cy
+  local localPointerDist = math_sqrt(localDx * localDx + localDy * localDy)
+  local localPointerAngle = localPointerDist > 0.5 and normalizeDeg(math_deg(atan2(localDy, localDx))) or pointerAngle
+
+  -- The ember glow eases toward the pointer, while the selected dot keeps
+  -- its own wedge-centered animation.
+  local glowTarget = hoverIndex and localPointerAngle or self.GlowAngle or segmentMid(self.SelectedIndex)
+  self.GlowAngle = dampAngle(self.GlowAngle, glowTarget, 16)
+  self.DotAngle = dampAngle(self.DotAngle, segmentMid(self.SelectedIndex), 14)
+
+  -- Hint row layout is measured up front; glyphs draw in-frame, labels after.
+  local hintY = cy + hubR * 0.52
+  surfaceSetFont("MGFXWheelHint")
+  local selectW = surfaceGetTextSize("Select")
+  local backW = surfaceGetTextSize("Back")
+  local glyphW, gapIcon, gapItem = 11, 6, 20
+  local totalW = glyphW + gapIcon + selectW + gapItem + glyphW + gapIcon + backW
+  local rowX = cx - totalW * 0.5
+
+  if api ~= nil and api.StartPanel ~= nil {
+    surfaceSetAlphaMultiplier(intro)
+    api.StartPanel(self, w, h)
+    local fills = ensureFills()
+
+    api.ArcEx(cx + outerR * 0.58, cy - outerR * 0.02, outerR * 1.62, 1, -158, 100, {
+        fill = makeColor(255, 255, 255, 14),
+    })
+    api.ArcEx(cx + outerR * 0.72, cy - outerR * 0.02, outerR * 1.86, 1, -156, 92, {
+        fill = makeColor(255, 255, 255, 8),
+    })
+    api.ArcEx(cx + outerR * 0.64, cy - outerR * 0.04, outerR * 1.36, 1, -148, 70, {
+        fill = makeColor(255, 255, 255, 7),
+    })
+    api.RoundedBoxEx(w - 104, 52, 64, 64, {
+        radius = 4,
+        fill = makeColor(58, 63, 70, 42),
+        stroke = makeColor(255, 255, 255, 9),
+        strokeWidth = 1,
+    })
+    drawGearGlyph(w - 72, 84, 9, 0.82)
+
+    local pushedTransform = wheelTransform and api.PushTransform ~= nil and api.PushTransform(wheelTransform, wheelX, wheelY, wheelSize, wheelSize)
+
+    -- Wedges: charcoal glass with a static ring-local depth gradient on
+    -- top. The hovered wedge turns deep red and carries the ember glows;
+    -- the pointer light is drawn later as a sector-clipped overlay.
+    local hoverAnim = 0
+    for i = 1, #ACTIONS {
+      hoverAnim = math_max(hoverAnim, easeOutCubic(self.Anims[i].hover))
+    }
+    local drawSegment = (i) => {
+      local anim = self.Anims[i]
+      local hover = easeOutCubic(anim.hover)
+      local selected = anim.selected
+      local press = easeOutCubic(anim.press)
+
+      local startDeg, endDeg = segmentRange(i)
+      local segCx, segCy = segmentCenter(cx, cy, i, segOutset)
+
+      local fill = mixColor(COLORS.wedge, COLORS.wedgeSel, selected * 0.62)
+      fill = mixColor(fill, COLORS.wedgeHot, hover)
+      fill = mixColor(fill, makeColor(150, 44, 14, 160), hover * press * 0.42)
+      fill = mixColor(fill, COLORS.wedgePress, press * 0.42)
+      if flash > 0 and i == self.SelectedIndex {
+        fill = mixColor(fill, makeColor(140, 38, 14, 164), flash * 0.55)
+      }
+
+      api.SectorEx(segCx, segCy, innerR, outerR, startDeg, endDeg, {
+          fill = fill,
+          innerGlow = hover > 0.02 and {
+            color = COLORS.emberHot,
+            size = (outerR - innerR) * 0.55,
+            opacity = 0.2 * hover,
+            softness = 0.82,
+        } or nil,
+          outerGlow = hover > 0.02 and {
+            color = COLORS.ember,
+            size = 18,
+            opacity = 0.1 * hover,
+            softness = 0.82,
+        } or nil,
+          stroke = makeColor(255, 255, 255, 35),
+          strokeWidth = 1.5,
+          backdrop = true
+      })
+    }
+
+    for i = 1, #ACTIONS {
+      if i ~= hoverIndex { drawSegment(i) }
+    }
+    if hoverIndex { drawSegment(hoverIndex) }
+
+    -- Ember light follows the cursor in screen space; the sector only clips
+    -- what remains visible, so the center may move beyond the wedge bounds.
+    local lightIndex = self.LightIndex
+    local lightAnim = lightIndex and easeOutCubic(self.Anims[lightIndex].hover) or 0
+    if lightIndex and lightAnim > 0.05 {
+      local startDeg, endDeg = segmentRange(lightIndex)
+      local segCx, segCy = segmentCenter(cx, cy, lightIndex, segOutset)
+      local nx = 0.5 + (localMx - segCx) / (outerR * 2)
+      local ny = 0.5 + (localMy - segCy) / (outerR * 2)
+      local radialR = mathClamp((outerR - innerR) * 0.86 / (outerR * 2), 0.12, 0.28)
+      api.SectorEx(segCx, segCy, innerR, outerR, startDeg, endDeg, {
+          fill = pointerLightFill(nx, ny, radialR, lightAnim),
+      })
+    }
+
+    -- Hub glass is intentionally smaller than the wedge inner radius, so
+    -- the live scene remains visible as a clean gap between hub and wedges.
+    api.CircleEx(cx, cy, hubR, {
+        fill = fills.hub,
+        stroke = makeColor(255, 255, 255, 35),
+        strokeWidth = 1.5,
+        backdrop = true
+    })
+    if hoverIndex and hoverAnim > 0.03 {
+      local hubGlowRadius = mathClamp(localPointerDist * 0.2, hubR * 0.18, hubR * 0.5)
+      local hx, hy = anglePoint(cx, cy, hubGlowRadius, self.GlowAngle or pointerAngle)
+      api.CircleEx(hx, hy, 2.4 + hoverAnim * 2, {
+          fill = colorAlpha(COLORS.emberHot, 18 * hoverAnim),
+          outerGlow = {
+            color = colorAlpha(COLORS.emberHot, 118),
+            size = hubR * 0.5,
+            spread = hubR * 0.5,
+            opacity = 0.22 * hoverAnim,
+            softness = 0.91,
+        },
+      })
+    }
+
+    -- Accent line hugging the hub along the hovered wedge span.
+    local accentIndex = hoverIndex or (clickPulse > 0.01 and self.ClickPulseIndex) or nil
+    local accentAnim = accentIndex and math_max(easeOutCubic(self.Anims[accentIndex].hover), clickPulse) or 0
+    if accentIndex and accentAnim > 0.01 {
+      local startDeg, endDeg = segmentRange(accentIndex)
+      local segCx, segCy = segmentCenter(cx, cy, accentIndex, segOutset)
+      local arcPulse = self.ClickPulseIndex == accentIndex and clickPulse or 0
+      local arcOffset = arcPulse * mathClamp((outerR - innerR) * 0.09, 4, 9)
+      api.SectorEx(segCx, segCy, innerR + 1.4 + arcOffset, innerR + 4.5 + arcOffset, startDeg, endDeg, {
+          fill = colorAlpha(COLORS.accent, 220 * accentAnim),
+          outerGlow = {
+            color = COLORS.accent,
+            size = 8 + 5 * arcPulse,
+            opacity = (0.42 + 0.25 * arcPulse) * accentAnim,
+            softness = 0.66 + 0.08 * arcPulse,
+        },
+      })
+    }
+
+    if flash > 0.02 {
+      local dotR = 2.8 + flash * 2.2
+      local dotCx, dotCy = segmentCenter(cx, cy, self.SelectedIndex, segOutset)
+      local sx, sy = anglePoint(dotCx, dotCy, innerR + 9, self.DotAngle)
+      api.CircleEx(sx, sy, dotR, {
+          fill = colorAlpha(COLORS.accent, 210 + 40 * flash),
+          outerGlow = {
+            color = COLORS.accent,
+            size = 6 + 12 * flash,
+            opacity = 0.36 + 0.48 * flash,
+            softness = 0.6,
+        },
+      })
+    }
+
+    -- Hub furniture: divider plus the Select / Back mouse glyphs.
+    api.LineEx(cx - hubR * 0.42, cy + hubR * 0.38, cx + hubR * 0.42, cy + hubR * 0.38, {
+        width = 1,
+        fill = makeColor(255, 255, 255, 24),
+    })
+    drawMouseGlyph(rowX, hintY - 7.5, "left", 1)
+    drawMouseGlyph(rowX + glyphW + gapIcon + selectW + gapItem, hintY - 7.5, "right", 1)
+
+    -- Icons.
+    local iconR = (outerR + innerR) * 0.5
+    local iconScale = outerR * 0.16
+    for i, action in ipairs(ACTIONS) {
+      local anim = self.Anims[i]
+      local hover = easeOutCubic(anim.hover)
+      local mid = segmentMid(i)
+      local segCx, segCy = segmentCenter(cx, cy, i, segOutset)
+      local ix, iy = anglePoint(segCx, segCy, iconR, mid)
+      local alpha = lerp(hover, 212, 255)
+      drawPoseFigure(ix, iy + iconScale * 0.12, iconScale * (1 + hover * 0.04), action.pose, alpha)
+    }
+
+    if pushedTransform {
+      api.PopTransform()
+    }
+
+    -- Virtual-pointer cursor: only when the OS cursor is not visible.
+    if self.PointerSource == "analog" and not cursorVisible() {
+      api.RingEx(self.SmoothX, self.SmoothY, 7, 1.5, {
+          fill = makeColor(255, 255, 255, 170),
+      })
+      api.CircleEx(self.SmoothX, self.SmoothY, 1.6, {fill = makeColor(255, 255, 255, 200)})
+    }
+
+    api.EndPanel()
+    surfaceSetAlphaMultiplier(1)
+  } else {
+    draw.RoundedBox(0, 0, 0, w, h, COLORS.bg)
+  }
+
+  -- Hub copy: the action name above center, hint labels beside the glyphs.
+  local action = ACTIONS[activeIndex] or ACTIONS[1]
+  drawText(action.title, "MGFXWheelTitle", cx, cy - hubR * 0.28, COLORS.ink, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, intro)
+  drawText("Select", "MGFXWheelHint", rowX + glyphW + gapIcon, hintY, COLORS.ink, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER, intro)
+  drawText("Back", "MGFXWheelHint", rowX + glyphW + gapIcon + selectW + gapItem + glyphW + gapIcon, hintY, COLORS.ink, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER, intro)
+
+  -- Pointer telemetry, opt-in: mgfx_wheel_debug 1
+  if debugCvar ~= nil and debugCvar:GetBool() {
+    drawText(string.format("PTR %4d %4d   ANG %5.1f   SRC %s", mx, my, pointerAngle, self.PointerSource or "idle"), "MGFXWheelMonoSmall", 24, h - 46, COLORS.muted, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP, intro)
+    drawText("HOVER " .. (hoverIndex and ACTIONS[hoverIndex].title or "-") .. "   PICK " .. ACTIONS[self.SelectedIndex].title, "MGFXWheelMonoSmall", 24, h - 30, COLORS.muted, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP, intro)
+  }
+}
+
+
+fn registerPanel() {
+  if vguiRegister == nil {
+    return false
+  }
+
+  vguiRegister("LuxMGFXWheelDemoPanel", PANEL, "EditablePanel")
+  true
+}
+
+export client fn open() {
+  registerPanel()
+  if vguiCreate == nil {
+    printFn("[MGFX] wheel demo unavailable: vgui missing")
+    return nil
+  }
+
+  if valid(wheelPanel) {
+    wheelPanel:Remove()
+  }
+  if valid(api?._WheelDemoPanel) {
+    api._WheelDemoPanel:Remove()
+  }
+
+  wheelPanel = vguiCreate("LuxMGFXWheelDemoPanel")
+  if api ~= nil {
+    api._WheelDemoPanel = wheelPanel
+  }
+
+  wheelPanel
+}
+
+export client fn close() {
+  local closed = false
+  if valid(wheelPanel) {
+    wheelPanel:Remove()
+    wheelPanel = nil
+    closed = true
+  }
+  if valid(api?._WheelDemoPanel) {
+    api._WheelDemoPanel:Remove()
+    api._WheelDemoPanel = nil
+    closed = true
+  }
+
+  closed
+}
+
+export client fn toggle() {
+  if valid(wheelPanel) or valid(api?._WheelDemoPanel) {
+    return close()
+  }
+
+  open()
+}
+
+export client fn install(owner) {
+  api = owner
+  registerPanel()
+  addCommand(owner, "mgfx_wheel_demo", (_cmd = nil, _argString = nil, args = nil) => {
+      local mode = args?.[1] ?? ""
+
+      if mode == "0" or mode == "close" {
+        close()
+        return
+    }
+
+      if mode == "toggle" and (valid(wheelPanel) or valid(api?._WheelDemoPanel)) {
+        close()
+        return
+    }
+
+      open()
+  }, "Toggle the Lux MGFX radial wheel demo.")
+  addCommand(owner, "mgfx_wheel_demo_close", () => close(), "Close the Lux MGFX radial wheel demo.")
+  addCommand(owner, "mgfx_emote_wheel_demo", () => open(), "Open the Lux MGFX emote wheel demo.")
+  owner.OpenWheelDemo = open
+  owner.CloseWheelDemo = close
+  owner.ToggleWheelDemo = toggle
+  owner
+}
+
+export client { registerPanel }

@@ -1,0 +1,21 @@
+Lux MGFX licensing
+==================
+
+Unless a file says otherwise:
+
+- Source code under `lux/mgfx/` and shader tooling under `tools/mgfx/` are
+  licensed under the Lux MGFX Non-Commercial License.
+- Documentation prose is licensed under Creative Commons Attribution 4.0
+  International (CC BY 4.0).
+- Code examples in documentation are licensed as source code: MIT OR
+  Apache-2.0.
+- The Lux and MGFX names, logos, icons, and other branding assets are not
+  licensed for reuse by these licenses.
+
+See:
+
+- LICENSE-MGFX-NC
+- LICENSE-DOCS
+- LICENSE-MIT
+- LICENSE-APACHE
+- NOTICE

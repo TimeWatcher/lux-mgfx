@@ -1,0 +1,247 @@
+local polyBackdropTintScratch = makeColor(0, 0, 0, 0)
+
+fn polyMaterialKey(poly, suffix = "") =
+  "poly" .. poly.count .. suffix
+
+fn drawMaterialPoly(poly, material) {
+  stopif material == nil, false
+
+  surfaceSetMaterial(material)
+  drawTransformedPoly(polyDrawVerts(poly))
+  true
+}
+
+fn setupPrimitiveBlurConstants(material, w, h, vertical, intensity, radius = 0) {
+  setupParamMatrix(material,
+    vertical and 1 or 0, intensity ?? 1, 0, 0,
+    w, h, 0, mathMax(0, toNumber(radius) ?? 0),
+    0, 0, 1, 0,
+    0, 0, 0, 0
+  )
+}
+
+fn blurIntensity(amount) =
+  mathMax(0.001, toNumber(amount) ?? 1)
+
+fn drawBlurredPoly(poly, material, amount) {
+  stopif material == nil or primitiveBlurRT == nil or renderCopyRenderTargetToTexture == nil, false
+
+  surfaceSetDrawColor(255, 255, 255, 255)
+  renderCopyRenderTargetToTexture(primitiveBlurRT)
+  setupPrimitiveBlurConstants(material, poly.w, poly.h, false, blurIntensity(amount), 0)
+  drawMaterialPoly(poly, material)
+
+  renderCopyRenderTargetToTexture(primitiveBlurRT)
+  setupPrimitiveBlurConstants(material, poly.w, poly.h, true, blurIntensity(amount), 0)
+  drawMaterialPoly(poly, material)
+  true
+}
+
+fn polyBackdropTintColor(spec) {
+  stopif spec == nil or spec.tint == nil, nil
+
+  local tint = spec.tint
+  local alpha = (tint.a ?? 255) * (spec.opacity ?? 1)
+  stopif alpha <= 0, nil
+
+  polyBackdropTintScratch.r = tint.r ?? 0
+  polyBackdropTintScratch.g = tint.g ?? 0
+  polyBackdropTintScratch.b = tint.b ?? 0
+  polyBackdropTintScratch.a = mathFloor(mathClamp(alpha, 0, 255) + 0.5)
+  polyBackdropTintScratch
+}
+
+fn drawPolyBackdrop(poly, backdrop) {
+  local spec = style.backdropStyle(backdrop)
+  stopif spec == nil, nil
+
+  if spec.blur > 0 {
+    drawBlurredPoly(poly, primitiveMaterials[polyMaterialKey(poly, "_blur")], spec.blur)
+  }
+
+  local tint = polyBackdropTintColor(spec)
+  if tint ~= nil {
+    local material = primitiveMaterials[polyMaterialKey(poly)]
+    if materialOK(material) {
+      setupPrimitiveFillConstants(material, poly.w, poly.h, style.solid(tint), nil, 0, 0)
+      drawMaterialPoly(poly, material)
+    }
+  }
+
+  spec
+}
+
+fn drawPolyPattern(poly, pattern) {
+  local spec = roundrect.patternStyle(pattern)
+  stopif spec == nil or not shadersActive() or not materialOK(primitiveMaterials.poly_pattern), false
+
+  local color = spec.color ?? spec.tint
+  stopif color ~= nil and (color.a ?? 255) <= 0, false
+
+  local material = primitiveMaterials.poly_pattern
+  local r, g, b, a = style.color01(style.asColor(spec.color ?? spec.tint, makeColor(255, 255, 255, 24)))
+  local angle = mathRad(toNumber(spec.angle) ?? 135)
+  local smoke = match spec.kind {
+    "smoke" => true
+    _ => false
+  }
+  local pz = 1
+  local pw = 1
+  local ox = 0
+  local oy = 0
+  local oz = 0
+  local ow = 0
+  if smoke {
+    pz = mathMax(1, toNumber(spec.scale) ?? 140)
+    pw = mathClamp(toNumber(spec.density) ?? 0.48, 0, 1)
+    ox = roundrect.patternOffset(spec)
+    oy = 1
+    oz = mathMax(0.001, toNumber(spec.softness) ?? 0.3)
+    ow = mathMax(0, toNumber(spec.warp) ?? 0.85)
+  } else {
+    pz = mathMax(1, toNumber(spec.spacing) ?? 12)
+    pw = mathMax(0.25, toNumber(spec.width) ?? 2)
+    ox = roundrect.patternOffset(spec)
+  }
+
+  setupParamMatrix(material,
+    r, g, b, a,
+    poly.w, poly.h, smoke and (toNumber(spec.seed) ?? 0) or 0, 0,
+    mathCos(angle), mathSin(angle), pz, pw,
+    ox, oy, oz, ow
+  )
+  surfaceSetMaterial(material)
+  surfaceSetDrawColor(255, 255, 255, 255)
+  drawTransformedPoly(polyDrawVerts(poly))
+  true
+}
+
+fn setupPolyStrokeConstants(material, poly, color, strokeWidth) {
+  local p1 = poly.points[1]
+  local p2 = poly.points[2]
+  local p3 = poly.points[3]
+  local p4 = poly.points[4] ?? p3
+  local r, g, b, a = style.color01(color)
+
+  setupParamMatrix(material,
+    p1.x, p1.y, p2.x, p2.y,
+    p3.x, p3.y, p4.x, p4.y,
+    r, g, b, a,
+    poly.w, poly.h, mathMax(0, style.strokeWidthValue(strokeWidth, 0)), poly.count
+  )
+}
+
+fn drawPolyStrokeShader(poly, color, strokeWidth) {
+  stopif poly.count > 4 or not shadersActive() or not materialOK(primitiveMaterials.poly_stroke), false
+
+  local material = primitiveMaterials.poly_stroke
+  setupPolyStrokeConstants(material, poly, color, strokeWidth)
+  surfaceSetDrawColor(255, 255, 255, 255)
+  drawMaterialPoly(poly, material)
+}
+
+fn drawPolyStroke(poly, color, strokeWidth) {
+  if drawPolyStrokeShader(poly, color, strokeWidth) {
+    return
+  }
+
+  local lineStyle = {
+    width = style.strokeWidthValue(strokeWidth, 1),
+    fill = color,
+    noCaps = true
+  }
+  for index = 1, #poly.points {
+    local a = poly.points[index]
+    local b = poly.points[index % #poly.points + 1]
+    drawLineImmediate(poly.x + a.x, poly.y + a.y, poly.x + b.x, poly.y + b.y, nil, nil, lineStyle)
+  }
+}
+
+fn drawPolyFallback(points, drawStyle) {
+  local fill = style.fillFromStyle(drawStyle.fill ?? drawStyle.color)
+  local hasFill = style.fillVisible(fill)
+  local strokeWidth = style.strokeWidthValue(drawStyle.strokeWidth, 0)
+  local hasStroke = style.strokeVisible(drawStyle.stroke, strokeWidth)
+
+  if hasFill {
+    style.setDrawColor(fillColor(fill))
+    drawTransformedPoly(points)
+  }
+
+  if hasStroke {
+    local lineStyle = {
+      width = strokeWidth,
+      fill = drawStyle.stroke,
+      noCaps = true
+    }
+    for index = 1, #points {
+      local a = points[index]
+      local b = points[index % #points + 1]
+      drawLineImmediate(a.x ?? a[1], a.y ?? a[2], b.x ?? b[1], b.y ?? b[2], nil, nil, lineStyle)
+    }
+  }
+}
+
+fn drawPolyShadow(poly, points, shadow) {
+  stopif shadow == nil or shadow.color == nil or (shadow.color.a ?? 255) <= 0, false
+
+  local shifted = {}
+  local spread = mathMax(1, toNumber(shadow.blur) ?? 12)
+  local cx = poly.x + poly.w * 0.5
+  local cy = poly.y + poly.h * 0.5
+  for index, point in ipairs(points) {
+    local px, py = pointXY(point)
+    local dx = px - cx
+    local dy = py - cy
+    local len = mathMax(1, mathSqrt(dx * dx + dy * dy))
+    shifted[index] = {
+      x = px + (shadow.x ?? 0) + dx / len * spread,
+      y = py + (shadow.y ?? 0) + dy / len * spread
+    }
+  }
+
+  local shadowPoly = normalizePoly(shifted)
+  stopif shadowPoly == nil, false
+
+  local material = primitiveMaterials[polyMaterialKey(shadowPoly)]
+  stopif not materialOK(material), false
+
+  setupPrimitiveFillConstants(material, shadowPoly.w, shadowPoly.h, style.solid(shadow.color), nil, 0, 0)
+  drawMaterialPoly(shadowPoly, material)
+}
+
+fn drawPolyImmediate(points, drawStyle = nil) {
+  local resolved = drawStyle ?? {}
+  local poly = normalizePoly(points)
+  if poly == nil {
+    return
+  }
+
+  if not shadersActive() {
+    return drawPolyFallback(points, resolved)
+  }
+
+  drawPolyShadow(poly, points, resolved.shadow)
+  drawPolyBackdrop(poly, resolved.backdrop)
+
+  local material = primitiveMaterials[polyMaterialKey(poly)]
+  local fill = style.fillFromStyle(resolved.fill ?? resolved.color)
+  local hasFill = style.fillVisible(fill)
+  local strokeWidth = style.strokeWidthValue(resolved.strokeWidth, 0)
+  local hasStroke = style.strokeVisible(resolved.stroke, strokeWidth)
+
+  if hasFill and materialOK(material) {
+    setupPrimitiveFillConstants(material, poly.w, poly.h, fill, nil, 0, 0)
+    drawMaterialPoly(poly, material)
+  } else if hasFill {
+    drawPolyFallback(points, {
+      fill = fill
+    })
+  }
+
+  drawPolyPattern(poly, resolved.pattern)
+
+  if hasStroke {
+    drawPolyStroke(poly, resolved.stroke, strokeWidth)
+  }
+}

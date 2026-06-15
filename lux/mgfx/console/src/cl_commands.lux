@@ -1,0 +1,51 @@
+fn isFunction(value) =
+  typeOf(value) == "function"
+
+fn convarBool(name, fallback = false) {
+  local cvar = getConVar ~= nil then getConVar(name) else nil
+  if cvar ~= nil and cvar.GetBool ~= nil {
+    return cvar:GetBool()
+  }
+
+  fallback
+}
+
+fn ownerStats(owner) {
+  owner.stats = owner.stats ?? {}
+  owner.stats.drawCommandCounts = owner.stats.drawCommandCounts ?? {}
+  owner.stats.drawImmediateCounts = owner.stats.drawImmediateCounts ?? {}
+  owner.stats.profileTimes = owner.stats.profileTimes ?? {}
+  owner.stats.profileCounts = owner.stats.profileCounts ?? {}
+  owner.stats
+}
+
+fn addCommand(owner, name, callback, helpText = nil) {
+  local add = owner?._AddCommand ?? concommandAdd
+  if add == nil {
+    return false
+  }
+
+  add(name, callback, nil, helpText)
+  commandNames[#commandNames + 1] = name
+  true
+}
+
+fn rawAddCommand(name, callback, autocomplete = nil, helpText = nil, flags = nil) {
+  if concommandAdd == nil {
+    return false
+  }
+
+  if concommandRemove ~= nil and string.sub(name, 1, 5) == "mgfx_" {
+    concommandRemove(name)
+  }
+
+  concommandAdd(name, callback, autocomplete, helpText, flags)
+  true
+}
+
+fn removeCommand(name) {
+  if concommandRemove ~= nil {
+    concommandRemove(name)
+  }
+}
+

@@ -1,0 +1,1415 @@
+﻿local concommandAdd = concommand?.Add
+local concommandRemove = concommand?.Remove
+local createClientConVar = CreateClientConVar
+local getConVar = GetConVar
+local guiMouseX = gui?.MouseX
+local guiMouseY = gui?.MouseY
+local lerp = Lerp
+local makeColor = Color
+local makeMaterial = Material
+local mathClamp = math.Clamp
+local mathFloor = math.floor
+local mathMax = math.max
+local mathMin = math.min
+local mathRound = math.Round
+local mathSin = math.sin
+local printFn = print
+local realFrameTime = RealFrameTime
+local realTime = RealTime
+local runConsoleCommand = RunConsoleCommand
+local surfaceCreateFont = surface?.CreateFont
+local stringFormat = string.format
+local tableConcat = table.concat
+local toNumber = tonumber
+local vguiCreate = vgui?.Create
+local vguiRegister = vgui?.Register
+
+local api = nil
+local demoPanel = nil
+local currentFontScale = -1
+local currentTextFontScale = -1
+local iconMaterial = nil
+local maskMaterial = nil
+local innerGlowCvar = createClientConVar ~= nil then createClientConVar("mgfx_demo_innerglow", "1", true, false, "MGFX demo: enable inner glow.") else nil
+local outerGlowCvar = createClientConVar ~= nil then createClientConVar("mgfx_demo_outerglow", "1", true, false, "MGFX demo: enable outer glow.") else nil
+
+fn mouseX() = guiMouseX ~= nil then guiMouseX() else 0
+fn mouseY() = guiMouseY ~= nil then guiMouseY() else 0
+
+fn addCommand(owner, name, callback, helpText = nil) {
+  local add = owner?._AddCommand ?? concommandAdd
+  if add == nil {
+    return false
+  }
+
+  if owner?._AddCommand == nil and concommandRemove ~= nil and string.sub(name, 1, 5) == "mgfx_" {
+    concommandRemove(name)
+  }
+
+  add(name, callback, nil, helpText)
+  true
+}
+
+fn valid(value) =
+  value ~= nil and IsValid(value)
+
+fn cvarBool(cvar, fallback = false) {
+  if cvar ~= nil and cvar.GetBool ~= nil {
+    return cvar:GetBool()
+  }
+
+  fallback
+}
+
+fn fallbackCvar() {
+  if getConVar == nil {
+    return nil
+  }
+
+  getConVar("mgfx_force_fallback")
+}
+
+local COLORS = {
+  ink = makeColor(232, 244, 248),
+  muted = makeColor(138, 162, 170),
+  cyan = makeColor(64, 196, 236),
+  blue = makeColor(35, 126, 255),
+  green = makeColor(68, 232, 146),
+  gold = makeColor(255, 190, 66),
+  red = makeColor(255, 88, 78),
+  panel = makeColor(5, 18, 26, 185),
+  track = makeColor(10, 18, 24, 190),
+}
+
+local CJK_FACE = "Noto Sans SC"
+
+fn ensureFonts(scale) {
+  scale = mathRound(scale * 100) / 100
+
+  if currentFontScale ~= scale {
+    currentFontScale = scale
+
+    local font = (name, face, size, weight) => {
+      surfaceCreateFont(name, {
+        font = face,
+        size = mathMax(8, mathRound(size * scale)),
+        weight = weight,
+        antialias = true,
+        extended = true,
+      })
+    }
+
+    font("MGFXDemoTitle", "Bahnschrift", 30, 900)
+    font("MGFXDemoSub", CJK_FACE, 12, 400)
+    font("MGFXDemoLabel", CJK_FACE, 14, 400)
+    font("MGFXDemoMetric", "Bahnschrift", 28, 900)
+    font("MGFXDemoTiny", "Tahoma", 11, 500)
+    font("MGFXDemoTextTitle", "Bahnschrift", 32, 700)
+    font("MGFXDemoTextBody", CJK_FACE, 20, 400)
+    font("MGFXDemoTextSmall", CJK_FACE, 14, 400)
+    font("MGFXDemoTextNum", "Bahnschrift", 34, 780)
+  }
+
+  if api ~= nil and api.RegisterTextFont ~= nil and currentTextFontScale ~= scale {
+    currentTextFontScale = scale
+
+    local textFont = (name, face, size, weight, lineHeight) => {
+      return api.RegisterTextFont(name, {
+        face = face,
+        size = mathMax(8, mathRound(size * scale)),
+        weight = weight,
+        lineHeight = mathMax(8, mathRound(lineHeight * scale)),
+      })
+    }
+
+    textFont("MGFXDemoTextTitle", "Bahnschrift", 32, 700, 38)
+    textFont("MGFXDemoTextBody", CJK_FACE, 20, 400, 27)
+    textFont("MGFXDemoTextSmall", CJK_FACE, 14, 400, 20)
+    textFont("MGFXDemoTextNum", "Bahnschrift", 34, 780, 40)
+  }
+}
+
+fn text(value, font, x, y, color, ax, ay) {
+  draw.SimpleText(value, font, x, y, makeColor(0, 0, 0, mathMin((color.a or 255), 180)), ax or TEXT_ALIGN_LEFT, ay or TEXT_ALIGN_TOP)
+  draw.SimpleText(value, font, x, y - 1, color, ax or TEXT_ALIGN_LEFT, ay or TEXT_ALIGN_TOP)
+}
+
+fn demoIcon() {
+  if iconMaterial ~= nil { return iconMaterial }
+
+  iconMaterial = makeMaterial("color/white", "smooth noclamp")
+  if iconMaterial and not iconMaterial:IsError() { return iconMaterial }
+
+  for _, path in ipairs({
+    "icon16/user.png",
+    "icon16/star.png",
+    "gui/silkicons/user",
+  }) {
+    local mat = makeMaterial(path, "smooth noclamp")
+    if mat and not mat:IsError() {
+      iconMaterial = mat
+      return iconMaterial
+    }
+  }
+
+  iconMaterial = false
+  return iconMaterial
+}
+
+fn demoMask() {
+  if maskMaterial ~= nil { return maskMaterial }
+
+  for _, path in ipairs({
+    "vgui/gradient-r",
+    "vgui/gradient-u",
+    "gui/center_gradient",
+    "effects/flashlight001",
+    "color/white",
+  }) {
+    local mat = makeMaterial(path, "smooth noclamp")
+    if mat and not mat:IsError() {
+      maskMaterial = mat
+      return maskMaterial
+    }
+  }
+
+  maskMaterial = false
+  return maskMaterial
+}
+
+fn waveValue(offset, speed) {
+  return 0.5 + mathSin(realTime() * (speed or 1) + (offset or 0)) * 0.5
+}
+
+fn mixColor(a, b, t) {
+  t = mathClamp(toNumber(t) or 0, 0, 1)
+  a = a or color_white
+  b = b or a
+  return makeColor(
+    lerp(t, a.r or 0, b.r or 0),
+    lerp(t, a.g or 0, b.g or 0),
+    lerp(t, a.b or 0, b.b or 0),
+    lerp(t, a.a == nil and 255 or a.a, b.a == nil and 255 or b.a)
+  )
+}
+
+fn approachWeight(current, target, speed) {
+  return math.Approach(toNumber(current) or 0, toNumber(target) or 0, (realFrameTime ~= nil then realFrameTime() else 0.016) * (speed or 8))
+}
+
+fn updateRuntimeWeight(weights, key, active, speed) {
+  weights[key] = approachWeight(weights[key] or 0, active and 1 or 0, speed)
+  return weights[key]
+}
+
+local BUTTON = {}
+
+fn BUTTON:Paint(w, h) {
+  local active = self.Active and self:Active() or false
+  local fill = active and makeColor(28, 86, 110, 210) or makeColor(5, 22, 30, self.Hovered and 230 or 190)
+  local stroke = active and makeColor(90, 220, 255, 92) or makeColor(255, 255, 255, self.Hovered and 38 or 18)
+
+  if api and api.RoundedBoxEx {
+    api.RoundedBoxEx(0, 0, w, h, {
+      radius = 4,
+      fill = fill,
+      stroke = stroke,
+      strokeWidth = 1,
+    })
+  } else {
+    draw.RoundedBox(4, 0, 0, w, h, fill)
+  }
+
+  text(self:GetText(), "MGFXDemoTiny", w * 0.5, h * 0.5, self.Hovered and COLORS.ink or COLORS.muted, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+  return true
+}
+
+
+local PANEL = {}
+
+fn PANEL:Init() {
+  self:SetSize(mathMin(ScrW() * 0.9, 1160), mathMin(ScrH() * 0.82, 720))
+  self:Center()
+  self:MakePopup()
+  self:SetKeyboardInputEnabled(false)
+  self:SetMouseInputEnabled(true)
+
+  self.Created = realTime()
+  self.RuntimeWeights = {}
+  for i = 1, 4 {
+    self.RuntimeWeights[i] = {hover = 0, selected = i == 2 and 1 or 0, pressed = 0, disabled = 0}
+  }
+  self.RuntimeProgressWeights = {hover = 0, selected = 0, pressed = 0, disabled = 0}
+  self.RuntimeRingWeights = {hover = 0, selected = 0, pressed = 0, disabled = 0}
+  self.RuntimeSelected = 2
+  self.RuntimeDisabled = false
+  self.RuntimePulseUntil = 0
+  self.RuntimePulseStart = 0
+  self.RuntimePulseDuration = 1.15
+  self.RuntimeActionMessage = "ready"
+  self.RuntimeActionUntil = 0
+  self.RuntimeActionId = ""
+  self.RuntimeMouseDown = false
+  self.ShowGradientShowcase = true
+
+  self.CloseButton = vguiCreate("LuxMGFXDemoButton", self)
+  self.CloseButton:SetText("CLOSE")
+  self.CloseButton.DoClick = () => {
+    self:Remove()
+  }
+
+  self.FallbackButton = vguiCreate("LuxMGFXDemoButton", self)
+  self.FallbackButton:SetText("FALLBACK")
+  self.FallbackButton.Active = () => {
+    local cvar = fallbackCvar()
+    return cvarBool(cvar)
+  }
+  self.FallbackButton.DoClick = () => {
+    local cvar = fallbackCvar()
+    runConsoleCommand("mgfx_force_fallback", cvarBool(cvar) and "0" or "1")
+  }
+
+  self.GlowButton = vguiCreate("LuxMGFXDemoButton", self)
+  self.GlowButton:SetText("GLOW")
+  self.GlowButton.Active = () => {
+    return cvarBool(innerGlowCvar, true)
+  }
+  self.GlowButton.DoClick = () => {
+    runConsoleCommand("mgfx_demo_innerglow", cvarBool(innerGlowCvar, true) and "0" or "1")
+  }
+
+  self.OuterGlowButton = vguiCreate("LuxMGFXDemoButton", self)
+  self.OuterGlowButton:SetText("OUTER")
+  self.OuterGlowButton.Active = () => {
+    return cvarBool(outerGlowCvar, true)
+  }
+  self.OuterGlowButton.DoClick = () => {
+    runConsoleCommand("mgfx_demo_outerglow", cvarBool(outerGlowCvar, true) and "0" or "1")
+  }
+
+  self.ViewButton = vguiCreate("LuxMGFXDemoButton", self)
+  self.ViewButton:SetText("MATRIX")
+  self.ViewButton.Active = () => {
+    return self.ShowGradientShowcase
+  }
+  self.ViewButton.DoClick = () => {
+    self.ShowGradientShowcase = not self.ShowGradientShowcase
+    self.ViewButton:SetText(self.ShowGradientShowcase and "MATRIX" or "GRADIENTS")
+  }
+
+}
+
+fn PANEL:PerformLayout(w, h) {
+  self.CloseButton:SetSize(72, 24)
+  self.CloseButton:SetPos(w - 92, 18)
+
+  self.FallbackButton:SetSize(92, 24)
+  self.FallbackButton:SetPos(w - 194, 18)
+
+  self.GlowButton:SetSize(72, 24)
+  self.GlowButton:SetPos(w - 276, 18)
+
+  self.OuterGlowButton:SetSize(72, 24)
+  self.OuterGlowButton:SetPos(w - 358, 18)
+
+  self.ViewButton:SetSize(96, 24)
+  self.ViewButton:SetPos(w - 464, 18)
+}
+
+fn PANEL:Paint(w, h) {
+  local scale = mathMin(w / 980, h / 620)
+  ensureFonts(scale)
+
+  local shaderStatus = api ~= nil and api.shaderStatus ~= nil and api.shaderStatus() or {}
+  local loaded = shaderStatus.loaded
+  local fallback = cvarBool(fallbackCvar())
+  local showInnerGlow = cvarBool(innerGlowCvar, true)
+  local showOuterGlow = cvarBool(outerGlowCvar, true)
+  local left = 28
+  local top = 24
+  local headerH = 96
+  local gap = 12
+  local gridX = left
+  local gridY = headerH + 20
+  local gridW = w - left * 2
+  local gridH = h - gridY - 30
+  local cardW = (gridW - gap * 3) / 4
+  local cardH = (gridH - gap * 2) / 3
+  local mat = demoIcon()
+  local maskMat = demoMask()
+  local labels = {}
+  local runtimeHitboxes = {}
+  local runtimeActionHitboxes = {}
+
+  local addText = (value, font, x, y, color, ax, ay) => {
+    labels[#labels + 1] = {value, font, x, y, color, ax, ay}
+  }
+
+  local card = (index, title, subtitle, accent) => {
+    local col = (index - 1) % 4
+    local row = mathFloor((index - 1) / 4)
+    local x = gridX + col * (cardW + gap)
+    local y = gridY + row * (cardH + gap)
+
+    api.RoundedBoxEx(x, y, cardW, cardH, {
+      radius = 8,
+      fill = makeColor(10, 15, 18, 188),
+      stroke = makeColor(accent.r, accent.g, accent.b, 58),
+      strokeWidth = "hairline",
+    })
+    api.LineEx(x + 14, y + 34, x + cardW - 14, y + 34, {
+      width = "hairline",
+      fill = api.LinearGradient(0, 0, 1, 0, makeColor(accent.r, accent.g, accent.b, 0), makeColor(accent.r, accent.g, accent.b, 92)),
+    })
+
+    addText(title, "MGFXDemoLabel", x + 14, y + 12, COLORS.ink)
+    if subtitle and subtitle ~= "" {
+      addText(subtitle, "MGFXDemoTiny", x + 14, y + cardH - 22, COLORS.muted)
+    }
+    return x, y, cardW, cardH, accent
+  }
+
+  local drawGradientShowcase = () => {
+    self.RuntimeHitboxes = {}
+    self.RuntimeActionHitboxes = {}
+
+    local px, py, pw, ph = gridX, gridY, gridW, gridH
+    local spectrumStops = {
+      {0.00, makeColor(64, 196, 236, 240)},
+      {0.22, makeColor(68, 232, 146, 235)},
+      {0.46, makeColor(255, 218, 92, 238)},
+      {0.68, makeColor(255, 96, 78, 238)},
+      {1.00, makeColor(134, 92, 255, 235)},
+    }
+    local radialStops = {
+      {0.00, makeColor(248, 252, 255, 245)},
+      {0.28, makeColor(94, 218, 255, 225)},
+      {0.62, makeColor(32, 88, 192, 178)},
+      {1.00, makeColor(4, 12, 20, 40)},
+    }
+    local warmStops = {
+      {0.00, makeColor(255, 236, 146, 240)},
+      {0.34, makeColor(255, 160, 78, 235)},
+      {0.70, makeColor(255, 82, 96, 232)},
+      {1.00, makeColor(108, 64, 210, 220)},
+    }
+    local deepStops = {
+      {0.00, makeColor(6, 18, 26, 236)},
+      {0.40, makeColor(24, 92, 138, 224)},
+      {0.72, makeColor(66, 214, 180, 218)},
+      {1.00, makeColor(255, 210, 110, 230)},
+    }
+    local linearStops = api.LinearGradientStops or api.LinearGradient
+
+    local stopRail = (x, y, ww, stops) => {
+      api.RoundedBoxEx(x, y, ww, 9, {
+        radius = 4,
+        fill = linearStops(0, 0, 1, 0, stops),
+        stroke = makeColor(255, 255, 255, 30),
+        strokeWidth = "hairline",
+      })
+      for _, stop in ipairs(stops) {
+        local sx = x + ww * (stop[1] or stop.pos or 0)
+        api.LineEx(sx, y - 3, sx, y + 12, {
+          width = "hairline",
+          fill = makeColor(255, 255, 255, 118),
+        })
+      }
+    }
+
+    api.RoundedBoxEx(px, py, pw, ph, {
+      radius = 10,
+      fill = makeColor(3, 9, 13, 122),
+      stroke = makeColor(80, 210, 255, 22),
+      strokeWidth = "hairline",
+    })
+
+    local headY = py + 10
+    addText("Gradient Stops Showcase", "MGFXDemoTitle", px + 18, headY, COLORS.ink)
+    addText("shared stop LUT across primitive, shape-local, and text surfaces", "MGFXDemoTiny", px + 20, headY + 34, COLORS.muted)
+    local headerRailW = mathMin(320, mathMax(220, pw * 0.28))
+    stopRail(px + pw - 18 - headerRailW, headY + 18, headerRailW, spectrumStops)
+
+    local bodyY = py + 68
+    local rowGap = 14
+    local availableH = mathMax(300, ph - 68 - rowGap * 2)
+    local primitiveH = mathMax(120, mathFloor(availableH * 0.28))
+    local outputH = mathMax(86, mathFloor(availableH * 0.18))
+    local shapeH = availableH - primitiveH - outputH
+
+    local section = (x, y, ww, hh, title, subtitle, accent) => {
+      api.RoundedBoxEx(x, y, ww, hh, {
+        radius = 8,
+        fill = makeColor(4, 11, 15, 156),
+        stroke = makeColor(accent.r, accent.g, accent.b, 34),
+        strokeWidth = "hairline",
+      })
+      addText(title, "MGFXDemoLabel", x + 14, y + 10, COLORS.ink)
+      if subtitle and subtitle ~= "" {
+        addText(subtitle, "MGFXDemoTiny", x + ww - 14, y + 18, COLORS.muted, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
+      }
+      api.LineEx(x + 14, y + 32, x + ww - 14, y + 32, {
+        width = "hairline",
+        fill = api.LinearGradient(0, 0, 1, 0, makeColor(accent.r, accent.g, accent.b, 42), makeColor(accent.r, accent.g, accent.b, 0)),
+      })
+    }
+
+    local caption = (value, x, y) => {
+      addText(value, "MGFXDemoTiny", x, y, COLORS.muted, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+    }
+
+    local primitiveY = bodyY
+    section(px, primitiveY, pw, primitiveH, "Gradient Primitives", "linear / radial / conic", COLORS.cyan)
+    local cellGap = 18
+    local cellW = (pw - 36 - cellGap * 2) / 3
+    local cellY = primitiveY + 44
+    local cellH = mathMax(42, primitiveH - 68)
+    local cell1X = px + 18
+    local cell2X = cell1X + cellW + cellGap
+    local cell3X = cell2X + cellW + cellGap
+    api.RoundedBoxEx(cell1X, cellY, cellW, cellH - 18, {
+      radius = 7,
+      fill = linearStops(0, 0, 1, 0, spectrumStops),
+      stroke = makeColor(255, 255, 255, 34),
+      strokeWidth = 1,
+    })
+    stopRail(cell1X, cellY + cellH - 10, cellW, spectrumStops)
+    caption("LinearGradientStops", cell1X + cellW * 0.5, primitiveY + primitiveH - 14)
+    api.RoundedBoxEx(cell2X, cellY, cellW, cellH, {
+      radius = 7,
+      fill = api.RadialGradient(0.32, 0.42, 0.92, radialStops),
+      stroke = makeColor(255, 255, 255, 34),
+      strokeWidth = 1,
+    })
+    caption("RadialGradient", cell2X + cellW * 0.5, primitiveY + primitiveH - 14)
+    api.RoundedBoxEx(cell3X, cellY, cellW, cellH, {
+      radius = 7,
+      fill = api.ConicGradient(0.5, 0.5, realTime() * 18, spectrumStops),
+      stroke = makeColor(255, 255, 255, 34),
+      strokeWidth = 1,
+    })
+    caption("ConicGradient", cell3X + cellW * 0.5, primitiveY + primitiveH - 14)
+
+    local shapeY = primitiveY + primitiveH + rowGap
+    section(px, shapeY, pw, shapeH, "Shape Local Space", "ring / arc / sector gradient coordinates", COLORS.green)
+    local innerX = px + 18
+    local innerY = shapeY + 52
+    local innerW = pw - 36
+    local captionY = shapeY + shapeH - 18
+    local visualTop = innerY + 4
+    local visualBottom = captionY - 24
+    local visualH = mathMax(80, visualBottom - visualTop)
+    local shapeCenterY = visualTop + visualH * 0.5
+    local groupGap = 32
+    local ringW = mathFloor(innerW * 0.42)
+    local sectorW = innerW - ringW - groupGap
+    local ringX = innerX
+    local sectorX = innerX + ringW + groupGap
+    api.LineEx(sectorX - groupGap * 0.5, visualTop, sectorX - groupGap * 0.5, visualBottom, {
+      width = "hairline",
+      fill = makeColor(255, 255, 255, 18),
+    })
+    addText("Ring-local", "MGFXDemoTiny", ringX, innerY - 15, COLORS.green)
+    addText("Arc / Sector-local", "MGFXDemoTiny", sectorX, innerY - 15, COLORS.green)
+
+    local r = mathMin(74, ringW * 0.2, visualH * 0.43)
+    local ringY = shapeCenterY
+    local ring1X = ringX + ringW * 0.33
+    local ring2X = ringX + ringW * 0.72
+    api.RingEx(ring1X, ringY, r, r * 0.38, {
+      fill = api.RingRadialGradient(radialStops),
+      stroke = makeColor(255, 255, 255, 42),
+      strokeWidth = 1,
+      outerGlow = showOuterGlow and {color = makeColor(64, 196, 236, 50), size = 14, opacity = 0.65, softness = 0.64} or nil,
+    })
+    api.RingEx(ring2X, ringY, r, r * 0.26, {
+      fill = api.RingAngularGradient(spectrumStops, -90),
+      stroke = makeColor(255, 255, 255, 42),
+      strokeWidth = 1,
+      innerGlow = showInnerGlow and {color = makeColor(255, 255, 255, 52), size = 8, opacity = 0.45, softness = 0.7} or nil,
+    })
+    caption("RingRadialGradient", ring1X, captionY)
+    caption("RingAngularGradient", ring2X, captionY)
+
+    local sr = mathMin(78, sectorW * 0.14, visualH * 0.43)
+    local arcX = sectorX + sectorW * 0.21
+    local sector1X = sectorX + sectorW * 0.53
+    local sector2X = sectorX + sectorW * 0.8
+    api.ArcEx(arcX, shapeCenterY, sr + 22, 15, 205, 340, {
+      fill = (api.ArcAngularGradient or api.ShapeAngularGradient)(warmStops),
+      stroke = makeColor(255, 255, 255, 46),
+      strokeWidth = 1,
+      outerGlow = showOuterGlow and {color = makeColor(255, 96, 78, 46), size = 13, opacity = 0.65, softness = 0.64} or nil,
+    })
+    api.SectorEx(sector1X, shapeCenterY, sr * 0.38, sr, -132, 10, {
+      fill = api.SectorRadialGradient(radialStops),
+      stroke = makeColor(255, 255, 255, 44),
+      strokeWidth = 1,
+    })
+    api.SectorEx(sector2X, shapeCenterY, sr * 0.38, sr, 18, 142, {
+      fill = api.SectorAngularGradient(spectrumStops),
+      stroke = makeColor(255, 255, 255, 44),
+      strokeWidth = 1,
+    })
+    caption("ArcAngularGradient", arcX, captionY)
+    caption("SectorRadialGradient", sector1X, captionY)
+    caption("SectorAngularGradient", sector2X, captionY)
+
+    local outputY = shapeY + shapeH + rowGap
+    section(px, outputY, pw, outputH, "Output Surfaces", "widgets / composed text", COLORS.gold)
+    local widgetW = mathFloor((pw - 58) * 0.54)
+    local textX = px + 40 + widgetW
+    local textW = pw - widgetW - 58
+    local textCenterX = textX + textW * 0.5
+    local outputContentY = outputY + 42
+    api.ProgressBarEx(px + 18, outputContentY, widgetW, 16, 0.82, {
+      radius = 8,
+      padding = 2,
+      track = makeColor(4, 12, 17, 220),
+      fill = linearStops(0, 0, 1, 0, deepStops),
+      stroke = makeColor(80, 210, 255, 40),
+      strokeWidth = 1,
+      fx = {glow = true, sheen = true, marker = true, ticks = 8},
+    })
+    api.SegmentBarEx(px + 18, outputContentY + 28, widgetW, 14, 0.76, {
+      segments = 22,
+      gap = 3,
+      radius = 3,
+      track = makeColor(255, 255, 255, 20),
+      fill = linearStops(0, 0, 1, 0, spectrumStops),
+    })
+    api.TextEx("STOPS LUT", "MGFXDemoTextTitle", textCenterX, outputY + outputH * 0.62, nil, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, {
+      fill = linearStops(0, 0, 1, 0, spectrumStops),
+      stroke = {width = 0.62, softness = 0.68, color = makeColor(0, 0, 0, 140)},
+      shadow = {x = 0, y = 2, blur = 6, color = makeColor(0, 0, 0, 132)},
+      glow = showOuterGlow and {size = 8, color = makeColor(70, 205, 255, 58), opacity = 0.62, softness = 0.58} or nil,
+    })
+  }
+
+  if api ~= nil and api.StartPanel ~= nil {
+    api.StartPanel(self, w, h)
+
+    api.RoundedBoxEx(0, 0, w, h, {
+      radius = 26,
+      fill = makeColor(0, 0, 0, 0),
+      backdrop = {
+        blur = 3,
+        tint = makeColor(0, 0, 0, 102),
+      },
+    })
+
+    api.RoundedBoxEx(0, 0, w, h, {
+      radius = 26,
+      fill = api.RadialGradient(0.5, 0.5, 0.82, {
+        {0, makeColor(0, 0, 0, 0)},
+        {1, makeColor(0, 0, 0, 31)},
+      }),
+    })
+
+    api.RoundedBoxEx(0, 0, w, h, {
+      radius = 26,
+      fill = api.LinearGradient(0, 0, 0, 1, makeColor(16, 19, 21, 224), makeColor(28, 33, 35, 204)),
+      stroke = makeColor(110, 220, 255, 34),
+      strokeWidth = 1,
+    })
+
+    api.PolyEx({
+      {x = 0, y = 0},
+      {x = 210, y = 0},
+      {x = 168, y = 72},
+      {x = 0, y = 58},
+    }, {
+      fill = api.LinearGradient(0, 0, 1, 0, {
+        {0, makeColor(8, 28, 42, 220)},
+        {1, makeColor(8, 16, 22, 180)},
+      }),
+      stroke = makeColor(80, 170, 230, 80),
+      strokeWidth = 1,
+    })
+
+    api.PolyEx({
+      {x = w, y = 0},
+      {x = w - 244, y = 0},
+      {x = w - 206, y = 78},
+      {x = w, y = 62},
+    }, {
+      fill = api.LinearGradient(1, 0, 0, 0, makeColor(42, 22, 10, 198), makeColor(7, 16, 19, 132)),
+      stroke = makeColor(255, 190, 66, 64),
+      strokeWidth = 1,
+    })
+
+    if self.ShowGradientShowcase ~= false {
+      drawGradientShowcase()
+    } else {
+      local drawFeatureMatrix = () => {
+        local x, y, cw, ch
+        x, y, cw, ch = card(1, "Immediate Shapes", "", COLORS.green)
+        for row = 0, 2 {
+          for col = 0, 6 {
+            local t = (row * 7 + col) / 20
+            local px = x + 18 + col * ((cw - 36) / 7)
+            local py = y + 46 + row * 16
+            local pw = mathMax(12, (cw - 54) / 7)
+            api.RoundedBoxEx(px, py, pw, 9, {
+              radius = 5,
+              fill = makeColor(28 + 160 * t, 118 + 64 * mathSin(t * 6), 220 - 150 * t, 205),
+              stroke = makeColor(255, 255, 255, 28),
+              strokeWidth = 1,
+            })
+          }
+        }
+        for i = 0, 4 {
+          local ly = y + 96 + i * 5
+          api.LineEx(x + 18, ly, x + cw - 72, ly, {
+            width = 2,
+            fill = api.LinearGradient(0, 0, 1, 0, makeColor(80, 220, 255, 210), makeColor(255, 190, 66, 180)),
+          })
+        }
+        for i = 0, 2 {
+          api.RingEx(x + cw - 48 + i * 13, y + 106, 8, 3, {
+            fill = makeColor(80 + i * 54, 220 - i * 32, 255 - i * 42, 205),
+          })
+        }
+
+        x, y, cw, ch = card(2, "Multi-stop Gradient", "LinearGradientStops + LineEx", COLORS.cyan)
+
+        local linearStops = api ~= nil and (api.LinearGradientStops or api.LinearGradient)
+        if linearStops {
+          api.RoundedBoxEx(x + 22, y + 52, cw - 44, 16, {
+            radius = 4,
+            fill = linearStops(0, 0, 1, 0, {
+              {0, makeColor(255, 0, 0, 238)},
+              {0.35, makeColor(255, 0, 170, 238)},
+              {0.68, makeColor(36, 40, 255, 238)},
+              {1, makeColor(0, 210, 255, 238)},
+            }),
+            stroke = makeColor(255, 255, 255, 34),
+            strokeWidth = 1,
+          })
+
+          api.RoundedBoxEx(x + 22, y + 76, cw - 44, 32, {
+            radius = 7,
+            fill = linearStops(0, 0, 1, 0, {
+              {0, makeColor(30, 112, 255, 238)},
+              {0.34, makeColor(58, 220, 190, 238)},
+              {0.67, makeColor(255, 190, 66, 238)},
+              {1, makeColor(255, 78, 82, 238)},
+            }),
+            stroke = makeColor(255, 255, 255, 34),
+            strokeWidth = 1,
+          })
+          api.LineEx(x + 24, y + 116, x + cw - 24, y + 116, {
+            width = 4,
+            fill = linearStops(0, 0, 1, 0, {
+              {0, makeColor(255, 0, 0, 0)},
+              {0.28, makeColor(255, 0, 0, 255)},
+              {0.72, makeColor(70, 210, 255, 255)},
+              {1, makeColor(70, 210, 255, 0)},
+            }),
+          })
+        } else {
+          addText("MGFX.LinearGradientStops not available", "MGFXDemoTiny", x + cw * 0.5, y + 70, COLORS.red, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+        }
+
+        x, y, cw, ch = card(3, "Pattern", "StripePattern / SmokePattern", COLORS.green)
+        api.RoundedBoxEx(x + 26, y + 48, cw - 52, 42, {
+          radius = 10,
+          fill = makeColor(4, 18, 22, 220),
+          pattern = api.StripePattern(makeColor(88, 230, 160, 100), 9, 2, 135, 2),
+          stroke = makeColor(88, 230, 160, 80),
+          strokeWidth = 1,
+        })
+        api.ChamferBoxEx(x + 36, y + 100, cw - 72, 28, {
+          cuts = {tl = 12, tr = 3, br = 12, bl = 3},
+          fill = makeColor(14, 24, 18, 220),
+          pattern = api.SmokePattern({
+            color = makeColor(255, 190, 66, 86),
+            scale = 80,
+            density = 0.47,
+            softness = 0.32,
+            angle = 24,
+            offset = 1.25,
+            seed = "demo-smoke",
+            speed = 1,
+          }),
+          stroke = makeColor(255, 190, 66, 76),
+          strokeWidth = "hairline",
+        })
+
+        x, y, cw, ch = card(4, "Image Masks", "rounded / chamfer / circle / texture", COLORS.gold)
+        if mat {
+          local size = mathMin(48, cw * 0.24)
+          local leftX = x + 28
+          local rightX = x + cw - 28 - size
+          local topY = y + 46
+          local bottomY = y + 96
+
+          api.ImageEx(leftX, topY, size, size, mat, {
+            mask = api.Mask("rounded", {radius = 11}),
+            fit = "cover",
+            tint = makeColor(42, 150, 255, 238),
+            stroke = makeColor(255, 255, 255, 46),
+            strokeWidth = 1,
+            fill = makeColor(4, 18, 26, 220),
+          })
+          api.ImageEx(rightX, topY, size, size, mat, {
+            mask = api.Mask("circle"),
+            fit = "cover",
+            tint = makeColor(72, 224, 170, 238),
+            stroke = makeColor(70, 210, 255, 88),
+            strokeWidth = 1,
+            fill = makeColor(4, 18, 26, 220),
+          })
+          api.ImageEx(leftX, bottomY, size, size, mat, {
+            mask = api.Mask("chamfer", {cuts = {tl = 14, tr = 3, br = 14, bl = 3}}),
+            fit = "cover",
+            tint = makeColor(255, 190, 66, 235),
+            stroke = makeColor(255, 190, 66, 90),
+            strokeWidth = 1,
+            fill = makeColor(24, 14, 8, 220),
+          })
+          api.ImageEx(rightX, bottomY, size, size, mat, {
+            mask = api.Mask("texture", {
+              source = maskMat or mat,
+              channel = "luma",
+            }),
+            fit = "cover",
+            tint = makeColor(255, 112, 92, 238),
+            stroke = makeColor(255, 255, 255, 58),
+            strokeWidth = 1,
+            fill = makeColor(24, 10, 8, 220),
+            outerGlow = showOuterGlow and {
+              color = makeColor(255, 190, 66, 118),
+              size = 14,
+              opacity = 1.15,
+              softness = 0.62,
+            } or nil,
+          })
+
+          addText("rounded", "MGFXDemoTiny", leftX + size * 0.5, topY + size + 4, COLORS.muted, TEXT_ALIGN_CENTER)
+          addText("circle", "MGFXDemoTiny", rightX + size * 0.5, topY + size + 4, COLORS.muted, TEXT_ALIGN_CENTER)
+          addText("chamfer", "MGFXDemoTiny", leftX + size * 0.5, bottomY + size + 4, COLORS.muted, TEXT_ALIGN_CENTER)
+          addText("texture", "MGFXDemoTiny", rightX + size * 0.5, bottomY + size + 4, COLORS.muted, TEXT_ALIGN_CENTER)
+        }
+
+        x, y, cw, ch = card(5, "Segment Bar", "SegmentBarEx: scoreboard threat", COLORS.red)
+        api.SegmentBarEx(x + 24, y + 58, cw - 48, 14, 0.72, {
+          segments = 18,
+          gap = 3,
+          radius = 2,
+          track = makeColor(255, 255, 255, 22),
+          trackPattern = api.StripePattern(makeColor(255, 255, 255, 24), 7, 1, 90, 0),
+          fill = api.LinearGradient(0, 0, 1, 0, {
+            {0, makeColor(255, 150, 78, 235)},
+            {0.55, makeColor(255, 92, 74, 235)},
+            {1, makeColor(255, 52, 64, 235)},
+          }),
+          fillPattern = api.StripePattern(makeColor(255, 255, 255, 54), 8, 1.25, 135, 1),
+          outerGlow = showOuterGlow and {
+            color = makeColor(255, 88, 78, 64),
+            size = 12,
+            opacity = 0.85,
+            softness = 0.68,
+          } or nil,
+        })
+        api.SegmentBarEx(x + 24, y + 94, cw - 48, 10, 0.38, {
+          segments = 12,
+          gap = 4,
+          radius = 2,
+          track = makeColor(255, 255, 255, 18),
+          trackPattern = api.StripePattern(makeColor(255, 255, 255, 18), 9, 1, 90, 2),
+          fill = makeColor(70, 210, 255, 230),
+          fillPattern = api.StripePattern(makeColor(255, 255, 255, 42), 9, 1.25, 35, 2),
+        })
+
+        x, y, cw, ch = card(6, "Ring / Arc", "RingEx + ArcEx + SectorEx", COLORS.cyan)
+        api.RingEx(x + cw * 0.32, y + 82, 36, 12, {
+          fill = api.ConicGradient(0.5, 0.5, 0.08, makeColor(70, 210, 255, 210), makeColor(255, 190, 66, 210)),
+          stroke = makeColor(255, 255, 255, 68),
+          strokeWidth = 1,
+          pattern = api.StripePattern(makeColor(255, 255, 255, 44), 9, 1.5, 35, 2),
+          outerGlow = showOuterGlow and {
+            color = makeColor(70, 210, 255, 120),
+            size = 16,
+            opacity = 1.1,
+            softness = 0.62,
+          } or nil,
+          innerGlow = showInnerGlow and {
+            color = makeColor(255, 32, 32, 140),
+            size = 16,
+            opacity = 0.68,
+            softness = 0.72,
+          } or nil,
+        })
+        api.ArcEx(x + cw * 0.68, y + 82, 42, 9, -135, 130, {
+          fill = api.LinearGradient(0, 0, 1, 1, makeColor(255, 190, 66, 230), makeColor(255, 82, 78, 220)),
+          stroke = makeColor(255, 255, 255, 58),
+          strokeWidth = 1,
+          pattern = api.SmokePattern({
+            color = makeColor(255, 255, 255, 42),
+            scale = 52,
+            density = 0.48,
+            softness = 0.28,
+            warp = 0.72,
+            angle = 20,
+            offset = 0.75,
+            seed = "demo-arc-smoke",
+            speed = 4,
+          }),
+          outerGlow = showOuterGlow and {
+            color = makeColor(255, 100, 78, 92),
+            size = 14,
+            opacity = 1,
+            softness = 0.66,
+          } or nil,
+        })
+        api.SectorEx(x + cw * 0.68, y + 82, 12, 25, 145, 310, {
+          fill = api.SectorAngularGradient({
+            {0, makeColor(80, 210, 255, 210)},
+            {0.48, makeColor(68, 232, 146, 215)},
+            {1, makeColor(255, 82, 78, 220)},
+          }),
+          stroke = makeColor(255, 255, 255, 46),
+          strokeWidth = 1,
+        })
+
+        x, y, cw, ch = card(7, "Glow Layers", "innerGlow / outerGlow isolated", COLORS.gold)
+        api.RoundedBoxEx(x + 30, y + 50, cw - 60, 30, {
+          radius = 8,
+          fill = makeColor(8, 18, 24, 220),
+          stroke = makeColor(80, 210, 255, 70),
+          strokeWidth = 1,
+          outerGlow = showOuterGlow and {
+            color = makeColor(80, 210, 255, 135),
+            size = 24,
+            opacity = 1.35,
+            softness = 0.58,
+          } or nil,
+        })
+        api.RoundedBoxEx(x + 30, y + 96, cw - 60, 30, {
+          radius = 8,
+          fill = makeColor(24, 14, 8, 220),
+          stroke = makeColor(255, 190, 66, 70),
+          strokeWidth = 1,
+          innerGlow = showInnerGlow and {
+            color = makeColor(255, 190, 66, 210),
+            size = 13,
+            opacity = 1.6,
+            softness = 0.64,
+          } or nil,
+        })
+
+        x, y, cw, ch = card(8, "Progress Bar", "track / fill / ticks / sheen", COLORS.green)
+        api.ProgressBarEx(x + 24, y + 54, cw - 48, 16, 0.68, {
+          radius = 8,
+          track = makeColor(5, 12, 17, 220),
+          trackPattern = api.StripePattern(makeColor(255, 255, 255, 26), 11, 1, 90, 0),
+          fill = api.LinearGradient(0, 0, 1, 0, makeColor(24, 96, 212, 238), makeColor(38, 178, 230, 238)),
+          fillPattern = api.StripePattern(makeColor(255, 255, 255, 44), 10, 1.5, 135, 2),
+          stroke = makeColor(72, 180, 230, 34),
+          strokeWidth = 1,
+          padding = 2,
+        })
+        api.ProgressBarEx(x + 24, y + 96, cw - 48, 16, 0.78, {
+          radius = 8,
+          track = makeColor(5, 12, 17, 220),
+          fill = api.LinearGradient(0, 0, 1, 0, {
+            {0, makeColor(28, 110, 230, 238)},
+            {0.55, makeColor(72, 220, 245, 238)},
+            {1, makeColor(255, 210, 86, 238)},
+          }),
+          stroke = makeColor(80, 200, 255, 38),
+          strokeWidth = 1,
+          padding = 2,
+          fx = {
+            glow = true,
+            sheen = true,
+            marker = true,
+            ticks = 6,
+          },
+        })
+
+        x, y, cw, ch = card(9, "Advanced Gradients", "Radial / Multi-Stop / Layered", COLORS.cyan)
+
+        -- Radial gradient spotlight
+        addText("Radial: cx/cy/radius", "MGFXDemoTiny", x + cw * 0.5, y + 46, COLORS.muted, TEXT_ALIGN_CENTER)
+        api.RoundedBoxEx(x + 14, y + 56, cw - 28, 24, {
+          radius = 4,
+          fill = api.RadialGradient(0.7, 0.4, 1.5, {
+            {0, makeColor(220, 240, 255, 240)},
+            {0.42, makeColor(80, 220, 255, 218)},
+            {1, makeColor(30, 40, 50, 200)},
+          }),
+          stroke = makeColor(80, 180, 255, 100),
+          strokeWidth = 1,
+        })
+
+        -- Multi-stop gradient
+        addText("4-stop linear", "MGFXDemoTiny", x + cw * 0.5, y + 88, COLORS.muted, TEXT_ALIGN_CENTER)
+        api.RoundedBoxEx(x + 14, y + 98, cw - 28, 18, {
+          radius = 4,
+          fill = (api.LinearGradientStops or api.LinearGradient)(0, 0, 1, 0, {
+            {0, makeColor(255, 100, 100, 240)},
+            {0.33, makeColor(255, 200, 100, 240)},
+            {0.66, makeColor(100, 255, 180, 240)},
+            {1, makeColor(100, 150, 255, 240)},
+          }),
+          stroke = makeColor(200, 200, 200, 80),
+          strokeWidth = 1,
+        })
+
+        -- Layered off-center glows
+        addText("Layered radial overlays", "MGFXDemoTiny", x + cw * 0.5, y + 124, COLORS.muted, TEXT_ALIGN_CENTER)
+        local lw, lh = cw - 28, 32
+        local lx, ly = x + 14, y + 134
+        api.RoundedBoxEx(lx, ly, lw, lh, {
+          radius = 5,
+          fill = makeColor(47, 125, 174, 230),
+          stroke = makeColor(120, 190, 230, 92),
+          strokeWidth = 1,
+        })
+        api.RoundedBoxEx(lx, ly, lw, lh, {
+          radius = 5,
+          fill = api.RadialGradient(0.78, 0.24, 1.75, {
+            {0, makeColor(180, 232, 255, 172)},
+            {0.28, makeColor(90, 190, 255, 118)},
+            {0.68, makeColor(44, 126, 220, 42)},
+            {1, makeColor(44, 126, 220, 0)},
+          }),
+        })
+        api.RoundedBoxEx(lx, ly, lw, lh, {
+          radius = 5,
+          fill = api.RadialGradient(0.18, 0.78, 1.55, {
+            {0, makeColor(255, 148, 112, 150)},
+            {0.38, makeColor(255, 82, 92, 82)},
+            {0.72, makeColor(170, 38, 96, 24)},
+            {1, makeColor(170, 38, 96, 0)},
+          }),
+        })
+
+        x, y, cw, ch = card(10, "Text FX", "", COLORS.gold)
+        api.RoundedBoxEx(x + 18, y + 44, cw - 36, ch - 58, {
+          radius = 9,
+          fill = makeColor(3, 11, 16, 214),
+          stroke = makeColor(255, 190, 66, 46),
+          strokeWidth = "hairline",
+          innerGlow = showInnerGlow and {
+            color = makeColor(255, 190, 66, 58),
+            size = 12,
+            opacity = 0.55,
+            softness = 0.68,
+          } or nil,
+        })
+        api.TextEx("TEXT FX", "MGFXDemoTextTitle", x + cw * 0.5, y + 66, nil, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, {
+          fill = api.LinearGradient(0, 0, 1, 0, {
+            {0, makeColor(104, 210, 255, 255)},
+            {0.58, makeColor(238, 248, 255, 255)},
+            {1, makeColor(255, 204, 112, 255)},
+          }),
+          stroke = {width = 0.72, softness = 0.64, color = makeColor(0, 5, 8, 150)},
+          shadow = {x = 0, y = 2, blur = 6, color = makeColor(0, 0, 0, 132)},
+          glow = showOuterGlow and {size = 8, color = makeColor(70, 205, 255, 60), opacity = 0.62, softness = 0.58} or nil,
+        })
+        api.TextEx("中文描边 Aa123", "MGFXDemoTextBody", x + cw * 0.5, y + 100, makeColor(232, 242, 246), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, {
+          stroke = {width = 0.28, softness = 0.72, color = makeColor(0, 0, 0, 72)},
+          shadow = {x = 0, y = 2, blur = 4, color = makeColor(0, 0, 0, 92)},
+        })
+        api.TextEx("128,450", "MGFXDemoTextNum", x + 28, y + 126, makeColor(236, 248, 255), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER, {
+          stroke = {width = 0.38, softness = 0.68, color = makeColor(0, 0, 0, 104)},
+          shadow = {x = 0, y = 2, blur = 5, color = makeColor(0, 0, 0, 126)},
+          glow = showOuterGlow and {size = 5, color = makeColor(255, 190, 66, 42), opacity = 0.5, softness = 0.52} or nil,
+        })
+        api.TextEx("+100 XP", "MGFXDemoTextBody", x + cw - 28, y + 126, makeColor(178, 222, 255), TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER, {
+          stroke = {width = 0.24, softness = 0.72, color = makeColor(0, 0, 0, 64)},
+          shadow = {x = 0, y = 2, blur = 4, color = makeColor(0, 0, 0, 88)},
+        })
+        if ch >= 170 {
+          api.TextBoxEx("TextBox 自动测量 / ellipsis / anchored layout", "MGFXDemoTextSmall", x + 28, y + ch - 36, cw - 56, 22, {
+            color = makeColor(205, 224, 226),
+            alignX = "left",
+            alignY = "center",
+            overflow = "ellipsis",
+            stroke = {width = 0.12, softness = 0.78, color = makeColor(0, 0, 0, 44)},
+            shadow = {x = 0, y = 1, blur = 2, color = makeColor(0, 0, 0, 68)},
+          })
+        }
+
+        x, y, cw, ch = card(11, "Explicit State Args", "", COLORS.cyan)
+        local mx, my = self:CursorPos()
+        local now = realTime()
+        local mouseDown = self.RuntimeMouseDown == true
+        local pulseDuration = mathMax(0.01, self.RuntimePulseDuration or 1.15)
+        local pulseLeft = mathClamp((self.RuntimePulseUntil or 0) - now, 0, pulseDuration)
+        local pulse = pulseLeft > 0
+        local pulsePhase = pulse and (1 - pulseLeft / pulseDuration) or 0
+        local pulseWeight = pulse and mathSin(mathClamp(pulsePhase, 0, 1) * math.pi) or 0
+        local pulseRow = self.RuntimeSelected ~= 0 and self.RuntimeSelected or 1
+        local rowLabels = {"base / hover", "selected", "compound", "disabled"}
+        for i = 1, 4 {
+          local rx = x + 18
+          local ry = y + 44 + (i - 1) * 25
+          local rw = cw - 44
+          local rh = 20
+          local hovered = mx >= rx and mx <= rx + rw and my >= ry and my <= ry + rh
+          runtimeHitboxes[i] = {x = rx, y = ry, w = rw, h = rh}
+          local weights = self.RuntimeWeights and self.RuntimeWeights[i]
+          if not weights {
+            weights = {hover = 0, selected = 0, pressed = 0, disabled = 0}
+            self.RuntimeWeights = self.RuntimeWeights or {}
+            self.RuntimeWeights[i] = weights
+          }
+          local pressedTarget = hovered and mouseDown and 1 or (pulse and i == pulseRow and pulseWeight or 0)
+          local hoverWeight = updateRuntimeWeight(weights, "hover", hovered, 10)
+          local selectedWeight = updateRuntimeWeight(weights, "selected", i == self.RuntimeSelected, 8)
+          local disabledWeight = updateRuntimeWeight(weights, "disabled", i == 4 and self.RuntimeDisabled, 7)
+          weights.pressed = approachWeight(weights.pressed or 0, pressedTarget, 13)
+          local pressedWeight = weights.pressed
+          local compoundWeight = mathMin(hoverWeight, selectedWeight)
+          local fill = mixColor(makeColor(5, 16, 22, 205), makeColor(8, 28, 36, 224), selectedWeight)
+          fill = mixColor(fill, makeColor(9, 34, 44, 232), hoverWeight)
+          fill = mixColor(fill, makeColor(3, 12, 18, 238), pressedWeight)
+          fill = mixColor(fill, makeColor(8, 10, 12, 152), disabledWeight)
+          local stroke = mixColor(makeColor(70, 150, 190, 44), makeColor(84, 210, 255, 96), selectedWeight)
+          stroke = mixColor(stroke, makeColor(112, 228, 255, 116), hoverWeight)
+          stroke = mixColor(stroke, makeColor(255, 190, 66, 122), pressedWeight)
+          stroke = mixColor(stroke, makeColor(150, 236, 255, 150), compoundWeight)
+          stroke = mixColor(stroke, makeColor(110, 128, 136, 28), disabledWeight)
+          local glowWeight = mathMax(hoverWeight, compoundWeight)
+          api.RoundedBoxEx(rx, ry, rw, rh, {
+            radius = 7,
+            fill = fill,
+            stroke = stroke,
+            strokeWidth = 1,
+            outerGlow = glowWeight > 0.01 and disabledWeight < 0.95 and {
+              color = makeColor(112, 224, 255, mathFloor(lerp(compoundWeight, 74, 130) * glowWeight)),
+              size = lerp(compoundWeight, 16, 20),
+              opacity = lerp(compoundWeight, 0.72, 1.05) * glowWeight,
+              softness = 0.64,
+            } or nil,
+          })
+          addText(rowLabels[i], "MGFXDemoTiny", rx + 10, ry + rh * 0.5, COLORS.ink, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+          addText(stringFormat("h %.2f  s %.2f  p %.2f  d %.2f", hoverWeight, selectedWeight, pressedWeight, disabledWeight), "MGFXDemoTiny", rx + rw - 8, ry + rh * 0.5, COLORS.muted, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
+        }
+        self.RuntimeHitboxes = runtimeHitboxes
+        addText("click row; hold/pulse = pressed weight", "MGFXDemoTiny", x + 18, y + ch - 22, COLORS.muted)
+
+        x, y, cw, ch = card(12, "Mutable Draw Params", "", COLORS.green)
+        local hoverPanel = mx >= x + 20 and mx <= x + cw - 20 and my >= y + 44 and my <= y + 128
+        local pressedPanel = hoverPanel and mouseDown
+        local selectedPanel = self.RuntimeSelected == 3
+        local actionActive = now < (self.RuntimeActionUntil or 0)
+        local actionAccent = COLORS.muted
+        if self.RuntimeActionId == "clear" {
+          actionAccent = COLORS.cyan
+        } else if self.RuntimeActionId == "instant" {
+          actionAccent = COLORS.gold
+        } else if self.RuntimeActionId == "disable" {
+          actionAccent = COLORS.red
+        } else if self.RuntimeActionId == "pulse" {
+          actionAccent = COLORS.green
+        }
+
+        api.RoundedBoxEx(x + 16, y + 42, cw - 32, 22, {
+          radius = 6,
+          fill = makeColor(actionAccent.r, actionAccent.g, actionAccent.b, actionActive and 32 or 14),
+          stroke = makeColor(actionAccent.r, actionAccent.g, actionAccent.b, actionActive and 92 or 34),
+          strokeWidth = "hairline",
+        })
+        addText(self.RuntimeActionMessage or "ready", "MGFXDemoTiny", x + 24, y + 53, actionActive and COLORS.ink or COLORS.muted, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+        addText(stringFormat("row %s  disabled %s", self.RuntimeSelected == 0 and "-" or tostring(self.RuntimeSelected), self.RuntimeDisabled and "on" or "off"), "MGFXDemoTiny", x + cw - 24, y + 53, COLORS.muted, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
+
+        local progressWeights = self.RuntimeProgressWeights or {hover = 0, selected = 0, pressed = 0, disabled = 0}
+        self.RuntimeProgressWeights = progressWeights
+        local progressHover = updateRuntimeWeight(progressWeights, "hover", hoverPanel, 9)
+        local progressSelected = updateRuntimeWeight(progressWeights, "selected", selectedPanel, 7)
+        local progressDisabled = updateRuntimeWeight(progressWeights, "disabled", self.RuntimeDisabled, 7)
+        progressWeights.pressed = approachWeight(progressWeights.pressed or 0, pressedPanel and 1 or pulseWeight, 12)
+        local progressPressed = progressWeights.pressed
+        local progressFill = mixColor(makeColor(32, 138, 232, 232), makeColor(255, 190, 66, 238), progressSelected)
+        progressFill = mixColor(progressFill, makeColor(70, 230, 176, 238), progressHover)
+        progressFill = mixColor(progressFill, makeColor(255, 100, 86, 240), progressPressed)
+        progressFill = mixColor(progressFill, makeColor(92, 104, 112, 132), progressDisabled)
+        local progressStroke = mixColor(makeColor(72, 180, 230, 36), makeColor(255, 210, 100, 92), progressSelected)
+        progressStroke = mixColor(progressStroke, makeColor(120, 248, 206, 104), progressHover)
+        progressStroke = mixColor(progressStroke, makeColor(150, 158, 164, 30), progressDisabled)
+        local value = pulse and (0.38 + pulseWeight * 0.5) or (0.34 + waveValue(1.4, 0.8) * 0.48)
+        api.ProgressBarEx(x + 22, y + 72, cw - 78, 16, value, {
+          radius = 7,
+          padding = 2,
+          track = mixColor(makeColor(4, 11, 16, 220), makeColor(5, 8, 10, 218), progressDisabled),
+          fill = progressFill,
+          stroke = progressStroke,
+          strokeWidth = 1,
+          fx = {
+            glow = progressHover > 0.05 or progressSelected > 0.2,
+            sheen = progressDisabled < 0.5,
+            marker = progressPressed > 0.1 or progressSelected > 0.5,
+            ticks = progressSelected > 0.55 and 8 or 0,
+          },
+        })
+        addText(stringFormat("progress h %.2f s %.2f p %.2f d %.2f", progressHover, progressSelected, progressPressed, progressDisabled), "MGFXDemoTiny", x + 22, y + 96, COLORS.muted)
+
+        local ringWeights = self.RuntimeRingWeights or {hover = 0, selected = 0, pressed = 0, disabled = 0}
+        self.RuntimeRingWeights = ringWeights
+        local ringHover = updateRuntimeWeight(ringWeights, "hover", hoverPanel, 9)
+        local ringSelected = updateRuntimeWeight(ringWeights, "selected", selectedPanel, 7)
+        local ringDisabled = updateRuntimeWeight(ringWeights, "disabled", self.RuntimeDisabled, 7)
+        ringWeights.pressed = approachWeight(ringWeights.pressed or 0, pressedPanel and 1 or pulseWeight, 12)
+        local ringPressed = ringWeights.pressed
+        local ringFill = mixColor(makeColor(64, 196, 236, 190), makeColor(255, 190, 66, 225), ringSelected)
+        ringFill = mixColor(ringFill, makeColor(88, 230, 160, 230), ringHover)
+        ringFill = mixColor(ringFill, makeColor(255, 88, 78, 236), ringPressed)
+        ringFill = mixColor(ringFill, makeColor(106, 120, 126, 118), ringDisabled)
+        api.RingEx(x + cw - 42, y + 80, 22, lerp(mathMax(ringHover, ringSelected, ringPressed), 4, 9), {
+          fill = ringFill,
+        })
+        addText(stringFormat("ring h %.2f p %.2f", ringHover, ringPressed), "MGFXDemoTiny", x + cw - 78, y + 110, COLORS.muted)
+
+        api.RoundedBoxEx(x + 22, y + 106, cw - 96, 6, {
+          radius = 3,
+          fill = makeColor(4, 10, 14, 176),
+          stroke = makeColor(255, 255, 255, 16),
+          strokeWidth = "hairline",
+        })
+        if pulse {
+          api.RoundedBoxEx(x + 22, y + 106, (cw - 96) * (pulseLeft / pulseDuration), 6, {
+            radius = 3,
+            fill = api.LinearGradient(0, 0, 1, 0, makeColor(255, 96, 78, 220), makeColor(68, 232, 146, 230)),
+          })
+        }
+
+        local actions = {
+          {"clear", "CLEAR", COLORS.muted},
+          {"instant", "INSTANT", COLORS.gold},
+          {"disable", self.RuntimeDisabled and "ENABLE" or "DISABLE", COLORS.red},
+          {"pulse", "PULSE", COLORS.green},
+        }
+        local aw = (cw - 52) / 4
+        for i, action in ipairs(actions) {
+          local ax = x + 16 + (i - 1) * (aw + 7)
+          local ay = y + ch - 52
+          local ah = 24
+          local hot = mx >= ax and mx <= ax + aw and my >= ay and my <= ay + ah
+          local active = (action[1] == "disable" and self.RuntimeDisabled) or (action[1] == "pulse" and pulse) or (self.RuntimeActionId == action[1] and actionActive)
+          runtimeActionHitboxes[#runtimeActionHitboxes + 1] = {id = action[1], x = ax, y = ay, w = aw, h = ah}
+          api.RoundedBoxEx(ax, ay, aw, ah, {
+            radius = 5,
+            fill = active and makeColor(action[3].r, action[3].g, action[3].b, 38) or (hot and makeColor(12, 34, 40, 232) or makeColor(4, 14, 20, 196)),
+            stroke = makeColor(action[3].r, action[3].g, action[3].b, active and 142 or (hot and 110 or 58)),
+            strokeWidth = 1,
+          })
+          if active {
+            api.LineEx(ax + 7, ay + ah - 4, ax + aw - 7, ay + ah - 4, {
+              width = 2,
+              fill = makeColor(action[3].r, action[3].g, action[3].b, 170),
+            })
+          }
+          addText(action[2], "MGFXDemoTiny", ax + aw * 0.5, ay + ah * 0.5, hot and COLORS.ink or action[3], TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+        }
+        self.RuntimeActionHitboxes = runtimeActionHitboxes
+        addText(stringFormat("row 3 drives explicit selected; pulse %.2f", pulseWeight), "MGFXDemoTiny", x + 16, y + ch - 22, COLORS.muted)
+      }
+
+      drawFeatureMatrix()
+    }
+
+    api.EndPanel()
+  } else {
+    draw.RoundedBox(18, 0, 0, w, h, makeColor(4, 15, 22, 226))
+  }
+
+  text("MGFX", "MGFXDemoTitle", left, top + 4, COLORS.ink)
+  text(self.ShowGradientShowcase ~= false and "Gradient Stops / full-size render surfaces" or "Feature Matrix / immediate telemetry", "MGFXDemoSub", left + 2, top + 42, COLORS.muted)
+  local statusText = tableConcat({
+    loaded and "SHADER ONLINE" or "SHADER FALLBACK",
+    fallback and "FORCED SOFTWARE" or "GPU PATH",
+    showInnerGlow and "INNER ON" or "INNER OFF",
+    showOuterGlow and "OUTER ON" or "OUTER OFF",
+  }, "   ")
+  text(statusText, "MGFXDemoTiny", left + 2, top + 62, loaded and COLORS.green or COLORS.red)
+
+  local stats = api ~= nil and api.stats or {}
+  text(stringFormat("draws %d   blur %d   fallback %d   culled %d", stats.draws or 0, stats.blurPasses or 0, stats.fallbacks or 0, stats.culled or 0), "MGFXDemoTiny", left + 2, h - 30, COLORS.muted)
+  text(stringFormat("text composed draws %d   bakes %d   blits %d", stats.textShaderDraws or 0, stats.textComposedBakes or 0, stats.textComposedBlits or 0), "MGFXDemoTiny", left + 2, h - 16, makeColor(170, 230, 200))
+
+  for _, item in ipairs(labels) {
+    text(item[1], item[2], item[3], item[4], item[5], item[6], item[7])
+  }
+
+}
+
+fn PANEL:SetRuntimeAction(id, message, duration) {
+  self.RuntimeActionId = id or ""
+  self.RuntimeActionMessage = message or "ready"
+  self.RuntimeActionUntil = realTime() + (duration or 0.9)
+}
+
+fn PANEL:ClearRuntimeStateWeights(instant) {
+  local clear = (weights) => {
+    if not weights { return }
+    for key in pairs(weights) {
+      weights[key] = instant and 0 or weights[key]
+    }
+  }
+
+  for _, weights in ipairs(self.RuntimeWeights or {}) {
+    clear(weights)
+  }
+  clear(self.RuntimeProgressWeights)
+  clear(self.RuntimeRingWeights)
+}
+
+fn PANEL:OnMousePressed(code) {
+  if code ~= MOUSE_LEFT { return }
+
+  self.RuntimeMouseDown = true
+  self:MouseCapture(true)
+
+  local x, y = self:CursorPos()
+  for _, box in ipairs(self.RuntimeActionHitboxes or {}) {
+    if x >= box.x and x <= box.x + box.w and y >= box.y and y <= box.y + box.h {
+      local now = realTime()
+      if box.id == "clear" {
+        self.RuntimeSelected = 0
+        self.RuntimeDisabled = false
+        self.RuntimePulseUntil = 0
+        self:ClearRuntimeStateWeights(false)
+        self:SetRuntimeAction("clear", "Clear: easing out", 1.25)
+      } else if box.id == "instant" {
+        self.RuntimeSelected = 3
+        self.RuntimeDisabled = false
+        self.RuntimePulseUntil = 0
+        self:ClearRuntimeStateWeights(true)
+        if self.RuntimeWeights and self.RuntimeWeights[3] {
+          self.RuntimeWeights[3].selected = 1
+        }
+        if self.RuntimeProgressWeights { self.RuntimeProgressWeights.selected = 1 }
+        if self.RuntimeRingWeights { self.RuntimeRingWeights.selected = 1 }
+        self:SetRuntimeAction("instant", "Instant: row 3 jump", 1.25)
+      } else if box.id == "disable" {
+        self.RuntimeDisabled = not self.RuntimeDisabled
+        self:SetRuntimeAction("disable", self.RuntimeDisabled and "Disabled ON" or "Disabled OFF", 1.25)
+      } else if box.id == "pulse" {
+        if self.RuntimeSelected == 0 {
+          self.RuntimeSelected = 3
+        }
+        self.RuntimePulseStart = now
+        self.RuntimePulseDuration = 1.15
+        self.RuntimePulseUntil = now + self.RuntimePulseDuration
+        self:SetRuntimeAction("pulse", "Pulse: pressed weight", 1.35)
+      }
+      return
+    }
+  }
+
+  for i, box in ipairs(self.RuntimeHitboxes or {}) {
+    if x >= box.x and x <= box.x + box.w and y >= box.y and y <= box.y + box.h {
+      self.RuntimeSelected = i
+      self:SetRuntimeAction("row", stringFormat("row %d selected", i), 0.95)
+      return
+    }
+  }
+
+  if y > 80 { return }
+
+  local px, py = self:GetPos()
+  self.Dragging = {
+    mousex = mouseX(),
+    mousey = mouseY(),
+    x = px,
+    y = py,
+  }
+}
+
+fn PANEL:OnMouseReleased() {
+  self.Dragging = nil
+  self.RuntimeMouseDown = false
+  self:MouseCapture(false)
+}
+
+fn PANEL:Think() {
+  if not self.Dragging { return }
+
+  local dx = mouseX() - self.Dragging.mousex
+  local dy = mouseY() - self.Dragging.mousey
+  self:SetPos(self.Dragging.x + dx, self.Dragging.y + dy)
+}
+
+
+fn registerPanels() {
+  if vguiRegister == nil {
+    return false
+  }
+
+  vguiRegister("LuxMGFXDemoButton", BUTTON, "DButton")
+  vguiRegister("LuxMGFXDemoPanel", PANEL, "Panel")
+  true
+}
+
+export client fn open() {
+  registerPanels()
+  if vguiCreate == nil {
+    printFn("[MGFX] demo unavailable: vgui missing")
+    return nil
+  }
+
+  if valid(demoPanel) {
+    demoPanel:Remove()
+  }
+
+  demoPanel = vguiCreate("LuxMGFXDemoPanel")
+  if api ~= nil {
+    api._DemoPanel = demoPanel
+  }
+
+  demoPanel
+}
+
+export client fn close() {
+  if valid(demoPanel) {
+    demoPanel:Remove()
+    demoPanel = nil
+    if api ~= nil {
+      api._DemoPanel = nil
+    }
+    return true
+  }
+
+  false
+}
+
+export client fn toggle() {
+  if valid(demoPanel) {
+    return close()
+  }
+
+  open()
+}
+
+export client fn install(owner) {
+  api = owner
+  registerPanels()
+  addCommand(owner, "mgfx_demo", (_cmd = nil, _argString = nil, args = nil) => {
+      local mode = args?.[1] ?? ""
+
+      if mode == "0" or mode == "close" {
+          close()
+          return
+      }
+
+      if mode == "toggle" and valid(demoPanel) {
+          close()
+          return
+      }
+
+      open()
+  }, "Toggle the Lux MGFX demo panel.")
+  addCommand(owner, "mgfx_demo_close", () => close(), "Close the Lux MGFX demo panel.")
+  owner.OpenDemo = open
+  owner.CloseDemo = close
+  owner.ToggleDemo = toggle
+  owner
+}
+
+export client { registerPanels }
+

@@ -1,0 +1,11 @@
+export client fn textureFallbackMaterial(texture) {
+  if texture == nil {
+    return nil
+  }
+
+  if makeMaterial ~= nil and typeOf(texture) == "string" {
+    return makeMaterial(texture, "smooth")
+  }
+
+  texture
+}

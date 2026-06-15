@@ -1,0 +1,79 @@
+export client fn roundedBox(command) {
+  if alreadyRecord(command) {
+    return command
+  }
+
+  makeRoundedBox(command[1], command[2], command[3], command[4], command[5], command[6])
+}
+
+export client fn roundedBoxValues(command) {
+  return field(command, "x", 2),
+    field(command, "y", 3),
+    field(command, "w", 4),
+    field(command, "h", 5),
+    field(command, "style", 6)
+}
+
+export client fn chamferBox(command) =
+  roundedBox(command)
+
+export client fn poly(command) {
+  if alreadyRecord(command) {
+    return command
+  }
+
+  makePoly(command[1], command[2], command[3])
+}
+
+export client fn polyValues(command) {
+  return field(command, "points", 2),
+    field(command, "style", 3)
+}
+
+export client fn image(command) {
+  if alreadyRecord(command) {
+    return command
+  }
+
+  makeImage(command[1], command[2], command[3], command[4], command[5], command[6], command[7])
+}
+
+export client fn imageValues(command) {
+  return field(command, "x", 2),
+    field(command, "y", 3),
+    field(command, "w", 4),
+    field(command, "h", 5),
+    field(command, "source", 6),
+    field(command, "style", 7)
+}
+
+export client fn line(command) {
+  if alreadyRecord(command) {
+    return command
+  }
+
+  makeLine(command[1], command[2], command[3], command[4], command[5], command[6])
+}
+
+export client fn lineValues(command) {
+  return field(command, "x1", 2),
+    field(command, "y1", 3),
+    field(command, "x2", 4),
+    field(command, "y2", 5),
+    field(command, "style", 6)
+}
+
+export client fn clip(command) {
+  if alreadyRecord(command) {
+    return command
+  }
+
+  makeClip(command[1], command[2], command[3], command[4], command[5])
+}
+
+export client fn clipValues(command) {
+  return field(command, "x", 2),
+    field(command, "y", 3),
+    field(command, "w", 4),
+    field(command, "h", 5)
+}

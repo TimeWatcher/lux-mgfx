@@ -1,0 +1,182 @@
+import * as materialsPkgImport from "@lux/mgfx/materials"
+
+local materialsPkg = materialsPkgImport
+
+local concommandAdd = concommand?.Add
+local concommandRemove = concommand?.Remove
+local createClientConVar = CreateClientConVar
+local getConVar = GetConVar
+local hookAdd = hook?.Add
+local hookRemove = hook?.Remove
+local makeColor = Color
+local mathClamp = math.Clamp
+local mathFloor = math.floor
+local mathMax = math.max
+local mathMin = math.min
+local matrixCtor = Matrix
+local printFn = print
+local realTime = RealTime
+local stringFormat = string.format
+local surfaceCreateFont = surface?.CreateFont
+local surfaceDrawOutlinedRect = surface?.DrawOutlinedRect
+local surfaceDrawRect = surface?.DrawRect
+local surfaceDrawTexturedRectUV = surface?.DrawTexturedRectUV
+local surfaceSetDrawColor = surface?.SetDrawColor
+local surfaceSetMaterial = surface?.SetMaterial
+local sysTime = SysTime
+local tableConcat = table.concat
+local tableSort = table.sort
+local timerCreate = timer?.Create
+local timerRemove = timer?.Remove
+local toNumber = tonumber
+local toString = tostring
+local typeOf = type
+
+local commandNames = {}
+local textDemoEnabled = false
+local textStressEnabled = false
+local atlasDebugEnabled = false
+local paramProbeEnabled = false
+local textDemoFontsReady = false
+local paramProbeMatrix = matrixCtor ~= nil then matrixCtor() else nil
+local paramProbeSetUnpacked = paramProbeMatrix?.SetUnpacked
+local paramBenchMatrix = matrixCtor ~= nil then matrixCtor() else nil
+local paramBenchSetUnpacked = paramBenchMatrix?.SetUnpacked
+local paramBenchTimer = "MGFXParamBench"
+local textDemoFx = createClientConVar ~= nil then createClientConVar("mgfx_text_demo_fx", "1", true, false, "MGFX text demo effect intensity.") else nil
+
+local requiredMaterialKeys = {
+  "roundrect",
+    "roundrect_fx",
+    "roundrect_solid",
+    "roundrect_stroke",
+    "roundrect_texture",
+    "param_probe",
+    "chamfer",
+    "chamfer_texture",
+    "image_mask",
+    "image_mask_outerglow",
+    "image_mask_backdrop",
+    "chamfer_stroke",
+    "roundrect_blur",
+    "roundrect_innerglow",
+    "chamfer_innerglow",
+    "roundrect_outerglow",
+    "chamfer_outerglow",
+    "progress",
+    "progress_fx",
+    "segmentbar",
+    "line",
+    "text_face",
+    "text_compose",
+    "roundrect_pattern",
+    "chamfer_pattern",
+    "poly_pattern",
+    "ring",
+    "ring_fx",
+    "ring_backdrop",
+    "ring_stroke",
+    "ring_innerglow",
+    "ring_outerglow",
+    "ring_pattern",
+    "poly_stroke",
+    "poly3",
+    "poly3_blur",
+    "poly4",
+    "poly4_blur",
+    "poly5",
+    "poly5_blur",
+    "poly6",
+    "poly6_blur",
+    "poly7",
+    "poly7_blur",
+    "poly8",
+    "poly8_blur"
+}
+
+local requiredApis = {
+  "StartPanel",
+    "EndPanel",
+    "StartScreen",
+    "EndScreen",
+    "PushClip",
+    "PopClip",
+    "RoundedBox",
+    "RoundedBoxEx",
+    "ChamferBox",
+    "ChamferBoxEx",
+    "Poly",
+    "PolyEx",
+    "Line",
+    "LineEx",
+    "Circle",
+    "CircleEx",
+    "Capsule",
+    "CapsuleEx",
+    "Image",
+    "ImageEx",
+    "Icon",
+    "IconEx",
+    "Text",
+    "TextEx",
+    "TextBox",
+    "TextBoxEx",
+    "MeasureText",
+    "MeasureTextBox",
+    "DefineTextStyle",
+    "GetTextStyle",
+    "ResolveTextStyle",
+    "RegisterTextFont",
+    "PrewarmText",
+    "GetCapabilities",
+    "Supports",
+    "Transform",
+    "ProjectedQuad",
+    "PointerTilt",
+    "PushTransform",
+    "PopTransform",
+    "TransformPoint",
+    "UntransformPoint",
+    "ProgressBar",
+    "ProgressBarEx",
+    "SegmentBar",
+    "SegmentBarEx",
+    "Ring",
+    "RingEx",
+    "Arc",
+    "ArcEx",
+    "Sector",
+    "SectorEx",
+    "Solid",
+    "LinearGradient",
+    "LinearGradientStops",
+    "RadialGradient",
+    "RingRadialGradient",
+    "SectorRadialGradient",
+    "ConicGradient",
+    "ShapeAngularGradient",
+    "RingAngularGradient",
+    "ArcAngularGradient",
+    "SectorAngularGradient",
+    "StripePattern",
+    "SmokePattern",
+    "Mask",
+    "DebugOverlay"
+}
+
+local requiredTargets = {
+  "ROUNDED_BOX",
+    "CHAMFER_BOX",
+    "POLY",
+    "LINE",
+    "CIRCLE",
+    "CAPSULE",
+    "IMAGE",
+    "PROGRESS_BAR",
+    "SEGMENT_BAR",
+    "RING",
+    "ARC",
+    "SECTOR",
+    "TEXT"
+}
+

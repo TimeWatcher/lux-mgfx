@@ -1,0 +1,16 @@
+Documentation license
+=====================
+
+Unless a documentation file says otherwise, Lux documentation prose is licensed
+under the Creative Commons Attribution 4.0 International License.
+
+SPDX-License-Identifier: CC-BY-4.0
+
+The full license text is available at:
+
+https://creativecommons.org/licenses/by/4.0/legalcode
+
+Code examples, command examples, configuration examples, and generated-code
+snippets inside the documentation are licensed as Lux source code:
+
+SPDX-License-Identifier: MIT OR Apache-2.0

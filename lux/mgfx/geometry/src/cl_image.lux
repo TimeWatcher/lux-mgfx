@@ -1,0 +1,194 @@
+export client fn imageTint(drawStyle = nil) {
+  local resolved = drawStyle ?? {}
+  local tint = styleUtil.asColor(resolved.tint ?? resolved.color, color_white)
+  local alpha = tint.a == nil then 255 else tint.a
+  local opacity = resolved.alpha
+
+  if opacity == nil {
+    return tint
+  }
+
+  opacity = toNumber(opacity) ?? 255
+  if opacity <= 1 {
+    alpha = alpha * mathClamp(opacity, 0, 1)
+  } else {
+    alpha = alpha * mathClamp(opacity, 0, 255) / 255
+  }
+
+  imageTintScratch.r = tint.r ?? 255
+  imageTintScratch.g = tint.g ?? 255
+  imageTintScratch.b = tint.b ?? 255
+  imageTintScratch.a = mathFloor(mathClamp(alpha, 0, 255))
+  imageTintScratch
+}
+
+export client fn imageStyle(drawStyle = nil) {
+  if typeOf(drawStyle) == "table" {
+    return copyStyle(drawStyle)
+  }
+
+  if drawStyle ~= nil {
+    return { radius = drawStyle }
+  }
+
+  {}
+}
+
+export client fn imageRadius(radius, w, h) {
+  if radius == true {
+    return mathMin(w, h) * 0.5
+  }
+
+  if typeOf(radius) == "string" {
+    local lower = stringLower(radius)
+    if lower == "circle" {
+      return mathMin(w, h) * 0.5
+    }
+
+    local pct = stringMatch(lower, "^%s*([%d%.]+)%s*%%%s*$")
+    if pct ~= nil {
+      return mathMin(w, h) * mathClamp((toNumber(pct) ?? 0) / 100, 0, 1)
+    }
+
+    local px = stringMatch(lower, "^%s*([%d%.]+)%s*px%s*$")
+    if px ~= nil {
+      return toNumber(px) ?? 0
+    }
+  }
+
+  mathMax(0, toNumber(radius) ?? 0)
+}
+
+export client fn imageAlign(drawStyle = nil) {
+  local resolved = drawStyle ?? {}
+  local ax = resolved.alignX
+  local ay = resolved.alignY
+
+  if ax == nil {
+    ax = resolved.positionX
+  }
+
+  if ay == nil {
+    ay = resolved.positionY
+  }
+
+  local position = resolved.position
+  if typeOf(position) == "table" {
+    if ax == nil {
+      ax = position.x ?? position[1]
+    }
+
+    if ay == nil {
+      ay = position.y ?? position[2]
+    }
+  }
+
+  return mathClamp(toNumber(ax) ?? 0.5, 0, 1),
+    mathClamp(toNumber(ay) ?? 0.5, 0, 1)
+}
+
+export client fn imageUV(drawStyle = nil, texture = nil) {
+  local u0 = 0
+  local v0 = 0
+  local u1 = 1
+  local v1 = 1
+  local resolved = drawStyle ?? {}
+  local uv = resolved.uv
+
+  if typeOf(uv) == "table" {
+    u0 = toNumber(uv.u0 ?? uv.x0 ?? uv[1]) ?? u0
+    v0 = toNumber(uv.v0 ?? uv.y0 ?? uv[2]) ?? v0
+    u1 = toNumber(uv.u1 ?? uv.x1 ?? uv[3]) ?? u1
+    v1 = toNumber(uv.v1 ?? uv.y1 ?? uv[4]) ?? v1
+  } else {
+    local crop = resolved.crop
+    if typeOf(crop) == "table" {
+      local pixels = crop.pixels ?? crop.pixel ?? resolved.cropPixels ?? (resolved.cropUnit == "px")
+      if crop.x ~= nil or crop.y ~= nil or crop.w ~= nil or crop.h ~= nil {
+        local x = toNumber(crop.x) ?? 0
+        local y = toNumber(crop.y) ?? 0
+        local w = toNumber(crop.w ?? crop.width) ?? 1
+        local h = toNumber(crop.h ?? crop.height) ?? 1
+        if pixels {
+          local tw, th = textureSize(texture)
+          u0, v0, u1, v1 = x / tw, y / th, (x + w) / tw, (y + h) / th
+        } else {
+          u0, v0, u1, v1 = x, y, x + w, y + h
+        }
+      } else {
+        u0 = toNumber(crop.u0 ?? crop[1]) ?? u0
+        v0 = toNumber(crop.v0 ?? crop[2]) ?? v0
+        u1 = toNumber(crop.u1 ?? crop[3]) ?? u1
+        v1 = toNumber(crop.v1 ?? crop[4]) ?? v1
+      }
+    }
+  }
+
+  u0 = mathClamp(u0, 0, 1)
+  v0 = mathClamp(v0, 0, 1)
+  u1 = mathClamp(u1, 0, 1)
+  v1 = mathClamp(v1, 0, 1)
+
+  if u1 <= u0 {
+    u0, u1 = 0, 1
+  }
+
+  if v1 <= v0 {
+    v0, v1 = 0, 1
+  }
+
+  return u0, v0, u1, v1
+}
+
+export client fn imageFitRect(x, y, w, h, texture, drawStyle, u0, v0, u1, v1) {
+  local resolved = drawStyle ?? {}
+  local fit = resolved.fit ?? resolved.objectFit ?? "fill"
+  if typeOf(fit) ~= "string" {
+    fit = "fill"
+  }
+
+  fit = stringLower(fit)
+  if fit == "stretch" {
+    fit = "fill"
+  }
+
+  if fit == "fill" {
+    return x, y, w, h, u0, v0, u1, v1
+  }
+
+  local tw, th = textureSize(texture)
+  local spanU = u1 - u0
+  local spanV = v1 - v0
+  local sourceW = mathMax(1, tw * spanU)
+  local sourceH = mathMax(1, th * spanV)
+  local sourceAspect = sourceW / sourceH
+  local destAspect = mathMax(1, w) / mathMax(1, h)
+  local ax, ay = imageAlign(resolved)
+
+  if fit == "cover" {
+    if sourceAspect > destAspect {
+      local newSpanU = spanV * th * destAspect / tw
+      local extra = spanU - newSpanU
+      u0 = u0 + extra * ax
+      u1 = u0 + newSpanU
+    } else if sourceAspect < destAspect {
+      local newSpanV = spanU * tw / destAspect / th
+      local extra = spanV - newSpanV
+      v0 = v0 + extra * ay
+      v1 = v0 + newSpanV
+    }
+  } else if fit == "contain" {
+    if sourceAspect > destAspect {
+      local nextH = w / sourceAspect
+      y = y + (h - nextH) * ay
+      h = nextH
+    } else if sourceAspect < destAspect {
+      local nextW = h * sourceAspect
+      x = x + (w - nextW) * ax
+      w = nextW
+    }
+  }
+
+  return x, y, w, h, u0, v0, u1, v1
+}
+

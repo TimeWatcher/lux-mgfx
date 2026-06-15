@@ -1,0 +1,237 @@
+import * as shaderpackImport from "@lux/mgfx/shaderpack"
+
+local shaderpack = shaderpackImport
+
+local bitBor = bit?.bor
+local createMaterial = CreateMaterial
+local fileWrite = file?.Write
+local gameMountGMA = game?.MountGMA
+local getRenderTargetEx = GetRenderTargetEx
+local makeMaterial = Material
+local printFn = print
+local renderGetDXLevel = render?.GetDXLevel
+local sysTime = SysTime
+local tableCopy = table.Copy
+local toString = tostring
+local typeOf = type
+local utilBase64Decode = util?.Base64Decode
+local utilKeyValuesToTable = util?.KeyValuesToTable
+
+local shaderKV =
+  "screenspace_general\n" ..
+  "{\n" ..
+  "  $pixshader \"\"\n" ..
+  "  $vertexshader \"\"\n" ..
+  "  $basetexture \"color/white\"\n" ..
+  "  $texture1 \"\"\n" ..
+  "  $texture2 \"\"\n" ..
+  "  $texture3 \"\"\n" ..
+  "  $ignorez 1\n" ..
+  "  $vertexcolor 1\n" ..
+  "  $vertextransform 1\n" ..
+  "  $copyalpha 0\n" ..
+  "  $alpha_blend_color_overlay 0\n" ..
+  "  $alpha_blend 1\n" ..
+  "  $linearwrite 1\n" ..
+  "  $linearread_basetexture 1\n" ..
+  "  $linearread_texture1 1\n" ..
+  "  $linearread_texture2 1\n" ..
+  "  $linearread_texture3 1\n" ..
+  "  $c0_x 0\n" ..
+  "  $c0_y 0\n" ..
+  "  $c0_z 0\n" ..
+  "  $c0_w 0\n" ..
+  "  $c1_x 1\n" ..
+  "  $c1_y 1\n" ..
+  "  $c1_z 0\n" ..
+  "  $c1_w 0\n" ..
+  "  $c2_x 0\n" ..
+  "  $c2_y 0\n" ..
+  "  $c2_z 1\n" ..
+  "  $c2_w 0\n" ..
+  "  $c3_x 0\n" ..
+  "  $c3_y 0\n" ..
+  "  $c3_z 0\n" ..
+  "  $c3_w 0\n" ..
+  "}\n"
+
+local materialKeys = {
+  "roundrect",
+    "roundrect_fx",
+    "roundrect_solid",
+    "roundrect_stroke",
+    "roundrect_texture",
+    "param_probe",
+    "chamfer",
+    "chamfer_texture",
+    "image_mask",
+    "image_mask_outerglow",
+    "image_mask_backdrop",
+    "chamfer_stroke",
+    "roundrect_blur",
+    "roundrect_innerglow",
+    "chamfer_innerglow",
+    "roundrect_outerglow",
+    "chamfer_outerglow",
+    "progress",
+    "progress_fx",
+    "segmentbar",
+    "line",
+    "text_face",
+    "text_compose",
+    "roundrect_pattern",
+    "chamfer_pattern",
+    "poly_pattern",
+    "ring",
+    "ring_fx",
+    "ring_backdrop",
+    "ring_stroke",
+    "ring_innerglow",
+    "ring_outerglow",
+    "ring_pattern",
+    "poly_stroke",
+    "poly3",
+    "poly3_blur",
+    "poly4",
+    "poly4_blur",
+    "poly5",
+    "poly5_blur",
+    "poly6",
+    "poly6_blur",
+    "poly7",
+    "poly7_blur",
+    "poly8",
+    "poly8_blur"
+}
+
+local shaderNames = {
+  roundrect = "mgfx_roundrect_ps30",
+    roundrect_fx = "mgfx_roundrect_fx_ps30",
+    roundrect_solid = "mgfx_roundrect_solid_ps30",
+    roundrect_stroke = "mgfx_roundrect_stroke_ps30",
+    roundrect_texture = "mgfx_roundrect_texture_ps30",
+    param_probe = "mgfx_param_probe_ps30",
+    chamfer = "mgfx_chamfer_ps30",
+    chamfer_texture = "mgfx_chamfer_texture_ps30",
+    image_mask = "mgfx_image_mask_ps30",
+    image_mask_outerglow = "mgfx_image_mask_outerglow_ps30",
+    image_mask_backdrop = "mgfx_image_mask_backdrop_ps30",
+    chamfer_stroke = "mgfx_chamfer_stroke_ps30",
+    roundrect_blur = "mgfx_roundrect_blur_ps30",
+    roundrect_innerglow = "mgfx_roundrect_innerglow_ps30",
+    chamfer_innerglow = "mgfx_chamfer_innerglow_ps30",
+    roundrect_outerglow = "mgfx_roundrect_outerglow_ps30",
+    chamfer_outerglow = "mgfx_chamfer_outerglow_ps30",
+    progress = "mgfx_progress_ps30",
+    progress_fx = "mgfx_progress_fx_ps30",
+    segmentbar = "mgfx_segmentbar_ps30",
+    line = "mgfx_line_ps30",
+    text_face = "mgfx_text_face_ps30",
+    text_compose = "mgfx_text_compose_ps30",
+    roundrect_pattern = "mgfx_roundrect_pattern_ps30",
+    chamfer_pattern = "mgfx_chamfer_pattern_ps30",
+    poly_pattern = "mgfx_poly_pattern_ps30",
+    ring = "mgfx_ring_ps30",
+    ring_fx = "mgfx_ring_fx_ps30",
+    ring_backdrop = "mgfx_ring_backdrop_ps30",
+    ring_stroke = "mgfx_ring_stroke_ps30",
+    ring_innerglow = "mgfx_ring_innerglow_ps30",
+    ring_outerglow = "mgfx_ring_outerglow_ps30",
+    ring_pattern = "mgfx_ring_pattern_ps30",
+    poly_stroke = "mgfx_poly_stroke_ps30",
+    poly3 = "mgfx_poly3_ps30",
+    poly3_blur = "mgfx_poly3_blur_ps30",
+    poly4 = "mgfx_poly4_ps30",
+    poly4_blur = "mgfx_poly4_blur_ps30",
+    poly5 = "mgfx_poly5_ps30",
+    poly5_blur = "mgfx_poly5_blur_ps30",
+    poly6 = "mgfx_poly6_ps30",
+    poly6_blur = "mgfx_poly6_blur_ps30",
+    poly7 = "mgfx_poly7_ps30",
+    poly7_blur = "mgfx_poly7_blur_ps30",
+    poly8 = "mgfx_poly8_ps30",
+    poly8_blur = "mgfx_poly8_blur_ps30"
+}
+
+fn shaderPack() =
+  shaderpack.current()
+
+export client fn matOK(material) =
+  material ~= nil and material.IsError ~= nil and not material:IsError()
+
+fn shaderName(version, name) =
+  version ~= "" then version .. "_" .. name else name
+
+fn mountShaderPack(version) {
+  local pack = shaderPack()
+  if version == "" or pack.GMA == nil or pack.GMA == "" or utilBase64Decode == nil or fileWrite == nil or gameMountGMA == nil {
+    return nil
+  }
+
+  local mountName = "mgfx_shaders_" .. version .. ".gma"
+  local decoded = utilBase64Decode(pack.GMA)
+  if decoded ~= nil and decoded ~= "" {
+    fileWrite(mountName, decoded)
+    printFn("Mounting MGFX GMA: " .. toString(gameMountGMA("data/" .. mountName)))
+    printFn("GMA Version: " .. version)
+    return mountName
+  }
+
+  nil
+}
+
+fn blurTarget(version) {
+  if getRenderTargetEx == nil or bitBor == nil {
+    return nil
+  }
+
+  return getRenderTargetEx(
+    "MGFXBlur" .. (version ~= "" then version else "dev") .. sysTime(),
+    1024,
+    1024,
+    RT_SIZE_LITERAL,
+    MATERIAL_RT_DEPTH_SEPARATE,
+    bitBor(2, 256, 4, 8),
+    0,
+    IMAGE_FORMAT_BGRA8888
+  )
+}
+
+fn screenMaterialFactory(version, blurRT) {
+  return (name, pixshader, values = nil) => {
+    if createMaterial == nil {
+      return nil
+    }
+
+    local kv = utilKeyValuesToTable ~= nil then utilKeyValuesToTable(shaderKV, false, true) else {}
+    kv["$pixshader"] = shaderName(version, pixshader)
+    kv["$vertexshader"] = shaderName(version, "mgfx_vs30")
+
+    if values ~= nil {
+      for key, value in pairs(values) {
+        kv[key] = value
+      }
+    }
+
+    return createMaterial("mgfx_" .. name .. "_" .. sysTime(), "screenspace_general", kv)
+  }
+}
+
+fn materialValues(key, blurRT) {
+  if key == "roundrect_blur" or key == "image_mask_backdrop" or key == "ring_backdrop" or key == "poly3_blur" or key == "poly4_blur" or key == "poly5_blur" or key == "poly6_blur" or key == "poly7_blur" or key == "poly8_blur" {
+    local textureName = blurRT ~= nil and blurRT.GetName ~= nil then blurRT:GetName() else ""
+    return {
+      ["$basetexture"] = textureName,
+        ["$texture1"] = "_rt_FullFrameFB"
+    }
+  }
+
+  if key == "text_face" or key == "text_compose" {
+    return {
+      ["$linearread_basetexture"] = 0
+    }
+  }
+
+  nil
+}
+

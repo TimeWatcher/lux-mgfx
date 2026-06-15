@@ -1,0 +1,67 @@
+fn patternSeed(seed) {
+  if seed == nil {
+    return 0
+  }
+
+  local value = toNumber(seed)
+  local utilCrc = util?.CRC
+  if value == nil and utilCrc ~= nil {
+    value = toNumber(utilCrc(toString(seed)))
+  }
+
+  value = mathAbs(value ?? 0) % 65536
+  value / 65536
+}
+
+export client fn stripePattern(color, spacing = 12, width = 2, angle = 135, offset = 0) {
+  if typeOf(color) == "table" and not isColor(color) {
+    return {
+      kind = PATTERN_STRIPE,
+        color = colorOr(color.color ?? color.tint, makeColor(255, 255, 255, 24)),
+        spacing = toNumber(color.spacing) ?? 12,
+        width = toNumber(color.width) ?? 2,
+        angle = toNumber(color.angle) ?? 135,
+        offset = toNumber(color.offset) ?? 0
+    }
+  }
+
+  {
+    kind = PATTERN_STRIPE,
+      color = colorOr(color, makeColor(255, 255, 255, 24)),
+      spacing = toNumber(spacing) ?? 12,
+      width = toNumber(width) ?? 2,
+      angle = toNumber(angle) ?? 135,
+      offset = toNumber(offset) ?? 0
+  }
+}
+
+export client fn smokePattern(color, scale = 140, density = 0.48, softness = 0.3, angle = 135, offset = 0, seed = 0) {
+  if typeOf(color) == "table" and not isColor(color) {
+    return {
+      kind = PATTERN_SMOKE,
+        color = colorOr(color.color ?? color.tint, makeColor(255, 255, 255, 24)),
+        scale = toNumber(color.scale) ?? 140,
+        density = toNumber(color.density) ?? 0.48,
+        softness = toNumber(color.softness) ?? 0.3,
+        angle = toNumber(color.angle) ?? 135,
+        offset = toNumber(color.offset) ?? 0,
+        speed = toNumber(color.speed) ?? 0,
+        warp = toNumber(color.warp) ?? 0.85,
+        seed = patternSeed(color.seed)
+    }
+  }
+
+  {
+    kind = PATTERN_SMOKE,
+      color = colorOr(color, makeColor(255, 255, 255, 24)),
+      scale = toNumber(scale) ?? 140,
+      density = toNumber(density) ?? 0.48,
+      softness = toNumber(softness) ?? 0.3,
+      angle = toNumber(angle) ?? 135,
+      offset = toNumber(offset) ?? 0,
+      speed = 0,
+      warp = 0.85,
+      seed = patternSeed(seed)
+  }
+}
+

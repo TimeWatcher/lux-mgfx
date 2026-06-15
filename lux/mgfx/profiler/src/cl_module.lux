@@ -1,0 +1,271 @@
+local createClientConVar = CreateClientConVar
+local sysTime = SysTime
+local mathMax = math.max
+local tableCopy = table.Copy
+local tableEmpty = table.Empty
+local tableSort = table.sort
+local stringFormat = string.format
+local toBool = tobool
+local toString = tostring
+local typeOf = type
+local cvarsLib = cvars
+
+fn makeConVar(name, defaultValue, help) {
+  if createClientConVar == nil {
+    return nil
+  }
+
+  createClientConVar(name, defaultValue, true, false, help)
+}
+
+export client fn create(owner = nil, options = nil) {
+  local target = owner ?? {}
+  local enabledConVar = options?.enabledConVar ?? makeConVar("mgfx_profile", "0", "MGFX: enable renderer profiler.")
+  local windowConVar = options?.windowConVar ?? makeConVar("mgfx_profile_window", "120", "MGFX: rolling profiler sample window.")
+  local topConVar = options?.topConVar ?? makeConVar("mgfx_profile_top", "18", "MGFX: number of profiler rows printed by mgfx_profile_status.")
+  local rolling = {}
+  local frameIndex = 0
+  local active = false
+  local wrappedOriginals = {}
+  local wrappersInstalled = false
+  local wrappedOwner = nil
+  local wrappedNames = nil
+  local wrappedSuppress = nil
+
+  local api = {}
+
+  local isEnabled = () => enabledConVar ~= nil and enabledConVar.GetBool ~= nil and enabledConVar:GetBool() or false
+  local windowSize = () => mathMax(1, windowConVar ~= nil and windowConVar.GetInt ~= nil and windowConVar:GetInt() or 120)
+  local topLimit = () => mathMax(1, topConVar ~= nil and topConVar.GetInt ~= nil and topConVar:GetInt() or 18)
+
+  api.BeginFrame = () => {
+    active = isEnabled()
+    if active {
+      frameIndex += 1
+    }
+    active
+  }
+
+  api.IsActive = () => active
+
+  api.Start = () => active then sysTime() else nil
+
+  api.Record = (name, elapsedMs, count = 1) => {
+    if not active or elapsedMs == nil {
+      return
+    }
+
+    name = toString(name ?? "unknown")
+    target.stats = target.stats ?? {}
+    target.stats.profileTimes = target.stats.profileTimes ?? {}
+    target.stats.profileCounts = target.stats.profileCounts ?? {}
+    target.stats.profileTimes[name] = (target.stats.profileTimes[name] ?? 0) + elapsedMs
+    target.stats.profileCounts[name] = (target.stats.profileCounts[name] ?? 0) + (count ?? 1)
+  }
+
+  api.End = (name, started, count = 1) => {
+    if started ~= nil {
+      api.Record(name, (sysTime() - started) * 1000, count)
+    }
+  }
+
+  api.EndFrame = () => {
+    if not active {
+      return
+    }
+
+    local window = windowSize()
+    for name, ms in pairs(target.stats?.profileTimes ?? {}) {
+      local bucket = rolling[name]
+      if bucket == nil {
+        bucket = { samples = {}, counts = {}, index = 1, n = 0, sum = 0, countSum = 0, max = 0, last = 0, lastCount = 0 }
+        rolling[name] = bucket
+      }
+
+      local index = bucket.index
+      local oldMs = bucket.samples[index] ?? 0
+      if bucket.n == window {
+        bucket.sum = bucket.sum - oldMs
+        bucket.countSum = bucket.countSum - (bucket.counts[index] ?? 0)
+      } else {
+        bucket.n += 1
+      }
+
+      local counts = target.stats?.profileCounts
+      local sampleCount = counts ~= nil then (counts[name] ?? 0) else 0
+      bucket.samples[index] = ms
+      bucket.counts[index] = sampleCount
+      bucket.sum += ms
+      bucket.countSum += sampleCount
+      bucket.last = ms
+      bucket.lastCount = sampleCount
+      if ms >= (bucket.max ?? 0) {
+        bucket.max = ms
+      } else if oldMs >= (bucket.max ?? 0) {
+        local maxValue = 0
+        for sampleIndex = 1, bucket.n {
+          local sample = bucket.samples[sampleIndex] ?? 0
+          if sample > maxValue {
+            maxValue = sample
+          }
+        }
+        bucket.max = maxValue
+      }
+      bucket.index = (index % window) + 1
+      bucket.frame = frameIndex
+    }
+  }
+
+  api.Reset = () => {
+    if tableEmpty ~= nil {
+      tableEmpty(rolling)
+    } else {
+      for key, _ in pairs(rolling) {
+        rolling[key] = nil
+      }
+    }
+    frameIndex = 0
+  }
+
+  api.Snapshot = (limit = nil) => {
+    limit = limit ?? topLimit()
+    local rows = {}
+    for name, bucket in pairs(rolling) {
+      local n = bucket.n > 0 then bucket.n else 1
+      rows[#rows + 1] = {
+        name = name,
+          last = bucket.last ?? 0,
+          avg = (bucket.sum ?? 0) / n,
+          max = bucket.max ?? 0,
+          count = bucket.lastCount ?? 0,
+          avgCount = (bucket.countSum ?? 0) / n,
+          samples = bucket.n ?? 0
+      }
+    }
+
+    tableSort(rows, (a, b) => a.avg == b.avg then a.last > b.last else a.avg > b.avg)
+    while #rows > limit {
+      rows[#rows] = nil
+    }
+    rows
+  }
+
+  api.CurrentRows = (limit = nil) => {
+    limit = limit ?? topLimit()
+    local rows = {}
+    for name, ms in pairs(target.stats?.profileTimes ?? {}) {
+      rows[#rows + 1] = {
+        name = name,
+          last = ms ?? 0,
+          count = do {
+            local counts = target.stats?.profileCounts
+            counts ~= nil then (counts[name] ?? 0) else 0
+          }
+      }
+    }
+
+    tableSort(rows, (a, b) => a.last == b.last then a.name < b.name else a.last > b.last)
+    while #rows > limit {
+      rows[#rows] = nil
+    }
+    rows
+  }
+
+  api.FormatRows = (rows, rollingRows = false) => {
+    local out = {}
+    for _, row in ipairs(rows ?? {}) {
+      if rollingRows {
+        out[#out + 1] = stringFormat("%s last=%.3f avg=%.3f max=%.3f count=%d avgCount=%.1f samples=%d",
+          row.name, row.last ?? 0, row.avg ?? 0, row.max ?? 0, row.count ?? 0, row.avgCount ?? 0, row.samples ?? 0)
+      } else {
+        out[#out + 1] = stringFormat("%s %.3fms count=%d", row.name, row.last ?? 0, row.count ?? 0)
+      }
+    }
+    out
+  }
+
+  local unwrapApi
+  local wrapApi
+
+  unwrapApi = () => {
+    if not wrappersInstalled or wrappedOwner == nil {
+      return
+    }
+
+    local originalsStore = wrappedOwner._mgfxProfileOriginals
+    for name, original in pairs(wrappedOriginals) {
+      wrappedOwner[name] = original
+      if originalsStore ~= nil {
+        originalsStore[name] = nil
+      }
+      wrappedOriginals[name] = nil
+    }
+    wrappersInstalled = false
+  }
+
+  wrapApi = () => {
+    if wrappersInstalled or wrappedOwner == nil {
+      return
+    }
+
+    wrappedOwner._mgfxProfileOriginals = wrappedOwner._mgfxProfileOriginals ?? {}
+    local originalsStore = wrappedOwner._mgfxProfileOriginals
+    for _, name in ipairs(wrappedNames ?? {}) {
+      local original = wrappedOwner[name]
+      if typeOf(original) == "function" and wrappedOriginals[name] == nil {
+        wrappedOriginals[name] = original
+        originalsStore[name] = original
+        wrappedOwner[name] = (...) => {
+          local started = api.Start()
+          local a, b, c, d, e, f = original(...)
+          api.End(name, started, 1)
+          return a, b, c, d, e, f
+        }
+      } else if wrappedSuppress ~= true {
+        print("[MGFX] profiler wrapper skipped missing api: " .. toString(name))
+      }
+    }
+    wrappersInstalled = true
+  }
+
+  api.InstallApiWrappers = (owner, names, suppress = false) => {
+    unwrapApi()
+    wrappedOwner = owner
+    wrappedNames = names
+    wrappedSuppress = suppress
+
+    if cvarsLib ~= nil and cvarsLib.RemoveChangeCallback ~= nil {
+      cvarsLib.RemoveChangeCallback("mgfx_profile", "MGFXProfileApiWrappers")
+    }
+    if cvarsLib ~= nil and cvarsLib.AddChangeCallback ~= nil {
+      cvarsLib.AddChangeCallback("mgfx_profile", (_, _, newValue) => {
+        if toBool(newValue) {
+          wrapApi()
+        } else {
+          unwrapApi()
+        }
+      }, "MGFXProfileApiWrappers")
+    }
+    if isEnabled() {
+      wrapApi()
+    }
+  }
+
+  api
+}
+
+export client fn install(owner) {
+  owner.stats = owner.stats ?? {}
+  owner.stats.profileTimes = owner.stats.profileTimes ?? {}
+  owner.stats.profileCounts = owner.stats.profileCounts ?? {}
+  local api = create(owner)
+  owner.Profiler = api
+  owner.BeginProfileFrame = api.BeginFrame
+  owner.EndProfileFrame = api.EndFrame
+  owner.GetProfileRows = api.Snapshot
+  owner.GetCurrentProfileRows = api.CurrentRows
+  owner.FormatProfileRows = api.FormatRows
+  owner.ResetProfile = api.Reset
+  owner.InstallApiWrappers = api.InstallApiWrappers
+  owner
+}

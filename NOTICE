@@ -1,0 +1,22 @@
+Lux MGFX
+Copyright (c) 2026 TimeWatcher and Lux contributors.
+
+Source code under lux/mgfx/ and shader tooling under tools/mgfx/ are licensed
+under the Lux MGFX Non-Commercial License. Non-commercial use is permitted
+under that license. Commercial use requires a separate written license from the
+copyright holder.
+
+The tools/mgfx directory contains repository-level MGFX shader build tools,
+including sdk_screenspace_shaders and ShaderCompile.exe. These tools are build
+infrastructure for regenerating MGFX shader bytecode and are not part of the
+lux/mgfx package module tree or generated addon runtime.
+
+Documentation prose is available under CC-BY-4.0. See LICENSE for the
+repository licensing policy.
+
+The Lux and MGFX names, logos, icons, and other branding assets are not
+licensed for reuse by the open source licenses in this repository.
+
+Using luxc to compile user source code does not change the license of that user
+source code or of the resulting addon. Generated Lua that embeds MGFX package
+code remains subject to the Lux MGFX Non-Commercial License.

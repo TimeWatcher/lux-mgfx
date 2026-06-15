@@ -1,0 +1,30 @@
+export client fn install(owner) {
+  configureWidgets(owner)
+  owner.ProgressBar = progressBar
+  owner.ProgressBarEx = progressBarEx
+  owner.SegmentBar = segmentBar
+  owner.SegmentBarEx = segmentBarEx
+  owner.Ring = ring
+  owner.RingEx = ringEx
+  owner.Arc = arc
+  owner.ArcEx = arcEx
+  owner.Sector = sector
+  owner.SectorEx = sectorEx
+  owner.Image = image
+  owner.ImageEx = imageEx
+  owner.Icon = icon
+  owner.IconEx = iconEx
+  owner._Widgets = {
+    progressBarEx = progressBarEx,
+      segmentBarEx = segmentBarEx,
+      ringEx = ringEx,
+      arcEx = arcEx,
+      sectorEx = sectorEx,
+      imageEx = imageEx,
+      text = textDraw,
+      textEx = textEx,
+      textBox = textBox,
+      textBoxEx = textBoxEx
+  }
+  owner
+}

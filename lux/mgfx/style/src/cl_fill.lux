@@ -1,0 +1,102 @@
+enum FillView repr existing(kind = "kind") {
+  Solid(kind = FILL_SOLID),
+  Linear(kind = FILL_LINEAR),
+  Radial(kind = FILL_RADIAL),
+  Conic(kind = FILL_CONIC)
+}
+
+fn isFillRecord(value) =
+  typeOf(value) == "table" and match value {
+    FillView.Solid | FillView.Linear | FillView.Radial | FillView.Conic => true
+    _ => false
+  }
+
+export client fn fillFromStyle(fill) {
+  stopif isFillRecord(fill), fill
+
+  if typeOf(fill) == "table" and fill.kind ~= nil {
+    transparentColor = transparentColor ?? makeColor(0, 0, 0, 0)
+    return solid(transparentColor)
+  }
+
+  solid(colorOr(fill))
+}
+
+export client fn fillFrom(value) =
+  fillFromStyle(value)
+
+export client fn colorAtFill(fill, t) {
+  local resolved = fillFromStyle(fill)
+  if resolved.stops ~= nil and #resolved.stops > 0 {
+    return colorAtStops(resolved.stops, t)
+  }
+
+  return lerpColor(t, resolved.colorA ?? color_white, resolved.colorB ?? resolved.colorA ?? color_white)
+}
+
+export client fn fillVisible(fill) {
+  stopif fill == nil, false
+  stopif isColor(fill), alpha(fill.a) > 0
+
+  if typeOf(fill) == "table" and fill._mgfxFillVisible ~= nil {
+    return fill._mgfxFillVisible
+  }
+
+  true
+}
+
+export client fn strokeVisible(stroke, width) {
+  if stroke == nil {
+    return false
+  }
+
+  if alpha(stroke.a) <= 0 {
+    return false
+  }
+
+  strokeWidth(width, 1) > 0
+}
+
+export client fn normalizedRotation(value) {
+  local rotation = (toNumber(value) ?? 0) / 360 % 1
+  if rotation < 0 {
+    rotation += 1
+  }
+
+  rotation
+}
+
+export client fn glowSoftnessToFalloff(softness, defaultSoftness = 0.55) {
+  local value = mathClamp(toNumber(softness) ?? defaultSoftness ?? 0.55, 0, 1)
+  mathClamp(3.25 - value * 2.5, 0.75, 3.25)
+}
+
+export client fn backdropStyle(value) {
+  if value == nil or value == false {
+    return nil
+  }
+
+  if value == true {
+    value = { blur = 4 }
+  } else if typeOf(value) == "number" {
+    value = { blur = value }
+  } else if isColor(value) {
+    value = { tint = value }
+  } else if typeOf(value) ~= "table" {
+    return nil
+  }
+
+  local blur = mathMax(0, toNumber(value.blur ?? value.size ?? value[1]) ?? 0)
+  local tint = colorOr(value.tint ?? value.color, makeColor(0, 0, 0, 0))
+  local opacity = mathClamp(toNumber(value.opacity ?? value.strength) ?? 1, 0, 1)
+  local padding = mathMax(0, toNumber(value.padding ?? value.spread) ?? 0)
+
+  if (blur <= 0 and alpha(tint.a) <= 0) or opacity <= 0 {
+    return nil
+  }
+
+  { blur = blur, tint = tint, opacity = opacity, padding = padding }
+}
+
+export client fn backdrop(value) =
+  backdropStyle(value)

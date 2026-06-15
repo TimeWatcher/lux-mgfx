@@ -1,0 +1,214 @@
+import * as styleUtilImport from "@lux/mgfx/style"
+
+local styleUtil = styleUtilImport
+
+local makeColor = Color
+local mathAbs = math.abs
+local mathClamp = math.Clamp
+local mathCos = math.cos
+local mathFloor = math.floor
+local mathMax = math.max
+local mathMin = math.min
+local mathRad = math.rad
+local mathSin = math.sin
+local mathTan = math.tan
+local surfaceDrawPoly = surface.DrawPoly
+local surfaceDrawTexturedRectUV = surface.DrawTexturedRectUV
+local stringLower = string.lower
+local stringMatch = string.match
+local tableCopy = table.Copy
+local toNumber = tonumber
+local typeOf = type
+local pcallFn = pcall
+local errorFn = error
+
+local stats = {
+  draws = 0
+}
+
+enum TransformRoute repr number {
+  PointerTilt = 1,
+  Projected = 2
+}
+
+local quadVerts = {
+  { x = 0, y = 0, u = 0, v = 0 },
+  { x = 0, y = 0, u = 1, v = 0 },
+  { x = 0, y = 0, u = 1, v = 1 },
+  { x = 0, y = 0, u = 0, v = 1 }
+}
+
+local transformStack = {}
+local transformPolyScratch = { {}, {}, {}, {}, {}, {}, {}, {} }
+local transformQuadVerts = { {}, {}, {}, {} }
+local imageTintScratch = makeColor(255, 255, 255, 255)
+
+fn copyStyle(value) {
+  if typeOf(value) == "table" {
+    return tableCopy(value)
+  }
+
+  {}
+}
+
+fn isPoint(value) =
+  typeOf(value) == "table" and (value.x ~= nil or value[1] ~= nil) and (value.y ~= nil or value[2] ~= nil)
+
+fn pointXY(value, fallbackX = 0, fallbackY = 0) {
+  stopif typeOf(value) ~= "table", fallbackX ?? 0, fallbackY ?? 0
+
+  return toNumber(value.x ?? value[1]) ?? fallbackX ?? 0,
+    toNumber(value.y ?? value[2]) ?? fallbackY ?? 0
+}
+
+fn percentString(value) {
+  stopif typeOf(value) ~= "string", nil
+
+  local lower = stringLower(value)
+  local alias = match lower {
+    "left" | "top" => 0
+    "center" | "middle" => 0.5
+    "right" | "bottom" => 1
+    _ => nil
+  }
+  stopif alias ~= nil, alias
+
+  local pct = stringMatch(lower, "^%s*([%-%d%.]+)%s*%%%s*$")
+  stopif pct ~= nil, (toNumber(pct) ?? 0) / 100
+
+  nil
+}
+
+fn axisOrigin(value, base, size, fallback = 0.5) {
+  local pct = percentString(value)
+  stopif pct ~= nil, base + size * pct
+
+  stopif value == nil, base + size * fallback
+
+  base + (toNumber(value) ?? size * fallback)
+}
+
+fn transformOrigin(spec, x, y, w, h) {
+  local origin = spec.origin ?? spec.transformOrigin ?? spec.anchor
+  if typeOf(origin) == "string" {
+    local a, b = stringMatch(origin, "^%s*([^%s]+)%s+([^%s]+)%s*$")
+    if a == nil {
+      a = origin
+      b = origin
+    }
+
+    return axisOrigin(a, x, w, 0.5), axisOrigin(b, y, h, 0.5)
+  }
+
+  if typeOf(origin) == "table" {
+    return axisOrigin(origin.x ?? origin[1], x, w, 0.5),
+      axisOrigin(origin.y ?? origin[2], y, h, 0.5)
+  }
+
+  return x + w * 0.5, y + h * 0.5
+}
+
+fn num(value, fallback = 0) =
+  toNumber(value) ?? fallback ?? 0
+
+fn compileCssTransform(spec, x = 0, y = 0, w = 0, h = 0) {
+  local ox, oy = transformOrigin(spec, x, y, w, h)
+  local scale = spec.scale
+  local translate = spec.translate
+  local skew = spec.skew
+  local scaleX = spec.scaleX ?? (typeOf(scale) == "table" then (scale.x ?? scale[1]) else scale) ?? 1
+  local scaleY = spec.scaleY ?? (typeOf(scale) == "table" then (scale.y ?? scale[2]) else scale) ?? 1
+  local tx = spec.x ?? spec.translateX ?? (typeOf(translate) == "table" then (translate.x ?? translate[1]) else nil) ?? 0
+  local ty = spec.y ?? spec.translateY ?? (typeOf(translate) == "table" then (translate.y ?? translate[2]) else nil) ?? 0
+  local tz = spec.z ?? spec.translateZ ?? (typeOf(translate) == "table" then (translate.z ?? translate[3]) else nil) ?? 0
+  local skewX = spec.skewX ?? (typeOf(skew) == "table" then (skew.x ?? skew[1]) else nil) ?? 0
+  local skewY = spec.skewY ?? (typeOf(skew) == "table" then (skew.y ?? skew[2]) else nil) ?? 0
+  local rotate = spec.rotate ?? spec.rotateZ ?? 0
+  local rotateX = spec.rotateX ?? spec.pitch ?? 0
+  local rotateY = spec.rotateY ?? spec.yaw ?? 0
+
+  return {
+    kind = "css",
+    originX = ox,
+    originY = oy,
+    translateX = num(tx, 0),
+    translateY = num(ty, 0),
+    translateZ = num(tz, 0),
+    scaleX = num(scaleX, 1),
+    scaleY = num(scaleY, 1),
+    skewX = mathTan(mathRad(num(skewX, 0))),
+    skewY = mathTan(mathRad(num(skewY, 0))),
+    rotate = mathRad(num(rotate, 0)),
+    rotateX = mathRad(num(rotateX, 0)),
+    rotateY = mathRad(num(rotateY, 0)),
+    perspective = mathMax(0, num(spec.perspective ?? spec.depth, 0)),
+    steps = mathClamp(mathFloor(num(spec.steps ?? spec.subdivisions, 0)), 0, 24)
+  }
+}
+
+fn projectedCorner(spec, name, index) =
+  pointXY(spec[name] ?? spec[index], 0, 0)
+
+fn compileProjectedQuad(spec, x = 0, y = 0, w = 1, h = 1) {
+  local tlx, tly = projectedCorner(spec, "tl", 1)
+  local trx, try = projectedCorner(spec, "tr", 2)
+  local brx, bry = projectedCorner(spec, "br", 3)
+  local blx, bly = projectedCorner(spec, "bl", 4)
+
+  return {
+    kind = "projected",
+    x = x,
+    y = y,
+    w = mathMax(0.0001, w),
+    h = mathMax(0.0001, h),
+    tlx = tlx,
+    tly = tly,
+    trx = trx,
+    try = try,
+    brx = brx,
+    bry = bry,
+    blx = blx,
+    bly = bly,
+    steps = mathClamp(mathFloor(num(spec.steps ?? spec.subdivisions, 10)), 1, 24)
+  }
+}
+
+fn compilePointerTilt(spec, x, y, w, h) {
+  stopif x == nil or y == nil or w == nil or h == nil, nil
+
+  local px = toNumber(spec.pointerX ?? spec.x ?? spec[1]) ?? x + w * 0.5
+  local py = toNumber(spec.pointerY ?? spec.y ?? spec[2]) ?? y + h * 0.5
+  local strength = mathClamp(num(spec.strength, 1), 0, 1)
+  local nx = mathClamp((px - (x + w * 0.5)) / mathMax(w * 0.5, 0.0001), -1, 1)
+  local ny = mathClamp((py - (y + h * 0.5)) / mathMax(h * 0.5, 0.0001), -1, 1)
+  local maxX = num(spec.maxRotateX ?? spec.maxX ?? spec.max ?? spec.amount, 6)
+  local maxY = num(spec.maxRotateY ?? spec.maxY ?? spec.max ?? spec.amount, 6)
+
+  compileCssTransform({
+    origin = spec.origin ?? spec.transformOrigin ?? "50% 50%",
+    perspective = spec.perspective ?? 900,
+    rotateX = -ny * maxX * strength,
+    rotateY = nx * maxY * strength,
+    scale = spec.scale ?? (1 + strength * num(spec.scaleLift, 0)),
+    steps = spec.steps ?? spec.subdivisions ?? 10
+  }, x, y, w, h)
+}
+
+fn compileTransform(spec, x = nil, y = nil, w = nil, h = nil) {
+  stopif typeOf(spec) ~= "table", nil
+
+  local kind = spec.kind ?? spec.type
+  local route = match kind {
+    "pointerTilt" => TransformRoute.PointerTilt
+    "projectedQuad" | "projected" => TransformRoute.Projected
+    _ => nil
+  }
+
+  stopif route == TransformRoute.PointerTilt, compilePointerTilt(spec, x, y, w, h)
+  stopif route == TransformRoute.Projected, compileProjectedQuad(spec, x ?? 0, y ?? 0, w ?? 1, h ?? 1)
+  stopif spec.tl ~= nil or (isPoint(spec[1]) and isPoint(spec[2]) and isPoint(spec[3]) and isPoint(spec[4])),
+    compileProjectedQuad(spec, x ?? 0, y ?? 0, w ?? 1, h ?? 1)
+
+  compileCssTransform(spec, x ?? 0, y ?? 0, w ?? 0, h ?? 0)
+}
+

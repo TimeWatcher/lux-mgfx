@@ -1,0 +1,1 @@
+part order { "module", "cl_base", "cl_commands", "cl_status", "cl_text_demo", "cl_param_probe", "cl_install" }

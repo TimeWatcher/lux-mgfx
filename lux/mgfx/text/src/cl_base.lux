@@ -1,0 +1,164 @@
+import * as styleImport from "@lux/mgfx/style"
+
+local style = styleImport
+
+local bitBor = bit?.bor
+local camStart2D = cam?.Start2D
+local camEnd2D = cam?.End2D
+local createMaterial = CreateMaterial
+local getConVar = GetConVar
+local getRenderTargetEx = GetRenderTargetEx
+local makeColor = Color
+local drawSimpleText = _G.draw.SimpleText
+local drawDrawText = _G.draw.DrawText
+local errorNoHaltWithStack = ErrorNoHaltWithStack
+local meshBegin = mesh?.Begin
+local meshColor = mesh?.Color
+local meshEnd = mesh?.End
+local meshPosition = mesh?.Position
+local meshTexCoord = mesh?.TexCoord
+local meshAdvanceVertex = mesh?.AdvanceVertex
+local renderClear = render?.Clear
+local renderGetBlend = render?.GetBlend
+local renderGetColorModulation = render?.GetColorModulation
+local renderOverrideAlphaWriteEnable = render?.OverrideAlphaWriteEnable
+local renderOverrideBlend = render?.OverrideBlend
+local renderPopRenderTarget = render?.PopRenderTarget
+local renderPushRenderTarget = render?.PushRenderTarget
+local renderSetBlend = render?.SetBlend
+local renderSetColorModulation = render?.SetColorModulation
+local renderSetMaterial = render?.SetMaterial
+local renderSetScissorRect = render?.SetScissorRect
+local surfaceCreateFont = surface.CreateFont
+local surfaceDrawOutlinedRect = surface?.DrawOutlinedRect
+local surfaceDrawPoly = surface?.DrawPoly
+local surfaceDrawRect = surface.DrawRect
+local surfaceDrawText = surface.DrawText
+local surfaceDrawTexturedRect = surface?.DrawTexturedRect
+local surfaceGetAlphaMultiplier = surface?.GetAlphaMultiplier
+local surfaceSetDrawColor = surface.SetDrawColor
+local surfaceSetFont = surface.SetFont
+local surfaceSetMaterial = surface.SetMaterial
+local surfaceSetTextColor = surface.SetTextColor
+local surfaceSetTextPos = surface.SetTextPos
+local surfaceSetAlphaMultiplier = surface?.SetAlphaMultiplier
+local surfaceGetTextSize = surface.GetTextSize
+local sysTime = SysTime
+local utilCRC = util?.CRC
+local vectorCtor = Vector
+local mathAbs = math.abs
+local mathCeil = math.ceil
+local mathClamp = math.Clamp
+local mathCos = math.cos
+local mathFloor = math.floor
+local mathMax = math.max
+local mathMin = math.min
+local mathSin = math.sin
+local stringExplode = string.Explode
+local stringFind = string.find
+local stringGmatch = string.gmatch
+local stringSub = string.sub
+local tableConcat = table.concat
+local tableCopy = table.Copy
+local tableCount = table.Count
+local protectedCall = pcall
+local toNumber = tonumber
+local toString = tostring
+local typeOf = type
+
+local styles = {}
+local fonts = {}
+local nativeFonts = {}
+local measureCache = {}
+local measureOrder = {}
+local measureOrderHead = 1
+local measureOrderTail = 0
+local measureOrderCount = 0
+local composedCache = {}
+local composedCacheCount = 0
+local composedTick = 0
+local atlasPages = {}
+local atlas = nil
+local atlasMat = nil
+local atlasEpoch = 1
+local atlasFailed = false
+local atlasNeedsReset = false
+local debugViewMat = nil
+local bakesThisFrame = 0
+local composedCvar = nil
+local budgetCvar = nil
+local materials = {}
+local createPageTextMaterials = nil
+local profiler = nil
+local restoreScissor = () => {}
+local gradientLutForFill = () => nil
+local materialOK = (material) => material ~= nil and material.IsError ~= nil and not material:IsError()
+
+local MEASURE_LIMIT = 4096
+local ATLAS_W = 2048
+local ATLAS_H = 1024
+local MAX_ATLAS_PAGES = 16
+local SOFT_ATLAS_PAGES = 14
+local ATLAS_PAD = 4
+local CACHE_VERSION = 21
+local DEFAULT_BUDGET = 6
+local DEFAULT_CJK_FACE = "Noto Sans SC"
+local RESOLVED_STYLE_MARK = "__mgfxTextResolved"
+local white = color_white ?? makeColor(255, 255, 255, 255)
+local textBatchVertex = vectorCtor ~= nil then vectorCtor() else nil
+local atlasQuad = {
+  { x = 0, y = 0, u = 0, v = 0 },
+    { x = 0, y = 0, u = 1, v = 0 },
+    { x = 0, y = 0, u = 1, v = 1 },
+    { x = 0, y = 0, u = 0, v = 1 }
+}
+
+local profile = {
+  active = false,
+    draws = 0,
+    measures = 0,
+    times = {},
+    counts = {}
+}
+
+fn textComposerCapable() =
+  renderClear ~= nil and renderPushRenderTarget ~= nil and renderPopRenderTarget ~= nil and camStart2D ~= nil and camEnd2D ~= nil
+
+fn configureTextRenderer(deps = nil) {
+  deps = deps ?? {}
+  materials = deps.materials ?? deps.Materials ?? materials ?? {}
+  createPageTextMaterials = deps.createPageTextMaterials ?? deps.CreatePageTextMaterials ?? createPageTextMaterials
+  profiler = deps.profiler ?? deps.Profiler ?? profiler
+  restoreScissor = deps.restoreScissor ?? deps.RestoreScissor ?? restoreScissor ?? (() => {})
+  gradientLutForFill = deps.gradientLutForFill ?? deps.GradientLutForFill ?? gradientLutForFill ?? (() => nil)
+  materialOK = deps.matOK ?? deps.MaterialOK ?? materialOK
+  true
+}
+
+fn isMaterialOK(material) =
+  materialOK ~= nil and materialOK(material)
+
+fn textChars(text) {
+  local out = {}
+  local value = toString(text ?? "")
+  local matcher = stringGmatch
+  if matcher == nil {
+    for index = 1, #value {
+      out[#out + 1] = stringSub(value, index, index)
+    }
+    return out
+  }
+
+  for ch in matcher(value, "[%z\1-\127\194-\244][\128-\191]*") {
+    out[#out + 1] = ch
+  }
+
+  if #out == 0 and value ~= "" {
+    for index = 1, #value {
+      out[#out + 1] = stringSub(value, index, index)
+    }
+  }
+
+  out
+}
+

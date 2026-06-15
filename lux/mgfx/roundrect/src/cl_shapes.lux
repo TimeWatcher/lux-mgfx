@@ -1,0 +1,39 @@
+export client fn roundedBoxEx(x, y, w, h, drawStyle = nil) {
+  local resolved = drawStyle ?? {}
+  local transform, stripped = splitStyleTransform(resolved)
+  if transform == nil {
+    return drawRoundRectImmediate(x, y, w, h, stripped)
+  }
+
+  withTransform(transform, x, y, w, h, () => drawRoundRectImmediate(x, y, w, h, stripped))
+}
+
+export client fn roundedBox(x, y, w, h, radius, fill, stroke = nil, strokeWidth = nil) {
+  roundedBoxStyle.radius = radius
+  roundedBoxStyle.fill = fill
+  roundedBoxStyle.stroke = stroke
+  roundedBoxStyle.strokeWidth = strokeWidth
+  return drawRoundRectImmediate(x, y, w, h, roundedBoxStyle)
+}
+
+export client fn circle(cx, cy, radius, fill, stroke = nil, strokeWidth = nil) =
+  roundedBox(cx - radius, cy - radius, radius * 2, radius * 2, radius, fill, stroke, strokeWidth)
+
+export client fn circleEx(cx, cy, radius, drawStyle = nil) {
+  local resolved = copyInto(circleStyle, drawStyle ?? {})
+  resolved.radius = radius
+  roundedBoxEx(cx - radius, cy - radius, radius * 2, radius * 2, resolved)
+}
+
+export client fn capsule(x, y, w, h, fill, stroke = nil, strokeWidth = nil) =
+  roundedBox(x, y, w, h, mathMin(w, h) * 0.5, fill, stroke, strokeWidth)
+
+export client fn capsuleEx(x, y, w, h, drawStyle = nil) {
+  local resolved = drawStyle
+  if resolved == nil or resolved.radius == nil {
+    resolved = copyInto(capsuleStyle, drawStyle ?? {})
+    resolved.radius = mathMin(w, h) * 0.5
+  }
+
+  roundedBoxEx(x, y, w, h, resolved)
+}

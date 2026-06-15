@@ -1,0 +1,179 @@
+export client const FILL_SOLID = 0
+export client const FILL_LINEAR = 1
+export client const FILL_RADIAL = 2
+export client const FILL_CONIC = 3
+export client const PATTERN_STRIPE = "stripe"
+export client const PATTERN_SMOKE = "smoke"
+
+local bitBor = bit?.bor
+local camStart2D = cam?.Start2D
+local camEnd2D = cam?.End2D
+local getRenderTargetEx = GetRenderTargetEx
+local makeColor = Color
+local mathAbs = math.abs
+local mathClamp = math.Clamp
+local mathFloor = math.floor
+local mathMax = math.max
+local renderClear = render?.Clear
+local renderGetBlend = render?.GetBlend
+local renderGetColorModulation = render?.GetColorModulation
+local renderOverrideAlphaWriteEnable = render?.OverrideAlphaWriteEnable
+local renderOverrideBlend = render?.OverrideBlend
+local renderPopRenderTarget = render?.PopRenderTarget
+local renderPushRenderTarget = render?.PushRenderTarget
+local renderSetBlend = render?.SetBlend
+local renderSetColorModulation = render?.SetColorModulation
+local renderSetScissorRect = render?.SetScissorRect
+local stringLower = string.lower
+local stringFormat = string.format
+local surfaceDrawRect = surface?.DrawRect
+local surfaceGetAlphaMultiplier = surface?.GetAlphaMultiplier
+local surfaceSetAlphaMultiplier = surface?.SetAlphaMultiplier
+local surfaceSetDrawColor = surface?.SetDrawColor
+local tableConcat = table.concat
+local tableCopy = table.Copy
+local tableInsert = table.insert
+local tableSort = table.sort
+local toNumber = tonumber
+local toString = tostring
+local typeOf = type
+local utilCRC = util?.CRC
+
+local solidCache = nil
+local transparentColor = nil
+local gradientLutOwner = nil
+
+fn ensureSolidCache() {
+  if solidCache == nil {
+    solidCache = setmetatable({}, { __mode = "kv" })
+  }
+
+  solidCache
+}
+
+export client fn isColor(value) =
+  typeOf(value) == "table" and value.r ~= nil and value.g ~= nil and value.b ~= nil
+
+export client fn byte(value, fallback = 0) {
+  local nextValue = toNumber(value) ?? fallback
+  nextValue = mathFloor(nextValue + 0.5)
+
+  stopif nextValue < 0, 0
+
+  stopif nextValue > 255, 255
+
+  nextValue
+}
+
+export client fn alpha(value, fallback = 255) {
+  stopif value == nil, fallback
+
+  value
+}
+
+export client fn colorOr(value, fallback = nil) {
+  stopif isColor(value), value
+
+  fallback ?? color_white ?? makeColor(255, 255, 255, 255)
+}
+
+export client fn asColor(value, fallback = nil) =
+  colorOr(value, fallback)
+
+export client fn color01(color) {
+  local c = colorOr(color)
+  return mathClamp((c.r ?? 0) / 255, 0, 1),
+    mathClamp((c.g ?? 0) / 255, 0, 1),
+    mathClamp((c.b ?? 0) / 255, 0, 1),
+    mathClamp(alpha(c.a) / 255, 0, 1)
+}
+
+export client fn setDrawColor(color) {
+  local c = colorOr(color)
+  surfaceSetDrawColor(c.r ?? 255, c.g ?? 255, c.b ?? 255, alpha(c.a))
+}
+
+export client fn copyColor(color) {
+  local c = colorOr(color)
+  return makeColor(c.r ?? 255, c.g ?? 255, c.b ?? 255, alpha(c.a))
+}
+
+export client fn withAlpha(color, nextAlpha) {
+  local c = colorOr(color)
+  return makeColor(c.r ?? 255, c.g ?? 255, c.b ?? 255, byte(nextAlpha, alpha(c.a)))
+}
+
+export client fn lerpColor(t, from, to) {
+  local a = colorOr(from)
+  local b = colorOr(to, a)
+  local amount = mathClamp(toNumber(t) ?? 0, 0, 1)
+
+  return makeColor(
+    byte((a.r ?? 0) + ((b.r ?? 0) - (a.r ?? 0)) * amount),
+    byte((a.g ?? 0) + ((b.g ?? 0) - (a.g ?? 0)) * amount),
+    byte((a.b ?? 0) + ((b.b ?? 0) - (a.b ?? 0)) * amount),
+    byte(alpha(a.a) + (alpha(b.a) - alpha(a.a)) * amount)
+  )
+}
+
+export client fn strokeWidth(value, fallback = 0) {
+  stopif value == true, fallback ?? 1
+
+  if typeOf(value) == "string" {
+    local alias = match stringLower(value) {
+      "hairline" => 0.75
+      "thin" => 1
+      "none" => 0
+      _ => nil
+    }
+    stopif alias ~= nil, alias
+  }
+
+  toNumber(value) ?? fallback ?? 0
+}
+
+export client fn strokeWidthValue(value, fallback = 0) =
+  strokeWidth(value, fallback)
+
+export client fn radiusTuple(radius, w = 0, h = 0) {
+  local tl
+  local tr
+  local br
+  local bl
+
+  if typeOf(radius) == "table" and not isColor(radius) {
+    tl = toNumber(radius.tl ?? radius[1]) ?? 0
+    tr = toNumber(radius.tr ?? radius[2]) ?? tl
+    br = toNumber(radius.br ?? radius[3]) ?? tr
+    bl = toNumber(radius.bl ?? radius[4]) ?? br
+  } else {
+    tl = toNumber(radius) ?? 0
+    tr = tl
+    br = tl
+    bl = tl
+  }
+
+  tl = mathMax(0, tl)
+  tr = mathMax(0, tr)
+  br = mathMax(0, br)
+  bl = mathMax(0, bl)
+
+  local width = mathMax(0.0001, toNumber(w) ?? 0.0001)
+  local height = mathMax(0.0001, toNumber(h) ?? 0.0001)
+  local scale = mathMax(1, (tl + tr) / width, (bl + br) / width, (tl + bl) / height, (tr + br) / height)
+
+  if scale > 1 {
+    tl = tl / scale
+    tr = tr / scale
+    br = br / scale
+    bl = bl / scale
+  }
+
+  return tl, tr, br, bl
+}
+
+export client fn radiusScalar(radius, w = 0, h = 0) {
+  local tl, tr, br, bl = radiusTuple(radius, w, h)
+  return mathMax(tl, tr, br, bl)
+}
+

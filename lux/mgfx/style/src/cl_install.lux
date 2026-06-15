@@ -1,0 +1,27 @@
+export client fn install(owner) {
+  setGradientLutOwner(owner)
+  owner.Solid = solid
+  owner.LinearGradient = linearGradient
+  owner.LinearGradientStops = linearGradientStops
+  owner.RadialGradient = radialGradient
+  owner.RingRadialGradient = ringRadialGradient
+  owner.SectorRadialGradient = sectorRadialGradient
+  owner.ConicGradient = conicGradient
+  owner.ShapeAngularGradient = shapeAngularGradient
+  owner.RingAngularGradient = ringAngularGradient
+  owner.ArcAngularGradient = arcAngularGradient
+  owner.SectorAngularGradient = sectorAngularGradient
+  owner.StripePattern = stripePattern
+  owner.SmokePattern = smokePattern
+  owner.Mask = mask
+  owner.ImageMaskStyle = imageMaskStyle
+  owner.FillFromStyle = fillFromStyle
+  owner.ColorAtFill = colorAtFill
+  owner.NormalizedRotation = normalizedRotation
+  owner.GlowSoftnessToFalloff = glowSoftnessToFalloff
+  owner.BackdropStyle = backdropStyle
+  owner.GradientLutForFill = gradientLutForFill
+  owner.BindGradientLut = bindGradientLut
+  owner.GradientLutStatus = gradientLutStatus
+  owner
+}

@@ -1,0 +1,37 @@
+export client fn install(owner) {
+  owner._CreateCommandApi = () => {
+    {
+      name = name,
+        normalize = normalize,
+        normalizeAll = normalizeAll,
+        values = values,
+        roundedBox = roundedBox,
+        roundedBoxValues = roundedBoxValues,
+        chamferBox = chamferBox,
+        poly = poly,
+        polyValues = polyValues,
+        image = image,
+        imageValues = imageValues,
+        line = line,
+        lineValues = lineValues,
+        clip = clip,
+        clipValues = clipValues,
+        progressBar = progressBar,
+        progressBarValues = progressBarValues,
+        segmentBar = segmentBar,
+        ring = ring,
+        ringValues = ringValues,
+        arc = arc,
+        arcValues = arcValues,
+        sector = sector,
+        sectorValues = sectorValues,
+        text = text,
+        textValues = textValues,
+        textBox = textBox,
+        textBoxValues = textBoxValues,
+        bounds = bounds
+    }
+  }
+  owner.Command = owner._CreateCommandApi()
+  owner
+}

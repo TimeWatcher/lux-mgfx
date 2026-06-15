@@ -1,0 +1,184 @@
+local drawSimpleText = _G.draw.SimpleText
+local renderSetScissorRect = render.SetScissorRect
+local surfaceSetDrawColor = surface.SetDrawColor
+local surfaceDrawRect = surface.DrawRect
+local mathCeil = math.ceil
+local mathFloor = math.floor
+local mathMax = math.max
+
+local state = {
+  active = false,
+    screenX = 0,
+    screenY = 0,
+    w = 0,
+    h = 0,
+    clipStack = {},
+    commandStack = nil,
+    replaying = false
+}
+
+export client fn current() =
+  state
+
+fn clearArray(items) {
+  for index = #items, 1, -1 {
+    items[index] = nil
+  }
+
+  items
+}
+
+export client fn restoreScissor() {
+  local clip = state.clipStack[#state.clipStack]
+  if clip ~= nil {
+    renderSetScissorRect(clip.x, clip.y, clip.x + clip.w, clip.y + clip.h, true)
+  } else {
+    renderSetScissorRect(0, 0, 0, 0, false)
+  }
+}
+
+export client fn toScreen(x, y) {
+  return state.screenX + (x ?? 0),
+    state.screenY + (y ?? 0)
+}
+
+export client fn isCulled(x, y, w, h) {
+  local sx, sy = toScreen(x, y)
+  local ex = sx + (w ?? 0)
+  local ey = sy + (h ?? 0)
+
+  if ex <= state.screenX or ey <= state.screenY {
+    return true
+  }
+
+  if sx >= state.screenX + state.w or sy >= state.screenY + state.h {
+    return true
+  }
+
+  false
+}
+
+export client fn startScreen(w = ScrW(), h = ScrH()) {
+  state.active = true
+  state.screenX = 0
+  state.screenY = 0
+  state.w = w
+  state.h = h
+  clearArray(state.clipStack)
+  return state
+}
+
+export client fn endScreen() {
+  restoreScissor()
+  state.active = false
+  state.commandStack = nil
+  state.replaying = false
+  return state
+}
+
+export client fn startPanel(panel, w, h) {
+  local x = 0
+  local y = 0
+
+  if panel ~= nil and panel.LocalToScreen ~= nil {
+    x, y = panel:LocalToScreen(0, 0)
+  }
+
+  state.active = true
+  state.screenX = x
+  state.screenY = y
+  state.w = w ?? (panel ~= nil and panel.GetWide ~= nil then panel:GetWide() else 0)
+  state.h = h ?? (panel ~= nil and panel.GetTall ~= nil then panel:GetTall() else 0)
+  clearArray(state.clipStack)
+  return state
+}
+
+export client fn endPanel() =
+  endScreen()
+
+export client fn pushClip(x, y, w, h) {
+  local sx, sy = toScreen(x, y)
+  local clip = {
+    x = mathFloor(sx),
+      y = mathFloor(sy),
+      w = mathMax(0, mathCeil(w ?? 0)),
+      h = mathMax(0, mathCeil(h ?? 0))
+  }
+
+  state.clipStack[#state.clipStack + 1] = clip
+  renderSetScissorRect(clip.x, clip.y, clip.x + clip.w, clip.y + clip.h, true)
+  clip
+}
+
+export client fn popClip() {
+  if #state.clipStack > 0 {
+    state.clipStack[#state.clipStack] = nil
+  }
+
+  restoreScissor()
+}
+
+export client fn withClip(x, y, w, h, callback) {
+  pushClip(x, y, w, h)
+  local ok, result = pcall(callback)
+  popClip()
+
+  if not ok {
+    error(result, 2)
+  }
+
+  result
+}
+
+export client fn beginCommands() {
+  state.commandStack = {}
+  state.replaying = false
+  return state.commandStack
+}
+
+export client fn queue(command) {
+  if state.commandStack == nil or state.replaying {
+    return false
+  }
+
+  state.commandStack[#state.commandStack + 1] = command
+  true
+}
+
+export client fn flushCommands(replay) {
+  local stack = state.commandStack
+  if stack == nil {
+    return 0
+  }
+
+  state.replaying = true
+  for index = 1, #stack {
+    replay(stack[index])
+  }
+  state.replaying = false
+
+  local count = #stack
+  clearArray(stack)
+  state.commandStack = nil
+  count
+}
+
+export client fn debugOverlay(x = 8, y = 8) {
+  surfaceSetDrawColor(0, 0, 0, 180)
+  surfaceDrawRect(x, y, 240, 72)
+  drawSimpleText("Lux MGFX frame", "DermaDefault", x + 8, y + 8, color_white)
+  drawSimpleText("clip depth: " .. tostring(#state.clipStack), "DermaDefault", x + 8, y + 28, color_white)
+  drawSimpleText("size: " .. tostring(state.w) .. "x" .. tostring(state.h), "DermaDefault", x + 8, y + 48, color_white)
+}
+
+export client fn install(owner) {
+  owner.StartPanel = startPanel
+  owner.EndPanel = endPanel
+  owner.StartScreen = startScreen
+  owner.EndScreen = endScreen
+  owner.PushClip = pushClip
+  owner.PopClip = popClip
+  owner.DebugOverlay = debugOverlay
+  owner._FrameState = state
+  owner
+}

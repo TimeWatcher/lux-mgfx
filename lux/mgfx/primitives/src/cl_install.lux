@@ -1,0 +1,16 @@
+export client fn install(owner) {
+  configurePrimitives(owner)
+  owner.ChamferBox = chamferBox
+  owner.ChamferBoxEx = chamferBoxEx
+  owner.Line = line
+  owner.LineEx = lineEx
+  owner.Poly = poly
+  owner.PolyEx = polyEx
+  owner._Primitives = {
+    chamferTuple = chamferTuple,
+      chamferPoints = chamferPoints,
+      normalizePoly = normalizePoly,
+      drawLineImmediate = drawLineImmediate
+  }
+  owner
+}

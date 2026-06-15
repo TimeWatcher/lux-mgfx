@@ -1,0 +1,90 @@
+export client fn blurIntensity(value) =
+  mathClamp((toNumber(value) ?? 16) / 16, 0.25, 4)
+
+fn bindStats(owner) {
+  owner.stats = owner.stats ?? {}
+  local targetStats = owner.stats
+  for key, value in pairs(stats) {
+    if targetStats[key] == nil {
+      targetStats[key] = value
+    }
+  }
+
+  stats = targetStats
+  stats.draws = stats.draws ?? 0
+  stats.blurPasses = stats.blurPasses ?? 0
+  stats.fallbacks = stats.fallbacks ?? 0
+  stats.culled = stats.culled ?? 0
+  stats
+}
+
+export client fn resetFrameStats() {
+  stats.draws = 0
+  stats.blurPasses = 0
+  stats.fallbacks = 0
+  stats.culled = 0
+  stats
+}
+
+export client fn recordDraws(amount = 1) {
+  stats.draws = (stats.draws ?? 0) + (amount ?? 1)
+  stats.draws
+}
+
+export client fn profileSnapshot(reset = false) {
+  local out = tableCopy(stats)
+  if reset {
+    resetFrameStats()
+  }
+
+  out
+}
+
+export client fn install(owner) {
+  bindStats(owner)
+  owner.Transform = transform
+  owner.ProjectedQuad = projectedQuad
+  owner.PointerTilt = pointerTilt
+  owner.PushTransform = pushTransform
+  owner.PopTransform = popTransform
+  owner.TransformPoint = (px, py, spec = nil, x = nil, y = nil, w = nil, h = nil) => {
+    if spec ~= nil {
+      return transformSpecPoint(spec, px, py, x, y, w, h)
+    }
+
+    transformPoint(px, py)
+  }
+  owner.UntransformPoint = (px, py, spec = nil, x = nil, y = nil, w = nil, h = nil) => {
+    if spec ~= nil {
+      return untransformSpecPoint(spec, px, py, x, y, w, h)
+    }
+
+    untransformPoint(px, py)
+  }
+  owner.ResetGeometryFrameStats = resetFrameStats
+  owner.GetGeometryProfileSnapshot = profileSnapshot
+  owner._Geometry = {
+    blurIntensity = blurIntensity,
+      resetFrameStats = resetFrameStats,
+      recordDraws = recordDraws,
+      drawTexturedQuad = drawTexturedQuad,
+      drawTexturedQuadUV = drawTexturedQuadUV,
+      drawTransformedPoly = drawTransformedPoly,
+      withTransform = withTransform,
+      splitStyleTransform = splitStyleTransform,
+      pushTransform = pushTransform,
+      popTransform = popTransform,
+      hasTransform = hasTransform,
+      drawCreatedMaterialTexturedRectUV = drawCreatedMaterialTexturedRectUV,
+      drawTexturedRectUV = drawTexturedRectUV,
+      textureSize = textureSize,
+      imageTint = imageTint,
+      imageStyle = imageStyle,
+      imageRadius = imageRadius,
+      imageAlign = imageAlign,
+      imageUV = imageUV,
+      imageFitRect = imageFitRect,
+      profileSnapshot = profileSnapshot
+  }
+  owner
+}

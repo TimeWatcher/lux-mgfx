@@ -1,0 +1,40 @@
+export client fn create(owner = nil) {
+  local pack = shaderPack()
+  local version = pack.Version ?? ""
+  local mountName = mountShaderPack(version)
+  local blurRT = blurTarget(version)
+  local materials = {}
+  local createScreenMaterial = screenMaterialFactory(version, blurRT)
+
+  for _, key in ipairs(materialKeys) {
+    local pixshader = shaderNames[key]
+    if pixshader ~= nil {
+      materials[key] = createScreenMaterial(key, pixshader, materialValues(key, blurRT))
+    }
+  }
+
+  local state = {
+    shaderVersion = version,
+      shaderMountName = mountName,
+      materials = materials,
+      blurRT = blurRT,
+      matOK = matOK,
+      shaderName = (name) => shaderName(version, name)
+  }
+
+  state.CreatePageTextMaterials = (rt) => {
+    local key = (rt ~= nil and rt.GetName ~= nil) then rt:GetName() else toString(rt)
+    return {
+      compose = createScreenMaterial("text_compose_pg_" .. key, "mgfx_text_compose_ps30", {
+          ["$linearread_basetexture"] = 0,
+          ["$basetexture"] = key
+      }),
+        face = createScreenMaterial("text_face_pg_" .. key, "mgfx_text_face_ps30", {
+          ["$linearread_basetexture"] = 0,
+          ["$basetexture"] = key
+      })
+    }
+  }
+
+  state
+}

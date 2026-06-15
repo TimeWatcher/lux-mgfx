@@ -1,0 +1,203 @@
+fn countsLine(label, counts) {
+  local parts = {}
+  for key, value in pairs(counts ?? {}) {
+    if value ~= nil and value ~= 0 {
+      parts[#parts + 1] = toString(key) .. "=" .. toString(value)
+    }
+  }
+
+  tableSort(parts)
+  printFn("[MGFX] " .. label .. ": " .. (#parts > 0 then tableConcat(parts, " ") else "none"))
+}
+
+fn shaderStatus(owner) {
+  local statusFn = owner?.shaderStatus
+  if statusFn ~= nil {
+    return statusFn()
+  }
+
+  materialsPkg.shaderStatus(owner?._MaterialState)
+}
+
+fn profilerApi(owner) =
+  owner?.Profiler
+
+fn textStatus(owner) {
+  local snapshot = nil
+  local snapshotFn = owner?.GetTextProfileSnapshot
+  if snapshotFn ~= nil {
+    snapshot = snapshotFn(false)
+  }
+
+  return snapshot ?? {}
+}
+
+fn textRendererStatus(owner) {
+  local statusFn = owner?.GetTextRendererStatus
+  if statusFn ~= nil {
+    return statusFn()
+  }
+
+  {}
+}
+
+local statusMaterialFields = {
+  { "roundrect", "roundrect" },
+    { "roundrect fx", "roundrectFx" },
+    { "roundrect solid", "roundrectSolid" },
+    { "roundrect stroke", "roundrectStroke" },
+    { "param probe", "paramProbe" },
+    { "blur", "blur" },
+    { "chamfer", "chamfer" },
+    { "chamfer image", "chamferImage" },
+    { "image mask", "imageMask" },
+    { "image mask outerglow", "imageMaskOuterGlow" },
+    { "image mask backdrop", "imageMaskBackdrop" },
+    { "chamfer stroke", "chamferStroke" },
+    { "inner glow", "innerGlow" },
+    { "chamfer inner glow", "chamferInnerGlow" },
+    { "outer glow", "outerGlow" },
+    { "chamfer outer glow", "chamferOuterGlow" },
+    { "progress", "progress" },
+    { "progress fx", "progressFx" },
+    { "segmentbar", "segmentbar" },
+    { "line", "line" },
+    { "text compose", "textCompose" },
+    { "pattern", "pattern" },
+    { "chamfer pattern", "chamferPattern" },
+    { "poly pattern", "polyPattern" },
+    { "ring", "ring" },
+    { "ring fx", "ringFx" },
+    { "ring backdrop", "ringBackdrop" },
+    { "ring stroke", "ringStroke" },
+    { "ring inner glow", "ringInnerGlow" },
+    { "ring outer glow", "ringOuterGlow" },
+    { "ring pattern", "ringPattern" },
+    { "poly stroke", "polyStroke" },
+    { "poly3", "poly3" },
+    { "poly3 blur", "poly3Blur" },
+    { "poly4", "poly4" },
+    { "poly4 blur", "poly4Blur" },
+    { "poly5", "poly5" },
+    { "poly5 blur", "poly5Blur" },
+    { "poly6", "poly6" },
+    { "poly6 blur", "poly6Blur" },
+    { "poly7", "poly7" },
+    { "poly7 blur", "poly7Blur" },
+    { "poly8", "poly8" },
+    { "poly8 blur", "poly8Blur" }
+}
+
+fn printMaterialStatus(status) {
+  for index = 1, #statusMaterialFields {
+    local item = statusMaterialFields[index]
+    printFn("[MGFX] " .. item[1] .. " material: " .. toString(status[item[2]]))
+  }
+}
+
+export client fn status(owner) {
+  local stats = ownerStats(owner)
+  local status = shaderStatus(owner)
+  local profileCvar = getConVar ~= nil then getConVar("mgfx_profile") else nil
+  local drawCounts = getConVar ~= nil then getConVar("mgfx_draw_counts") else nil
+  local fallback = getConVar ~= nil then getConVar("mgfx_force_fallback") else nil
+
+  printFn("[MGFX] shaders: " .. (status.loaded then "loaded" else "fallback"))
+  printFn("[MGFX] version: " .. toString(status.version))
+  printFn("[MGFX] mount: " .. toString(status.mount))
+  printFn("[MGFX] force fallback: " .. toString(fallback ~= nil and fallback:GetBool() or false))
+  printFn("[MGFX] draw counts: " .. toString(drawCounts ~= nil and drawCounts:GetBool() or false))
+  printFn("[MGFX] stats draws=" .. toString(stats.draws ?? 0) .. " blur=" .. toString(stats.blurPasses ?? 0) .. " fallback=" .. toString(stats.fallbacks ?? 0) .. " culled=" .. toString(stats.culled ?? 0))
+  countsLine("draw commands", stats.drawCommandCounts)
+  countsLine("immediate draws", stats.drawImmediateCounts)
+  countsLine("profile ms", stats.profileTimes)
+
+  local text = textStatus(owner)
+  local textRenderer = textRendererStatus(owner)
+  printFn("[MGFX] text draws=" .. toString(textRenderer.draws ?? text.draws ?? stats.textDraws ?? 0) .. " native=" .. toString(textRenderer.nativeDraws ?? stats.textNativeDraws ?? 0) .. " composed=" .. toString(textRenderer.composedDraws ?? stats.textComposedDraws ?? 0) .. " measures=" .. toString(text.measures ?? 0))
+  printFn("[MGFX] text renderer mode=" .. toString(textRenderer.mode ?? "n/a") .. " composed=" .. toString(textRenderer.composedEnabled ?? false) .. " atlasPages=" .. toString(textRenderer.composedAtlasPages ?? 0) .. " entries=" .. toString(textRenderer.composedEntries ?? 0))
+  printMaterialStatus(status)
+  status
+}
+
+fn printProfileRows(label, rows, rollingRows, profiler) {
+  printFn("[MGFX] " .. label)
+  if rows == nil or #rows == 0 {
+    printFn("[MGFX]   none")
+    return
+  }
+
+  local formatRows = profiler?.FormatRows
+  local formatted = formatRows ~= nil then formatRows(rows, rollingRows) else {}
+  for index = 1, #formatted {
+    printFn("[MGFX]   " .. formatted[index])
+  }
+}
+
+export client fn profileStatus(owner) {
+  local profiler = profilerApi(owner)
+  local enabled = getConVar ~= nil then getConVar("mgfx_profile") else nil
+  local window = getConVar ~= nil then getConVar("mgfx_profile_window") else nil
+  local top = getConVar ~= nil then getConVar("mgfx_profile_top") else nil
+  printFn("[MGFX] profiler enabled=" .. toString(enabled ~= nil and enabled:GetBool() or false) .. " window=" .. toString(window ~= nil and window:GetInt() or "n/a") .. " top=" .. toString(top ~= nil and top:GetInt() or "n/a"))
+
+  if profiler == nil {
+    printFn("[MGFX] profiler unavailable")
+    return false
+  }
+
+  local currentRows = profiler.CurrentRows ~= nil then profiler.CurrentRows() else nil
+  local rollingRows = profiler.Snapshot ~= nil then profiler.Snapshot() else nil
+  printProfileRows("profile current", currentRows, false, profiler)
+  printProfileRows("profile rolling", rollingRows, true, profiler)
+  true
+}
+
+export client fn profileReset(owner) {
+  local profiler = profilerApi(owner)
+  if profiler ~= nil and profiler.Reset ~= nil {
+    profiler.Reset()
+  }
+
+  printFn("[MGFX] profiler reset")
+  true
+}
+
+export client fn textStatusCommand(owner) {
+  local stats = ownerStats(owner)
+  local snapshot = textStatus(owner)
+  local status = textRendererStatus(owner)
+  local fillPct = mathFloor((toNumber(status.composedAtlasFill) ?? 0) * 100 + 0.5)
+  printFn("[MGFX] text mode=" .. toString(status.mode ?? "n/a") .. " composed=" .. toString(status.composedEnabled ?? false) .. " failed=" .. toString(status.composedFailed ?? false))
+  printFn("[MGFX] text draws=" .. toString(status.draws ?? snapshot.draws ?? stats.textDraws ?? 0) .. " native=" .. toString(status.nativeDraws ?? stats.textNativeDraws ?? 0) .. " shader=" .. toString(status.shaderDraws ?? stats.textShaderDraws ?? 0) .. " composed=" .. toString(status.composedDraws ?? stats.textComposedDraws ?? 0))
+  printFn("[MGFX] text queued batches=" .. toString(stats.textQueuedBatches ?? 0) .. " records=" .. toString(stats.textQueuedRecords ?? 0))
+  printFn("[MGFX] text batch draws=" .. toString(stats.textComposedBatchDraws ?? 0) .. " records=" .. toString(stats.textComposedBatchedRecords ?? 0))
+  printFn("[MGFX] text composer route requests=" .. toString(stats.textComposedRequests ?? 0) .. " batches=" .. toString(stats.textComposedBatches ?? 0) .. " readyBatches=" .. toString(stats.textComposedReadyBatches ?? 0) .. " fallbackBatches=" .. toString(stats.textComposedFallbackBatches ?? 0) .. " fallbackRecords=" .. toString(stats.textComposedFallbackRecords ?? 0) .. " prewarmFails=" .. toString(stats.textComposedPrewarmFails ?? 0) .. " prewarmRestarts=" .. toString(stats.textComposedPrewarmRestarts ?? 0))
+  printFn("[MGFX] text entry cache hit/miss=" .. toString(stats.textEntryCacheHits ?? 0) .. "/" .. toString(stats.textEntryCacheMisses ?? 0))
+  printFn("[MGFX] text measure hit/miss=" .. toString(stats.textMeasureHits ?? 0) .. "/" .. toString(stats.textMeasureMisses ?? 0) .. " cache=" .. toString(stats.textCacheSize ?? 0))
+  printFn("[MGFX] text composer enabled=" .. toString(status.composedEnabled ?? false) .. " aliases=" .. toString(status.fontCount ?? 0) .. " atlas=" .. toString(status.composedAtlasW ?? 0) .. "x" .. toString(status.composedAtlasH ?? 0) .. " pages=" .. toString(status.composedAtlasPages ?? 0) .. "/" .. toString(status.composedAtlasMaxPages ?? 0) .. " fill=" .. toString(fillPct) .. "% entries=" .. toString(status.composedEntries ?? stats.textComposedEntries ?? 0) .. " styles=" .. toString(status.styleCount ?? 0) .. " stack=" .. toString(status.styleStackDepth ?? 0) .. " failed=" .. toString(status.composedFailed ?? false))
+  printFn("[MGFX] text compose bakes=" .. toString(status.composedBakes ?? stats.textComposedBakes ?? 0) .. " blits=" .. toString(status.composedBlits ?? stats.textComposedBlits ?? 0) .. " fallbackRecords=" .. toString(stats.textComposedFallbackRecords ?? 0))
+  status
+}
+
+export client fn textCacheClear(owner) {
+  local clearMeasure = owner?.ClearTextMeasureCache
+  if clearMeasure ~= nil {
+    clearMeasure()
+  }
+
+  printFn("[MGFX] text measure cache cleared")
+  true
+}
+
+export client fn textComposedClear(owner) {
+  local clearComposed = owner?.ClearTextComposedCache
+  local ok = false
+  if clearComposed ~= nil {
+    ok = clearComposed() == true
+  }
+
+  printFn("[MGFX] text composer cache clear: " .. toString(ok))
+  true
+}
+
