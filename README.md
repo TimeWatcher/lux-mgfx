@@ -11,6 +11,7 @@
 
 [Documentation](https://timewatcher.github.io/mgfx-docs-site/) ·
 [Install](#install) ·
+[Use Without Lux](#use-without-lux) ·
 [Examples](#draw-from-lux) ·
 [License](#license)
 
@@ -24,8 +25,9 @@ the expensive visual work into shader-backed primitives, explicit style
 records, masks, gradients, glow, backdrop effects, and reusable package
 modules.
 
-It is not a submodule of `lux`. It lives as a peer repository and is consumed
-through `luxc install` or by adding this repository as a package source.
+It is not a submodule of `lux`. It lives as a peer repository. Lux projects
+consume it through `luxc install`; plain GLua projects can use the precompiled
+loader under `dist/lua` and call the same `MGFX.*` facade.
 
 ## Why MGFX
 
@@ -39,6 +41,9 @@ through `luxc install` or by adding this repository as a package source.
 - **Lux-native delivery**: imports, client realm ownership, package
   dependencies, generated loaders, and client file delivery are handled by
   `luxc gmod build`.
+- **Plain GLua delivery**: the precompiled loader installs `_G.MGFX` by
+  default, so non-Lux code can call `MGFX.RoundedBox`, `MGFX.TextEx`, and the
+  rest of the public facade.
 
 MGFX is a renderer, not a UI framework. It does not own layout, input, focus,
 component lifecycle, animation state, or hit testing. Your panel or UI layer
@@ -73,6 +78,8 @@ input/state handled by the caller.
 
 ## Install
 
+### Lux Projects
+
 Install from GitHub:
 
 ```powershell
@@ -101,6 +108,46 @@ client {
 
 `installGlobal("MGFX")` exposes the PascalCase facade for GLua-facing panels
 and legacy code. New Lux code can call the lower-case module API directly.
+
+### Use Without Lux
+
+Copy `dist/lua` into your addon's or gamemode's `lua` directory. The
+precompiled build includes the generated Lux loaders and an autorun forwarder:
+
+```text
+dist/lua/autorun/mgfx.lua
+dist/lua/mgfx/loader_shared.lua
+dist/lua/mgfx/loader_client.lua
+dist/lua/mgfx/client/runtime/...
+```
+
+For normal addons, Garry's Mod loads `autorun/mgfx.lua` automatically. MGFX is
+then available on the client:
+
+```lua
+hook.Add("HUDPaint", "MGFXExample", function()
+  MGFX.RoundedBox(24, 40, 40, 260, 96, Color(18, 22, 30, 230))
+  MGFX.TextEx("MGFX", "DermaLarge", 64, 62, Color(255, 255, 255))
+end)
+```
+
+If your gamemode or integration layer owns the entry point, include the loader
+explicitly from a path relative to `lua`:
+
+```lua
+if SERVER then
+  include("mgfx/loader_shared.lua")
+  include("mgfx/loader_server.lua")
+end
+
+if CLIENT then
+  include("mgfx/loader_shared.lua")
+  include("mgfx/loader_client.lua")
+end
+```
+
+The precompiled entry calls `installGlobal("MGFX")`; there is no Lux runtime
+step for GLua users.
 
 ## Draw From Lux
 
@@ -190,6 +237,16 @@ Most users do not need the shader tooling. MGFX ships precompiled Source shader
 bytecode (`.vcs`) in the package tree and embeds a generated shaderpack module
 for normal Lux builds.
 
+Regenerate the precompiled GLua loader tree with:
+
+```powershell
+.\tools\build-precompiled.ps1
+```
+
+Pass `-Luxc C:\path\to\luxc.exe` if `luxc` is not on `PATH`. The script builds
+from a temporary Lux project, installs the local `@lux/mgfx` package set, and
+writes `dist/lua`.
+
 Garry's Mod does not include a shader compiler, so the compiler binary used to
 regenerate bytecode is stored as repository tooling under `tools/mgfx`. That
 tooling is outside the Lux package module tree. It is not installed as a Lux
@@ -221,6 +278,6 @@ commercial context.
 ## Related Projects
 
 - Lux compiler and language: https://github.com/TimeWatcher/lux
-- Lux built-in packages: https://github.com/TimeWatcher/lux-packages
+- Lux standard packages: https://github.com/TimeWatcher/lux-packages
 - MGFX documentation: https://timewatcher.github.io/mgfx-docs-site/
 - Lux documentation: https://timewatcher.github.io/lux-docs-site/

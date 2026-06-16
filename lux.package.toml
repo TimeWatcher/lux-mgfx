@@ -158,4 +158,4 @@ depends = [
 
 [[source]]
 package = "@lux/compile/macro"
-builtin = true
+github = "TimeWatcher/lux-packages"

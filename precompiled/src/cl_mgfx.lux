@@ -1,0 +1,5 @@
+import { installGlobal } from "@lux/mgfx"
+
+client {
+  installGlobal("MGFX")
+}

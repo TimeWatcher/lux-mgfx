@@ -1,0 +1,11 @@
+package_id = "mgfx_precompiled"
+bundle_id = "mgfx"
+
+[target.gmod]
+source_root = "src"
+out = "../dist/lua"
+runtime_base = "mgfx"
+autorun = true
+source_comments = "none"
+
+[dependencies]

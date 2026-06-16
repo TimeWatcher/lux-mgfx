@@ -1,7 +1,8 @@
 # Local build outputs
 build/
-dist/
 target/
+dist/tmp/
+dist/*.zip
 
 # Shader pack outputs
 lux/mgfx/shaderpack/src/cl_mgfx_shaderpack.lua
@@ -10,4 +11,3 @@ lux/mgfx/shadersrc/cl_mgfx_shaderpack.lua
 # Logs
 *.log
 *.log.*
-
