@@ -141,7 +141,7 @@ export client fn linearGradient(x1, y1, x2, y2, stopsOrColorA, colorB) {
 }
 
 export client fn linearGradientStops(x1, y1, x2, y2, stops) =
-  linearGradient(x1, y1, x2, y2, stops)
+  linearGradient(x1, y1, x2, y2, stops, nil)
 
 export client fn radialGradient(cx, cy, radius, stopsOrColorA, colorB) {
   local colorA

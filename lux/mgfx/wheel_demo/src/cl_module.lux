@@ -940,7 +940,7 @@ fn PANEL:Paint(w, h) {
       local segCx, segCy = segmentCenter(cx, cy, i, segOutset)
       local ix, iy = anglePoint(segCx, segCy, iconR, mid)
       local alpha = lerp(hover, 212, 255)
-      drawPoseFigure(ix, iy + iconScale * 0.12, iconScale * (1 + hover * 0.04), action.pose, alpha)
+      drawPoseFigure(ix, iy + iconScale * 0.12, iconScale * (1 + hover * 0.04), action.pose, alpha, nil)
     }
 
     if pushedTransform {

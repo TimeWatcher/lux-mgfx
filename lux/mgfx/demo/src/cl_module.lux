@@ -129,7 +129,7 @@ fn ensureFonts(scale) {
   }
 }
 
-fn text(value, font, x, y, color, ax, ay) {
+fn text(value, font, x, y, color, ax = nil, ay = nil) {
   draw.SimpleText(value, font, x, y, makeColor(0, 0, 0, mathMin((color.a or 255), 180)), ax or TEXT_ALIGN_LEFT, ay or TEXT_ALIGN_TOP)
   draw.SimpleText(value, font, x, y - 1, color, ax or TEXT_ALIGN_LEFT, ay or TEXT_ALIGN_TOP)
 }
