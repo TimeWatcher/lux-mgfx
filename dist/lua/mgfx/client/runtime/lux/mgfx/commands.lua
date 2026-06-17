@@ -55,18 +55,14 @@ return function(__lux_import)
       return command[index]
     end
     name = function(command)
-      local __lux_tmp_1 = command.op
-      if __lux_tmp_1 == nil then
-        __lux_tmp_1 = command[1]
+      local __lux_tmp_op_1 = command.op
+      if __lux_tmp_op_1 == nil then
+        __lux_tmp_op_1 = command[1]
       end
-      return __lux_tmp_1
+      return __lux_tmp_op_1
     end
     alreadyRecord = function(command)
-      local __lux_tmp_2 = typeOf(command) == "table"
-      if __lux_tmp_2 then
-        __lux_tmp_2 = command.op ~= nil
-      end
-      return __lux_tmp_2
+      return typeOf(command) == "table" and command.op ~= nil
     end
   end
   do
@@ -299,137 +295,133 @@ return function(__lux_import)
   do
     bounds = function(command)
       local op = name(command)
-      local __lux_match_3 = op
-      if __lux_match_3 == "DrawText" then
+      local __lux_match_2 = op
+      if __lux_match_2 == "DrawText" then
         local c = text(command)
         return c.x, c.y, 0, 0
-      elseif __lux_match_3 == "DrawTextBox" or __lux_match_3 == "PushClip" then
+      elseif __lux_match_2 == "DrawTextBox" or __lux_match_2 == "PushClip" then
         local c
-        local __lux_match_4 = op
-        if __lux_match_4 == "DrawTextBox" then
+        local __lux_match_3 = op
+        if __lux_match_3 == "DrawTextBox" then
           c = textBox(command)
         else
           c = clip(command)
         end
         return c.x, c.y, c.w, c.h
-      elseif __lux_match_3 == "DrawRing" or __lux_match_3 == "DrawArc" then
+      elseif __lux_match_2 == "DrawRing" or __lux_match_2 == "DrawArc" then
         local c
-        local __lux_match_5 = op
-        if __lux_match_5 == "DrawRing" then
+        local __lux_match_4 = op
+        if __lux_match_4 == "DrawRing" then
           c = ring(command)
         else
           c = arc(command)
         end
-        local r
-        do
-          local __lux_tmp_6 = toNumber(c.radius)
-          if __lux_tmp_6 == nil then
-            __lux_tmp_6 = 0
-          end
-          r = __lux_tmp_6
+        local r = toNumber(c.radius)
+        if r == nil then
+          r = 0
         end
         return c.x - r, c.y - r, r * 2, r * 2
-      elseif __lux_match_3 == "DrawSector" then
+      elseif __lux_match_2 == "DrawSector" then
         local c = sector(command)
-        local r
-        do
-          local __lux_tmp_7 = toNumber(c.outerRadius)
-          if __lux_tmp_7 == nil then
-            __lux_tmp_7 = 0
-          end
-          r = __lux_tmp_7
+        local r = toNumber(c.outerRadius)
+        if r == nil then
+          r = 0
         end
         return c.x - r, c.y - r, r * 2, r * 2
-      elseif __lux_match_3 == "DrawPoly" then
+      elseif __lux_match_2 == "DrawPoly" then
         return 0, 0, 0, 0
       else
         local c = normalize(command)
-        local __lux_tmp_8 = c.x
-        if __lux_tmp_8 == nil then
-          __lux_tmp_8 = 0
+        local __lux_tmp_x_5 = c.x
+        if __lux_tmp_x_5 == nil then
+          __lux_tmp_x_5 = 0
         end
-        local __lux_tmp_9 = c.y
-        if __lux_tmp_9 == nil then
-          __lux_tmp_9 = 0
+        local __lux_tmp_y_6 = c.y
+        if __lux_tmp_y_6 == nil then
+          __lux_tmp_y_6 = 0
         end
-        local __lux_tmp_10 = c.w
-        if __lux_tmp_10 == nil then
-          __lux_tmp_10 = 0
+        local __lux_tmp_w_7 = c.w
+        if __lux_tmp_w_7 == nil then
+          __lux_tmp_w_7 = 0
         end
-        local __lux_tmp_11 = c.h
-        if __lux_tmp_11 == nil then
-          __lux_tmp_11 = 0
+        local __lux_tmp_h_8 = c.h
+        if __lux_tmp_h_8 == nil then
+          __lux_tmp_h_8 = 0
         end
-        return __lux_tmp_8, __lux_tmp_9, __lux_tmp_10, __lux_tmp_11
+        return __lux_tmp_x_5, __lux_tmp_y_6, __lux_tmp_w_7, __lux_tmp_h_8
       end
     end
     normalize = function(command)
-      local __lux_match_12 = name(command)
-      if __lux_match_12 == "DrawRoundedBox" then
+      local __lux_match_9 = name(command)
+      if __lux_match_9 == "DrawRoundedBox" then
         return roundedBox(command)
-      elseif __lux_match_12 == "DrawChamferBox" then
+      elseif __lux_match_9 == "DrawChamferBox" then
         return chamferBox(command)
-      elseif __lux_match_12 == "DrawPoly" then
+      elseif __lux_match_9 == "DrawPoly" then
         return poly(command)
-      elseif __lux_match_12 == "DrawImage" then
+      elseif __lux_match_9 == "DrawImage" then
         return image(command)
-      elseif __lux_match_12 == "DrawLine" then
+      elseif __lux_match_9 == "DrawLine" then
         return line(command)
-      elseif __lux_match_12 == "PushClip" or __lux_match_12 == "PopClip" then
+      elseif __lux_match_9 == "PushClip" or __lux_match_9 == "PopClip" then
         return clip(command)
-      elseif __lux_match_12 == "DrawProgressBar" then
+      elseif __lux_match_9 == "DrawProgressBar" then
         return progressBar(command)
-      elseif __lux_match_12 == "DrawSegmentBar" then
+      elseif __lux_match_9 == "DrawSegmentBar" then
         return segmentBar(command)
-      elseif __lux_match_12 == "DrawRing" then
+      elseif __lux_match_9 == "DrawRing" then
         return ring(command)
-      elseif __lux_match_12 == "DrawArc" then
+      elseif __lux_match_9 == "DrawArc" then
         return arc(command)
-      elseif __lux_match_12 == "DrawSector" then
+      elseif __lux_match_9 == "DrawSector" then
         return sector(command)
-      elseif __lux_match_12 == "DrawText" then
+      elseif __lux_match_9 == "DrawText" then
         return text(command)
-      elseif __lux_match_12 == "DrawTextBox" then
+      elseif __lux_match_9 == "DrawTextBox" then
         return textBox(command)
+      else
+        return command
       end
     end
     normalizeAll = function(commands)
       local out = {}
       do
-        local __lux_tmp_13 = commands
-        if __lux_tmp_13 == nil then
-          __lux_tmp_13 = {}
+        local __lux_tmp_commands_10 = commands
+        if __lux_tmp_commands_10 == nil then
+          __lux_tmp_commands_10 = {}
         end
-        for index = 1, #__lux_tmp_13 do
+        for index = 1, #__lux_tmp_commands_10 do
           out[index] = normalize(commands[index])
         end
       end
       return out
     end
     values = function(command)
-      local __lux_match_14 = name(command)
-      if __lux_match_14 == "DrawRoundedBox" or __lux_match_14 == "DrawChamferBox" then
+      local __lux_match_11 = name(command)
+      if __lux_match_11 == "DrawRoundedBox" or __lux_match_11 == "DrawChamferBox" then
         return roundedBoxValues(command)
-      elseif __lux_match_14 == "DrawPoly" then
+      elseif __lux_match_11 == "DrawPoly" then
         return polyValues(command)
-      elseif __lux_match_14 == "DrawImage" then
+      elseif __lux_match_11 == "DrawImage" then
         return imageValues(command)
-      elseif __lux_match_14 == "DrawLine" then
+      elseif __lux_match_11 == "DrawLine" then
         return lineValues(command)
-      elseif __lux_match_14 == "PushClip" or __lux_match_14 == "PopClip" then
+      elseif __lux_match_11 == "PushClip" or __lux_match_11 == "PopClip" then
         return clipValues(command)
-      elseif __lux_match_14 == "DrawProgressBar" or __lux_match_14 == "DrawSegmentBar" then
+      elseif __lux_match_11 == "DrawProgressBar" or __lux_match_11 == "DrawSegmentBar" then
         return progressBarValues(command)
-      elseif __lux_match_14 == "DrawRing" then
+      elseif __lux_match_11 == "DrawRing" then
         return ringValues(command)
-      elseif __lux_match_14 == "DrawArc" then
+      elseif __lux_match_11 == "DrawArc" then
         return arcValues(command)
-      elseif __lux_match_14 == "DrawSector" then
+      elseif __lux_match_11 == "DrawSector" then
         return sectorValues(command)
-      elseif __lux_match_14 == "DrawText" then
+      elseif __lux_match_11 == "DrawText" then
         return textValues(command)
-      elseif __lux_match_14 == "DrawTextBox" then
+      elseif __lux_match_11 == "DrawTextBox" then
         return textBoxValues(command)
+      else
+        return nil
       end
     end
   end

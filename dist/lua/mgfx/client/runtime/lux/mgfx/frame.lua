@@ -61,46 +61,38 @@ return function(__lux_import)
       end
     end
     toScreen = function(x, y)
-      local __lux_tmp_1 = x
-      if __lux_tmp_1 == nil then
-        __lux_tmp_1 = 0
+      local __lux_tmp_x_1 = x
+      if __lux_tmp_x_1 == nil then
+        __lux_tmp_x_1 = 0
       end
-      local __lux_tmp_2 = y
-      if __lux_tmp_2 == nil then
-        __lux_tmp_2 = 0
+      local __lux_tmp_y_2 = y
+      if __lux_tmp_y_2 == nil then
+        __lux_tmp_y_2 = 0
       end
-      return state.screenX + __lux_tmp_1, state.screenY + __lux_tmp_2
+      return state.screenX + __lux_tmp_x_1, state.screenY + __lux_tmp_y_2
     end
     isCulled = function(x, y, w, h)
       local sx, sy = toScreen(x, y)
       local ex
       do
-        local __lux_tmp_3 = w
-        if __lux_tmp_3 == nil then
-          __lux_tmp_3 = 0
+        local __lux_tmp_w_3 = w
+        if __lux_tmp_w_3 == nil then
+          __lux_tmp_w_3 = 0
         end
-        ex = sx + __lux_tmp_3
+        ex = sx + __lux_tmp_w_3
       end
       local ey
       do
-        local __lux_tmp_4 = h
-        if __lux_tmp_4 == nil then
-          __lux_tmp_4 = 0
+        local __lux_tmp_h_4 = h
+        if __lux_tmp_h_4 == nil then
+          __lux_tmp_h_4 = 0
         end
-        ey = sy + __lux_tmp_4
+        ey = sy + __lux_tmp_h_4
       end
-      local __lux_tmp_5 = ex <= state.screenX
-      if not __lux_tmp_5 then
-        __lux_tmp_5 = ey <= state.screenY
-      end
-      if __lux_tmp_5 then
+      if ex <= state.screenX or ey <= state.screenY then
         return true
       end
-      local __lux_tmp_6 = sx >= state.screenX + state.w
-      if not __lux_tmp_6 then
-        __lux_tmp_6 = sy >= state.screenY + state.h
-      end
-      if __lux_tmp_6 then
+      if sx >= state.screenX + state.w or sy >= state.screenY + state.h then
         return true
       end
       return false
@@ -130,53 +122,37 @@ return function(__lux_import)
     startPanel = function(panel, w, h)
       local x = 0
       local y = 0
-      local __lux_tmp_7 = panel ~= nil
-      if __lux_tmp_7 then
-        __lux_tmp_7 = panel.LocalToScreen ~= nil
-      end
-      if __lux_tmp_7 then
+      if panel ~= nil and panel.LocalToScreen ~= nil then
         x, y = panel:LocalToScreen(0, 0)
       end
       state.active = true
       state.screenX = x
       state.screenY = y
       do
-        local __lux_tmp_8 = w
-        if __lux_tmp_8 == nil then
-          local __lux_tmp_9
-          do
-            local __lux_tmp_10 = panel ~= nil
-            if __lux_tmp_10 then
-              __lux_tmp_10 = panel.GetWide ~= nil
-            end
-            if __lux_tmp_10 then
-              __lux_tmp_9 = panel:GetWide()
-            else
-              __lux_tmp_9 = 0
-            end
+        local __lux_tmp_w_5 = w
+        if __lux_tmp_w_5 == nil then
+          local __lux_tmp_6
+          if panel ~= nil and panel.GetWide ~= nil then
+            __lux_tmp_6 = panel:GetWide()
+          else
+            __lux_tmp_6 = 0
           end
-          __lux_tmp_8 = __lux_tmp_9
+          __lux_tmp_w_5 = __lux_tmp_6
         end
-        state.w = __lux_tmp_8
+        state.w = __lux_tmp_w_5
       end
       do
-        local __lux_tmp_11 = h
-        if __lux_tmp_11 == nil then
-          local __lux_tmp_12
-          do
-            local __lux_tmp_13 = panel ~= nil
-            if __lux_tmp_13 then
-              __lux_tmp_13 = panel.GetTall ~= nil
-            end
-            if __lux_tmp_13 then
-              __lux_tmp_12 = panel:GetTall()
-            else
-              __lux_tmp_12 = 0
-            end
+        local __lux_tmp_h_7 = h
+        if __lux_tmp_h_7 == nil then
+          local __lux_tmp_8
+          if panel ~= nil and panel.GetTall ~= nil then
+            __lux_tmp_8 = panel:GetTall()
+          else
+            __lux_tmp_8 = 0
           end
-          __lux_tmp_11 = __lux_tmp_12
+          __lux_tmp_h_7 = __lux_tmp_8
         end
-        state.h = __lux_tmp_11
+        state.h = __lux_tmp_h_7
       end
       clearArray(state.clipStack)
       return state
@@ -188,19 +164,19 @@ return function(__lux_import)
       local sx, sy = toScreen(x, y)
       local clip
       do
-        local __lux_tmp_14 = w
-        if __lux_tmp_14 == nil then
-          __lux_tmp_14 = 0
+        local __lux_tmp_w_9 = w
+        if __lux_tmp_w_9 == nil then
+          __lux_tmp_w_9 = 0
         end
-        local __lux_tmp_15 = h
-        if __lux_tmp_15 == nil then
-          __lux_tmp_15 = 0
+        local __lux_tmp_h_10 = h
+        if __lux_tmp_h_10 == nil then
+          __lux_tmp_h_10 = 0
         end
         clip = {
           x = mathFloor(sx),
           y = mathFloor(sy),
-          w = mathMax(0, mathCeil(__lux_tmp_14)),
-          h = mathMax(0, mathCeil(__lux_tmp_15)),
+          w = mathMax(0, mathCeil(__lux_tmp_w_9)),
+          h = mathMax(0, mathCeil(__lux_tmp_h_10)),
         }
       end
       state.clipStack[#state.clipStack + 1] = clip
@@ -228,11 +204,7 @@ return function(__lux_import)
       return state.commandStack
     end
     queue = function(command)
-      local __lux_tmp_16 = state.commandStack == nil
-      if not __lux_tmp_16 then
-        __lux_tmp_16 = state.replaying
-      end
-      if __lux_tmp_16 then
+      if state.commandStack == nil or state.replaying then
         return false
       end
       state.commandStack[#state.commandStack + 1] = command

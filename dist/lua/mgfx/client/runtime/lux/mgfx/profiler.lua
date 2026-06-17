@@ -33,56 +33,49 @@ return function(__lux_import)
       return createClientConVar(name, defaultValue, true, false, help)
     end
     create = function(owner, options)
-      local target
-      do
-        local __lux_tmp_1 = owner
-        if __lux_tmp_1 == nil then
-          __lux_tmp_1 = {}
-        end
-        target = __lux_tmp_1
+      local target = owner
+      if target == nil then
+        target = {}
       end
       local enabledConVar
       do
-        local __lux_obj_2 = options
-        local __lux_val_3 = nil
-        if __lux_obj_2 ~= nil then
-          __lux_val_3 = __lux_obj_2.enabledConVar
+        local __lux_obj_options_1 = options
+        local __lux_val_enabledConVar_2 = nil
+        if __lux_obj_options_1 ~= nil then
+          __lux_val_enabledConVar_2 = __lux_obj_options_1.enabledConVar
         end
-        local __lux_tmp_4 = __lux_val_3
-        if __lux_tmp_4 == nil then
-          __lux_tmp_4 = makeConVar("mgfx_profile", "0", "MGFX: enable renderer profiler.")
+        enabledConVar = __lux_val_enabledConVar_2
+        if enabledConVar == nil then
+          enabledConVar = makeConVar("mgfx_profile", "0", "MGFX: enable renderer profiler.")
         end
-        enabledConVar = __lux_tmp_4
       end
       local windowConVar
       do
-        local __lux_obj_5 = options
-        local __lux_val_6 = nil
-        if __lux_obj_5 ~= nil then
-          __lux_val_6 = __lux_obj_5.windowConVar
+        local __lux_obj_options_3 = options
+        local __lux_val_windowConVar_4 = nil
+        if __lux_obj_options_3 ~= nil then
+          __lux_val_windowConVar_4 = __lux_obj_options_3.windowConVar
         end
-        local __lux_tmp_7 = __lux_val_6
-        if __lux_tmp_7 == nil then
-          __lux_tmp_7 = makeConVar("mgfx_profile_window", "120", "MGFX: rolling profiler sample window.")
+        windowConVar = __lux_val_windowConVar_4
+        if windowConVar == nil then
+          windowConVar = makeConVar("mgfx_profile_window", "120", "MGFX: rolling profiler sample window.")
         end
-        windowConVar = __lux_tmp_7
       end
       local topConVar
       do
-        local __lux_obj_8 = options
-        local __lux_val_9 = nil
-        if __lux_obj_8 ~= nil then
-          __lux_val_9 = __lux_obj_8.topConVar
+        local __lux_obj_options_5 = options
+        local __lux_val_topConVar_6 = nil
+        if __lux_obj_options_5 ~= nil then
+          __lux_val_topConVar_6 = __lux_obj_options_5.topConVar
         end
-        local __lux_tmp_10 = __lux_val_9
-        if __lux_tmp_10 == nil then
-          __lux_tmp_10 = makeConVar(
-          "mgfx_profile_top",
-          "18",
-          "MGFX: number of profiler rows printed by mgfx_profile_status."
-        )
+        topConVar = __lux_val_topConVar_6
+        if topConVar == nil then
+          topConVar = makeConVar(
+            "mgfx_profile_top",
+            "18",
+            "MGFX: number of profiler rows printed by mgfx_profile_status."
+          )
         end
-        topConVar = __lux_tmp_10
       end
       local rolling = {}
       local frameIndex = 0
@@ -94,49 +87,16 @@ return function(__lux_import)
       local wrappedSuppress = nil
       local api = {}
       local isEnabled = function()
-        local __lux_tmp_11 = enabledConVar ~= nil
-        if __lux_tmp_11 then
-          __lux_tmp_11 = enabledConVar.GetBool ~= nil
-        end
-        local __lux_tmp_12 = __lux_tmp_11
-        if __lux_tmp_12 then
-          __lux_tmp_12 = enabledConVar:GetBool()
-        end
-        local __lux_tmp_13 = __lux_tmp_12
-        if not __lux_tmp_13 then
-          __lux_tmp_13 = false
-        end
-        return __lux_tmp_13
+        return enabledConVar ~= nil and enabledConVar.GetBool ~= nil and enabledConVar:GetBool() or false
       end
       local windowSize = function()
-        local __lux_tmp_14 = windowConVar ~= nil
-        if __lux_tmp_14 then
-          __lux_tmp_14 = windowConVar.GetInt ~= nil
-        end
-        local __lux_tmp_15 = __lux_tmp_14
-        if __lux_tmp_15 then
-          __lux_tmp_15 = windowConVar:GetInt()
-        end
-        local __lux_tmp_16 = __lux_tmp_15
-        if not __lux_tmp_16 then
-          __lux_tmp_16 = 120
-        end
-        return mathMax(1, __lux_tmp_16)
+        return mathMax(
+          1,
+          windowConVar ~= nil and windowConVar.GetInt ~= nil and windowConVar:GetInt() or 120
+        )
       end
       local topLimit = function()
-        local __lux_tmp_17 = topConVar ~= nil
-        if __lux_tmp_17 then
-          __lux_tmp_17 = topConVar.GetInt ~= nil
-        end
-        local __lux_tmp_18 = __lux_tmp_17
-        if __lux_tmp_18 then
-          __lux_tmp_18 = topConVar:GetInt()
-        end
-        local __lux_tmp_19 = __lux_tmp_18
-        if not __lux_tmp_19 then
-          __lux_tmp_19 = 18
-        end
-        return mathMax(1, __lux_tmp_19)
+        return mathMax(1, topConVar ~= nil and topConVar.GetInt ~= nil and topConVar:GetInt() or 18)
       end
       api.BeginFrame = function()
         active = isEnabled()
@@ -159,58 +119,54 @@ return function(__lux_import)
         if count == nil then
           count = 1
         end
-        local __lux_tmp_20 = not active
-        if not __lux_tmp_20 then
-          __lux_tmp_20 = elapsedMs == nil
-        end
-        if __lux_tmp_20 then
+        if not active or elapsedMs == nil then
           return
         end
         do
-          local __lux_tmp_21 = name
-          if __lux_tmp_21 == nil then
-            __lux_tmp_21 = "unknown"
+          local __lux_tmp_name_7 = name
+          if __lux_tmp_name_7 == nil then
+            __lux_tmp_name_7 = "unknown"
           end
-          name = toString(__lux_tmp_21)
+          name = toString(__lux_tmp_name_7)
         end
         do
-          local __lux_tmp_22 = target.stats
-          if __lux_tmp_22 == nil then
-            __lux_tmp_22 = {}
+          local __lux_tmp_stats_8 = target.stats
+          if __lux_tmp_stats_8 == nil then
+            __lux_tmp_stats_8 = {}
           end
-          target.stats = __lux_tmp_22
+          target.stats = __lux_tmp_stats_8
         end
         do
-          local __lux_tmp_23 = target.stats.profileTimes
-          if __lux_tmp_23 == nil then
-            __lux_tmp_23 = {}
+          local __lux_tmp_profileTimes_9 = target.stats.profileTimes
+          if __lux_tmp_profileTimes_9 == nil then
+            __lux_tmp_profileTimes_9 = {}
           end
-          target.stats.profileTimes = __lux_tmp_23
+          target.stats.profileTimes = __lux_tmp_profileTimes_9
         end
         do
-          local __lux_tmp_24 = target.stats.profileCounts
-          if __lux_tmp_24 == nil then
-            __lux_tmp_24 = {}
+          local __lux_tmp_profileCounts_10 = target.stats.profileCounts
+          if __lux_tmp_profileCounts_10 == nil then
+            __lux_tmp_profileCounts_10 = {}
           end
-          target.stats.profileCounts = __lux_tmp_24
+          target.stats.profileCounts = __lux_tmp_profileCounts_10
         end
         do
-          local __lux_tmp_25 = target.stats.profileTimes[name]
-          if __lux_tmp_25 == nil then
-            __lux_tmp_25 = 0
+          local __lux_tmp_name_11 = target.stats.profileTimes[name]
+          if __lux_tmp_name_11 == nil then
+            __lux_tmp_name_11 = 0
           end
-          target.stats.profileTimes[name] = __lux_tmp_25 + elapsedMs
+          target.stats.profileTimes[name] = __lux_tmp_name_11 + elapsedMs
         end
         do
-          local __lux_tmp_26 = target.stats.profileCounts[name]
-          if __lux_tmp_26 == nil then
-            __lux_tmp_26 = 0
+          local __lux_tmp_name_12 = target.stats.profileCounts[name]
+          if __lux_tmp_name_12 == nil then
+            __lux_tmp_name_12 = 0
           end
-          local __lux_tmp_27 = count
-          if __lux_tmp_27 == nil then
-            __lux_tmp_27 = 1
+          local __lux_tmp_count_13 = count
+          if __lux_tmp_count_13 == nil then
+            __lux_tmp_count_13 = 1
           end
-          target.stats.profileCounts[name] = __lux_tmp_26 + __lux_tmp_27
+          target.stats.profileCounts[name] = __lux_tmp_name_12 + __lux_tmp_count_13
         end
       end
       api.End = function(name, started, count)
@@ -227,16 +183,15 @@ return function(__lux_import)
         end
         local window = windowSize()
         do
-          local __lux_obj_28 = target.stats
-          local __lux_val_29 = nil
-          if __lux_obj_28 ~= nil then
-            __lux_val_29 = __lux_obj_28.profileTimes
+          local __lux_obj_target_14 = target.stats
+          local __lux_tmp_profileTimes_15 = nil
+          if __lux_obj_target_14 ~= nil then
+            __lux_tmp_profileTimes_15 = __lux_obj_target_14.profileTimes
           end
-          local __lux_tmp_30 = __lux_val_29
-          if __lux_tmp_30 == nil then
-            __lux_tmp_30 = {}
+          if __lux_tmp_profileTimes_15 == nil then
+            __lux_tmp_profileTimes_15 = {}
           end
-          for name, ms in pairs(__lux_tmp_30) do
+          for name, ms in pairs(__lux_tmp_profileTimes_15) do
             local bucket = rolling[name]
             if bucket == nil then
               bucket = {
@@ -253,43 +208,36 @@ return function(__lux_import)
               rolling[name] = bucket
             end
             local index = bucket.index
-            local oldMs
-            do
-              local __lux_tmp_31 = bucket.samples[index]
-              if __lux_tmp_31 == nil then
-                __lux_tmp_31 = 0
-              end
-              oldMs = __lux_tmp_31
+            local oldMs = bucket.samples[index]
+            if oldMs == nil then
+              oldMs = 0
             end
             if bucket.n == window then
               bucket.sum = bucket.sum - oldMs
               do
-                local __lux_tmp_32 = bucket.counts[index]
-                if __lux_tmp_32 == nil then
-                  __lux_tmp_32 = 0
+                local __lux_tmp_index_16 = bucket.counts[index]
+                if __lux_tmp_index_16 == nil then
+                  __lux_tmp_index_16 = 0
                 end
-                bucket.countSum = bucket.countSum - __lux_tmp_32
+                bucket.countSum = bucket.countSum - __lux_tmp_index_16
               end
             else
               bucket.n = bucket.n + 1
             end
             local counts
             do
-              local __lux_obj_33 = target.stats
-              local __lux_val_34 = nil
-              if __lux_obj_33 ~= nil then
-                __lux_val_34 = __lux_obj_33.profileCounts
+              local __lux_obj_stats_17 = target.stats
+              local __lux_val_profileCounts_18 = nil
+              if __lux_obj_stats_17 ~= nil then
+                __lux_val_profileCounts_18 = __lux_obj_stats_17.profileCounts
               end
-              counts = __lux_val_34
+              counts = __lux_val_profileCounts_18
             end
             local sampleCount
             if counts ~= nil then
-              do
-                local __lux_tmp_35 = counts[name]
-                if __lux_tmp_35 == nil then
-                  __lux_tmp_35 = 0
-                end
-                sampleCount = __lux_tmp_35
+              sampleCount = counts[name]
+              if sampleCount == nil then
+                sampleCount = 0
               end
             else
               sampleCount = 0
@@ -300,27 +248,23 @@ return function(__lux_import)
             bucket.countSum = bucket.countSum + sampleCount
             bucket.last = ms
             bucket.lastCount = sampleCount
-            local __lux_tmp_36 = bucket.max
-            if __lux_tmp_36 == nil then
-              __lux_tmp_36 = 0
+            local __lux_tmp_max_19 = bucket.max
+            if __lux_tmp_max_19 == nil then
+              __lux_tmp_max_19 = 0
             end
-            if ms >= __lux_tmp_36 then
+            if ms >= __lux_tmp_max_19 then
               bucket.max = ms
             else
-              local __lux_tmp_37 = bucket.max
-              if __lux_tmp_37 == nil then
-                __lux_tmp_37 = 0
+              local __lux_tmp_max_20 = bucket.max
+              if __lux_tmp_max_20 == nil then
+                __lux_tmp_max_20 = 0
               end
-              if oldMs >= __lux_tmp_37 then
+              if oldMs >= __lux_tmp_max_20 then
                 local maxValue = 0
                 for sampleIndex = 1, bucket.n do
-                  local sample
-                  do
-                    local __lux_tmp_38 = bucket.samples[sampleIndex]
-                    if __lux_tmp_38 == nil then
-                      __lux_tmp_38 = 0
-                    end
-                    sample = __lux_tmp_38
+                  local sample = bucket.samples[sampleIndex]
+                  if sample == nil then
+                    sample = 0
                   end
                   if sample > maxValue then
                     maxValue = sample
@@ -345,12 +289,8 @@ return function(__lux_import)
         frameIndex = 0
       end
       api.Snapshot = function(limit)
-        do
-          local __lux_tmp_39 = limit
-          if __lux_tmp_39 == nil then
-            __lux_tmp_39 = topLimit()
-          end
-          limit = __lux_tmp_39
+        if limit == nil then
+          limit = topLimit()
         end
         local rows = {}
         for name, bucket in pairs(rolling) do
@@ -361,38 +301,38 @@ return function(__lux_import)
             n = 1
           end
           do
-            local __lux_tmp_40 = bucket.last
-            if __lux_tmp_40 == nil then
-              __lux_tmp_40 = 0
+            local __lux_tmp_last_21 = bucket.last
+            if __lux_tmp_last_21 == nil then
+              __lux_tmp_last_21 = 0
             end
-            local __lux_tmp_41 = bucket.sum
-            if __lux_tmp_41 == nil then
-              __lux_tmp_41 = 0
+            local __lux_tmp_sum_22 = bucket.sum
+            if __lux_tmp_sum_22 == nil then
+              __lux_tmp_sum_22 = 0
             end
-            local __lux_tmp_42 = bucket.max
-            if __lux_tmp_42 == nil then
-              __lux_tmp_42 = 0
+            local __lux_tmp_max_23 = bucket.max
+            if __lux_tmp_max_23 == nil then
+              __lux_tmp_max_23 = 0
             end
-            local __lux_tmp_43 = bucket.lastCount
-            if __lux_tmp_43 == nil then
-              __lux_tmp_43 = 0
+            local __lux_tmp_lastCount_24 = bucket.lastCount
+            if __lux_tmp_lastCount_24 == nil then
+              __lux_tmp_lastCount_24 = 0
             end
-            local __lux_tmp_44 = bucket.countSum
-            if __lux_tmp_44 == nil then
-              __lux_tmp_44 = 0
+            local __lux_tmp_countSum_25 = bucket.countSum
+            if __lux_tmp_countSum_25 == nil then
+              __lux_tmp_countSum_25 = 0
             end
-            local __lux_tmp_45 = bucket.n
-            if __lux_tmp_45 == nil then
-              __lux_tmp_45 = 0
+            local __lux_tmp_n_26 = bucket.n
+            if __lux_tmp_n_26 == nil then
+              __lux_tmp_n_26 = 0
             end
             rows[#rows + 1] = {
               name = name,
-              last = __lux_tmp_40,
-              avg = __lux_tmp_41 / n,
-              max = __lux_tmp_42,
-              count = __lux_tmp_43,
-              avgCount = __lux_tmp_44 / n,
-              samples = __lux_tmp_45,
+              last = __lux_tmp_last_21,
+              avg = __lux_tmp_sum_22 / n,
+              max = __lux_tmp_max_23,
+              count = __lux_tmp_lastCount_24,
+              avgCount = __lux_tmp_countSum_25 / n,
+              samples = __lux_tmp_n_26,
             }
           end
         end
@@ -412,52 +352,44 @@ return function(__lux_import)
         return rows
       end
       api.CurrentRows = function(limit)
-        do
-          local __lux_tmp_46 = limit
-          if __lux_tmp_46 == nil then
-            __lux_tmp_46 = topLimit()
-          end
-          limit = __lux_tmp_46
+        if limit == nil then
+          limit = topLimit()
         end
         local rows = {}
         do
-          local __lux_obj_47 = target.stats
-          local __lux_val_48 = nil
-          if __lux_obj_47 ~= nil then
-            __lux_val_48 = __lux_obj_47.profileTimes
+          local __lux_obj_target_27 = target.stats
+          local __lux_tmp_profileTimes_28 = nil
+          if __lux_obj_target_27 ~= nil then
+            __lux_tmp_profileTimes_28 = __lux_obj_target_27.profileTimes
           end
-          local __lux_tmp_49 = __lux_val_48
-          if __lux_tmp_49 == nil then
-            __lux_tmp_49 = {}
+          if __lux_tmp_profileTimes_28 == nil then
+            __lux_tmp_profileTimes_28 = {}
           end
-          for name, ms in pairs(__lux_tmp_49) do
+          for name, ms in pairs(__lux_tmp_profileTimes_28) do
             do
-              local __lux_tmp_50 = ms
-              if __lux_tmp_50 == nil then
-                __lux_tmp_50 = 0
+              local __lux_tmp_ms_29 = ms
+              if __lux_tmp_ms_29 == nil then
+                __lux_tmp_ms_29 = 0
               end
-              local __lux_tmp_51
+              local __lux_tmp_30
               local counts
               do
-                local __lux_obj_52 = target.stats
-                local __lux_val_53 = nil
-                if __lux_obj_52 ~= nil then
-                  __lux_val_53 = __lux_obj_52.profileCounts
+                local __lux_obj_stats_31 = target.stats
+                local __lux_val_profileCounts_32 = nil
+                if __lux_obj_stats_31 ~= nil then
+                  __lux_val_profileCounts_32 = __lux_obj_stats_31.profileCounts
                 end
-                counts = __lux_val_53
+                counts = __lux_val_profileCounts_32
               end
               if counts ~= nil then
-                do
-                  local __lux_tmp_54 = counts[name]
-                  if __lux_tmp_54 == nil then
-                    __lux_tmp_54 = 0
-                  end
-                  __lux_tmp_51 = __lux_tmp_54
+                __lux_tmp_30 = counts[name]
+                if __lux_tmp_30 == nil then
+                  __lux_tmp_30 = 0
                 end
               else
-                __lux_tmp_51 = 0
+                __lux_tmp_30 = 0
               end
-              rows[#rows + 1] = { name = name, last = __lux_tmp_50, count = __lux_tmp_51 }
+              rows[#rows + 1] = { name = name, last = __lux_tmp_ms_29, count = __lux_tmp_30 }
             end
           end
         end
@@ -482,59 +414,59 @@ return function(__lux_import)
         end
         local out = {}
         do
-          local __lux_tmp_55 = rows
-          if __lux_tmp_55 == nil then
-            __lux_tmp_55 = {}
+          local __lux_tmp_rows_33 = rows
+          if __lux_tmp_rows_33 == nil then
+            __lux_tmp_rows_33 = {}
           end
-          for _, row in ipairs(__lux_tmp_55) do
+          for _, row in ipairs(__lux_tmp_rows_33) do
             if rollingRows then
               do
-                local __lux_tmp_56 = row.last
-                if __lux_tmp_56 == nil then
-                  __lux_tmp_56 = 0
+                local __lux_tmp_last_34 = row.last
+                if __lux_tmp_last_34 == nil then
+                  __lux_tmp_last_34 = 0
                 end
-                local __lux_tmp_57 = row.avg
-                if __lux_tmp_57 == nil then
-                  __lux_tmp_57 = 0
+                local __lux_tmp_avg_35 = row.avg
+                if __lux_tmp_avg_35 == nil then
+                  __lux_tmp_avg_35 = 0
                 end
-                local __lux_tmp_58 = row.max
-                if __lux_tmp_58 == nil then
-                  __lux_tmp_58 = 0
+                local __lux_tmp_max_36 = row.max
+                if __lux_tmp_max_36 == nil then
+                  __lux_tmp_max_36 = 0
                 end
-                local __lux_tmp_59 = row.count
-                if __lux_tmp_59 == nil then
-                  __lux_tmp_59 = 0
+                local __lux_tmp_count_37 = row.count
+                if __lux_tmp_count_37 == nil then
+                  __lux_tmp_count_37 = 0
                 end
-                local __lux_tmp_60 = row.avgCount
-                if __lux_tmp_60 == nil then
-                  __lux_tmp_60 = 0
+                local __lux_tmp_avgCount_38 = row.avgCount
+                if __lux_tmp_avgCount_38 == nil then
+                  __lux_tmp_avgCount_38 = 0
                 end
-                local __lux_tmp_61 = row.samples
-                if __lux_tmp_61 == nil then
-                  __lux_tmp_61 = 0
+                local __lux_tmp_samples_39 = row.samples
+                if __lux_tmp_samples_39 == nil then
+                  __lux_tmp_samples_39 = 0
                 end
                 out[#out + 1] = stringFormat(
                   "%s last=%.3f avg=%.3f max=%.3f count=%d avgCount=%.1f samples=%d",
                   row.name,
-                  __lux_tmp_56,
-                  __lux_tmp_57,
-                  __lux_tmp_58,
-                  __lux_tmp_59,
-                  __lux_tmp_60,
-                  __lux_tmp_61
+                  __lux_tmp_last_34,
+                  __lux_tmp_avg_35,
+                  __lux_tmp_max_36,
+                  __lux_tmp_count_37,
+                  __lux_tmp_avgCount_38,
+                  __lux_tmp_samples_39
                 )
               end
             else
               do
-                local __lux_tmp_62 = row.last
-                if __lux_tmp_62 == nil then
-                  __lux_tmp_62 = 0
+                local __lux_tmp_last_40 = row.last
+                if __lux_tmp_last_40 == nil then
+                  __lux_tmp_last_40 = 0
                 end
-                local __lux_tmp_63 = row.count
-                if __lux_tmp_63 == nil then
-                  __lux_tmp_63 = 0
+                local __lux_tmp_count_41 = row.count
+                if __lux_tmp_count_41 == nil then
+                  __lux_tmp_count_41 = 0
                 end
-                out[#out + 1] = stringFormat("%s %.3fms count=%d", row.name, __lux_tmp_62, __lux_tmp_63)
+                out[#out + 1] = stringFormat("%s %.3fms count=%d", row.name, __lux_tmp_last_40, __lux_tmp_count_41)
               end
             end
           end
@@ -544,11 +476,7 @@ return function(__lux_import)
       local unwrapApi
       local wrapApi
       unwrapApi = function()
-        local __lux_tmp_64 = not wrappersInstalled
-        if not __lux_tmp_64 then
-          __lux_tmp_64 = wrappedOwner == nil
-        end
-        if __lux_tmp_64 then
+        if not wrappersInstalled or wrappedOwner == nil then
           return
         end
         local originalsStore = wrappedOwner._mgfxProfileOriginals
@@ -562,33 +490,25 @@ return function(__lux_import)
         wrappersInstalled = false
       end
       wrapApi = function()
-        local __lux_tmp_65 = wrappersInstalled
-        if not __lux_tmp_65 then
-          __lux_tmp_65 = wrappedOwner == nil
-        end
-        if __lux_tmp_65 then
+        if wrappersInstalled or wrappedOwner == nil then
           return
         end
         do
-          local __lux_tmp_66 = wrappedOwner._mgfxProfileOriginals
-          if __lux_tmp_66 == nil then
-            __lux_tmp_66 = {}
+          local __lux_tmp_mgfxProfileOriginals_42 = wrappedOwner._mgfxProfileOriginals
+          if __lux_tmp_mgfxProfileOriginals_42 == nil then
+            __lux_tmp_mgfxProfileOriginals_42 = {}
           end
-          wrappedOwner._mgfxProfileOriginals = __lux_tmp_66
+          wrappedOwner._mgfxProfileOriginals = __lux_tmp_mgfxProfileOriginals_42
         end
         local originalsStore = wrappedOwner._mgfxProfileOriginals
         do
-          local __lux_tmp_67 = wrappedNames
-          if __lux_tmp_67 == nil then
-            __lux_tmp_67 = {}
+          local __lux_tmp_wrappedNames_43 = wrappedNames
+          if __lux_tmp_wrappedNames_43 == nil then
+            __lux_tmp_wrappedNames_43 = {}
           end
-          for _, name in ipairs(__lux_tmp_67) do
+          for _, name in ipairs(__lux_tmp_wrappedNames_43) do
             local original = wrappedOwner[name]
-            local __lux_tmp_68 = typeOf(original) == "function"
-            if __lux_tmp_68 then
-              __lux_tmp_68 = wrappedOriginals[name] == nil
-            end
-            if __lux_tmp_68 then
+            if typeOf(original) == "function" and wrappedOriginals[name] == nil then
               wrappedOriginals[name] = original
               originalsStore[name] = original
               wrappedOwner[name] = function(...)
@@ -614,18 +534,10 @@ return function(__lux_import)
         wrappedOwner = owner
         wrappedNames = names
         wrappedSuppress = suppress
-        local __lux_tmp_69 = cvarsLib ~= nil
-        if __lux_tmp_69 then
-          __lux_tmp_69 = cvarsLib.RemoveChangeCallback ~= nil
-        end
-        if __lux_tmp_69 then
+        if cvarsLib ~= nil and cvarsLib.RemoveChangeCallback ~= nil then
           cvarsLib.RemoveChangeCallback("mgfx_profile", "MGFXProfileApiWrappers")
         end
-        local __lux_tmp_70 = cvarsLib ~= nil
-        if __lux_tmp_70 then
-          __lux_tmp_70 = cvarsLib.AddChangeCallback ~= nil
-        end
-        if __lux_tmp_70 then
+        if cvarsLib ~= nil and cvarsLib.AddChangeCallback ~= nil then
           cvarsLib.AddChangeCallback(
             "mgfx_profile",
             function(_, _, newValue)
@@ -646,25 +558,25 @@ return function(__lux_import)
     end
     install = function(owner)
       do
-        local __lux_tmp_71 = owner.stats
-        if __lux_tmp_71 == nil then
-          __lux_tmp_71 = {}
+        local __lux_tmp_stats_44 = owner.stats
+        if __lux_tmp_stats_44 == nil then
+          __lux_tmp_stats_44 = {}
         end
-        owner.stats = __lux_tmp_71
+        owner.stats = __lux_tmp_stats_44
       end
       do
-        local __lux_tmp_72 = owner.stats.profileTimes
-        if __lux_tmp_72 == nil then
-          __lux_tmp_72 = {}
+        local __lux_tmp_profileTimes_45 = owner.stats.profileTimes
+        if __lux_tmp_profileTimes_45 == nil then
+          __lux_tmp_profileTimes_45 = {}
         end
-        owner.stats.profileTimes = __lux_tmp_72
+        owner.stats.profileTimes = __lux_tmp_profileTimes_45
       end
       do
-        local __lux_tmp_73 = owner.stats.profileCounts
-        if __lux_tmp_73 == nil then
-          __lux_tmp_73 = {}
+        local __lux_tmp_profileCounts_46 = owner.stats.profileCounts
+        if __lux_tmp_profileCounts_46 == nil then
+          __lux_tmp_profileCounts_46 = {}
         end
-        owner.stats.profileCounts = __lux_tmp_73
+        owner.stats.profileCounts = __lux_tmp_profileCounts_46
       end
       local api = create(owner)
       owner.Profiler = api

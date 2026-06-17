@@ -61,12 +61,9 @@ return function(__lux_import)
   local icon
   local install
   do
-    local __lux_import_1 = __lux_import("lux/mgfx/frame#client")
-    local frameImport = __lux_import_1
-    local __lux_import_2 = __lux_import("lux/mgfx/geometry#client")
-    local geometryImport = __lux_import_2
-    local __lux_import_3 = __lux_import("lux/mgfx/style#client")
-    local styleImport = __lux_import_3
+    local frameImport = __lux_import("lux/mgfx/frame#client")
+    local geometryImport = __lux_import("lux/mgfx/geometry#client")
+    local styleImport = __lux_import("lux/mgfx/style#client")
     frame = frameImport
     geometry = geometryImport
     style = styleImport
@@ -100,41 +97,39 @@ return function(__lux_import)
         return fill
       end
       if typeOf(fill) == "table" then
-        local __lux_tmp_4 = fill.colorA
-        if __lux_tmp_4 == nil then
-          local __lux_tmp_5 = fill.color
-          if __lux_tmp_5 == nil then
-            local __lux_tmp_6 = fallback
-            if __lux_tmp_6 == nil then
-              __lux_tmp_6 = color_white
-            end
-            __lux_tmp_5 = __lux_tmp_6
-          end
-          __lux_tmp_4 = __lux_tmp_5
+        local __lux_tmp_colorA_1 = fill.colorA
+        if __lux_tmp_colorA_1 == nil then
+          __lux_tmp_colorA_1 = fill.color
         end
-        return __lux_tmp_4
+        if __lux_tmp_colorA_1 == nil then
+          __lux_tmp_colorA_1 = fallback
+        end
+        if __lux_tmp_colorA_1 == nil then
+          __lux_tmp_colorA_1 = color_white
+        end
+        return __lux_tmp_colorA_1
       end
-      local __lux_tmp_7 = fallback
-      if __lux_tmp_7 == nil then
-        __lux_tmp_7 = color_white
+      local __lux_tmp_fallback_2 = fallback
+      if __lux_tmp_fallback_2 == nil then
+        __lux_tmp_fallback_2 = color_white
       end
-      return __lux_tmp_7
+      return __lux_tmp_fallback_2
     end
     setColor = function(color)
       local c = style.colorOr(color)
-      local __lux_tmp_8 = c.r
-      if __lux_tmp_8 == nil then
-        __lux_tmp_8 = 255
+      local __lux_tmp_r_3 = c.r
+      if __lux_tmp_r_3 == nil then
+        __lux_tmp_r_3 = 255
       end
-      local __lux_tmp_9 = c.g
-      if __lux_tmp_9 == nil then
-        __lux_tmp_9 = 255
+      local __lux_tmp_g_4 = c.g
+      if __lux_tmp_g_4 == nil then
+        __lux_tmp_g_4 = 255
       end
-      local __lux_tmp_10 = c.b
-      if __lux_tmp_10 == nil then
-        __lux_tmp_10 = 255
+      local __lux_tmp_b_5 = c.b
+      if __lux_tmp_b_5 == nil then
+        __lux_tmp_b_5 = 255
       end
-      return surfaceSetDrawColor(__lux_tmp_8, __lux_tmp_9, __lux_tmp_10, style.alpha(c.a))
+      return surfaceSetDrawColor(__lux_tmp_r_3, __lux_tmp_g_4, __lux_tmp_b_5, style.alpha(c.a))
     end
     strokeRect = function(x, y, w, h, stroke, width)
       local strokeW = mathFloor(style.strokeWidth(width, 1))
@@ -167,33 +162,24 @@ return function(__lux_import)
   end
   do
     roundedBoxEx = function(x, y, w, h, drawStyle)
-      local resolved
-      do
-        local __lux_tmp_11 = drawStyle
-        if __lux_tmp_11 == nil then
-          __lux_tmp_11 = {}
-        end
-        resolved = __lux_tmp_11
+      local resolved = drawStyle
+      if resolved == nil then
+        resolved = {}
       end
       local radius
       do
-        local __lux_tmp_12 = resolved.radius
-        if __lux_tmp_12 == nil then
-          local __lux_tmp_13 = resolved.r
-          if __lux_tmp_13 == nil then
-            __lux_tmp_13 = 0
-          end
-          __lux_tmp_12 = __lux_tmp_13
+        local __lux_tmp_radius_6 = resolved.radius
+        if __lux_tmp_radius_6 == nil then
+          __lux_tmp_radius_6 = resolved.r
         end
-        radius = style.radiusScalar(__lux_tmp_12, w, h)
+        if __lux_tmp_radius_6 == nil then
+          __lux_tmp_radius_6 = 0
+        end
+        radius = style.radiusScalar(__lux_tmp_radius_6, w, h)
       end
-      local fill
-      do
-        local __lux_tmp_14 = resolved.fill
-        if __lux_tmp_14 == nil then
-          __lux_tmp_14 = resolved.color
-        end
-        fill = __lux_tmp_14
+      local fill = resolved.fill
+      if fill == nil then
+        fill = resolved.color
       end
       local stroke = resolved.stroke
       local strokeWidth = resolved.strokeWidth
@@ -212,21 +198,13 @@ return function(__lux_import)
       )
     end
     chamferBoxEx = function(x, y, w, h, drawStyle)
-      local resolved
-      do
-        local __lux_tmp_15 = drawStyle
-        if __lux_tmp_15 == nil then
-          __lux_tmp_15 = {}
-        end
-        resolved = __lux_tmp_15
+      local resolved = drawStyle
+      if resolved == nil then
+        resolved = {}
       end
-      local cuts
-      do
-        local __lux_tmp_16 = resolved.cuts
-        if __lux_tmp_16 == nil then
-          __lux_tmp_16 = 0
-        end
-        cuts = __lux_tmp_16
+      local cuts = resolved.cuts
+      if cuts == nil then
+        cuts = 0
       end
       local tl, tr, br, bl = style.radiusTuple(cuts, w, h)
       local points = {
@@ -251,21 +229,13 @@ return function(__lux_import)
       )
     end
     polyEx = function(points, drawStyle)
-      local resolved
-      do
-        local __lux_tmp_17 = drawStyle
-        if __lux_tmp_17 == nil then
-          __lux_tmp_17 = {}
-        end
-        resolved = __lux_tmp_17
+      local resolved = drawStyle
+      if resolved == nil then
+        resolved = {}
       end
-      local fill
-      do
-        local __lux_tmp_18 = resolved.fill
-        if __lux_tmp_18 == nil then
-          __lux_tmp_18 = resolved.color
-        end
-        fill = __lux_tmp_18
+      local fill = resolved.fill
+      if fill == nil then
+        fill = resolved.color
       end
       if style.fillVisible(fill) then
         setColor(fillColor(fill))
@@ -276,33 +246,28 @@ return function(__lux_import)
       return polyEx(points, { fill = fill, stroke = stroke, strokeWidth = strokeWidth })
     end
     lineEx = function(x1, y1, x2, y2, drawStyle)
-      local resolved
-      do
-        local __lux_tmp_19 = drawStyle
-        if __lux_tmp_19 == nil then
-          __lux_tmp_19 = {}
-        end
-        resolved = __lux_tmp_19
+      local resolved = drawStyle
+      if resolved == nil then
+        resolved = {}
       end
       local width
       do
-        local __lux_tmp_20 = resolved.width
-        if __lux_tmp_20 == nil then
-          __lux_tmp_20 = resolved.strokeWidth
+        local __lux_tmp_width_7 = resolved.width
+        if __lux_tmp_width_7 == nil then
+          __lux_tmp_width_7 = resolved.strokeWidth
         end
-        width = mathMax(1, mathFloor(style.strokeWidth(__lux_tmp_20, 1)))
+        width = mathMax(1, mathFloor(style.strokeWidth(__lux_tmp_width_7, 1)))
       end
       local fill
       do
-        local __lux_tmp_21 = resolved.fill
-        if __lux_tmp_21 == nil then
-          local __lux_tmp_22 = resolved.color
-          if __lux_tmp_22 == nil then
-            __lux_tmp_22 = resolved.stroke
-          end
-          __lux_tmp_21 = __lux_tmp_22
+        local __lux_tmp_fill_8 = resolved.fill
+        if __lux_tmp_fill_8 == nil then
+          __lux_tmp_fill_8 = resolved.color
         end
-        fill = fillColor(__lux_tmp_21)
+        if __lux_tmp_fill_8 == nil then
+          __lux_tmp_fill_8 = resolved.stroke
+        end
+        fill = fillColor(__lux_tmp_fill_8)
       end
       setColor(fill)
       if width <= 1 then
@@ -330,21 +295,17 @@ return function(__lux_import)
       return lineEx(x1, y1, x2, y2, { width = width, fill = fill })
     end
     circleEx = function(cx, cy, radius, drawStyle)
-      local resolved
-      do
-        local __lux_tmp_23 = drawStyle
-        if __lux_tmp_23 == nil then
-          __lux_tmp_23 = {}
-        end
-        resolved = __lux_tmp_23
+      local resolved = drawStyle
+      if resolved == nil then
+        resolved = {}
       end
       local points
       do
-        local __lux_tmp_24 = resolved.segments
-        if __lux_tmp_24 == nil then
-          __lux_tmp_24 = 48
+        local __lux_tmp_segments_9 = resolved.segments
+        if __lux_tmp_segments_9 == nil then
+          __lux_tmp_segments_9 = 48
         end
-        points = circlePoly(cx, cy, radius, __lux_tmp_24)
+        points = circlePoly(cx, cy, radius, __lux_tmp_segments_9)
       end
       return polyEx(points, resolved)
     end
@@ -353,19 +314,19 @@ return function(__lux_import)
     end
     capsuleEx = function(x, y, w, h, drawStyle)
       local radius = mathMin(w, h) * 0.5
-      local __lux_table_25 = {}
-      local __lux_tmp_26 = drawStyle
-      if __lux_tmp_26 == nil then
-        __lux_tmp_26 = {}
+      local __lux_table_10 = {}
+      local __lux_tmp_drawStyle_11 = drawStyle
+      if __lux_tmp_drawStyle_11 == nil then
+        __lux_tmp_drawStyle_11 = {}
       end
-      local __lux_spread_27 = __lux_tmp_26
-      if __lux_spread_27 ~= nil then
-        for __lux_k_28, __lux_v_29 in pairs(__lux_spread_27) do
-          __lux_table_25[__lux_k_28] = __lux_v_29
+      local __lux_spread_12 = __lux_tmp_drawStyle_11
+      if __lux_spread_12 ~= nil then
+        for __lux_k_13, __lux_v_14 in pairs(__lux_spread_12) do
+          __lux_table_10[__lux_k_13] = __lux_v_14
         end
       end
-      __lux_table_25.radius = radius
-      return roundedBoxEx(x, y, w, h, __lux_table_25)
+      __lux_table_10.radius = radius
+      return roundedBoxEx(x, y, w, h, __lux_table_10)
     end
     capsule = function(x, y, w, h, fill, stroke, strokeWidth)
       return capsuleEx(x, y, w, h, { fill = fill, stroke = stroke, strokeWidth = strokeWidth })
@@ -373,44 +334,45 @@ return function(__lux_import)
   end
   do
     progressBarEx = function(x, y, w, h, value, drawStyle)
-      local resolved
-      do
-        local __lux_tmp_30 = drawStyle
-        if __lux_tmp_30 == nil then
-          __lux_tmp_30 = {}
-        end
-        resolved = __lux_tmp_30
+      local resolved = drawStyle
+      if resolved == nil then
+        resolved = {}
       end
       local amount
       do
-        local __lux_tmp_31 = toNumber(value)
-        if __lux_tmp_31 == nil then
-          __lux_tmp_31 = 0
+        local __lux_tmp_value_15 = toNumber(value)
+        if __lux_tmp_value_15 == nil then
+          __lux_tmp_value_15 = 0
         end
-        amount = mathClamp(__lux_tmp_31, 0, 1)
+        amount = mathClamp(__lux_tmp_value_15, 0, 1)
       end
-      local radius
-      do
-        local __lux_tmp_32 = resolved.radius
-        if __lux_tmp_32 == nil then
-          __lux_tmp_32 = h * 0.5
-        end
-        radius = __lux_tmp_32
+      local radius = resolved.radius
+      if radius == nil then
+        radius = h * 0.5
       end
       do
-        local __lux_tmp_33 = resolved.track
-        if __lux_tmp_33 == nil then
-          __lux_tmp_33 = makeColor(0, 0, 0, 120)
+        local __lux_tmp_track_16 = resolved.track
+        if __lux_tmp_track_16 == nil then
+          __lux_tmp_track_16 = makeColor(0, 0, 0, 120)
         end
-        roundedBox(x, y, w, h, radius, __lux_tmp_33, resolved.stroke, resolved.strokeWidth)
+        roundedBox(
+          x,
+          y,
+          w,
+          h,
+          radius,
+          __lux_tmp_track_16,
+          resolved.stroke,
+          resolved.strokeWidth
+        )
       end
       if amount > 0 then
         do
-          local __lux_tmp_34 = resolved.fill
-          if __lux_tmp_34 == nil then
-            __lux_tmp_34 = color_white
+          local __lux_tmp_fill_17 = resolved.fill
+          if __lux_tmp_fill_17 == nil then
+            __lux_tmp_fill_17 = color_white
           end
-          roundedBox(x, y, w * amount, h, radius, __lux_tmp_34)
+          roundedBox(x, y, w * amount, h, radius, __lux_tmp_fill_17)
         end
       end
     end
@@ -431,66 +393,52 @@ return function(__lux_import)
       )
     end
     segmentBarEx = function(x, y, w, h, value, drawStyle)
-      local resolved
-      do
-        local __lux_tmp_35 = drawStyle
-        if __lux_tmp_35 == nil then
-          __lux_tmp_35 = {}
-        end
-        resolved = __lux_tmp_35
+      local resolved = drawStyle
+      if resolved == nil then
+        resolved = {}
       end
       local segments
       do
-        local __lux_tmp_36 = resolved.segments
-        if __lux_tmp_36 == nil then
-          __lux_tmp_36 = 10
+        local __lux_tmp_segments_18 = resolved.segments
+        if __lux_tmp_segments_18 == nil then
+          __lux_tmp_segments_18 = 10
         end
-        segments = mathMax(1, mathFloor(__lux_tmp_36))
+        segments = mathMax(1, mathFloor(__lux_tmp_segments_18))
       end
-      local gap
-      do
-        local __lux_tmp_37 = toNumber(resolved.gap)
-        if __lux_tmp_37 == nil then
-          __lux_tmp_37 = 2
-        end
-        gap = __lux_tmp_37
+      local gap = toNumber(resolved.gap)
+      if gap == nil then
+        gap = 2
       end
       local amount
       do
-        local __lux_tmp_38 = toNumber(value)
-        if __lux_tmp_38 == nil then
-          __lux_tmp_38 = 0
+        local __lux_tmp_value_19 = toNumber(value)
+        if __lux_tmp_value_19 == nil then
+          __lux_tmp_value_19 = 0
         end
-        amount = mathClamp(__lux_tmp_38, 0, 1)
+        amount = mathClamp(__lux_tmp_value_19, 0, 1)
       end
       local segmentW = (w - gap * (segments - 1)) / segments
       for index = 1, segments do
         local sx = x + (index - 1) * (segmentW + gap)
         local filled = index / segments <= amount
         do
-          local __lux_tmp_39 = resolved.radius
-          if __lux_tmp_39 == nil then
-            __lux_tmp_39 = h * 0.5
+          local __lux_tmp_radius_20 = resolved.radius
+          if __lux_tmp_radius_20 == nil then
+            __lux_tmp_radius_20 = h * 0.5
           end
-          local __lux_tmp_40
+          local __lux_tmp_21
           if filled then
-            do
-              local __lux_tmp_41 = resolved.fill
-              if __lux_tmp_41 == nil then
-                __lux_tmp_41 = color_white
-              end
-              __lux_tmp_40 = __lux_tmp_41
+            __lux_tmp_21 = resolved.fill
+            if __lux_tmp_21 == nil then
+              __lux_tmp_21 = color_white
             end
           else
-            do
-              local __lux_tmp_42 = resolved.track
-              if __lux_tmp_42 == nil then
-                __lux_tmp_42 = makeColor(0, 0, 0, 100)
-              end
-              __lux_tmp_40 = __lux_tmp_42
+            __lux_tmp_21 = resolved.track
+            if __lux_tmp_21 == nil then
+              __lux_tmp_21 = makeColor(0, 0, 0, 100)
             end
           end
-          roundedBox(sx, y, segmentW, h, __lux_tmp_39, __lux_tmp_40)
+          roundedBox(sx, y, segmentW, h, __lux_tmp_radius_20, __lux_tmp_21)
         end
       end
     end
@@ -498,29 +446,25 @@ return function(__lux_import)
       return segmentBarEx(x, y, w, h, value, { segments = segments, fill = fill, track = track })
     end
     ringEx = function(cx, cy, radius, width, drawStyle)
-      local resolved
-      do
-        local __lux_tmp_43 = drawStyle
-        if __lux_tmp_43 == nil then
-          __lux_tmp_43 = {}
-        end
-        resolved = __lux_tmp_43
+      local resolved = drawStyle
+      if resolved == nil then
+        resolved = {}
       end
       local segments
       do
-        local __lux_tmp_44 = resolved.segments
-        if __lux_tmp_44 == nil then
-          __lux_tmp_44 = 96
+        local __lux_tmp_segments_22 = resolved.segments
+        if __lux_tmp_segments_22 == nil then
+          __lux_tmp_segments_22 = 96
         end
-        segments = mathFloor(__lux_tmp_44)
+        segments = mathFloor(__lux_tmp_segments_22)
       end
       local fill
       do
-        local __lux_tmp_45 = resolved.fill
-        if __lux_tmp_45 == nil then
-          __lux_tmp_45 = resolved.color
+        local __lux_tmp_fill_23 = resolved.fill
+        if __lux_tmp_fill_23 == nil then
+          __lux_tmp_fill_23 = resolved.color
         end
-        fill = fillColor(__lux_tmp_45)
+        fill = fillColor(__lux_tmp_fill_23)
       end
       for index = 1, segments do
         local a1 = (index - 1) / segments * mathPi * 2
@@ -538,45 +482,41 @@ return function(__lux_import)
       return ringEx(cx, cy, radius, width, { fill = fill })
     end
     arcEx = function(cx, cy, radius, width, startDeg, endDeg, drawStyle)
-      local resolved
-      do
-        local __lux_tmp_46 = drawStyle
-        if __lux_tmp_46 == nil then
-          __lux_tmp_46 = {}
-        end
-        resolved = __lux_tmp_46
+      local resolved = drawStyle
+      if resolved == nil then
+        resolved = {}
       end
       local segments
       do
-        local __lux_tmp_47 = resolved.segments
-        if __lux_tmp_47 == nil then
-          __lux_tmp_47 = 64
+        local __lux_tmp_segments_24 = resolved.segments
+        if __lux_tmp_segments_24 == nil then
+          __lux_tmp_segments_24 = 64
         end
-        segments = mathMax(1, mathFloor(__lux_tmp_47))
+        segments = mathMax(1, mathFloor(__lux_tmp_segments_24))
       end
       local startRad
       do
-        local __lux_tmp_48 = startDeg
-        if __lux_tmp_48 == nil then
-          __lux_tmp_48 = 0
+        local __lux_tmp_startDeg_25 = startDeg
+        if __lux_tmp_startDeg_25 == nil then
+          __lux_tmp_startDeg_25 = 0
         end
-        startRad = mathRad(__lux_tmp_48)
+        startRad = mathRad(__lux_tmp_startDeg_25)
       end
       local endRad
       do
-        local __lux_tmp_49 = endDeg
-        if __lux_tmp_49 == nil then
-          __lux_tmp_49 = 360
+        local __lux_tmp_endDeg_26 = endDeg
+        if __lux_tmp_endDeg_26 == nil then
+          __lux_tmp_endDeg_26 = 360
         end
-        endRad = mathRad(__lux_tmp_49)
+        endRad = mathRad(__lux_tmp_endDeg_26)
       end
       local fill
       do
-        local __lux_tmp_50 = resolved.fill
-        if __lux_tmp_50 == nil then
-          __lux_tmp_50 = resolved.color
+        local __lux_tmp_fill_27 = resolved.fill
+        if __lux_tmp_fill_27 == nil then
+          __lux_tmp_fill_27 = resolved.color
         end
-        fill = fillColor(__lux_tmp_50)
+        fill = fillColor(__lux_tmp_fill_27)
       end
       for index = 1, segments do
         local t1 = (index - 1) / segments
@@ -596,37 +536,33 @@ return function(__lux_import)
       return arcEx(cx, cy, radius, width, startDeg, endDeg, { fill = fill })
     end
     sectorEx = function(cx, cy, innerRadius, outerRadius, startDeg, endDeg, drawStyle)
-      local resolved
-      do
-        local __lux_tmp_51 = drawStyle
-        if __lux_tmp_51 == nil then
-          __lux_tmp_51 = {}
-        end
-        resolved = __lux_tmp_51
+      local resolved = drawStyle
+      if resolved == nil then
+        resolved = {}
       end
       local segments
       do
-        local __lux_tmp_52 = resolved.segments
-        if __lux_tmp_52 == nil then
-          __lux_tmp_52 = 64
+        local __lux_tmp_segments_28 = resolved.segments
+        if __lux_tmp_segments_28 == nil then
+          __lux_tmp_segments_28 = 64
         end
-        segments = mathMax(3, mathFloor(__lux_tmp_52))
+        segments = mathMax(3, mathFloor(__lux_tmp_segments_28))
       end
       local startRad
       do
-        local __lux_tmp_53 = startDeg
-        if __lux_tmp_53 == nil then
-          __lux_tmp_53 = 0
+        local __lux_tmp_startDeg_29 = startDeg
+        if __lux_tmp_startDeg_29 == nil then
+          __lux_tmp_startDeg_29 = 0
         end
-        startRad = mathRad(__lux_tmp_53)
+        startRad = mathRad(__lux_tmp_startDeg_29)
       end
       local endRad
       do
-        local __lux_tmp_54 = endDeg
-        if __lux_tmp_54 == nil then
-          __lux_tmp_54 = 360
+        local __lux_tmp_endDeg_30 = endDeg
+        if __lux_tmp_endDeg_30 == nil then
+          __lux_tmp_endDeg_30 = 360
         end
-        endRad = mathRad(__lux_tmp_54)
+        endRad = mathRad(__lux_tmp_endDeg_30)
       end
       local points = {}
       for index = 1, segments + 1 do
@@ -651,20 +587,20 @@ return function(__lux_import)
       local material = source
       if typeOf(source) == "string" then
         do
-          local __lux_tmp_55 = resolved.materialFlags
-          if __lux_tmp_55 == nil then
-            __lux_tmp_55 = "smooth"
+          local __lux_tmp_materialFlags_31 = resolved.materialFlags
+          if __lux_tmp_materialFlags_31 == nil then
+            __lux_tmp_materialFlags_31 = "smooth"
           end
-          material = makeMaterial(source, __lux_tmp_55)
+          material = makeMaterial(source, __lux_tmp_materialFlags_31)
         end
       end
       if material == nil then
         do
-          local __lux_tmp_56 = resolved.fill
-          if __lux_tmp_56 == nil then
-            __lux_tmp_56 = makeColor(255, 255, 255, 32)
+          local __lux_tmp_fill_32 = resolved.fill
+          if __lux_tmp_fill_32 == nil then
+            __lux_tmp_fill_32 = makeColor(255, 255, 255, 32)
           end
-          rectFill(x, y, w, h, __lux_tmp_56)
+          rectFill(x, y, w, h, __lux_tmp_fill_32)
         end
         return
       end

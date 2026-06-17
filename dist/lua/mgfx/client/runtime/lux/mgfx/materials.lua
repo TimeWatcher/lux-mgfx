@@ -31,64 +31,63 @@ return function(__lux_import)
   local textureFallbackMaterial
   local install
   do
-    local __lux_import_1 = __lux_import("lux/mgfx/shaderpack#client")
-    local shaderpackImport = __lux_import_1
+    local shaderpackImport = __lux_import("lux/mgfx/shaderpack#client")
     shaderpack = shaderpackImport
     do
-      local __lux_obj_2 = bit
-      local __lux_val_3 = nil
-      if __lux_obj_2 ~= nil then
-        __lux_val_3 = __lux_obj_2.bor
+      local __lux_obj_bit_1 = bit
+      local __lux_val_bor_2 = nil
+      if __lux_obj_bit_1 ~= nil then
+        __lux_val_bor_2 = __lux_obj_bit_1.bor
       end
-      bitBor = __lux_val_3
+      bitBor = __lux_val_bor_2
     end
     createMaterial = CreateMaterial
     do
-      local __lux_obj_4 = file
-      local __lux_val_5 = nil
-      if __lux_obj_4 ~= nil then
-        __lux_val_5 = __lux_obj_4.Write
+      local __lux_obj_file_3 = file
+      local __lux_val_Write_4 = nil
+      if __lux_obj_file_3 ~= nil then
+        __lux_val_Write_4 = __lux_obj_file_3.Write
       end
-      fileWrite = __lux_val_5
+      fileWrite = __lux_val_Write_4
     end
     do
-      local __lux_obj_6 = game
-      local __lux_val_7 = nil
-      if __lux_obj_6 ~= nil then
-        __lux_val_7 = __lux_obj_6.MountGMA
+      local __lux_obj_game_5 = game
+      local __lux_val_MountGMA_6 = nil
+      if __lux_obj_game_5 ~= nil then
+        __lux_val_MountGMA_6 = __lux_obj_game_5.MountGMA
       end
-      gameMountGMA = __lux_val_7
+      gameMountGMA = __lux_val_MountGMA_6
     end
     getRenderTargetEx = GetRenderTargetEx
     makeMaterial = Material
     printFn = print
     do
-      local __lux_obj_8 = render
-      local __lux_val_9 = nil
-      if __lux_obj_8 ~= nil then
-        __lux_val_9 = __lux_obj_8.GetDXLevel
+      local __lux_obj_render_7 = render
+      local __lux_val_GetDXLevel_8 = nil
+      if __lux_obj_render_7 ~= nil then
+        __lux_val_GetDXLevel_8 = __lux_obj_render_7.GetDXLevel
       end
-      renderGetDXLevel = __lux_val_9
+      renderGetDXLevel = __lux_val_GetDXLevel_8
     end
     sysTime = SysTime
     tableCopy = table.Copy
     toString = tostring
     typeOf = type
     do
-      local __lux_obj_10 = util
-      local __lux_val_11 = nil
-      if __lux_obj_10 ~= nil then
-        __lux_val_11 = __lux_obj_10.Base64Decode
+      local __lux_obj_util_9 = util
+      local __lux_val_Base64Decode_10 = nil
+      if __lux_obj_util_9 ~= nil then
+        __lux_val_Base64Decode_10 = __lux_obj_util_9.Base64Decode
       end
-      utilBase64Decode = __lux_val_11
+      utilBase64Decode = __lux_val_Base64Decode_10
     end
     do
-      local __lux_obj_12 = util
-      local __lux_val_13 = nil
-      if __lux_obj_12 ~= nil then
-        __lux_val_13 = __lux_obj_12.KeyValuesToTable
+      local __lux_obj_util_11 = util
+      local __lux_val_KeyValuesToTable_12 = nil
+      if __lux_obj_util_11 ~= nil then
+        __lux_val_KeyValuesToTable_12 = __lux_obj_util_11.KeyValuesToTable
       end
-      utilKeyValuesToTable = __lux_val_13
+      utilKeyValuesToTable = __lux_val_KeyValuesToTable_12
     end
     shaderKV = "screenspace_general\n" ..
       "{\n" ..
@@ -222,15 +221,7 @@ return function(__lux_import)
       return shaderpack.current()
     end
     matOK = function(material)
-      local __lux_tmp_14 = material ~= nil
-      if __lux_tmp_14 then
-        __lux_tmp_14 = material.IsError ~= nil
-      end
-      local __lux_tmp_15 = __lux_tmp_14
-      if __lux_tmp_15 then
-        __lux_tmp_15 = not material:IsError()
-      end
-      return __lux_tmp_15
+      return material ~= nil and material.IsError ~= nil and not material:IsError()
     end
     shaderName = function(version, name)
       if version ~= "" then
@@ -241,36 +232,12 @@ return function(__lux_import)
     end
     mountShaderPack = function(version)
       local pack = shaderPack()
-      local __lux_tmp_16 = version == ""
-      if not __lux_tmp_16 then
-        __lux_tmp_16 = pack.GMA == nil
-      end
-      local __lux_tmp_17 = __lux_tmp_16
-      if not __lux_tmp_17 then
-        __lux_tmp_17 = pack.GMA == ""
-      end
-      local __lux_tmp_18 = __lux_tmp_17
-      if not __lux_tmp_18 then
-        __lux_tmp_18 = utilBase64Decode == nil
-      end
-      local __lux_tmp_19 = __lux_tmp_18
-      if not __lux_tmp_19 then
-        __lux_tmp_19 = fileWrite == nil
-      end
-      local __lux_tmp_20 = __lux_tmp_19
-      if not __lux_tmp_20 then
-        __lux_tmp_20 = gameMountGMA == nil
-      end
-      if __lux_tmp_20 then
+      if version == "" or pack.GMA == nil or pack.GMA == "" or utilBase64Decode == nil or fileWrite == nil or gameMountGMA == nil then
         return nil
       end
       local mountName = "mgfx_shaders_" .. version .. ".gma"
       local decoded = utilBase64Decode(pack.GMA)
-      local __lux_tmp_21 = decoded ~= nil
-      if __lux_tmp_21 then
-        __lux_tmp_21 = decoded ~= ""
-      end
-      if __lux_tmp_21 then
+      if decoded ~= nil and decoded ~= "" then
         fileWrite(mountName, decoded)
         printFn("Mounting MGFX GMA: " .. toString(gameMountGMA("data/" .. mountName)))
         printFn("GMA Version: " .. version)
@@ -279,21 +246,17 @@ return function(__lux_import)
       return nil
     end
     blurTarget = function(version)
-      local __lux_tmp_22 = getRenderTargetEx == nil
-      if not __lux_tmp_22 then
-        __lux_tmp_22 = bitBor == nil
-      end
-      if __lux_tmp_22 then
+      if getRenderTargetEx == nil or bitBor == nil then
         return nil
       end
-      local __lux_tmp_23
+      local __lux_tmp_13
       if version ~= "" then
-        __lux_tmp_23 = version
+        __lux_tmp_13 = version
       else
-        __lux_tmp_23 = "dev"
+        __lux_tmp_13 = "dev"
       end
       return getRenderTargetEx(
-        "MGFXBlur" .. __lux_tmp_23 .. sysTime(),
+        "MGFXBlur" .. __lux_tmp_13 .. sysTime(),
         1024,
         1024,
         RT_SIZE_LITERAL,
@@ -325,58 +288,16 @@ return function(__lux_import)
       end
     end
     materialValues = function(key, blurRT)
-      local __lux_tmp_24 = key == "roundrect_blur"
-      if not __lux_tmp_24 then
-        __lux_tmp_24 = key == "image_mask_backdrop"
-      end
-      local __lux_tmp_25 = __lux_tmp_24
-      if not __lux_tmp_25 then
-        __lux_tmp_25 = key == "ring_backdrop"
-      end
-      local __lux_tmp_26 = __lux_tmp_25
-      if not __lux_tmp_26 then
-        __lux_tmp_26 = key == "poly3_blur"
-      end
-      local __lux_tmp_27 = __lux_tmp_26
-      if not __lux_tmp_27 then
-        __lux_tmp_27 = key == "poly4_blur"
-      end
-      local __lux_tmp_28 = __lux_tmp_27
-      if not __lux_tmp_28 then
-        __lux_tmp_28 = key == "poly5_blur"
-      end
-      local __lux_tmp_29 = __lux_tmp_28
-      if not __lux_tmp_29 then
-        __lux_tmp_29 = key == "poly6_blur"
-      end
-      local __lux_tmp_30 = __lux_tmp_29
-      if not __lux_tmp_30 then
-        __lux_tmp_30 = key == "poly7_blur"
-      end
-      local __lux_tmp_31 = __lux_tmp_30
-      if not __lux_tmp_31 then
-        __lux_tmp_31 = key == "poly8_blur"
-      end
-      if __lux_tmp_31 then
+      if key == "roundrect_blur" or key == "image_mask_backdrop" or key == "ring_backdrop" or key == "poly3_blur" or key == "poly4_blur" or key == "poly5_blur" or key == "poly6_blur" or key == "poly7_blur" or key == "poly8_blur" then
         local textureName
-        do
-          local __lux_tmp_32 = blurRT ~= nil
-          if __lux_tmp_32 then
-            __lux_tmp_32 = blurRT.GetName ~= nil
-          end
-          if __lux_tmp_32 then
-            textureName = blurRT:GetName()
-          else
-            textureName = ""
-          end
+        if blurRT ~= nil and blurRT.GetName ~= nil then
+          textureName = blurRT:GetName()
+        else
+          textureName = ""
         end
         return { ["$basetexture"] = textureName, ["$texture1"] = "_rt_FullFrameFB" }
       end
-      local __lux_tmp_33 = key == "text_face"
-      if not __lux_tmp_33 then
-        __lux_tmp_33 = key == "text_compose"
-      end
-      if __lux_tmp_33 then
+      if key == "text_face" or key == "text_compose" then
         return { ["$linearread_basetexture"] = 0 }
       end
       return nil
@@ -385,13 +306,9 @@ return function(__lux_import)
   do
     create = function(owner)
       local pack = shaderPack()
-      local version
-      do
-        local __lux_tmp_34 = pack.Version
-        if __lux_tmp_34 == nil then
-          __lux_tmp_34 = ""
-        end
-        version = __lux_tmp_34
+      local version = pack.Version
+      if version == nil then
+        version = ""
       end
       local mountName = mountShaderPack(version)
       local blurRT = blurTarget(version)
@@ -415,16 +332,10 @@ return function(__lux_import)
       }
       state.CreatePageTextMaterials = function(rt)
         local key
-        do
-          local __lux_tmp_35 = rt ~= nil
-          if __lux_tmp_35 then
-            __lux_tmp_35 = rt.GetName ~= nil
-          end
-          if __lux_tmp_35 then
-            key = rt:GetName()
-          else
-            key = toString(rt)
-          end
+        if rt ~= nil and rt.GetName ~= nil then
+          key = rt:GetName()
+        else
+          key = toString(rt)
         end
         return {
           compose = createScreenMaterial(
@@ -446,60 +357,45 @@ return function(__lux_import)
     hasShaders = function(state)
       if renderGetDXLevel ~= nil then
         local dxLevel = renderGetDXLevel()
-        local __lux_tmp_36 = dxLevel ~= nil
-        if __lux_tmp_36 then
-          __lux_tmp_36 = dxLevel < 90
-        end
-        if __lux_tmp_36 then
+        if dxLevel ~= nil and dxLevel < 90 then
           return false
         end
       end
-      local __lux_tmp_37 = state ~= nil
-      if __lux_tmp_37 then
-        __lux_tmp_37 = state.shaderVersion ~= ""
-      end
-      local __lux_tmp_38 = __lux_tmp_37
-      if __lux_tmp_38 then
-        __lux_tmp_38 = matOK(state.materials.roundrect)
-      end
-      return __lux_tmp_38
+      return state ~= nil and state.shaderVersion ~= "" and matOK(state.materials.roundrect)
     end
     shaderStatus = function(state)
       local materials
       do
-        local __lux_obj_39 = state
-        local __lux_val_40 = nil
-        if __lux_obj_39 ~= nil then
-          __lux_val_40 = __lux_obj_39.materials
+        local __lux_obj_state_14 = state
+        local __lux_val_materials_15 = nil
+        if __lux_obj_state_14 ~= nil then
+          __lux_val_materials_15 = __lux_obj_state_14.materials
         end
-        local __lux_tmp_41 = __lux_val_40
-        if __lux_tmp_41 == nil then
-          __lux_tmp_41 = {}
+        materials = __lux_val_materials_15
+        if materials == nil then
+          materials = {}
         end
-        materials = __lux_tmp_41
       end
-      local __lux_obj_42 = state
-      local __lux_val_43 = nil
-      if __lux_obj_42 ~= nil then
-        __lux_val_43 = __lux_obj_42.shaderVersion
+      local __lux_obj_state_16 = state
+      local __lux_tmp_shaderVersion_17 = nil
+      if __lux_obj_state_16 ~= nil then
+        __lux_tmp_shaderVersion_17 = __lux_obj_state_16.shaderVersion
       end
-      local __lux_tmp_44 = __lux_val_43
-      if __lux_tmp_44 == nil then
-        __lux_tmp_44 = ""
+      if __lux_tmp_shaderVersion_17 == nil then
+        __lux_tmp_shaderVersion_17 = ""
       end
-      local __lux_obj_45 = state
-      local __lux_val_46 = nil
-      if __lux_obj_45 ~= nil then
-        __lux_val_46 = __lux_obj_45.shaderMountName
+      local __lux_obj_state_18 = state
+      local __lux_tmp_shaderMountName_19 = nil
+      if __lux_obj_state_18 ~= nil then
+        __lux_tmp_shaderMountName_19 = __lux_obj_state_18.shaderMountName
       end
-      local __lux_tmp_47 = __lux_val_46
-      if __lux_tmp_47 == nil then
-        __lux_tmp_47 = "external/custom"
+      if __lux_tmp_shaderMountName_19 == nil then
+        __lux_tmp_shaderMountName_19 = "external/custom"
       end
       return {
         loaded = hasShaders(state),
-        version = __lux_tmp_44,
-        mount = __lux_tmp_47,
+        version = __lux_tmp_shaderVersion_17,
+        mount = __lux_tmp_shaderMountName_19,
         roundrect = materials.roundrect,
         roundrectFx = materials.roundrect_fx,
         roundrectSolid = materials.roundrect_solid,
@@ -553,11 +449,7 @@ return function(__lux_import)
       if texture == nil then
         return nil
       end
-      local __lux_tmp_48 = makeMaterial ~= nil
-      if __lux_tmp_48 then
-        __lux_tmp_48 = typeOf(texture) == "string"
-      end
-      if __lux_tmp_48 then
+      if makeMaterial ~= nil and typeOf(texture) == "string" then
         return makeMaterial(texture, "smooth")
       end
       return texture
