@@ -71,6 +71,104 @@ fn drawPolyBackdrop(poly, backdrop) {
   spec
 }
 
+fn polyShadowBounds(poly, shadow) {
+  stopif shadow == nil or shadow.color == nil or (shadow.color.a ?? 255) <= 0, nil
+
+  local width = mathMax(0.001, toNumber(shadow.width) ?? 12)
+  local grow = mathMax(0, toNumber(shadow.grow) ?? 0)
+  local spread = mathMax(1, toNumber(shadow.spread) ?? width)
+  local padding = grow + mathMax(spread, width)
+  local ox = toNumber(shadow.x) ?? 0
+  local oy = toNumber(shadow.y) ?? 0
+
+  return {
+    x = poly.x + ox - padding,
+      y = poly.y + oy - padding,
+      w = poly.w + padding * 2,
+      h = poly.h + padding * 2,
+      ox = ox,
+      oy = oy,
+      width = width,
+      grow = grow,
+      falloff = mathMax(0.001, toNumber(shadow.falloff) ?? 1.7),
+      strength = mathMax(0, toNumber(shadow.strength) ?? 1)
+  }
+}
+
+fn shadowVertex(poly, point, bounds) {
+  if point == nil {
+    return 0, 0
+  }
+
+  return poly.x + point.x + bounds.ox - bounds.x,
+    poly.y + point.y + bounds.oy - bounds.y
+}
+
+fn setupPolyShadowAuxConstants(material,
+  a0, a1, a2, a3,
+  b0, b1, b2, b3,
+  c0, c1, c2, c3,
+  d0, d1, d2, d3) {
+    stopif material == nil, false
+
+    material:SetFloat("$c0_x", a0 ?? 0)
+    material:SetFloat("$c0_y", a1 ?? 0)
+    material:SetFloat("$c0_z", a2 ?? 0)
+    material:SetFloat("$c0_w", a3 ?? 0)
+    material:SetFloat("$c1_x", b0 ?? 0)
+    material:SetFloat("$c1_y", b1 ?? 0)
+    material:SetFloat("$c1_z", b2 ?? 0)
+    material:SetFloat("$c1_w", b3 ?? 0)
+    material:SetFloat("$c2_x", c0 ?? 0)
+    material:SetFloat("$c2_y", c1 ?? 0)
+    material:SetFloat("$c2_z", c2 ?? 0)
+    material:SetFloat("$c2_w", c3 ?? 0)
+    material:SetFloat("$c3_x", d0 ?? 0)
+    material:SetFloat("$c3_y", d1 ?? 0)
+    material:SetFloat("$c3_z", d2 ?? 0)
+    material:SetFloat("$c3_w", d3 ?? 0)
+    true
+  }
+
+fn setupPolyShadowConstants(material, poly, shadow, bounds) {
+  local points = poly.points
+  local x1, y1 = shadowVertex(poly, points[1], bounds)
+  local x2, y2 = shadowVertex(poly, points[2], bounds)
+  local x3, y3 = shadowVertex(poly, points[3], bounds)
+  local x4, y4 = shadowVertex(poly, points[4], bounds)
+  local x5, y5 = shadowVertex(poly, points[5], bounds)
+  local x6, y6 = shadowVertex(poly, points[6], bounds)
+  local x7, y7 = shadowVertex(poly, points[7], bounds)
+  local x8, y8 = shadowVertex(poly, points[8], bounds)
+  local r, g, b, a = style.color01(shadow.color)
+
+  setupParamMatrix(material,
+    x1, y1, x2, y2,
+    x3, y3, x4, y4,
+    x5, y5, x6, y6,
+    x7, y7, x8, y8
+  )
+  setupPolyShadowAuxConstants(material,
+    r, g, b, a,
+    bounds.w, bounds.h, bounds.width, bounds.falloff,
+    bounds.strength, bounds.grow, 0, 0,
+    0, 0, 0, 0
+  )
+}
+
+fn drawPolyShadow(poly, shadow, bounds) {
+  stopif bounds == nil, false
+
+  local material = primitiveMaterials[polyMaterialKey(poly, "_shadow")]
+  stopif not materialOK(material), false
+
+  setupPolyShadowConstants(material, poly, shadow, bounds)
+  surfaceSetMaterial(material)
+  surfaceSetDrawColor(255, 255, 255, 255)
+  drawTexturedQuad(bounds.x, bounds.y, bounds.w, bounds.h)
+  true
+}
+
 fn drawPolyPattern(poly, pattern) {
   local spec = roundrect.patternStyle(pattern)
   stopif spec == nil or not shadersActive() or not materialOK(primitiveMaterials.poly_pattern), false
@@ -182,34 +280,6 @@ fn drawPolyFallback(points, drawStyle) {
   }
 }
 
-fn drawPolyShadow(poly, points, shadow) {
-  stopif shadow == nil or shadow.color == nil or (shadow.color.a ?? 255) <= 0, false
-
-  local shifted = {}
-  local spread = mathMax(1, (toNumber(shadow.width) ?? 12) + (toNumber(shadow.grow) ?? 0))
-  local cx = poly.x + poly.w * 0.5
-  local cy = poly.y + poly.h * 0.5
-  for index, point in ipairs(points) {
-    local px, py = pointXY(point)
-    local dx = px - cx
-    local dy = py - cy
-    local len = mathMax(1, mathSqrt(dx * dx + dy * dy))
-    shifted[index] = {
-      x = px + (toNumber(shadow.x) ?? 0) + dx / len * spread,
-      y = py + (toNumber(shadow.y) ?? 0) + dy / len * spread
-    }
-  }
-
-  local shadowPoly = normalizePoly(shifted)
-  stopif shadowPoly == nil, false
-
-  local material = primitiveMaterials[polyMaterialKey(shadowPoly)]
-  stopif not materialOK(material), false
-
-  setupPrimitiveFillConstants(material, shadowPoly.w, shadowPoly.h, style.solid(shadow.color), nil, 0, 0)
-  drawMaterialPoly(shadowPoly, material)
-}
-
 fn drawPolyImmediate(points, drawStyle = nil) {
   local resolved = drawStyle ?? {}
   local poly = normalizePoly(points)
@@ -217,11 +287,14 @@ fn drawPolyImmediate(points, drawStyle = nil) {
     return
   }
 
+  local shadow = roundrect.shadowStyle(resolved.shadow)
+  local shadowBounds = polyShadowBounds(poly, shadow)
+
   if not shadersActive() {
     return drawPolyFallback(points, resolved)
   }
 
-  drawPolyShadow(poly, points, roundrect.shadowStyle(resolved.shadow))
+  drawPolyShadow(poly, shadow, shadowBounds)
   drawPolyBackdrop(poly, resolved.backdrop)
 
   local material = primitiveMaterials[polyMaterialKey(poly)]

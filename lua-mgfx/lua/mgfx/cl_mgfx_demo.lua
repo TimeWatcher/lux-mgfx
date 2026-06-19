@@ -610,12 +610,13 @@ function PANEL:Paint(w, h)
 			fill = Color(68, 232, 146, 218),
 			stroke = Color(255, 255, 255, 44),
 			strokeWidth = 1,
-			shadow = {x = 0, y = 3, blur = 8, color = Color(0, 0, 0, 116), softness = 0.68},
+			shadow = {x = 0, y = 4, blur = 10, spread = 1, color = Color(0, 0, 0, 148), softness = 0.7},
 		})
 		MGFX.DiamondEx(x + cw - 42, y + 97, 18, 18, {
 			fill = MGFX.LinearGradient(0, 0, 1, 1, Color(80, 220, 255, 224), Color(255, 190, 66, 208)),
 			stroke = Color(255, 255, 255, 48),
 			strokeWidth = 1,
+			shadow = {x = 0, y = 4, blur = 9, spread = 1, color = Color(0, 0, 0, 122), softness = 0.72},
 			outerGlow = showOuterGlow and {color = Color(80, 220, 255, 58), size = 8, opacity = 0.72, softness = 0.64} or nil,
 		})
 		MGFX.CaretEx(x + cw - 17, y + 98, 17, 17, {
@@ -623,6 +624,7 @@ function PANEL:Paint(w, h)
 			fill = Color(255, 112, 92, 220),
 			stroke = Color(255, 255, 255, 42),
 			strokeWidth = 1,
+			shadow = {x = 0, y = 4, blur = 8, color = Color(0, 0, 0, 116), softness = 0.7},
 		})
 
 		x, y, cw, ch = card(2, "Multi-stop Gradient", "LinearGradientStops + LineEx", COLORS.cyan)

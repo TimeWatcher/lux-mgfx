@@ -87,6 +87,12 @@ do
   end
 end
 do
+  if __lux_registry["lux/mgfx/api#client"] == nil then
+    local __lux_factory = include("mgfx/client/runtime/lux/mgfx/api.lua")
+    __lux_registry["lux/mgfx/api#client"] = __lux_factory(__lux_import) or {}
+  end
+end
+do
   if __lux_registry["lux/mgfx#client"] == nil then
     local __lux_factory = include("mgfx/client/runtime/lux/mgfx.lua")
     __lux_registry["lux/mgfx#client"] = __lux_factory(__lux_import) or {}

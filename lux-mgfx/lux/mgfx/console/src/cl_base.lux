@@ -81,16 +81,22 @@ local requiredMaterialKeys = {
     "ring_pattern",
     "poly_stroke",
     "poly3",
+    "poly3_shadow",
     "poly3_blur",
     "poly4",
+    "poly4_shadow",
     "poly4_blur",
     "poly5",
+    "poly5_shadow",
     "poly5_blur",
     "poly6",
+    "poly6_shadow",
     "poly6_blur",
     "poly7",
+    "poly7_shadow",
     "poly7_blur",
     "poly8",
+    "poly8_shadow",
     "poly8_blur"
 }
 

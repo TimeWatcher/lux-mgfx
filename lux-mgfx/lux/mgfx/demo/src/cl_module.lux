@@ -670,12 +670,13 @@ fn PANEL:Paint(w, h) {
           fill = makeColor(68, 232, 146, 218),
           stroke = makeColor(255, 255, 255, 44),
           strokeWidth = 1,
-          shadow = {x = 0, y = 3, blur = 8, color = makeColor(0, 0, 0, 116), softness = 0.68},
+          shadow = {x = 0, y = 4, blur = 10, spread = 1, color = makeColor(0, 0, 0, 148), softness = 0.7},
         })
         api.DiamondEx(x + cw - 42, y + 97, 18, 18, {
           fill = api.LinearGradient(0, 0, 1, 1, makeColor(80, 220, 255, 224), makeColor(255, 190, 66, 208)),
           stroke = makeColor(255, 255, 255, 48),
           strokeWidth = 1,
+          shadow = {x = 0, y = 4, blur = 9, spread = 1, color = makeColor(0, 0, 0, 122), softness = 0.72},
           outerGlow = showOuterGlow and {color = makeColor(80, 220, 255, 58), size = 8, opacity = 0.72, softness = 0.64} or nil,
         })
         api.CaretEx(x + cw - 17, y + 98, 17, 17, {
@@ -683,6 +684,7 @@ fn PANEL:Paint(w, h) {
           fill = makeColor(255, 112, 92, 220),
           stroke = makeColor(255, 255, 255, 42),
           strokeWidth = 1,
+          shadow = {x = 0, y = 4, blur = 8, color = makeColor(0, 0, 0, 116), softness = 0.7},
         })
 
         x, y, cw, ch = card(2, "Multi-stop Gradient", "LinearGradientStops + LineEx", COLORS.cyan)

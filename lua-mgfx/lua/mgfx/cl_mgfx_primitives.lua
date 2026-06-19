@@ -751,6 +751,83 @@ local function drawPolyBackdrop(poly, backdrop)
 	return spec
 end
 
+local function polyShadowBounds(poly, shadow)
+	if not shadow or not shadow.color or (shadow.color.a or 255) <= 0 then return nil end
+
+	local width = math_max(0.001, tonumber(shadow.width) or 12)
+	local grow = math_max(0, tonumber(shadow.grow) or 0)
+	local spread = math_max(1, tonumber(shadow.spread) or width)
+	local padding = grow + math_max(spread, width)
+	local ox = tonumber(shadow.x) or 0
+	local oy = tonumber(shadow.y) or 0
+
+	return {
+		x = poly.x + ox - padding,
+		y = poly.y + oy - padding,
+		w = poly.w + padding * 2,
+		h = poly.h + padding * 2,
+		ox = ox,
+		oy = oy,
+		width = width,
+		grow = grow,
+		falloff = math_max(0.001, tonumber(shadow.falloff) or 1.7),
+		strength = math_max(0, tonumber(shadow.strength) or 1),
+	}
+end
+
+local function includeBounds(x, y, w, h, bounds)
+	if not bounds then return x, y, w, h end
+	local minX = math_min(x, bounds.x)
+	local minY = math_min(y, bounds.y)
+	local maxX = math_max(x + w, bounds.x + bounds.w)
+	local maxY = math_max(y + h, bounds.y + bounds.h)
+	return minX, minY, maxX - minX, maxY - minY
+end
+
+local function shadowVertex(poly, point, bounds)
+	if not point then return 0, 0 end
+	return poly.x + point.x + bounds.ox - bounds.x, poly.y + point.y + bounds.oy - bounds.y
+end
+
+local function setupPolyShadowConstants(mat, poly, shadow, bounds)
+	local p = poly.points
+	local x1, y1 = shadowVertex(poly, p[1], bounds)
+	local x2, y2 = shadowVertex(poly, p[2], bounds)
+	local x3, y3 = shadowVertex(poly, p[3], bounds)
+	local x4, y4 = shadowVertex(poly, p[4], bounds)
+	local x5, y5 = shadowVertex(poly, p[5], bounds)
+	local x6, y6 = shadowVertex(poly, p[6], bounds)
+	local x7, y7 = shadowVertex(poly, p[7], bounds)
+	local x8, y8 = shadowVertex(poly, p[8], bounds)
+	local r, g, b, a = color01(shadow.color)
+
+	setupParamMatrix(mat,
+		x1, y1, x2, y2,
+		x3, y3, x4, y4,
+		x5, y5, x6, y6,
+		x7, y7, x8, y8
+	)
+	setupExtraParams(mat,
+		r, g, b, a,
+		bounds.w, bounds.h, bounds.width, bounds.falloff,
+		bounds.strength, bounds.grow, 0, 0,
+		0, 0, 0, 0
+	)
+end
+
+local function drawPolyShadow(poly, shadow, bounds)
+	if not bounds or not setupExtraParams then return false end
+
+	local mat = materials["poly" .. poly.count .. "_shadow"]
+	if not matOK(mat) then return false end
+
+	setupPolyShadowConstants(mat, poly, shadow, bounds)
+	surface_SetMaterial(mat)
+	surface_SetDrawColor(255, 255, 255, 255)
+	drawTexturedQuad(bounds.x, bounds.y, bounds.w, bounds.h)
+	return true
+end
+
 local function drawPolyPattern(poly, pattern)
 	local spec = patternStyle(pattern)
 	if not spec then return end
@@ -830,34 +907,16 @@ drawPolyImmediate = function(points, style)
 		return
 	end
 
-	if not hasTransform() and isCulled(poly.x, poly.y, poly.w, poly.h) then return end
+	local shadow = shadowStyle(style.shadow)
+	local shadowBounds = polyShadowBounds(poly, shadow)
+	local cullX, cullY, cullW, cullH = includeBounds(poly.x, poly.y, poly.w, poly.h, shadowBounds)
+	if not hasTransform() and isCulled(cullX, cullY, cullW, cullH) then return end
 
 	if not shadersActive() then
 		return drawPolyFallback(points, style)
 	end
 
-	local shadow = shadowStyle(style.shadow)
-	if shadow and shadow.color and (shadow.color.a or 255) > 0 then
-		local shifted = {}
-		local spread = math_max(1, (tonumber(shadow.width) or 12) + (tonumber(shadow.grow) or 0))
-		for i, p in ipairs(points) do
-			local px, py = pointXY(p)
-			local cx, cy = poly.x + poly.w * 0.5, poly.y + poly.h * 0.5
-			local dx, dy = px - cx, py - cy
-			local len = math_max(1, math_sqrt(dx * dx + dy * dy))
-			shifted[i] = {
-				x = px + (tonumber(shadow.x) or 0) + dx / len * spread,
-				y = py + (tonumber(shadow.y) or 0) + dy / len * spread,
-			}
-		end
-		local shadowPoly = normalizePoly(shifted)
-		if shadowPoly then
-			local key = "poly" .. shadowPoly.count
-			local mat = materials[key]
-			setupConstants(mat, shadowPoly.w, shadowPoly.h, M.Solid(shadow.color), nil, 0, 0)
-			drawMaterialPoly(shadowPoly, mat)
-		end
-	end
+	drawPolyShadow(poly, shadow, shadowBounds)
 
 	local backdrop = drawPolyBackdrop(poly, style.backdrop)
 

@@ -154,6 +154,7 @@ function MGFX._CreateMaterialState(owner)
 
 		for _, count in ipairs({3, 4, 5, 6, 7, 8}) do
 			createMaterial("poly" .. count, "mgfx_poly" .. count .. "_ps30")
+			createMaterial("poly" .. count .. "_shadow", "mgfx_poly" .. count .. "_shadow_ps30")
 			createMaterial("poly" .. count .. "_blur", "mgfx_poly" .. count .. "_blur_ps30", {
 				["$basetexture"] = blurRT:GetName(),
 				["$texture1"] = "_rt_FullFrameFB",
@@ -238,6 +239,24 @@ function MGFX._CreateMaterialState(owner)
 			ringOuterGlow = materials.ring_outerglow,
 			ringPattern = materials.ring_pattern,
 			polyStroke = materials.poly_stroke,
+			poly3 = materials.poly3,
+			poly3Shadow = materials.poly3_shadow,
+			poly3Blur = materials.poly3_blur,
+			poly4 = materials.poly4,
+			poly4Shadow = materials.poly4_shadow,
+			poly4Blur = materials.poly4_blur,
+			poly5 = materials.poly5,
+			poly5Shadow = materials.poly5_shadow,
+			poly5Blur = materials.poly5_blur,
+			poly6 = materials.poly6,
+			poly6Shadow = materials.poly6_shadow,
+			poly6Blur = materials.poly6_blur,
+			poly7 = materials.poly7,
+			poly7Shadow = materials.poly7_shadow,
+			poly7Blur = materials.poly7_blur,
+			poly8 = materials.poly8,
+			poly8Shadow = materials.poly8_shadow,
+			poly8Blur = materials.poly8_blur,
 		}
 	end
 

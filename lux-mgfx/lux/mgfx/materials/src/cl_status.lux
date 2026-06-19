@@ -49,16 +49,22 @@ export client fn shaderStatus(state) {
       ringPattern = materials.ring_pattern,
       polyStroke = materials.poly_stroke,
       poly3 = materials.poly3,
+      poly3Shadow = materials.poly3_shadow,
       poly3Blur = materials.poly3_blur,
       poly4 = materials.poly4,
+      poly4Shadow = materials.poly4_shadow,
       poly4Blur = materials.poly4_blur,
       poly5 = materials.poly5,
+      poly5Shadow = materials.poly5_shadow,
       poly5Blur = materials.poly5_blur,
       poly6 = materials.poly6,
+      poly6Shadow = materials.poly6_shadow,
       poly6Blur = materials.poly6_blur,
       poly7 = materials.poly7,
+      poly7Shadow = materials.poly7_shadow,
       poly7Blur = materials.poly7_blur,
       poly8 = materials.poly8,
+      poly8Shadow = materials.poly8_shadow,
       poly8Blur = materials.poly8_blur
   }
 }

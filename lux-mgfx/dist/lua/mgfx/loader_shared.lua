@@ -24,6 +24,7 @@ if SERVER then
   AddCSLuaFile("mgfx/client/runtime/lux/mgfx/profiler.lua")
   AddCSLuaFile("mgfx/client/runtime/lux/mgfx/text.lua")
   AddCSLuaFile("mgfx/client/runtime/lux/mgfx/widgets.lua")
+  AddCSLuaFile("mgfx/client/runtime/lux/mgfx/api.lua")
   AddCSLuaFile("mgfx/client/runtime/lux/mgfx.lua")
   AddCSLuaFile("mgfx/client/mgfx_precompiled/mgfx.lua")
 end

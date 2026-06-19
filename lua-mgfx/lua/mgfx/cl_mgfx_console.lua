@@ -100,6 +100,12 @@ addCommand("mgfx_status", function()
 	print("[MGFX] ring outer glow material: " .. tostring(status.ringOuterGlow))
 	print("[MGFX] ring pattern material: " .. tostring(status.ringPattern))
 	print("[MGFX] poly stroke material: " .. tostring(status.polyStroke))
+	print("[MGFX] poly3 shadow material: " .. tostring(status.poly3Shadow))
+	print("[MGFX] poly4 shadow material: " .. tostring(status.poly4Shadow))
+	print("[MGFX] poly5 shadow material: " .. tostring(status.poly5Shadow))
+	print("[MGFX] poly6 shadow material: " .. tostring(status.poly6Shadow))
+	print("[MGFX] poly7 shadow material: " .. tostring(status.poly7Shadow))
+	print("[MGFX] poly8 shadow material: " .. tostring(status.poly8Shadow))
 end)
 
 local paramProbeOn = false
@@ -717,11 +723,17 @@ addCommand("mgfx_selftest", function()
 		"ring_pattern",
 		"poly_stroke",
 		"poly3",
+		"poly3_shadow",
 		"poly4",
+		"poly4_shadow",
 		"poly5",
+		"poly5_shadow",
 		"poly6",
+		"poly6_shadow",
 		"poly7",
+		"poly7_shadow",
 		"poly8",
+		"poly8_shadow",
 		"poly3_blur",
 		"poly4_blur",
 		"poly5_blur",

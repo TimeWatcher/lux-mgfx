@@ -75,16 +75,22 @@ local statusMaterialFields = {
     { "ring pattern", "ringPattern" },
     { "poly stroke", "polyStroke" },
     { "poly3", "poly3" },
+    { "poly3 shadow", "poly3Shadow" },
     { "poly3 blur", "poly3Blur" },
     { "poly4", "poly4" },
+    { "poly4 shadow", "poly4Shadow" },
     { "poly4 blur", "poly4Blur" },
     { "poly5", "poly5" },
+    { "poly5 shadow", "poly5Shadow" },
     { "poly5 blur", "poly5Blur" },
     { "poly6", "poly6" },
+    { "poly6 shadow", "poly6Shadow" },
     { "poly6 blur", "poly6Blur" },
     { "poly7", "poly7" },
+    { "poly7 shadow", "poly7Shadow" },
     { "poly7 blur", "poly7Blur" },
     { "poly8", "poly8" },
+    { "poly8 shadow", "poly8Shadow" },
     { "poly8 blur", "poly8Blur" }
 }
 

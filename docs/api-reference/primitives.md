@@ -100,7 +100,7 @@ MGFX.RoundedBoxEx(x, y, w, h, style)
 | `radius`<br>数字或 {tl, tr, br, bl}。 | `0` | 圆角半径。 |
 | `fill`<br>Color 或 MGFX 绘制记录。 | `color_white` | 主体填充。 |
 | `stroke / strokeWidth`<br>Color 加数字、true、"hairline"、"thin" 或 "none" 宽度。 | `nil / 0` | 可选描边。 |
-| `shadow`<br>true、数字，或 {x/y、offsetX/offsetY、dx/dy、offset、blur/radius/size/width、spread/grow、color/tint、opacity/strength、softness/falloff}。 | `nil` | 外部软阴影；convex poly 仍使用轮廓 fallback。 |
+| `shadow`<br>true、数字，或 {x/y、offsetX/offsetY、dx/dy、offset、blur/radius/size/width、spread/grow、color/tint、opacity/strength、softness/falloff}。 | `nil` | 外部软阴影；convex poly 使用多边形距离 shader。 |
 | `innerGlow`<br>true、Color，或 {color/tint, width/size, opacity/strength, softness/falloff}。 | `nil` | 内边缘发光。 |
 | `outerGlow`<br>true、Color，或 {x/y、offsetX/offsetY、color/tint、width/size/spread、opacity/strength、softness/falloff}。 | `nil` | 外发光；spread 会影响剔除和绘制范围。 |
 | `backdrop`<br>true、数字、Color 或 {blur, tint, opacity}。 | `nil` | 按圆角形状裁剪的 framebuffer 模糊/染色层。 |
@@ -430,7 +430,7 @@ MGFX.PolyEx(points, style)
 | --- | --- | --- |
 | `fill`<br>Color 或 MGFX 绘制记录。 | `color_white` | 多边形填充。 |
 | `stroke / strokeWidth`<br>Color 加宽度。 | `nil / 0` | 边缘描边。四点以内使用 shader 描边；回退路径绘制边线。 |
-| `shadow`<br>true、数字、Color，或 {x/y、offsetX/offsetY、dx/dy、offset、blur/radius/size/width、spread/grow、color/tint、opacity/strength、softness/falloff}。 | `nil` | 扩展一个偏移的投影多边形；这是 silhouette fallback，不是圆角/凹形阴影。 |
+| `shadow`<br>true、数字、Color，或 {x/y、offsetX/offsetY、dx/dy、offset、blur/radius/size/width、spread/grow、color/tint、opacity/strength、softness/falloff}。 | `nil` | 基于凸多边形距离场的外部软阴影；`x/y` 控制偏移，`spread/grow` 控制实体扩张，`blur` 控制软边宽度。 |
 | `backdrop`<br>true、数字、Color 或 {blur, tint, opacity}。 | `nil` | 按多边形裁剪的 framebuffer 模糊/染色层。 |
 | `pattern`<br>StripePattern 或 SmokePattern。 | `nil` | 裁剪到多边形内的图案。 |
 

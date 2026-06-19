@@ -1,5 +1,6 @@
 return function(__lux_import)
   local __lux_exports = {}
+  local api
   local capabilities
   local commands
   local frame
@@ -13,13 +14,11 @@ return function(__lux_import)
   local style
   local text
   local widgets
-  local installTargets
-  local resetFrameStats
-  local installFrameStatsReset
   local install
   local installGlobal
   local create
   do
+    local api_mod = __lux_import("lux/mgfx/api#client")
     local capabilities_mod = __lux_import("lux/mgfx/capabilities#client")
     local commands_mod = __lux_import("lux/mgfx/commands#client")
     local frame_mod = __lux_import("lux/mgfx/frame#client")
@@ -33,6 +32,7 @@ return function(__lux_import)
     local style_mod = __lux_import("lux/mgfx/style#client")
     local text_mod = __lux_import("lux/mgfx/text#client")
     local widgets_mod = __lux_import("lux/mgfx/widgets#client")
+    api = api_mod
     capabilities = capabilities_mod
     commands = commands_mod
     frame = frame_mod
@@ -46,93 +46,29 @@ return function(__lux_import)
     style = style_mod
     text = text_mod
     widgets = widgets_mod
-    installTargets = function(owner)
-      owner.TARGET = capabilities.TARGET
-      owner.TARGET_NAME = capabilities.TARGET_NAME
-    end
-    resetFrameStats = function(owner)
-      do
-        local __lux_tmp_stats_1 = owner.stats
-        if __lux_tmp_stats_1 == nil then
-          __lux_tmp_stats_1 = {}
-        end
-        owner.stats = __lux_tmp_stats_1
-      end
-      if owner.ResetGeometryFrameStats ~= nil then
-        owner.ResetGeometryFrameStats()
-      end
-      if owner.ResetTextFrameStats ~= nil then
-        owner.ResetTextFrameStats()
-      end
-      return owner.stats
-    end
-    installFrameStatsReset = function(owner)
-      local rawStartPanel = owner.StartPanel
-      local rawStartScreen = owner.StartScreen
-      owner.ResetFrameStats = function()
-        return resetFrameStats(owner)
-      end
-      if rawStartPanel ~= nil then
-        owner._LuxRawStartPanel = rawStartPanel
-        owner.StartPanel = function(panel, w, h)
-          resetFrameStats(owner)
-          return rawStartPanel(panel, w, h)
-        end
-      end
-      if rawStartScreen ~= nil then
-        owner._LuxRawStartScreen = rawStartScreen
-        owner.StartScreen = function(w, h)
-          resetFrameStats(owner)
-          return rawStartScreen(w, h)
-        end
-      end
-      return owner
-    end
     install = function(owner)
-      local api = owner
-      if api == nil then
-        api = {}
-      end
-      api.Reload = function()
-        return install(api)
-      end
-      api._LuxReload = api.Reload
-      installTargets(api)
-      shaderpack.installGlobal()
-      style.install(api)
-      capabilities.install(api)
-      commands.install(api)
-      frame.install(api)
-      geometry.install(api)
-      materials.install(api)
-      profiler.install(api)
-      paint.install(api)
-      text.install(api)
-      roundrect.install(api)
-      primitives.install(api)
-      widgets.install(api)
-      installFrameStatsReset(api)
-      return api
+      return api.install(owner)
     end
     installGlobal = function(name)
       if name == nil then
         name = "MGFX"
       end
-      local api = _G[name]
-      if api == nil then
-        api = {}
+      local out = _G[name]
+      if out == nil then
+        out = {}
       end
-      _G[name] = install(api)
+      _G[name] = install(out)
       return _G[name]
     end
     create = function()
-      return install({})
+      return api.create()
     end
   end
   
   __lux_exports.install = install
   __lux_exports.installGlobal = installGlobal
   __lux_exports.create = create
+  __lux_exports.api = api
   __lux_exports.capabilities = capabilities
   __lux_exports.commands = commands
   __lux_exports.frame = frame
