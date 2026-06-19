@@ -25,6 +25,9 @@ the expensive visual work into shader-backed primitives, explicit style
 records, masks, gradients, glow, backdrop effects, and reusable package
 modules.
 
+Full documentation is available at
+<https://timewatcher.github.io/mgfx-docs-site/>.
+
 It is not a submodule of `lux`. It lives as a peer repository. Lux projects
 consume it through `luxc install`; plain GLua projects should use the sibling
 `../lua-mgfx` implementation and call the same `MGFX.*` facade.
@@ -106,7 +109,7 @@ client {
 ```
 
 `installGlobal("MGFX")` exposes the PascalCase facade for GLua-facing panels
-and legacy code. New Lux code can call the lower-case module API directly.
+and legacy code. New Lux code should call the unified `mgfx.api.*` surface.
 
 ### Use Without Lux
 
