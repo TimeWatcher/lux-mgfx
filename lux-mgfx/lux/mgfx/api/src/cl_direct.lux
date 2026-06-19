@@ -7,6 +7,9 @@ import * as style from "@lux/mgfx/style"
 import * as textModule from "@lux/mgfx/text"
 import * as widgets from "@lux/mgfx/widgets"
 
+-- Direct mgfx.api.* calls should work without exporting a global MGFX table.
+local defaultRuntime = install({})
+
 export client fn solid(color) =
   style.solid(color)
 

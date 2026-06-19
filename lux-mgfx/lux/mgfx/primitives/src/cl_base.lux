@@ -16,6 +16,7 @@ local mathMin = math.min
 local mathCos = math.cos
 local mathRad = math.rad
 local mathSin = math.sin
+local mathSqrt = math.sqrt
 local renderCopyRenderTargetToTexture = render?.CopyRenderTargetToTexture
 local surfaceDrawLine = surface.DrawLine
 local surfaceSetMaterial = surface.SetMaterial

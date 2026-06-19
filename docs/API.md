@@ -53,16 +53,17 @@ Lux 用户不需要关心某个函数内部属于 paint、primitive 还是 widge
 ```lux
 import * as mgfx from "@lux/mgfx"
 
-client fn install() {
-  local api = mgfx.installGlobal("MGFX")
-  api.RoundedBoxEx(16, 16, 220, 48, {
+client fn drawPanel() {
+  mgfx.api.roundedBoxEx(16, 16, 220, 48, {
     radius = 8,
-    fill = api.LinearGradient(0, 0, 1, 0, Color(80, 170, 255), Color(90, 220, 180)),
+    fill = mgfx.api.linearGradient(0, 0, 1, 0, Color(80, 170, 255), Color(90, 220, 180)),
   })
 }
 ```
 
-如果你喜欢模块式调用，主包也导出 `mgfx.api`：
+`mgfx.api` 会自动初始化默认 runtime；不需要为了 shader/material/frame 状态手动调用 `installGlobal`。如果你确实需要给非 Lux GLua 代码暴露全局门面，再调用 `mgfx.installGlobal("MGFX")`。
+
+直接调用示例：
 
 ```lux
 mgfx.api.roundedBoxEx(16, 16, 220, 48, { radius = 8, fill = Color(28, 34, 46) })

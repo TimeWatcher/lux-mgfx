@@ -40,7 +40,7 @@ luxc install @lux/mgfx --from C:\Development\gmod\lux-mgfx
 ```
 
 The root `lux.package.toml` points to `lux-mgfx/lux/mgfx`, so existing Lux install commands can keep using the repository root.
-Lux code should use `@lux/mgfx` and its unified `mgfx.api` facade instead of choosing between paint/primitives/widgets modules.
+Lux code should use `@lux/mgfx` and its unified `mgfx.api` facade instead of choosing between paint/primitives/widgets modules. The Lux facade initializes its default runtime automatically; `installGlobal("MGFX")` is only needed when you want to expose a global GLua-style table.
 
 ## Effects
 
