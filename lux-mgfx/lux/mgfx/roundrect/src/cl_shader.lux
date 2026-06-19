@@ -209,7 +209,7 @@ fn drawRoundRectInnerGlowSpec(x, y, w, h, radius, spec) {
   true
 }
 
-fn drawRoundRectOuterGlowSpec(x, y, w, h, radius, spec) {
+fn drawRoundRectOuterGlowSpec(x, y, w, h, radius, spec, biasOffset = false) {
   if spec == nil or spec.color == nil or (spec.color.a ?? 255) <= 0 or not shadersActive() or not materialOK(roundRectMaterials.roundrect_outerglow) {
     return false
   }
@@ -217,20 +217,29 @@ fn drawRoundRectOuterGlowSpec(x, y, w, h, radius, spec) {
   local grow = mathMax(0, toNumber(spec.grow ?? spec.shapeSpread ?? spec.expand) ?? 0)
   local ox = toNumber(spec.x ?? spec.offsetX ?? spec.dx) ?? 0
   local oy = toNumber(spec.y ?? spec.offsetY ?? spec.dy) ?? 0
-  local gx = x + ox - grow
-  local gy = y + oy - grow
   local gw = w + grow * 2
   local gh = h + grow * 2
   local gr = radiusWithGrow(radius, grow)
   local spread = mathMax(1, toNumber(spec.spread ?? spec.width) ?? 18)
-  local sw = gw + spread * 2
-  local sh = gh + spread * 2
+  local gx = x + ox - grow
+  local gy = y + oy - grow
+  local left = spread
+  local top = spread
+  local right = spread
+  local bottom = spread
+  if biasOffset {
+    left, top, right, bottom = glowBiasPads(spread, ox, oy)
+    gx = x - grow
+    gy = y - grow
+  }
+  local sw = gw + left + right
+  local sh = gh + top + bottom
   local material = roundRectMaterials.roundrect_outerglow
   local r, g, b, a = style.color01(spec.color)
   setupParamMatrix(material,
     r, g, b, a,
     sw, sh, 0, 0,
-    spread, spread, gw, gh,
+    left, top, gw, gh,
     style.radiusScalar(gr, gw, gh),
     mathMax(0.001, toNumber(spec.width) ?? spread),
     mathMax(0, toNumber(spec.strength) ?? 1),
@@ -238,7 +247,7 @@ fn drawRoundRectOuterGlowSpec(x, y, w, h, radius, spec) {
   )
   surfaceSetMaterial(material)
   surfaceSetDrawColor(255, 255, 255, 255)
-  drawTexturedQuad(gx - spread, gy - spread, sw, sh)
+  drawTexturedQuad(gx - left, gy - top, sw, sh)
   true
 }
 
@@ -348,7 +357,7 @@ fn drawRoundRectShader(x, y, w, h, drawStyle) {
 
   local outer = outerGlowStyle(drawStyle.outerGlow)
   if outer ~= nil {
-    drawRoundRectOuterGlowSpec(x, y, w, h, radius, outer)
+    drawRoundRectOuterGlowSpec(x, y, w, h, radius, outer, true)
   }
 
   local backdrop = nil

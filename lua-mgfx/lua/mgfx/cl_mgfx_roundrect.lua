@@ -61,6 +61,18 @@ local function profileEnd(name, started)
 	if profiler and profiler.End then profiler.End(name, started) end
 end
 
+local function glowBiasPads(base, x, y, minPad)
+	minPad = minPad or 1
+	local pad = math_max(minPad, tonumber(base) or minPad)
+	local ox = tonumber(x) or 0
+	local oy = tonumber(y) or 0
+
+	return math_max(minPad, pad - ox),
+		math_max(minPad, pad - oy),
+		math_max(minPad, pad + ox),
+		math_max(minPad, pad + oy)
+end
+
 local function profileEndBase(kind, started)
 	if not started then return end
 	local elapsed = (SysTime() - started) * 1000
@@ -472,7 +484,7 @@ local function radiusWithGrow(radius, grow)
 	return (tonumber(radius) or 0) + grow
 end
 
-local function drawRoundRectOuterGlowSpec(x, y, w, h, radius, spec)
+local function drawRoundRectOuterGlowSpec(x, y, w, h, radius, spec, biasOffset)
 	if not spec then return end
 
 	local color = spec.color
@@ -482,21 +494,27 @@ local function drawRoundRectOuterGlowSpec(x, y, w, h, radius, spec)
 	local grow = math_max(0, tonumber(spec.grow) or tonumber(spec.shapeSpread) or tonumber(spec.expand) or 0)
 	local ox = tonumber(spec.x) or tonumber(spec.offsetX) or tonumber(spec.dx) or 0
 	local oy = tonumber(spec.y) or tonumber(spec.offsetY) or tonumber(spec.dy) or 0
-	local gx = x + ox - grow
-	local gy = y + oy - grow
 	local gw = w + grow * 2
 	local gh = h + grow * 2
 	local gr = radiusWithGrow(radius, grow)
 	local spread = math_max(1, tonumber(spec.spread) or tonumber(spec.width) or 18)
-	local sx, sy = gx - spread, gy - spread
-	local sw, sh = gw + spread * 2, gh + spread * 2
+	local gx = x + ox - grow
+	local gy = y + oy - grow
+	local left, top, right, bottom = spread, spread, spread, spread
+	if biasOffset then
+		left, top, right, bottom = glowBiasPads(spread, ox, oy)
+		gx = x - grow
+		gy = y - grow
+	end
+	local sx, sy = gx - left, gy - top
+	local sw, sh = gw + left + right, gh + top + bottom
 	local mat = materials.roundrect_outerglow
 	local r, g, b, a = color01(color)
 
 	setupParamMatrix(mat,
 		r, g, b, a,
 		sw, sh, 0, 0,
-		spread, spread, gw, gh,
+		left, top, gw, gh,
 		radiusScalar(gr, gw, gh),
 		math_max(0.001, tonumber(spec.width) or spread),
 		math_max(0, tonumber(spec.strength) or 1),
@@ -508,7 +526,7 @@ local function drawRoundRectOuterGlowSpec(x, y, w, h, radius, spec)
 end
 
 local function drawRoundRectOuterGlow(x, y, w, h, radius, glow)
-	return drawRoundRectOuterGlowSpec(x, y, w, h, radius, outerGlowStyle(glow))
+	return drawRoundRectOuterGlowSpec(x, y, w, h, radius, outerGlowStyle(glow), true)
 end
 
 local drawRoundRectFillPass
@@ -639,7 +657,7 @@ drawRoundRectImmediate = function(x, y, w, h, style)
 	local profile
 	if outerSpec then
 		profile = profiling and profileStart() or nil
-		drawRoundRectOuterGlowSpec(x, y, w, h, radius, outerSpec)
+		drawRoundRectOuterGlowSpec(x, y, w, h, radius, outerSpec, true)
 		if profiling then profileEnd("round.outerGlow", profile) end
 	end
 
@@ -813,5 +831,6 @@ end
 		innerGlowStyle = innerGlowStyle,
 		outerGlowStyle = outerGlowStyle,
 		shadowStyle = shadowStyle,
+		glowBiasPads = glowBiasPads,
 	}
 end

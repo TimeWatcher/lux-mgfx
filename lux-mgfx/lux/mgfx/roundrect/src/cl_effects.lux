@@ -41,6 +41,17 @@ fn effectOffset(input, fallbackX = 0, fallbackY = 0) {
   return toNumber(x) ?? fallbackX, toNumber(y) ?? fallbackY
 }
 
+export client fn glowBiasPads(base, x = 0, y = 0, minPad = 1) {
+  local pad = mathMax(minPad, toNumber(base) ?? minPad)
+  local ox = toNumber(x) ?? 0
+  local oy = toNumber(y) ?? 0
+
+  return mathMax(minPad, pad - ox),
+    mathMax(minPad, pad - oy),
+    mathMax(minPad, pad + ox),
+    mathMax(minPad, pad + oy)
+}
+
 export client fn outerGlowStyle(glow) {
   stopif glow == nil or glow == false, nil
 

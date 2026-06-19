@@ -51,8 +51,8 @@ defineCapabilities {
   targets = {
     { name = ROUNDED_BOX, id = 1, family = shape, coverage = roundedBox, keyGroup = shape },
     { name = CHAMFER_BOX, id = 2, family = shape, coverage = chamferBox, keys = { fill, stroke, strokeWidth, shadow, outerGlow, innerGlow, backdrop, pattern, cuts, transform } },
-    { name = POLY, id = 3, family = shape, coverage = convexPoly, keys = { fill, stroke, strokeWidth, shadow, backdrop, pattern, transform } },
-    { name = LINE, id = 4, family = shape, coverage = line, keys = { fill, color, width, radius, caps, noCaps, backdrop, transform } },
+    { name = POLY, id = 3, family = shape, coverage = convexPoly, keys = { fill, stroke, strokeWidth, shadow, outerGlow, backdrop, pattern, transform } },
+    { name = LINE, id = 4, family = shape, coverage = line, keys = { fill, color, width, radius, caps, noCaps, outerGlow, backdrop, transform } },
     { name = CIRCLE, id = 5, family = shape, coverage = circle, keyGroup = shape },
     { name = CAPSULE, id = 6, family = shape, coverage = capsule, keyGroup = shape },
     { name = IMAGE, id = 8, family = content, coverage = imageMask, keys = { source, fill, background, stroke, strokeWidth, shadow, outerGlow, backdrop, mask, radius, tint, color, alpha, fit, objectFit, position, positionX, positionY, alignX, alignY, crop, uv, transform } },

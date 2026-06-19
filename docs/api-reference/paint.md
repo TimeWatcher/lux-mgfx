@@ -1179,8 +1179,8 @@ MGFX.GetCapabilities(target)
 | `MGFX.TARGET.CIRCLE` | 形状 | circle | 与 rounded box 形状字段相同。 |
 | `MGFX.TARGET.CAPSULE` | 形状 | capsule | 与 rounded box 形状字段相同。 |
 | `MGFX.TARGET.CHAMFER_BOX` | 形状 | chamferBox | fill、stroke、strokeWidth、shadow、outerGlow、innerGlow、backdrop、pattern、cuts、transform |
-| `MGFX.TARGET.POLY` | 形状 | convexPoly | fill、stroke、strokeWidth、shadow、backdrop、pattern、transform |
-| `MGFX.TARGET.LINE` | 形状 | line | fill、color、width、radius、caps、noCaps、backdrop、transform |
+| `MGFX.TARGET.POLY` | 形状 | convexPoly | fill、stroke、strokeWidth、shadow、outerGlow、backdrop、pattern、transform |
+| `MGFX.TARGET.LINE` | 形状 | line | fill、color、width、radius、caps、noCaps、outerGlow、backdrop、transform |
 | `MGFX.TARGET.RING` | 形状 | ring | fill、color、stroke、strokeWidth、shadow、outerGlow、innerGlow、backdrop、pattern、transform |
 | `MGFX.TARGET.ARC` | 形状 | arc | 与 ring 字段相同。 |
 | `MGFX.TARGET.SECTOR` | 形状 | sector | fill、color、stroke、strokeWidth、shadow、outerGlow、innerGlow、backdrop、pattern、transform |
@@ -1228,8 +1228,8 @@ MGFX.Supports(target, key)
 | `MGFX.TARGET.CIRCLE` | 形状 | circle | 与 rounded box 形状字段相同。 |
 | `MGFX.TARGET.CAPSULE` | 形状 | capsule | 与 rounded box 形状字段相同。 |
 | `MGFX.TARGET.CHAMFER_BOX` | 形状 | chamferBox | fill、stroke、strokeWidth、shadow、outerGlow、innerGlow、backdrop、pattern、cuts、transform |
-| `MGFX.TARGET.POLY` | 形状 | convexPoly | fill、stroke、strokeWidth、shadow、backdrop、pattern、transform |
-| `MGFX.TARGET.LINE` | 形状 | line | fill、color、width、radius、caps、noCaps、backdrop、transform |
+| `MGFX.TARGET.POLY` | 形状 | convexPoly | fill、stroke、strokeWidth、shadow、outerGlow、backdrop、pattern、transform |
+| `MGFX.TARGET.LINE` | 形状 | line | fill、color、width、radius、caps、noCaps、outerGlow、backdrop、transform |
 | `MGFX.TARGET.RING` | 形状 | ring | fill、color、stroke、strokeWidth、shadow、outerGlow、innerGlow、backdrop、pattern、transform |
 | `MGFX.TARGET.ARC` | 形状 | arc | 与 ring 字段相同。 |
 | `MGFX.TARGET.SECTOR` | 形状 | sector | fill、color、stroke、strokeWidth、shadow、outerGlow、innerGlow、backdrop、pattern、transform |

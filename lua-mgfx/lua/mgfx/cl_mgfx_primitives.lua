@@ -27,6 +27,13 @@ function MGFX._InstallPrimitives(C)
 	local innerGlowStyle = C.innerGlowStyle
 	local outerGlowStyle = C.outerGlowStyle
 	local shadowStyle = C.shadowStyle or function() return nil end
+	local glowBiasPads = C.glowBiasPads or function(base, x, y, minPad)
+		minPad = minPad or 1
+		local pad = math.max(minPad, tonumber(base) or minPad)
+		local ox = tonumber(x) or 0
+		local oy = tonumber(y) or 0
+		return math.max(minPad, pad - ox), math.max(minPad, pad - oy), math.max(minPad, pad + ox), math.max(minPad, pad + oy)
+	end
 	local patternStyle = C.patternStyle
 	local patternOffset = C.patternOffset
 	local drawTexturedQuad = C.drawTexturedQuad
@@ -160,7 +167,7 @@ local function cutsWithGrow(cuts, grow)
 	return (tonumber(cuts) or 0) + grow
 end
 
-local function drawChamferOuterGlowSpec(x, y, w, h, cuts, spec)
+local function drawChamferOuterGlowSpec(x, y, w, h, cuts, spec, biasOffset)
 	if not spec then return end
 	if not shadersActive() or not matOK(materials.chamfer_outerglow) then return end
 
@@ -170,6 +177,13 @@ local function drawChamferOuterGlowSpec(x, y, w, h, cuts, spec)
 	local grow = math_max(0, tonumber(spec.grow) or tonumber(spec.shapeSpread) or tonumber(spec.expand) or 0)
 	local ox = tonumber(spec.x) or tonumber(spec.offsetX) or tonumber(spec.dx) or 0
 	local oy = tonumber(spec.y) or tonumber(spec.offsetY) or tonumber(spec.dy) or 0
+	if biasOffset and (math_abs(ox) > 0.001 or math_abs(oy) > 0.001) then
+		M.PolyEx(chamferPoints(x, y, w, h, cuts), {
+			outerGlow = spec,
+		})
+		return
+	end
+
 	local gx = x + ox - grow
 	local gy = y + oy - grow
 	local gw = w + grow * 2
@@ -196,7 +210,7 @@ local function drawChamferOuterGlowSpec(x, y, w, h, cuts, spec)
 end
 
 local function drawChamferOuterGlow(x, y, w, h, cuts, glow)
-	return drawChamferOuterGlowSpec(x, y, w, h, cuts, outerGlowStyle(glow))
+	return drawChamferOuterGlowSpec(x, y, w, h, cuts, outerGlowStyle(glow), true)
 end
 
 local function drawChamferPattern(x, y, w, h, cuts, pattern)
@@ -315,7 +329,7 @@ local function drawChamferBoxImmediate(x, y, w, h, style, resolvedCuts)
 
 	if outerSpec then
 		profile = profiling and profileStart() or nil
-		drawChamferOuterGlowSpec(x, y, w, h, resolvedCuts, outerSpec)
+		drawChamferOuterGlowSpec(x, y, w, h, resolvedCuts, outerSpec, true)
 		if profiling then profileEnd("chamfer.outerGlow", profile) end
 	end
 
@@ -429,7 +443,7 @@ local function drawLineRect(x, y, w, h, fill, style)
 	})
 end
 
-local function lineFallbackVerts(verts, fill, backdrop)
+local function lineFallbackVerts(verts, fill, backdrop, outerGlow)
 	return drawPolyImmediate({
 		{x = verts[1].x, y = verts[1].y},
 		{x = verts[2].x, y = verts[2].y},
@@ -438,6 +452,7 @@ local function lineFallbackVerts(verts, fill, backdrop)
 	}, {
 		backdrop = backdrop,
 		fill = fill,
+		outerGlow = outerGlow,
 	})
 end
 
@@ -453,7 +468,7 @@ local function drawLineQuad(x1, y1, x2, y2, strokeWidth, noCaps, verts, fill, st
 
 	if not style.radius and not style.outerGlow and drawLineShaderVerts(verts, fill) then return end
 	local fallbackVerts = lineQuadVertsInto(lineFallbackVertsScratch, x1, y1, x2, y2, strokeWidth, noCaps, 0)
-	return lineFallbackVerts(fallbackVerts or verts, fill, nil)
+	return lineFallbackVerts(fallbackVerts or verts, fill, nil, style.outerGlow)
 end
 
 local drawLineImmediate
@@ -535,7 +550,7 @@ drawLineImmediate = function(x1, y1, x2, y2, color, width, style)
 		end
 	end
 
-	local noCaps = style.noCaps == true
+	local noCaps = style.noCaps == true or style.caps == false
 	local verts = lineQuadVertsInto(lineVertsScratch, x1, y1, x2, y2, strokeWidth, noCaps)
 	if not verts then return end
 	return drawLineQuad(x1, y1, x2, y2, strokeWidth, noCaps, verts, fill, style)
@@ -751,7 +766,7 @@ local function drawPolyBackdrop(poly, backdrop)
 	return spec
 end
 
-local function polyShadowBounds(poly, shadow)
+local function polyShadowBounds(poly, shadow, biasOffset)
 	if not shadow or not shadow.color or (shadow.color.a or 255) <= 0 then return nil end
 
 	local width = math_max(0.001, tonumber(shadow.width) or 12)
@@ -760,6 +775,22 @@ local function polyShadowBounds(poly, shadow)
 	local padding = grow + math_max(spread, width)
 	local ox = tonumber(shadow.x) or 0
 	local oy = tonumber(shadow.y) or 0
+
+	if biasOffset then
+		local left, top, right, bottom = glowBiasPads(padding, ox, oy, 0.001)
+		return {
+			x = poly.x - left,
+			y = poly.y - top,
+			w = poly.w + left + right,
+			h = poly.h + top + bottom,
+			ox = 0,
+			oy = 0,
+			width = width,
+			grow = grow,
+			falloff = math_max(0.001, tonumber(shadow.falloff) or 1.7),
+			strength = math_max(0, tonumber(shadow.strength) or 1),
+		}
+	end
 
 	return {
 		x = poly.x + ox - padding,
@@ -909,7 +940,10 @@ drawPolyImmediate = function(points, style)
 
 	local shadow = shadowStyle(style.shadow)
 	local shadowBounds = polyShadowBounds(poly, shadow)
+	local outer = outerGlowStyle(style.outerGlow)
+	local outerBounds = polyShadowBounds(poly, outer, true)
 	local cullX, cullY, cullW, cullH = includeBounds(poly.x, poly.y, poly.w, poly.h, shadowBounds)
+	cullX, cullY, cullW, cullH = includeBounds(cullX, cullY, cullW, cullH, outerBounds)
 	if not hasTransform() and isCulled(cullX, cullY, cullW, cullH) then return end
 
 	if not shadersActive() then
@@ -917,6 +951,7 @@ drawPolyImmediate = function(points, style)
 	end
 
 	drawPolyShadow(poly, shadow, shadowBounds)
+	drawPolyShadow(poly, outer, outerBounds)
 
 	local backdrop = drawPolyBackdrop(poly, style.backdrop)
 

@@ -89,7 +89,7 @@ fn drawLineRect(x, y, w, h, fill, resolved) {
   })
 }
 
-fn drawLineFallbackVerts(verts, fill, backdrop = nil) {
+fn drawLineFallbackVerts(verts, fill, backdrop = nil, outerGlow = nil) {
   polyEx({
     { x = verts[1].x, y = verts[1].y },
       { x = verts[2].x, y = verts[2].y },
@@ -97,7 +97,8 @@ fn drawLineFallbackVerts(verts, fill, backdrop = nil) {
       { x = verts[4].x, y = verts[4].y }
   }, {
     backdrop = backdrop,
-      fill = fill
+      fill = fill,
+      outerGlow = outerGlow
   })
 }
 
@@ -114,7 +115,7 @@ fn drawLineQuad(x1, y1, x2, y2, strokeWidth, noCaps, verts, fill, resolved) {
   }
 
   local fallbackVerts = lineQuadVertsInto(lineFallbackVertsScratch, x1, y1, x2, y2, strokeWidth, noCaps, 0)
-  drawLineFallbackVerts(fallbackVerts ?? verts, fill, nil)
+  drawLineFallbackVerts(fallbackVerts ?? verts, fill, nil, resolved.outerGlow)
 }
 
 export client fn drawLineImmediate(x1, y1, x2, y2, color = nil, width = nil, drawStyle = nil) {
@@ -153,7 +154,7 @@ export client fn drawLineImmediate(x1, y1, x2, y2, color = nil, width = nil, dra
     }
   }
 
-  local noCaps = resolved.noCaps == true
+  local noCaps = resolved.noCaps == true or resolved.caps == false
   local verts = lineQuadVertsInto(lineVertsScratch, x1, y1, x2, y2, strokeWidth, noCaps)
   if verts == nil {
     return

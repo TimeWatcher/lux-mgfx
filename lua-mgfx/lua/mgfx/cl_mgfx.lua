@@ -839,6 +839,7 @@ local drawRoundRectImmediate = roundRectApi.drawRoundRectImmediate
 local innerGlowStyle = roundRectApi.innerGlowStyle
 local outerGlowStyle = roundRectApi.outerGlowStyle
 local shadowStyle = roundRectApi.shadowStyle
+local glowBiasPads = roundRectApi.glowBiasPads
 
 local context = {
 	M = M,
@@ -933,6 +934,7 @@ local context = {
 	innerGlowStyle = innerGlowStyle,
 	outerGlowStyle = outerGlowStyle,
 	shadowStyle = shadowStyle,
+	glowBiasPads = glowBiasPads,
 	textureFallbackMaterial = textureFallbackMaterial,
 	materialCache = materialCache,
 	textRenderer = textRenderer,

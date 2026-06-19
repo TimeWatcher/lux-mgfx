@@ -126,7 +126,7 @@ fn cutsWithGrow(cuts, grow) {
   (toNumber(cuts) ?? 0) + grow
 }
 
-fn drawChamferOuterGlowSpec(x, y, w, h, cuts, spec) {
+fn drawChamferOuterGlowSpec(x, y, w, h, cuts, spec, biasOffset = false) {
   stopif spec == nil or not shadersActive() or not materialOK(primitiveMaterials.chamfer_outerglow), false
 
   local color = spec.color
@@ -135,6 +135,13 @@ fn drawChamferOuterGlowSpec(x, y, w, h, cuts, spec) {
   local grow = mathMax(0, toNumber(spec.grow ?? spec.shapeSpread ?? spec.expand) ?? 0)
   local ox = toNumber(spec.x ?? spec.offsetX ?? spec.dx) ?? 0
   local oy = toNumber(spec.y ?? spec.offsetY ?? spec.dy) ?? 0
+  if biasOffset and (mathAbs(ox) > 0.001 or mathAbs(oy) > 0.001) {
+    polyEx(chamferPoints(x, y, w, h, cuts), {
+      outerGlow = spec
+    })
+    return true
+  }
+
   local gx = x + ox - grow
   local gy = y + oy - grow
   local gw = w + grow * 2
@@ -286,7 +293,7 @@ fn drawChamferBoxImmediate(x, y, w, h, drawStyle = nil, resolvedCuts = nil) {
 
   local outer = roundrect.outerGlowStyle(resolved.outerGlow)
   if outer ~= nil {
-    drawChamferOuterGlowSpec(x, y, w, h, cuts, outer)
+    drawChamferOuterGlowSpec(x, y, w, h, cuts, outer, true)
   }
 
   local fill = style.fillFromStyle(resolved.fill ?? resolved.color)

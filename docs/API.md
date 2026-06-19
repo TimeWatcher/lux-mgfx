@@ -134,7 +134,7 @@ MGFX.CapsuleEx(x, y, w, h, style)
 `shadow`、`outerGlow` 和 `backdrop` 是三个不同的 style 字段：
 
 - `shadow` 是外部软阴影 pass，默认 `x = 0, y = 4`，适合表达投影。Rounded、Circle、Capsule、Chamfer、Ring、Arc、Sector、Convex Poly 和 texture/image mask 都使用 shape-aware shader pass。
-- `outerGlow` 是外部光晕 pass，默认无偏移，适合表达发光边缘。
+- `outerGlow` 是外部光晕 pass，默认无偏移，适合表达发光边缘。`outerGlow.x/y` 表示方向偏置，用来做单侧发光；它不会像 `shadow.x/y` 一样移动发光源形状。
 - `backdrop` 是 shape/image 覆盖范围内的背景 blur/tint，不是阴影。
 
 实际选择可以按目的判断：

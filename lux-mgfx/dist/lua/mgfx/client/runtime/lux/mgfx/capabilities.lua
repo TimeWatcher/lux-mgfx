@@ -70,14 +70,33 @@ return function(__lux_import)
     matrix[3] = {
       family = "shape",
       coverage = "convexPoly",
-      keys = keySet("fill", "stroke", "strokeWidth", "shadow", "backdrop", "pattern", "transform"),
+      keys = keySet(
+        "fill",
+        "stroke",
+        "strokeWidth",
+        "shadow",
+        "outerGlow",
+        "backdrop",
+        "pattern",
+        "transform"
+      ),
     }
     TARGET.LINE = 4
     TARGET_NAME[4] = "MGFX.TARGET.LINE"
     matrix[4] = {
       family = "shape",
       coverage = "line",
-      keys = keySet("fill", "color", "width", "radius", "caps", "noCaps", "backdrop", "transform"),
+      keys = keySet(
+        "fill",
+        "color",
+        "width",
+        "radius",
+        "caps",
+        "noCaps",
+        "outerGlow",
+        "backdrop",
+        "transform"
+      ),
     }
     TARGET.CIRCLE = 5
     TARGET_NAME[5] = "MGFX.TARGET.CIRCLE"

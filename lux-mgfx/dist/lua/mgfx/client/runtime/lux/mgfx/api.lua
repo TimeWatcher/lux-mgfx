@@ -6,6 +6,7 @@ return function(__lux_import)
   local install
   local installGlobal
   local create
+  local defaultRuntime
   local solid
   local linearGradient
   local linearGradientStops
@@ -190,6 +191,15 @@ return function(__lux_import)
     end
   end
   do
+    local capabilities = __lux_import("lux/mgfx/capabilities#client")
+    local frame = __lux_import("lux/mgfx/frame#client")
+    local geometry = __lux_import("lux/mgfx/geometry#client")
+    local primitives = __lux_import("lux/mgfx/primitives#client")
+    local roundrect = __lux_import("lux/mgfx/roundrect#client")
+    local style = __lux_import("lux/mgfx/style#client")
+    local textModule = __lux_import("lux/mgfx/text#client")
+    local widgets = __lux_import("lux/mgfx/widgets#client")
+    defaultRuntime = install({})
     solid = function(color)
       return style.solid(color)
     end

@@ -71,7 +71,7 @@ fn drawPolyBackdrop(poly, backdrop) {
   spec
 }
 
-fn polyShadowBounds(poly, shadow) {
+fn polyShadowBounds(poly, shadow, biasOffset = false) {
   stopif shadow == nil or shadow.color == nil or (shadow.color.a ?? 255) <= 0, nil
 
   local width = mathMax(0.001, toNumber(shadow.width) ?? 12)
@@ -80,6 +80,22 @@ fn polyShadowBounds(poly, shadow) {
   local padding = grow + mathMax(spread, width)
   local ox = toNumber(shadow.x) ?? 0
   local oy = toNumber(shadow.y) ?? 0
+
+  if biasOffset {
+    local left, top, right, bottom = roundrect.glowBiasPads(padding, ox, oy, 0.001)
+    return {
+      x = poly.x - left,
+        y = poly.y - top,
+        w = poly.w + left + right,
+        h = poly.h + top + bottom,
+        ox = 0,
+        oy = 0,
+        width = width,
+        grow = grow,
+        falloff = mathMax(0.001, toNumber(shadow.falloff) ?? 1.7),
+        strength = mathMax(0, toNumber(shadow.strength) ?? 1)
+    }
+  }
 
   return {
     x = poly.x + ox - padding,
@@ -289,12 +305,15 @@ fn drawPolyImmediate(points, drawStyle = nil) {
 
   local shadow = roundrect.shadowStyle(resolved.shadow)
   local shadowBounds = polyShadowBounds(poly, shadow)
+  local outer = roundrect.outerGlowStyle(resolved.outerGlow)
+  local outerBounds = polyShadowBounds(poly, outer, true)
 
   if not shadersActive() {
     return drawPolyFallback(points, resolved)
   }
 
   drawPolyShadow(poly, shadow, shadowBounds)
+  drawPolyShadow(poly, outer, outerBounds)
   drawPolyBackdrop(poly, resolved.backdrop)
 
   local material = primitiveMaterials[polyMaterialKey(poly)]
