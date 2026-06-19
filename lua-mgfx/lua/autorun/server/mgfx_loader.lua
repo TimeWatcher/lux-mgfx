@@ -33,11 +33,8 @@ for _, name in ipairs(files) do
 	AddCSLuaFile("mgfx/" .. name)
 end
 
-local enableDemos = CreateConVar("mgfx_enable_demos", "0", FCVAR_ARCHIVE + FCVAR_REPLICATED, "MGFX: send and include demo panels on clients.")
-if enableDemos:GetBool() then
-	for _, name in ipairs(demoFiles) do
-		AddCSLuaFile("mgfx/" .. name)
-	end
+for _, name in ipairs(demoFiles) do
+	AddCSLuaFile("mgfx/" .. name)
 end
 
 resource.AddFile("resource/fonts/notosanssc-vf.ttf")

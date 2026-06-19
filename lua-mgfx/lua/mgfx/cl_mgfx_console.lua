@@ -23,12 +23,9 @@ function MGFX._InstallConsole(C)
 		local files = {
 			basePath .. "cl_mgfx_shaderpack.lua",
 			basePath .. "cl_mgfx.lua",
+			basePath .. "cl_mgfx_demo.lua",
+			basePath .. "cl_mgfx_wheel_demo.lua",
 		}
-		local demoCvar = GetConVar("mgfx_enable_demos")
-		if (demoCvar and demoCvar:GetBool()) or MGFX_INCLUDE_DEMOS == true then
-			files[#files + 1] = basePath .. "cl_mgfx_demo.lua"
-			files[#files + 1] = basePath .. "cl_mgfx_wheel_demo.lua"
-		end
 
 		print("[MGFX] reload begin")
 		for _, path in ipairs(files) do

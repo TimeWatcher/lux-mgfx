@@ -78,6 +78,8 @@ mgfx_status
 mgfx_selftest
 mgfx_reload
 mgfx_demo
+mgfx_wheel_demo
+mgfx_emote_wheel_demo
 mgfx_text_status
 mgfx_text_cache_clear
 ```
