@@ -1,3 +1,12 @@
+import * as capabilities from "@lux/mgfx/capabilities"
+import * as frame from "@lux/mgfx/frame"
+import * as geometry from "@lux/mgfx/geometry"
+import * as primitives from "@lux/mgfx/primitives"
+import * as roundrect from "@lux/mgfx/roundrect"
+import * as style from "@lux/mgfx/style"
+import * as textModule from "@lux/mgfx/text"
+import * as widgets from "@lux/mgfx/widgets"
+
 export client fn solid(color) =
   style.solid(color)
 
