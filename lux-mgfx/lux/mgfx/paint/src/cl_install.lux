@@ -3,6 +3,12 @@ export client fn install(owner) {
   owner.RoundedBoxEx = roundedBoxEx
   owner.ChamferBox = chamferBox
   owner.ChamferBoxEx = chamferBoxEx
+  owner.RegularPoly = regularPoly
+  owner.RegularPolyEx = regularPolyEx
+  owner.Diamond = diamond
+  owner.DiamondEx = diamondEx
+  owner.Caret = caret
+  owner.CaretEx = caretEx
   owner.Poly = poly
   owner.PolyEx = polyEx
   owner.Line = line

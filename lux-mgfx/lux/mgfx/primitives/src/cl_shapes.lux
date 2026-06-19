@@ -17,6 +17,114 @@ export client fn poly(points, fill, stroke = nil, strokeWidth = nil) {
   polyEx(points, polyStyle)
 }
 
+local regularPolyScratch = {}
+local diamondScratch = { {}, {}, {}, {} }
+local caretScratch = { {}, {}, {} }
+
+fn clearPoints(points) {
+  for index = #points, 1, -1 {
+    points[index] = nil
+  }
+
+  points
+}
+
+fn setPoint(points, index, x, y) {
+  local point = points[index] ?? {}
+  points[index] = point
+  point.x = x
+  point.y = y
+  point.u = nil
+  point.v = nil
+  point.color = nil
+}
+
+fn regularPolyPoints(cx, cy, radius, sides, rotation = nil) {
+  local points = clearPoints(regularPolyScratch)
+  local count = mathClamp(mathFloor(toNumber(sides) ?? 3), 3, 8)
+  local r = mathMax(0, toNumber(radius) ?? 0)
+  local start = mathRad(toNumber(rotation) ?? -90)
+  local step = mathRad(360 / count)
+
+  for index = 1, count {
+    local angle = start + (index - 1) * step
+    setPoint(points, index, cx + mathCos(angle) * r, cy + mathSin(angle) * r)
+  }
+
+  points
+}
+
+fn diamondPoints(x, y, w, h) {
+  setPoint(diamondScratch, 1, x + w * 0.5, y)
+  setPoint(diamondScratch, 2, x + w, y + h * 0.5)
+  setPoint(diamondScratch, 3, x + w * 0.5, y + h)
+  setPoint(diamondScratch, 4, x, y + h * 0.5)
+  diamondScratch
+}
+
+fn caretPoints(x, y, w, h, direction = nil) {
+  match direction ?? "right" {
+    "up" => {
+      setPoint(caretScratch, 1, x + w * 0.5, y)
+      setPoint(caretScratch, 2, x + w, y + h)
+      setPoint(caretScratch, 3, x, y + h)
+    }
+    "down" => {
+      setPoint(caretScratch, 1, x, y)
+      setPoint(caretScratch, 2, x + w, y)
+      setPoint(caretScratch, 3, x + w * 0.5, y + h)
+    }
+    "left" => {
+      setPoint(caretScratch, 1, x + w, y)
+      setPoint(caretScratch, 2, x + w, y + h)
+      setPoint(caretScratch, 3, x, y + h * 0.5)
+    }
+    _ => {
+      setPoint(caretScratch, 1, x, y)
+      setPoint(caretScratch, 2, x + w, y + h * 0.5)
+      setPoint(caretScratch, 3, x, y + h)
+    }
+  }
+
+  caretScratch
+}
+
+export client fn regularPolyEx(cx, cy, radius, sides, drawStyle = nil) {
+  local resolved = drawStyle ?? {}
+  polyEx(regularPolyPoints(cx, cy, radius, sides, resolved.rotation ?? resolved.angle), resolved)
+}
+
+export client fn regularPoly(cx, cy, radius, sides, rotation, fill, stroke = nil, strokeWidth = nil) {
+  regularPolyStyle.rotation = rotation
+  regularPolyStyle.fill = fill
+  regularPolyStyle.stroke = stroke
+  regularPolyStyle.strokeWidth = strokeWidth
+  regularPolyEx(cx, cy, radius, sides, regularPolyStyle)
+}
+
+export client fn diamondEx(x, y, w, h, drawStyle = nil) =
+  polyEx(diamondPoints(x, y, w, h), drawStyle)
+
+export client fn diamond(x, y, w, h, fill, stroke = nil, strokeWidth = nil) {
+  diamondStyle.fill = fill
+  diamondStyle.stroke = stroke
+  diamondStyle.strokeWidth = strokeWidth
+  diamondEx(x, y, w, h, diamondStyle)
+}
+
+export client fn caretEx(x, y, w, h, drawStyle = nil) {
+  local resolved = drawStyle ?? {}
+  polyEx(caretPoints(x, y, w, h, resolved.direction ?? resolved.dir), resolved)
+}
+
+export client fn caret(x, y, w, h, direction, fill, stroke = nil, strokeWidth = nil) {
+  caretStyle.direction = direction
+  caretStyle.fill = fill
+  caretStyle.stroke = stroke
+  caretStyle.strokeWidth = strokeWidth
+  caretEx(x, y, w, h, caretStyle)
+}
+
 export client fn chamferBoxEx(x, y, w, h, drawStyle = nil) {
   local resolved = drawStyle ?? {}
   local transform, stripped = splitStyleTransform(resolved)

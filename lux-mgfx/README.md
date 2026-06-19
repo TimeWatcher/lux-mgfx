@@ -155,11 +155,12 @@ It is useful for comparing generated Lua, but the canonical non-Lux source is
 import * as mgfx from "@lux/mgfx"
 
 client fn paintPanel(panel, w, h) {
-  mgfx.frame.startPanel(panel, w, h)
+  local draw = mgfx.api
+  draw.startPanel(panel, w, h)
 
-  mgfx.paint.roundedBoxEx(0, 0, w, h, {
+  draw.roundedBoxEx(0, 0, w, h, {
     radius = 12,
-    fill = mgfx.style.linearGradient(0, 0, 1, 1, {
+    fill = draw.linearGradient(0, 0, 1, 1, {
       {0.00, Color(35, 212, 232, 230)},
       {0.55, Color(80, 220, 160, 220)},
       {1.00, Color(245, 158, 11, 215)},
@@ -177,33 +178,37 @@ client fn paintPanel(panel, w, h) {
     outerGlow = { color = Color(35, 212, 232, 72), width = 14, x = 0, y = 0 },
   })
 
-  mgfx.widgets.progressBarEx(24, h - 38, w - 48, 10, 0.72, {
+  draw.progressBarEx(24, h - 38, w - 48, 10, 0.72, {
     radius = 5,
     track = Color(7, 16, 22, 210),
-    fill = mgfx.style.linearGradient(
+    fill = draw.linearGradient(
       0, 0, 1, 0,
       Color(30, 130, 255, 240),
       Color(60, 220, 210, 240)
     ),
   })
 
-  mgfx.frame.endPanel()
+  draw.endPanel()
 }
 ```
 
-The generated output is ordinary client Lua. Lux owns the package imports,
-realm split, source maps, and GMod loader generation.
+For installed GLua-style tables, call `mgfx.installGlobal("MGFX")` or
+`mgfx.api.installGlobal("MGFX")` and use `api.RoundedBoxEx(...)`. The generated
+output is ordinary client Lua. Lux owns the package imports, realm split, source
+maps, and GMod loader generation.
 
 ## Package Surface
 
-`@lux/mgfx` is the normal entry point. Subpackages remain importable for users
-that want a narrower dependency surface or are building tools around MGFX
-internals.
+`@lux/mgfx` is the normal entry point and exports the unified `mgfx.api` facade.
+Subpackages remain importable for users that want a narrower dependency surface
+or are building tools around MGFX internals, but ordinary UI code should not need
+to decide whether a call lives in paint, primitives, or widgets.
 
 | Area | Packages |
 | --- | --- |
+| Public API | `@lux/mgfx`, `@lux/mgfx/api` |
+| Internal drawing modules | `@lux/mgfx/paint`, `@lux/mgfx/roundrect`, `@lux/mgfx/primitives`, `@lux/mgfx/widgets` |
 | Frame and commands | `@lux/mgfx/frame`, `@lux/mgfx/commands` |
-| Drawing | `@lux/mgfx/paint`, `@lux/mgfx/roundrect`, `@lux/mgfx/primitives`, `@lux/mgfx/widgets` |
 | Styling | `@lux/mgfx/style`, `@lux/mgfx/capabilities` |
 | Runtime support | `@lux/mgfx/geometry`, `@lux/mgfx/materials`, `@lux/mgfx/profiler`, `@lux/mgfx/shaderpack` |
 | Text | `@lux/mgfx/text` |

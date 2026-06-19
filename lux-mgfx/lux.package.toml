@@ -6,6 +6,28 @@ version = "0.1.0"
 path = "lux/mgfx"
 license = "Lux-MGFX-NC"
 depends = [
+  "@lux/mgfx/api >=0.1 <0.2",
+  "@lux/mgfx/capabilities >=0.1 <0.2",
+  "@lux/mgfx/commands >=0.1 <0.2",
+  "@lux/mgfx/frame >=0.1 <0.2",
+  "@lux/mgfx/geometry >=0.1 <0.2",
+  "@lux/mgfx/materials >=0.1 <0.2",
+  "@lux/mgfx/paint >=0.1 <0.2",
+  "@lux/mgfx/primitives >=0.1 <0.2",
+  "@lux/mgfx/profiler >=0.1 <0.2",
+  "@lux/mgfx/roundrect >=0.1 <0.2",
+  "@lux/mgfx/shaderpack >=0.1 <0.2",
+  "@lux/mgfx/style >=0.1 <0.2",
+  "@lux/mgfx/text >=0.1 <0.2",
+  "@lux/mgfx/widgets >=0.1 <0.2",
+]
+
+[[package]]
+id = "@lux/mgfx/api"
+version = "0.1.0"
+path = "lux/mgfx/api"
+license = "Lux-MGFX-NC"
+depends = [
   "@lux/mgfx/capabilities >=0.1 <0.2",
   "@lux/mgfx/commands >=0.1 <0.2",
   "@lux/mgfx/frame >=0.1 <0.2",

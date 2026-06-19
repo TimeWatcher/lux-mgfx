@@ -25,6 +25,7 @@ garrysmod/addons/mgfx/
 ```
 
 Garry's Mod loads the autorun files automatically and exposes `MGFX.*` on the client.
+`MGFX.api` points to the same table for code that wants the same facade shape as Lux.
 
 For a Lux project, install the package set from the repository root:
 
@@ -39,6 +40,7 @@ luxc install @lux/mgfx --from C:\Development\gmod\lux-mgfx
 ```
 
 The root `lux.package.toml` points to `lux-mgfx/lux/mgfx`, so existing Lux install commands can keep using the repository root.
+Lux code should use `@lux/mgfx` and its unified `mgfx.api` facade instead of choosing between paint/primitives/widgets modules.
 
 ## Effects
 

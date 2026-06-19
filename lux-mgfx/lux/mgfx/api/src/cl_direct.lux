@@ -1,0 +1,254 @@
+export client fn solid(color) =
+  style.solid(color)
+
+export client fn linearGradient(x1, y1, x2, y2, stopsOrColorA, colorB = nil) =
+  style.linearGradient(x1, y1, x2, y2, stopsOrColorA, colorB)
+
+export client fn linearGradientStops(x1, y1, x2, y2, stops) =
+  style.linearGradientStops(x1, y1, x2, y2, stops)
+
+export client fn radialGradient(cx, cy, radius, stopsOrColorA, colorB = nil) =
+  style.radialGradient(cx, cy, radius, stopsOrColorA, colorB)
+
+export client fn ringRadialGradient(stopsOrColorA, colorB = nil) =
+  style.ringRadialGradient(stopsOrColorA, colorB)
+
+export client fn sectorRadialGradient(stopsOrColorA, colorB = nil) =
+  style.sectorRadialGradient(stopsOrColorA, colorB)
+
+export client fn conicGradient(cx, cy, rotation, stopsOrColorA, colorB = nil) =
+  style.conicGradient(cx, cy, rotation, stopsOrColorA, colorB)
+
+export client fn shapeAngularGradient(stopsOrColorA, colorB = nil, rotation = nil) =
+  style.shapeAngularGradient(stopsOrColorA, colorB, rotation)
+
+export client fn ringAngularGradient(stopsOrColorA, colorB = nil, rotation = 0) =
+  style.ringAngularGradient(stopsOrColorA, colorB, rotation)
+
+export client fn arcAngularGradient(stopsOrColorA, colorB = nil, rotation = 0) =
+  style.arcAngularGradient(stopsOrColorA, colorB, rotation)
+
+export client fn sectorAngularGradient(stopsOrColorA, colorB = nil, rotation = 0) =
+  style.sectorAngularGradient(stopsOrColorA, colorB, rotation)
+
+export client fn stripePattern(color, spacing = 12, width = 2, angle = 135, offset = 0) =
+  style.stripePattern(color, spacing, width, angle, offset)
+
+export client fn smokePattern(color, scale = 140, density = 0.48, softness = 0.3, angle = 135, offset = 0, seed = 0) =
+  style.smokePattern(color, scale, density, softness, angle, offset, seed)
+
+export client fn mask(kind, spec = nil) =
+  style.mask(kind, spec)
+
+export client fn backdrop(value) =
+  style.backdrop(value)
+
+export client fn backdropStyle(value) =
+  style.backdropStyle(value)
+
+export client fn imageMaskStyle(maskValue, drawStyle = nil) =
+  style.imageMaskStyle(maskValue, drawStyle)
+
+export client fn fillFromStyle(fill) =
+  style.fillFromStyle(fill)
+
+export client fn colorAtFill(fill, t) =
+  style.colorAtFill(fill, t)
+
+export client fn normalizedRotation(value) =
+  style.normalizedRotation(value)
+
+export client fn glowSoftnessToFalloff(softness, defaultSoftness = 0.55) =
+  style.glowSoftnessToFalloff(softness, defaultSoftness)
+
+export client fn gradientLutForFill(fill) =
+  style.gradientLutForFill(fill)
+
+export client fn bindGradientLut(material, fill) =
+  style.bindGradientLut(material, fill)
+
+export client fn gradientLutStatus() =
+  style.gradientLutStatus()
+
+export client fn getCapabilities(target) =
+  capabilities.get(target)
+
+export client fn supports(target, key) =
+  capabilities.supports(target, key)
+
+export client fn normalizeStyle(input, target = nil) =
+  capabilities.normalizeStyle(input, target)
+
+export client fn startPanel(panel, w = nil, h = nil) =
+  frame.startPanel(panel, w, h)
+
+export client fn endPanel() =
+  frame.endPanel()
+
+export client fn startScreen(w = nil, h = nil) =
+  frame.startScreen(w, h)
+
+export client fn endScreen() =
+  frame.endScreen()
+
+export client fn pushClip(x, y, w, h) =
+  frame.pushClip(x, y, w, h)
+
+export client fn popClip() =
+  frame.popClip()
+
+export client fn debugOverlay(x = 8, y = 8) =
+  frame.debugOverlay(x, y)
+
+export client fn transform(spec = nil) =
+  geometry.transform(spec)
+
+export client fn projectedQuad(spec = nil) =
+  geometry.projectedQuad(spec)
+
+export client fn pointerTilt(x, y, spec = nil) =
+  geometry.pointerTilt(x, y, spec)
+
+export client fn pushTransform(spec, x = nil, y = nil, w = nil, h = nil) =
+  geometry.pushTransform(spec, x, y, w, h)
+
+export client fn popTransform() =
+  geometry.popTransform()
+
+export client fn transformPoint(x, y) =
+  geometry.transformPoint(x, y)
+
+export client fn untransformPoint(sx, sy) =
+  geometry.untransformPoint(sx, sy)
+
+export client fn roundedBoxEx(x, y, w, h, drawStyle = nil) =
+  roundrect.roundedBoxEx(x, y, w, h, drawStyle)
+
+export client fn roundedBox(x, y, w, h, radius, fill, stroke = nil, strokeWidth = nil) =
+  roundrect.roundedBox(x, y, w, h, radius, fill, stroke, strokeWidth)
+
+export client fn circleEx(cx, cy, radius, drawStyle = nil) =
+  roundrect.circleEx(cx, cy, radius, drawStyle)
+
+export client fn circle(cx, cy, radius, fill, stroke = nil, strokeWidth = nil) =
+  roundrect.circle(cx, cy, radius, fill, stroke, strokeWidth)
+
+export client fn capsuleEx(x, y, w, h, drawStyle = nil) =
+  roundrect.capsuleEx(x, y, w, h, drawStyle)
+
+export client fn capsule(x, y, w, h, fill, stroke = nil, strokeWidth = nil) =
+  roundrect.capsule(x, y, w, h, fill, stroke, strokeWidth)
+
+export client fn chamferBoxEx(x, y, w, h, drawStyle = nil) =
+  primitives.chamferBoxEx(x, y, w, h, drawStyle)
+
+export client fn chamferBox(x, y, w, h, cuts, fill, stroke = nil, strokeWidth = nil) =
+  primitives.chamferBox(x, y, w, h, cuts, fill, stroke, strokeWidth)
+
+export client fn regularPolyEx(cx, cy, radius, sides, drawStyle = nil) =
+  primitives.regularPolyEx(cx, cy, radius, sides, drawStyle)
+
+export client fn regularPoly(cx, cy, radius, sides, rotation, fill, stroke = nil, strokeWidth = nil) =
+  primitives.regularPoly(cx, cy, radius, sides, rotation, fill, stroke, strokeWidth)
+
+export client fn diamondEx(x, y, w, h, drawStyle = nil) =
+  primitives.diamondEx(x, y, w, h, drawStyle)
+
+export client fn diamond(x, y, w, h, fill, stroke = nil, strokeWidth = nil) =
+  primitives.diamond(x, y, w, h, fill, stroke, strokeWidth)
+
+export client fn caretEx(x, y, w, h, drawStyle = nil) =
+  primitives.caretEx(x, y, w, h, drawStyle)
+
+export client fn caret(x, y, w, h, direction, fill, stroke = nil, strokeWidth = nil) =
+  primitives.caret(x, y, w, h, direction, fill, stroke, strokeWidth)
+
+export client fn polyEx(points, drawStyle = nil) =
+  primitives.polyEx(points, drawStyle)
+
+export client fn poly(points, fill, stroke = nil, strokeWidth = nil) =
+  primitives.poly(points, fill, stroke, strokeWidth)
+
+export client fn lineEx(x1, y1, x2, y2, drawStyle = nil) =
+  primitives.lineEx(x1, y1, x2, y2, drawStyle)
+
+export client fn line(x1, y1, x2, y2, width = 1, fill = nil) =
+  primitives.line(x1, y1, x2, y2, width, fill)
+
+export client fn progressBarEx(x, y, w, h, value, drawStyle = nil) =
+  widgets.progressBarEx(x, y, w, h, value, drawStyle)
+
+export client fn progressBar(x, y, w, h, value, radius, track, fill, stroke = nil, strokeWidth = nil) =
+  widgets.progressBar(x, y, w, h, value, radius, track, fill, stroke, strokeWidth)
+
+export client fn segmentBarEx(x, y, w, h, value, drawStyle = nil) =
+  widgets.segmentBarEx(x, y, w, h, value, drawStyle)
+
+export client fn segmentBar(x, y, w, h, value, segments, fill, track) =
+  widgets.segmentBar(x, y, w, h, value, segments, fill, track)
+
+export client fn ringEx(cx, cy, radius, width, drawStyle = nil) =
+  widgets.ringEx(cx, cy, radius, width, drawStyle)
+
+export client fn ring(cx, cy, radius, width, fill) =
+  widgets.ring(cx, cy, radius, width, fill)
+
+export client fn arcEx(cx, cy, radius, width, startDeg, endDeg, drawStyle = nil) =
+  widgets.arcEx(cx, cy, radius, width, startDeg, endDeg, drawStyle)
+
+export client fn arc(cx, cy, radius, startDeg, endDeg, width, fill) =
+  widgets.arc(cx, cy, radius, startDeg, endDeg, width, fill)
+
+export client fn sectorEx(cx, cy, innerRadius, outerRadius, startDeg, endDeg, drawStyle = nil) =
+  widgets.sectorEx(cx, cy, innerRadius, outerRadius, startDeg, endDeg, drawStyle)
+
+export client fn sector(cx, cy, innerRadius, outerRadius, startDeg, endDeg, fill) =
+  widgets.sector(cx, cy, innerRadius, outerRadius, startDeg, endDeg, fill)
+
+export client fn imageEx(x, y, w, h, source, drawStyle = nil) =
+  widgets.imageEx(x, y, w, h, source, drawStyle)
+
+export client fn image(x, y, w, h, source, radius = nil, tint = nil) =
+  widgets.image(x, y, w, h, source, radius, tint)
+
+export client fn iconEx(x, y, w, h, source, drawStyle = nil) =
+  widgets.iconEx(x, y, w, h, source, drawStyle)
+
+export client fn icon(x, y, w, h, source, tint = nil) =
+  widgets.icon(x, y, w, h, source, tint)
+
+export client fn registerTextFont(fontName, spec = nil) =
+  textModule.registerFont(fontName, spec)
+
+export client fn defineTextStyle(name, textStyle = nil) =
+  textModule.defineStyle(name, textStyle)
+
+export client fn getTextStyle(name) =
+  textModule.getStyle(name)
+
+export client fn resolveTextStyle(textStyle = nil) =
+  textModule.resolveStyle(textStyle)
+
+export client fn measureText(value, font = "DermaDefault") =
+  textModule.measure(value, font)
+
+export client fn measureTextBox(value, font, w, textStyle = nil) =
+  textModule.measureBox(value, font, w, textStyle)
+
+export client fn text(value, font, x, y, color, ax = 0, ay = 0) =
+  textModule.draw(value, font, x, y, color, ax, ay)
+
+export client fn textEx(value, font, x, y, color, ax = 0, ay = 0, textStyle = nil) =
+  textModule.drawEx(value, font, x, y, color, ax, ay, textStyle)
+
+export client fn textBox(value, font, x, y, w, h, color, alignX = TEXT_ALIGN_LEFT, alignY = TEXT_ALIGN_TOP) =
+  textModule.box(value, font, x, y, w, h, color, alignX, alignY)
+
+export client fn textBoxEx(value, font, x, y, w, h, textStyle = nil) =
+  textModule.boxEx(value, font, x, y, w, h, textStyle)
+
+export client fn textBatchEx(records) =
+  textModule.batch(records)
+
+export client fn prewarmText(value, font, textStyle = nil) =
+  textModule.prewarm(value, font, textStyle)

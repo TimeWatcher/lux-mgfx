@@ -1,3 +1,4 @@
+import * as api_mod from "@lux/mgfx/api"
 import * as capabilities_mod from "@lux/mgfx/capabilities"
 import * as commands_mod from "@lux/mgfx/commands"
 import * as frame_mod from "@lux/mgfx/frame"
@@ -12,6 +13,7 @@ import * as style_mod from "@lux/mgfx/style"
 import * as text_mod from "@lux/mgfx/text"
 import * as widgets_mod from "@lux/mgfx/widgets"
 
+local api = api_mod
 local capabilities = capabilities_mod
 local commands = commands_mod
 local frame = frame_mod
@@ -26,83 +28,20 @@ local style = style_mod
 local text = text_mod
 local widgets = widgets_mod
 
-fn installTargets(owner) {
-  owner.TARGET = capabilities.TARGET
-  owner.TARGET_NAME = capabilities.TARGET_NAME
-}
-
-fn resetFrameStats(owner) {
-  owner.stats = owner.stats ?? {}
-  if owner.ResetGeometryFrameStats ~= nil {
-    owner.ResetGeometryFrameStats()
-  }
-  if owner.ResetTextFrameStats ~= nil {
-    owner.ResetTextFrameStats()
-  }
-
-  owner.stats
-}
-
-fn installFrameStatsReset(owner) {
-  local rawStartPanel = owner.StartPanel
-  local rawStartScreen = owner.StartScreen
-
-  owner.ResetFrameStats = () =>
-    resetFrameStats(owner)
-
-  if rawStartPanel ~= nil {
-    owner._LuxRawStartPanel = rawStartPanel
-    owner.StartPanel = (panel, w, h) => {
-      resetFrameStats(owner)
-      return rawStartPanel(panel, w, h)
-    }
-  }
-
-  if rawStartScreen ~= nil {
-    owner._LuxRawStartScreen = rawStartScreen
-    owner.StartScreen = (w, h) => {
-      resetFrameStats(owner)
-      return rawStartScreen(w, h)
-    }
-  }
-
-  owner
-}
-
-export client fn install(owner = nil) {
-  local api = owner ?? {}
-  api.Reload = () => install(api)
-  api._LuxReload = api.Reload
-  installTargets(api)
-
-  shaderpack.installGlobal()
-  style.install(api)
-  capabilities.install(api)
-  commands.install(api)
-  frame.install(api)
-  geometry.install(api)
-  materials.install(api)
-  profiler.install(api)
-  paint.install(api)
-  text.install(api)
-  roundrect.install(api)
-  primitives.install(api)
-  widgets.install(api)
-  installFrameStatsReset(api)
-
-  api
-}
+export client fn install(owner = nil) =
+  api.install(owner)
 
 export client fn installGlobal(name = "MGFX") {
-  local api = _G[name] ?? {}
-  _G[name] = install(api)
+  local out = _G[name] ?? {}
+  _G[name] = install(out)
   return _G[name]
 }
 
 export client fn create() =
-  install({})
+  api.create()
 
 export client {
+  api,
   capabilities,
     commands,
     frame,

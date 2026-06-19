@@ -25,6 +25,30 @@ fill, stroke, strokeWidth
 
 `stroke == nil`、`strokeWidth == nil` 或 `strokeWidth <= 0` 表示不绘制描边。
 
+## Lux 入口
+
+Lux 用户不需要关心某个函数内部属于 paint、primitive 还是 widget。推荐入口是统一门面：
+
+```lux
+import * as mgfx from "@lux/mgfx"
+
+client fn install() {
+  local api = mgfx.installGlobal("MGFX")
+  api.RoundedBoxEx(16, 16, 220, 48, {
+    radius = 8,
+    fill = api.LinearGradient(0, 0, 1, 0, Color(80, 170, 255), Color(90, 220, 180)),
+  })
+}
+```
+
+如果你喜欢模块式调用，主包也导出 `mgfx.api`：
+
+```lux
+mgfx.api.roundedBoxEx(16, 16, 220, 48, { radius = 8, fill = Color(28, 34, 46) })
+```
+
+`@lux/mgfx/paint`、`@lux/mgfx/primitives`、`@lux/mgfx/widgets` 等子包仍可导入，但它们现在更适合内部维护、工具或很窄的依赖面；普通 UI 代码优先使用 `@lux/mgfx` / `mgfx.api`。
+
 ## 帧作用域
 
 ```lua
@@ -53,6 +77,15 @@ MGFX.RoundedBoxEx(x, y, w, h, style)
 MGFX.ChamferBox(x, y, w, h, cuts, fill, stroke, strokeWidth)
 MGFX.ChamferBoxEx(x, y, w, h, style)
 
+MGFX.RegularPoly(cx, cy, radius, sides, rotation, fill, stroke, strokeWidth)
+MGFX.RegularPolyEx(cx, cy, radius, sides, style)
+
+MGFX.Diamond(x, y, w, h, fill, stroke, strokeWidth)
+MGFX.DiamondEx(x, y, w, h, style)
+
+MGFX.Caret(x, y, w, h, direction, fill, stroke, strokeWidth)
+MGFX.CaretEx(x, y, w, h, style)
+
 MGFX.Poly(points, fill, stroke, strokeWidth)
 MGFX.PolyEx(points, style)
 
@@ -67,6 +100,12 @@ MGFX.CapsuleEx(x, y, w, h, style)
 ```
 
 `RoundedBoxEx` 使用 `style.radius`，`ChamferBoxEx` 使用 `style.cuts`，`LineEx` 使用 `style.width`。`Poly` / `PolyEx` 的 public contract 是凸多边形；复杂路径应先拆成凸片段。
+
+常用凸多边形不用手写点表：
+
+- `RegularPoly` 是正多边形，`sides` 限制为 3..8；三角形语义请用 `RegularPoly(..., 3, ...)`，不要猜一个含糊的 `Triangle`。
+- `Diamond` 是盒子内的上/右/下/左四点菱形。
+- `Caret` 是方向明确的三角箭头，`direction` 支持 `"right"`、`"left"`、`"up"`、`"down"`；`CaretEx` 可用 `style.direction` 或 `style.dir`。
 
 ## 阴影、Glow 与 Backdrop
 
@@ -119,6 +158,19 @@ shadow = {
 ```
 
 `innerGlow` 始终裁剪在 shape 内部，当前不支持偏移。
+
+推荐取值范围：
+
+| 字段 | 推荐值 | 说明 |
+| --- | --- | --- |
+| `shadow.x / shadow.y` | 小控件 `y = 1..3`，面板 `y = 4..10` | 像素偏移；正 x 向右，正 y 向下。 |
+| `shadow.blur` | 小控件 `4..8`，面板 `10..20`，大遮罩 `20+` | 阴影软边宽度，不是偏移。 |
+| `shadow.spread` | `0..3` 常用 | 先扩大形状再做软边；不是 blur。 |
+| `outerGlow.size / width` | `6..18` 常用 | 发光半径；需要偏移时使用 x/y。 |
+| `innerGlow.width / size` | `4..14` 常用 | 裁剪在形状内部，无偏移。 |
+| `softness` | `0..1`，常用 `0.55..0.75` | 数值越大越柔和；锐利 HUD 光可用 `0.35..0.55`。 |
+| `opacity / strength` | 推荐 `0..1` | 当前实现允许略高于 1，但只有夸张高光才建议这样做。 |
+| `backdrop.blur` | `3..10` 常用 | 只模糊形状内部背景，不产生投影。 |
 
 Backdrop 不是独立 primitive，而是 shape/image 的内部背景效果：
 

@@ -1,6 +1,7 @@
 if SERVER then return end
 
 MGFX = MGFX or {}
+MGFX.api = MGFX
 mgfx = nil
 
 local M = MGFX
@@ -963,6 +964,12 @@ if profiler and profiler.InstallApiWrappers then
 		"RoundedBoxEx",
 		"ChamferBox",
 		"ChamferBoxEx",
+		"RegularPoly",
+		"RegularPolyEx",
+		"Diamond",
+		"DiamondEx",
+		"Caret",
+		"CaretEx",
 		"Poly",
 		"PolyEx",
 		"Image",

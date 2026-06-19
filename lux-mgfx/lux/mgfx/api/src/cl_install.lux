@@ -1,0 +1,90 @@
+import * as capabilities from "@lux/mgfx/capabilities"
+import * as commands from "@lux/mgfx/commands"
+import * as frame from "@lux/mgfx/frame"
+import * as geometry from "@lux/mgfx/geometry"
+import * as materials from "@lux/mgfx/materials"
+import * as paint from "@lux/mgfx/paint"
+import * as primitives from "@lux/mgfx/primitives"
+import * as profiler from "@lux/mgfx/profiler"
+import * as roundrect from "@lux/mgfx/roundrect"
+import * as shaderpack from "@lux/mgfx/shaderpack"
+import * as style from "@lux/mgfx/style"
+import * as textModule from "@lux/mgfx/text"
+import * as widgets from "@lux/mgfx/widgets"
+
+fn installTargets(owner) {
+  owner.TARGET = capabilities.TARGET
+  owner.TARGET_NAME = capabilities.TARGET_NAME
+}
+
+fn resetFrameStats(owner) {
+  owner.stats = owner.stats ?? {}
+  if owner.ResetGeometryFrameStats ~= nil {
+    owner.ResetGeometryFrameStats()
+  }
+  if owner.ResetTextFrameStats ~= nil {
+    owner.ResetTextFrameStats()
+  }
+
+  owner.stats
+}
+
+fn installFrameStatsReset(owner) {
+  local rawStartPanel = owner.StartPanel
+  local rawStartScreen = owner.StartScreen
+
+  owner.ResetFrameStats = () =>
+    resetFrameStats(owner)
+
+  if rawStartPanel ~= nil {
+    owner._LuxRawStartPanel = rawStartPanel
+    owner.StartPanel = (panel, w, h) => {
+      resetFrameStats(owner)
+      return rawStartPanel(panel, w, h)
+    }
+  }
+
+  if rawStartScreen ~= nil {
+    owner._LuxRawStartScreen = rawStartScreen
+    owner.StartScreen = (w, h) => {
+      resetFrameStats(owner)
+      return rawStartScreen(w, h)
+    }
+  }
+
+  owner
+}
+
+export client fn install(owner = nil) {
+  local out = owner ?? {}
+  out.Reload = () => install(out)
+  out._LuxReload = out.Reload
+  out.api = out
+
+  installTargets(out)
+  shaderpack.installGlobal()
+  style.install(out)
+  capabilities.install(out)
+  commands.install(out)
+  frame.install(out)
+  geometry.install(out)
+  materials.install(out)
+  profiler.install(out)
+  paint.install(out)
+  textModule.install(out)
+  roundrect.install(out)
+  primitives.install(out)
+  widgets.install(out)
+  installFrameStatsReset(out)
+
+  out
+}
+
+export client fn installGlobal(name = "MGFX") {
+  local out = _G[name] ?? {}
+  _G[name] = install(out)
+  return _G[name]
+}
+
+export client fn create() =
+  install({})

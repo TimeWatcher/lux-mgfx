@@ -2,6 +2,12 @@ export client fn install(owner) {
   configurePrimitives(owner)
   owner.ChamferBox = chamferBox
   owner.ChamferBoxEx = chamferBoxEx
+  owner.RegularPoly = regularPoly
+  owner.RegularPolyEx = regularPolyEx
+  owner.Diamond = diamond
+  owner.DiamondEx = diamondEx
+  owner.Caret = caret
+  owner.CaretEx = caretEx
   owner.Line = line
   owner.LineEx = lineEx
   owner.Poly = poly

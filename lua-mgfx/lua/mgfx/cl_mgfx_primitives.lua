@@ -897,12 +897,119 @@ function M.PolyEx(points, style)
 end
 
 local polyArgStyle = {}
+local regularPolyArgStyle = {}
+local diamondArgStyle = {}
+local caretArgStyle = {}
+local regularPolyScratch = {}
+local diamondScratch = {{}, {}, {}, {}}
+local caretScratch = {{}, {}, {}}
+
+local function clearPoints(points)
+	for i = #points, 1, -1 do
+		points[i] = nil
+	end
+	return points
+end
+
+local function setPoint(points, index, x, y)
+	local point = points[index] or {}
+	points[index] = point
+	point.x = x
+	point.y = y
+	point.u = nil
+	point.v = nil
+	point.color = nil
+end
+
+local function regularPolyPoints(cx, cy, radius, sides, rotation)
+	local points = clearPoints(regularPolyScratch)
+	local count = math.Clamp(math_floor(tonumber(sides) or 3), 3, 8)
+	local r = math_max(0, tonumber(radius) or 0)
+	local start = math_rad(tonumber(rotation) or -90)
+	local step = math_rad(360 / count)
+
+	for i = 1, count do
+		local angle = start + (i - 1) * step
+		setPoint(points, i, cx + math_cos(angle) * r, cy + math_sin(angle) * r)
+	end
+
+	return points
+end
+
+local function diamondPoints(x, y, w, h)
+	setPoint(diamondScratch, 1, x + w * 0.5, y)
+	setPoint(diamondScratch, 2, x + w, y + h * 0.5)
+	setPoint(diamondScratch, 3, x + w * 0.5, y + h)
+	setPoint(diamondScratch, 4, x, y + h * 0.5)
+	return diamondScratch
+end
+
+local function caretPoints(x, y, w, h, direction)
+	direction = direction or "right"
+
+	if direction == "up" then
+		setPoint(caretScratch, 1, x + w * 0.5, y)
+		setPoint(caretScratch, 2, x + w, y + h)
+		setPoint(caretScratch, 3, x, y + h)
+	elseif direction == "down" then
+		setPoint(caretScratch, 1, x, y)
+		setPoint(caretScratch, 2, x + w, y)
+		setPoint(caretScratch, 3, x + w * 0.5, y + h)
+	elseif direction == "left" then
+		setPoint(caretScratch, 1, x + w, y)
+		setPoint(caretScratch, 2, x + w, y + h)
+		setPoint(caretScratch, 3, x, y + h * 0.5)
+	else
+		setPoint(caretScratch, 1, x, y)
+		setPoint(caretScratch, 2, x + w, y + h * 0.5)
+		setPoint(caretScratch, 3, x, y + h)
+	end
+
+	return caretScratch
+end
 
 function M.Poly(points, fill, stroke, strokeWidth)
 	polyArgStyle.fill = fill
 	polyArgStyle.stroke = stroke
 	polyArgStyle.strokeWidth = strokeWidth
 	return M.PolyEx(points, polyArgStyle)
+end
+
+function M.RegularPolyEx(cx, cy, radius, sides, style)
+	style = style or {}
+	return M.PolyEx(regularPolyPoints(cx, cy, radius, sides, style.rotation or style.angle), style)
+end
+
+function M.RegularPoly(cx, cy, radius, sides, rotation, fill, stroke, strokeWidth)
+	regularPolyArgStyle.rotation = rotation
+	regularPolyArgStyle.fill = fill
+	regularPolyArgStyle.stroke = stroke
+	regularPolyArgStyle.strokeWidth = strokeWidth
+	return M.RegularPolyEx(cx, cy, radius, sides, regularPolyArgStyle)
+end
+
+function M.DiamondEx(x, y, w, h, style)
+	return M.PolyEx(diamondPoints(x, y, w, h), style)
+end
+
+function M.Diamond(x, y, w, h, fill, stroke, strokeWidth)
+	diamondArgStyle.fill = fill
+	diamondArgStyle.stroke = stroke
+	diamondArgStyle.strokeWidth = strokeWidth
+	return M.DiamondEx(x, y, w, h, diamondArgStyle)
+end
+
+function M.CaretEx(x, y, w, h, style)
+	style = style or {}
+	return M.PolyEx(caretPoints(x, y, w, h, style.direction or style.dir), style)
+end
+
+function M.Caret(x, y, w, h, direction, fill, stroke, strokeWidth)
+	caretArgStyle.direction = direction
+	caretArgStyle.fill = fill
+	caretArgStyle.stroke = stroke
+	caretArgStyle.strokeWidth = strokeWidth
+	return M.CaretEx(x, y, w, h, caretArgStyle)
 end
 
 	C.chamferTuple = chamferTuple
