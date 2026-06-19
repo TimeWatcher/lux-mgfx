@@ -3,7 +3,8 @@ Lux MGFX licensing
 
 Unless a file says otherwise:
 
-- Source code under `lux/mgfx/` and shader tooling under `tools/mgfx/` are
+- Source code under `lux-mgfx/lux/mgfx/`, source code under
+  `lua-mgfx/lua/mgfx/`, and shader tooling under both implementation trees are
   licensed under the Lux MGFX Non-Commercial License.
 - Documentation prose is licensed under Creative Commons Attribution 4.0
   International (CC BY 4.0).

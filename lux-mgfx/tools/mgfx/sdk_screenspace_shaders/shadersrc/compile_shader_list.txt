@@ -1,0 +1,16 @@
+// Add the shaders to compile below here
+// NOTE: shaders must be suffixed with _ps2x
+
+template_ps2x.hlsl
+
+example_wave_ps2x.hlsl
+example_glitch_ps2x.hlsl
+example_blackhole_ps2x.hlsl
+example_flip_ps2x.hlsl
+example_hearts_ps2x.hlsl
+example_ascii_ps2x.hlsl
+example_square_ps2x.hlsl
+example_spin_ps2x.hlsl
+example_depth_ps2x.hlsl
+example_chromaticaberration_ps2x.hlsl
+example_sdf_ps2x.hlsl

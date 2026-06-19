@@ -3,7 +3,7 @@ name = "lux-mgfx"
 [[package]]
 id = "@lux/mgfx"
 version = "0.1.0"
-path = "lux/mgfx"
+path = "lux-mgfx/lux/mgfx"
 license = "Lux-MGFX-NC"
 depends = [
   "@lux/mgfx/capabilities >=0.1 <0.2",
@@ -24,21 +24,21 @@ depends = [
 [[package]]
 id = "@lux/mgfx/capabilities"
 version = "0.1.0"
-path = "lux/mgfx/capabilities"
+path = "lux-mgfx/lux/mgfx/capabilities"
 license = "Lux-MGFX-NC"
 depends = ["@lux/compile/macro >=0.1 <0.2", "@lux/mgfx/style >=0.1 <0.2"]
 
 [[package]]
 id = "@lux/mgfx/commands"
 version = "0.1.0"
-path = "lux/mgfx/commands"
+path = "lux-mgfx/lux/mgfx/commands"
 license = "Lux-MGFX-NC"
 depends = ["@lux/compile/macro >=0.1 <0.2"]
 
 [[package]]
 id = "@lux/mgfx/console"
 version = "0.1.0"
-path = "lux/mgfx/console"
+path = "lux-mgfx/lux/mgfx/console"
 license = "Lux-MGFX-NC"
 depends = [
   "@lux/mgfx/materials >=0.1 <0.2",
@@ -47,7 +47,7 @@ depends = [
 [[package]]
 id = "@lux/mgfx/demo"
 version = "0.1.0"
-path = "lux/mgfx/demo"
+path = "lux-mgfx/lux/mgfx/demo"
 license = "Lux-MGFX-NC"
 depends = [
   "@lux/mgfx >=0.1 <0.2",
@@ -56,27 +56,27 @@ depends = [
 [[package]]
 id = "@lux/mgfx/frame"
 version = "0.1.0"
-path = "lux/mgfx/frame"
+path = "lux-mgfx/lux/mgfx/frame"
 license = "Lux-MGFX-NC"
 
 [[package]]
 id = "@lux/mgfx/geometry"
 version = "0.1.0"
-path = "lux/mgfx/geometry"
+path = "lux-mgfx/lux/mgfx/geometry"
 license = "Lux-MGFX-NC"
 depends = ["@lux/mgfx/style >=0.1 <0.2"]
 
 [[package]]
 id = "@lux/mgfx/materials"
 version = "0.1.0"
-path = "lux/mgfx/materials"
+path = "lux-mgfx/lux/mgfx/materials"
 license = "Lux-MGFX-NC"
 depends = ["@lux/mgfx/shaderpack >=0.1 <0.2"]
 
 [[package]]
 id = "@lux/mgfx/paint"
 version = "0.1.0"
-path = "lux/mgfx/paint"
+path = "lux-mgfx/lux/mgfx/paint"
 license = "Lux-MGFX-NC"
 depends = [
   "@lux/mgfx/frame >=0.1 <0.2",
@@ -87,7 +87,7 @@ depends = [
 [[package]]
 id = "@lux/mgfx/primitives"
 version = "0.1.0"
-path = "lux/mgfx/primitives"
+path = "lux-mgfx/lux/mgfx/primitives"
 license = "Lux-MGFX-NC"
 depends = [
   "@lux/mgfx/geometry >=0.1 <0.2",
@@ -98,13 +98,13 @@ depends = [
 [[package]]
 id = "@lux/mgfx/profiler"
 version = "0.1.0"
-path = "lux/mgfx/profiler"
+path = "lux-mgfx/lux/mgfx/profiler"
 license = "Lux-MGFX-NC"
 
 [[package]]
 id = "@lux/mgfx/roundrect"
 version = "0.1.0"
-path = "lux/mgfx/roundrect"
+path = "lux-mgfx/lux/mgfx/roundrect"
 license = "Lux-MGFX-NC"
 depends = [
   "@lux/mgfx/geometry >=0.1 <0.2",
@@ -114,19 +114,19 @@ depends = [
 [[package]]
 id = "@lux/mgfx/shaderpack"
 version = "0.1.0"
-path = "lux/mgfx/shaderpack"
+path = "lux-mgfx/lux/mgfx/shaderpack"
 license = "Lux-MGFX-NC"
 
 [[package]]
 id = "@lux/mgfx/style"
 version = "0.1.0"
-path = "lux/mgfx/style"
+path = "lux-mgfx/lux/mgfx/style"
 license = "Lux-MGFX-NC"
 
 [[package]]
 id = "@lux/mgfx/text"
 version = "0.1.0"
-path = "lux/mgfx/text"
+path = "lux-mgfx/lux/mgfx/text"
 license = "Lux-MGFX-NC"
 depends = [
   "@lux/mgfx/frame >=0.1 <0.2",
@@ -136,7 +136,7 @@ depends = [
 [[package]]
 id = "@lux/mgfx/widgets"
 version = "0.1.0"
-path = "lux/mgfx/widgets"
+path = "lux-mgfx/lux/mgfx/widgets"
 license = "Lux-MGFX-NC"
 depends = [
   "@lux/mgfx/geometry >=0.1 <0.2",
@@ -150,7 +150,7 @@ depends = [
 [[package]]
 id = "@lux/mgfx/wheel_demo"
 version = "0.1.0"
-path = "lux/mgfx/wheel_demo"
+path = "lux-mgfx/lux/mgfx/wheel_demo"
 license = "Lux-MGFX-NC"
 depends = [
   "@lux/mgfx >=0.1 <0.2",

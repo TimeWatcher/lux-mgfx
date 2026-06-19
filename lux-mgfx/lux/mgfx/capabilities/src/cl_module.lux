@@ -1,0 +1,156 @@
+import * as style from "@lux/mgfx/style"
+import macro { defineCapabilities } from "@lux/mgfx/capabilities"
+
+local makeColor = Color
+local tableCopy = table.Copy
+local typeOf = type
+
+enum CapabilityTarget repr number {
+  RoundedBox = 1,
+  ChamferBox = 2,
+  Poly = 3,
+  Line = 4,
+  Circle = 5,
+  Capsule = 6,
+  Image = 8,
+  ProgressBar = 9,
+  SegmentBar = 10,
+  Ring = 11,
+  Arc = 12,
+  Text = 13,
+  Sector = 14
+}
+
+enum FillView repr existing(kind = "kind") {
+  Solid(kind = style.FILL_SOLID),
+  Linear(kind = style.FILL_LINEAR),
+  Radial(kind = style.FILL_RADIAL),
+  Conic(kind = style.FILL_CONIC)
+}
+
+enum PatternView repr existing(kind = "kind") {
+  Stripe(kind = style.PATTERN_STRIPE),
+  Smoke(kind = style.PATTERN_SMOKE)
+}
+
+fn keySet(...) {
+  local out = {}
+  for index = 1, select("#", ...) {
+    local key = select(index, ...)
+    out[key] = true
+  }
+
+  out
+}
+
+defineCapabilities {
+  groups = {
+    shape = { fill, stroke, strokeWidth, shadow, outerGlow, innerGlow, backdrop, pattern, transform },
+    ringShape = { fill, color, stroke, strokeWidth, shadow, outerGlow, innerGlow, backdrop, pattern, transform }
+  },
+  targets = {
+    { name = ROUNDED_BOX, id = 1, family = shape, coverage = roundedBox, keyGroup = shape },
+    { name = CHAMFER_BOX, id = 2, family = shape, coverage = chamferBox, keys = { fill, stroke, strokeWidth, shadow, outerGlow, innerGlow, backdrop, pattern, cuts, transform } },
+    { name = POLY, id = 3, family = shape, coverage = convexPoly, keys = { fill, stroke, strokeWidth, shadow, backdrop, pattern, transform } },
+    { name = LINE, id = 4, family = shape, coverage = line, keys = { fill, color, width, radius, caps, noCaps, backdrop, transform } },
+    { name = CIRCLE, id = 5, family = shape, coverage = circle, keyGroup = shape },
+    { name = CAPSULE, id = 6, family = shape, coverage = capsule, keyGroup = shape },
+    { name = IMAGE, id = 8, family = content, coverage = imageMask, keys = { source, fill, background, stroke, strokeWidth, shadow, outerGlow, backdrop, mask, radius, tint, color, alpha, fit, objectFit, position, positionX, positionY, alignX, alignY, crop, uv, transform } },
+    { name = PROGRESS_BAR, id = 9, family = compound, coverage = progress, keys = { track, fill, stroke, strokeWidth, radius, padding, shadow, outerGlow, innerGlow, backdrop, fillPattern, trackPattern, pattern, fx, transform } },
+    { name = SEGMENT_BAR, id = 10, family = compound, coverage = segmentBar, keys = { segments, gap, track, fill, stroke, strokeWidth, radius, background, backgroundRadius, shadow, outerGlow, innerGlow, backdrop, fillPattern, trackPattern, pattern, transform } },
+    { name = RING, id = 11, family = shape, coverage = ring, keyGroup = ringShape },
+    { name = ARC, id = 12, family = shape, coverage = arc, keyGroup = ringShape },
+    { name = TEXT, id = 13, family = text, coverage = glyph, keys = { fill, color, alignX, alignY, valign, shadow, stroke, glow, weight, italic, letterSpacing, lineHeight } },
+    { name = SECTOR, id = 14, family = shape, coverage = sector, keyGroup = ringShape }
+  }
+}
+
+export client fn get(target) =
+  matrix[target]
+
+export client fn supports(target, key) {
+  local entry = get(target)
+  entry ~= nil and entry.keys ~= nil and entry.keys[key] == true
+}
+
+export client fn isPattern(value) =
+  typeOf(value) == "table" and match value {
+    PatternView.Stripe | PatternView.Smoke => true
+    _ => false
+  }
+
+export client fn isFill(value) {
+  stopif typeOf(value) ~= "table", true
+
+  match value {
+    FillView.Solid | FillView.Linear | FillView.Radial | FillView.Conic => true
+    _ => value.r ~= nil
+  }
+}
+
+fn normalizePaintSlots(input, target) {
+  stopif typeOf(input) ~= "table" or not isPattern(input.fill), input
+
+  match target {
+    CapabilityTarget.ProgressBar | CapabilityTarget.SegmentBar => {
+      local out = tableCopy(input)
+      if out.fillPattern == nil {
+        out.fillPattern = out.fill
+      }
+      out.fill = out.fillBase ?? out.baseFill
+      return out
+    }
+    _ => nil
+  }
+
+  local cap = get(target)
+  stopif cap == nil or cap.keys == nil or cap.keys.pattern ~= true or input.pattern ~= nil, input
+
+  local out = tableCopy(input)
+  out.pattern = out.fill
+  out.fill = out.patternBase ?? out.baseFill ?? makeColor(0, 0, 0, 0)
+  out
+}
+
+export client fn normalizeStyle(input, target = nil) {
+  stopif input == nil, {}
+  stopif style.isColor(input), { fill = style.solid(input) }
+  stopif typeOf(input) ~= "table", {}
+
+  local out = normalizePaintSlots(tableCopy(input), target)
+
+  if out.fill ~= nil {
+    out.fill = style.fillFrom(out.fill)
+  }
+
+  if out.strokeWidth ~= nil {
+    out.strokeWidth = style.strokeWidth(out.strokeWidth, 1)
+  }
+
+  if out.backdrop ~= nil {
+    out.backdrop = style.backdropStyle(out.backdrop)
+  }
+
+  if out.mask ~= nil {
+    out.mask = style.imageMaskStyle(out.mask, out)
+  }
+
+  out
+}
+
+export client fn install(owner) {
+  owner.GetCapabilities = get
+  owner.Supports = supports
+  owner.IsPattern = isPattern
+  owner.IsFill = isFill
+  owner.NormalizeStyle = normalizeStyle
+  owner.hasShaders = () => false
+  owner.shaderStatus = () => {
+    {
+      ok = false,
+        shaderVersion = nil,
+        reason = "lux/mgfx fallback renderer active"
+    }
+  }
+  owner
+}

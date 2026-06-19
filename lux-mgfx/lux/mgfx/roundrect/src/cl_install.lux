@@ -1,0 +1,19 @@
+export client fn install(owner) {
+  configureRoundRect(owner)
+  owner.RoundedBox = roundedBox
+  owner.RoundedBoxEx = roundedBoxEx
+  owner.Circle = circle
+  owner.CircleEx = circleEx
+  owner.Capsule = capsule
+  owner.CapsuleEx = capsuleEx
+  owner._RoundRect = {
+    drawRoundRectImmediate = drawRoundRectImmediate,
+      fallbackRoundRectPoints = fallbackRoundRectPoints,
+      innerGlowStyle = innerGlowStyle,
+      outerGlowStyle = outerGlowStyle,
+      shadowStyle = shadowStyle,
+      patternStyle = patternStyle,
+      patternOffset = patternOffset
+  }
+  owner
+}

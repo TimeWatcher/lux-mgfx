@@ -1,0 +1,46 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build Current Shader",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-NoLogo",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-Command",
+                "bin\\process_shaders_single.ps1",
+                "-Version",
+                "20b",
+                "${file}"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}/shadersrc"
+            }
+        },
+        {
+            "label": "Build All Shaders",
+            "type": "shell",
+            "command": ".\\build_shaders.bat",
+            "args": [
+                "compile_shader_list"
+            ],
+            "problemMatcher": [],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "options": {
+                "cwd": "${workspaceFolder}/shadersrc"
+            }
+        }
+    ]
+}

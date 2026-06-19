@@ -1,0 +1,87 @@
+export client fn drawRoundRectImmediate(x, y, w, h, drawStyle = nil) {
+  local resolved = drawStyle ?? {}
+  if drawRoundRectShader(x, y, w, h, resolved) {
+    return
+  }
+
+  local radius = style.radiusScalar(resolved.radius ?? resolved.r ?? 0, w, h)
+  local fill = style.fillFromStyle(resolved.fill ?? resolved.color)
+  local fillVisible = style.fillVisible(fill)
+  local strokeWidth = style.strokeWidth(resolved.strokeWidth, 0)
+  local strokeVisible = style.strokeVisible(resolved.stroke, strokeWidth)
+
+  local shadow = shadowStyle(resolved.shadow)
+  if shadow ~= nil and shadow.color ~= nil {
+    local shadowAlpha = style.alpha(shadow.color.a)
+    if shadowAlpha > 0 {
+      local spread = mathMax(1, toNumber(shadow.spread ?? shadow.width) ?? 12)
+      local grow = mathMax(0, toNumber(shadow.grow ?? shadow.shapeSpread ?? shadow.expand) ?? 0)
+      local ox = toNumber(shadow.x ?? shadow.offsetX ?? shadow.dx) ?? 0
+      local oy = toNumber(shadow.y ?? shadow.offsetY ?? shadow.dy) ?? 0
+      local shadowColor = style.withAlpha(shadow.color, mathFloor(shadowAlpha * mathMax(0, toNumber(shadow.strength) ?? 1) * 0.38))
+      local sx = x + ox - spread - grow
+      local sy = y + oy - spread - grow
+      local sw = w + (spread + grow) * 2
+      local sh = h + (spread + grow) * 2
+      local sr = radius + spread + grow
+      if hasTransform() {
+        local points = fallbackRoundRectPoints(sx, sy, sw, sh, sr)
+        setColor(shadowColor)
+        drawTransformedPoly(points)
+      } else {
+        drawRoundedBox(mathFloor(sr), sx, sy, sw, sh, shadowColor)
+        recordDraws()
+      }
+    }
+  }
+
+  local outer = outerGlowStyle(resolved.outerGlow)
+  if outer ~= nil and outer.color ~= nil {
+    local outerAlpha = style.alpha(outer.color.a)
+    if outerAlpha > 0 {
+      local spread = mathMax(1, toNumber(outer.spread ?? outer.width) ?? 18)
+      local grow = mathMax(0, toNumber(outer.grow ?? outer.shapeSpread ?? outer.expand) ?? 0)
+      local ox = toNumber(outer.x ?? outer.offsetX ?? outer.dx) ?? 0
+      local oy = toNumber(outer.y ?? outer.offsetY ?? outer.dy) ?? 0
+      local glow = style.withAlpha(outer.color, mathFloor(outerAlpha * 0.35))
+      if hasTransform() {
+        local points = fallbackRoundRectPoints(x + ox - spread - grow, y + oy - spread - grow, w + (spread + grow) * 2, h + (spread + grow) * 2, radius + spread + grow)
+        setColor(glow)
+        drawTransformedPoly(points)
+      } else {
+        drawRoundedBox(mathFloor(radius + spread + grow), x + ox - spread - grow, y + oy - spread - grow, w + (spread + grow) * 2, h + (spread + grow) * 2, glow)
+        recordDraws()
+      }
+    }
+  }
+
+  if hasTransform() {
+    local points = fallbackRoundRectPoints(x, y, w, h, radius)
+    if fillVisible {
+      setColor(fillColor(fill))
+      drawTransformedPoly(points)
+    }
+
+    if strokeVisible {
+      drawFallbackStroke(points, resolved.stroke, mathMax(1, mathFloor(strokeWidth)))
+    }
+    return
+  }
+
+  if fillVisible {
+    if radius <= 0.25 {
+      setColor(fillColor(fill))
+      surfaceDrawRect(x, y, w, h)
+      recordDraws()
+    } else {
+      drawRoundedBox(mathFloor(radius), x, y, w, h, fillColor(fill))
+      recordDraws()
+    }
+  }
+
+  if strokeVisible {
+    setColor(resolved.stroke)
+    surfaceDrawOutlinedRect(x, y, w, h, mathMax(1, mathFloor(strokeWidth)))
+    recordDraws()
+  }
+}

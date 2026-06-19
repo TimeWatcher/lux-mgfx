@@ -1,0 +1,18 @@
+{
+	"title": "Modern GMod FX",
+	"type": "tool",
+	"tags": [
+		"build",
+		"fun"
+	],
+	"ignore": [
+		"shadersrc/*",
+		"tools/*",
+		"docs/*",
+		"docs-site/*",
+		"node_modules/*",
+		"package.json",
+		"package-lock.json",
+		"*.md"
+	]
+}

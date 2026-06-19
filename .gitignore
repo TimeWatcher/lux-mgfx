@@ -1,12 +1,16 @@
 # Local build outputs
 build/
 target/
-dist/tmp/
-dist/*.zip
+lux-mgfx/dist/tmp/
+lux-mgfx/dist/*.zip
+lua-mgfx/docs-site/
+lua-mgfx/node_modules/
+lua-mgfx/.wrangler/
+lua-mgfx/.vitepress-preview.*
 
 # Shader pack outputs
-lux/mgfx/shaderpack/src/cl_mgfx_shaderpack.lua
-lux/mgfx/shadersrc/cl_mgfx_shaderpack.lua
+lux-mgfx/lux/mgfx/shaderpack/src/cl_mgfx_shaderpack.lua
+lux-mgfx/lux/mgfx/shadersrc/cl_mgfx_shaderpack.lua
 
 # Logs
 *.log

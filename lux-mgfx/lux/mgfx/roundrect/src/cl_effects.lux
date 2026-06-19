@@ -1,0 +1,175 @@
+export client fn innerGlowStyle(glow) {
+  stopif glow == nil or glow == false, nil
+
+  if glow == true {
+    return {
+      color = makeColor(76, 190, 255, 34),
+      width = 7,
+      strength = 1,
+      falloff = style.glowSoftnessToFalloff(0.55)
+    }
+  }
+
+  if style.isColor(glow) {
+    return {
+      color = glow,
+      width = 7,
+      strength = 1,
+      falloff = style.glowSoftnessToFalloff(0.55)
+    }
+  }
+
+  stopif typeOf(glow) ~= "table", nil
+
+  return {
+    color = style.asColor(glow.color ?? glow.tint, makeColor(76, 190, 255, 34)),
+    width = mathMax(1, toNumber(glow.size ?? glow.width) ?? 7),
+    strength = toNumber(glow.opacity ?? glow.strength) ?? 1,
+    falloff = toNumber(glow.falloff) ?? style.glowSoftnessToFalloff(glow.softness, 0.55)
+  }
+}
+
+fn effectOffset(input, fallbackX = 0, fallbackY = 0) {
+  local x = input.x ?? input.offsetX ?? input.dx ?? input[1]
+  local y = input.y ?? input.offsetY ?? input.dy ?? input[2]
+  local offset = input.offset
+  if typeOf(offset) == "table" {
+    x = x ?? offset.x ?? offset[1]
+    y = y ?? offset.y ?? offset[2]
+  }
+
+  return toNumber(x) ?? fallbackX, toNumber(y) ?? fallbackY
+}
+
+export client fn outerGlowStyle(glow) {
+  stopif glow == nil or glow == false, nil
+
+  if glow == true {
+    return {
+      color = makeColor(76, 190, 255, 88),
+      x = 0,
+      y = 0,
+      width = 18,
+      spread = 18,
+      grow = 0,
+      strength = 1,
+      falloff = style.glowSoftnessToFalloff(0.54)
+    }
+  }
+
+  if style.isColor(glow) {
+    return {
+      color = glow,
+      x = 0,
+      y = 0,
+      width = 18,
+      spread = 18,
+      grow = 0,
+      strength = 1,
+      falloff = style.glowSoftnessToFalloff(0.54)
+    }
+  }
+
+  stopif typeOf(glow) ~= "table", nil
+
+  local x, y = effectOffset(glow, 0, 0)
+  local width = mathMax(1, toNumber(glow.size ?? glow.width ?? glow.blur ?? glow.radius ?? glow.spread) ?? 18)
+  return {
+    color = style.asColor(glow.color ?? glow.tint, makeColor(76, 190, 255, 88)),
+    x = x,
+    y = y,
+    width = width,
+    spread = mathMax(1, toNumber(glow.spread) ?? width),
+    grow = mathMax(0, toNumber(glow.grow ?? glow.expand ?? glow.shapeSpread) ?? 0),
+    strength = toNumber(glow.opacity ?? glow.strength) ?? 1,
+    falloff = toNumber(glow.falloff) ?? style.glowSoftnessToFalloff(glow.softness, 0.54)
+  }
+}
+
+export client fn shadowStyle(shadow) {
+  stopif shadow == nil or shadow == false, nil
+
+  if shadow == true {
+    return {
+      color = makeColor(0, 0, 0, 132),
+      x = 0,
+      y = 4,
+      width = 12,
+      spread = 12,
+      grow = 0,
+      strength = 1,
+      falloff = style.glowSoftnessToFalloff(0.62)
+    }
+  }
+
+  if style.isColor(shadow) {
+    return {
+      color = shadow,
+      x = 0,
+      y = 4,
+      width = 12,
+      spread = 12,
+      grow = 0,
+      strength = 1,
+      falloff = style.glowSoftnessToFalloff(0.62)
+    }
+  }
+
+  if typeOf(shadow) ~= "table" {
+    local blur = mathMax(0.001, toNumber(shadow) ?? 12)
+    return {
+      color = makeColor(0, 0, 0, 132),
+      x = 0,
+      y = 4,
+      width = blur,
+      spread = mathMax(1, blur),
+      grow = 0,
+      strength = 1,
+      falloff = style.glowSoftnessToFalloff(0.62)
+    }
+  }
+
+  local x, y = effectOffset(shadow, 0, 4)
+  local blur = mathMax(0.001, toNumber(shadow.blur ?? shadow.radius ?? shadow.size ?? shadow.width) ?? 12)
+  local grow = mathMax(0, toNumber(shadow.spread ?? shadow.grow ?? shadow.expand ?? shadow.shapeSpread) ?? 0)
+  return {
+    color = style.asColor(shadow.color ?? shadow.tint, makeColor(0, 0, 0, 132)),
+    x = x,
+    y = y,
+    width = blur,
+    spread = mathMax(1, toNumber(shadow.extent ?? shadow.padding) ?? blur),
+    grow = grow,
+    strength = toNumber(shadow.opacity ?? shadow.strength) ?? 1,
+    falloff = toNumber(shadow.falloff) ?? style.glowSoftnessToFalloff(shadow.softness, 0.62)
+  }
+}
+
+export client fn patternStyle(pattern) {
+  stopif pattern == nil or pattern == false, nil
+
+  if pattern == true {
+    return style.stripePattern(makeColor(255, 255, 255, 20), 10, 2, 135)
+  }
+
+  if typeOf(pattern) == "table" {
+    local knownPattern = match pattern.kind {
+      "stripe" | "smoke" => true
+      _ => false
+    }
+    stopif knownPattern, pattern
+
+    return style.stripePattern(pattern)
+  }
+
+  nil
+}
+
+export client fn patternOffset(pattern) {
+  local offset = toNumber(pattern?.offset) ?? 0
+  local speed = toNumber(pattern?.speed) ?? 0
+  if speed ~= 0 and realTime ~= nil {
+    offset += realTime() * speed
+  }
+
+  offset
+}

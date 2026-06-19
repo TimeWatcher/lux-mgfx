@@ -5,9 +5,9 @@ SPDX-License-Identifier: LicenseRef-Lux-MGFX-NC
 
 Copyright (c) 2026 TimeWatcher.
 
-This license applies to the MGFX package under lux/mgfx/ and to generated Lua
-or derivative works that include MGFX package code, unless a file says
-otherwise.
+This license applies to the MGFX package under lux-mgfx/lux/mgfx/, to the plain
+Lua implementation under lua-mgfx/lua/mgfx/, and to generated Lua or derivative
+works that include MGFX package code, unless a file says otherwise.
 
 1. Permission for non-commercial use
 
