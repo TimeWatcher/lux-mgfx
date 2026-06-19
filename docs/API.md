@@ -1,54 +1,50 @@
-# MGFX API 总览
+# MGFX API Overview
 
-MGFX 是 Garry's Mod 的底层 immediate renderer。它只负责把调用方每帧传入的显式绘制参数画出来，不拥有 layout、input、focus、组件生命周期、动画状态或命中测试。
+MGFX is a low-level immediate renderer for Garry's Mod. It draws explicit arguments supplied by your code every frame. It does not own layout, input, focus, component lifecycle, animation state, or hit testing.
 
-如果你要查某个函数的完整参数表、注意事项、返回值和示例，请看按功能拆分的 [详细 API 参考](./api-reference/)。
+For full per-function tables, caveats, return values, and examples, use the grouped [API Reference](./api-reference/).
 
-## 基本模型
+## Basic Model
 
-MGFX 的 public API 分两层：
+Public drawing functions use two layers:
 
 ```text
-Name(...)    高频短签名，适合简单热路径
-NameEx(...)  table style 签名，适合高级效果和可读参数
+Name(...)    short hot-path signature for simple drawing
+NameEx(...)  table style signature for advanced effects and readable arguments
 ```
 
-非 `Ex` 函数只保留稳定的短参数，不继续堆长重载。阴影、glow、pattern、backdrop、mask、fit/crop、transform、per-corner radius 等高级能力放在对应的 `Ex` style table 里。
+Non-`Ex` functions keep stable short parameters. Advanced features such as shadow, glow, pattern, backdrop, mask, fit/crop, transform, and per-corner radius belong in the `Ex` style table.
 
-所有绘制参数都显式传入。MGFX 没有全局 fill/stroke 状态。
+All draw arguments are explicit. MGFX has no global fill/stroke state.
 
-描边顺序固定为：
+Stroke order is always:
 
 ```lua
 fill, stroke, strokeWidth
 ```
 
-`stroke == nil`、`strokeWidth == nil` 或 `strokeWidth <= 0` 表示不绘制描边。
+`stroke == nil`, `strokeWidth == nil`, or `strokeWidth <= 0` means no stroke.
 
-## 先按需求选 API
+## Pick the API by What You Draw
 
-多数 UI 不需要先想“primitive、widget、paint 该去哪一页”。先按要画的东西选入口：
-
-| 需求 | 首选 API | 何时换成 Ex 或专用 API |
+| Need | Preferred API | When to use `Ex` or a specialized API |
 | --- | --- | --- |
-| 普通面板、按钮、列表行 | `RoundedBox` / `RoundedBoxEx` | 需要 shadow、backdrop、glow、pattern、单角半径时用 `RoundedBoxEx`。 |
-| 切角科幻面板 | `ChamferBoxEx` | `cuts = 6..14` 适合 HUD 卡片；单角切角用 `{tl, tr, br, bl}`。 |
-| 正三角形、五边形、六边形徽章 | `RegularPoly` / `RegularPolyEx` | `sides = 3..8`；等边三角形写 `sides = 3`，不要等一个含糊的 `Triangle`。 |
-| 方向箭头 | `Caret` / `CaretEx` | `direction` 写 `"left"`、`"right"`、`"up"` 或 `"down"`，比手写点表稳定。 |
-| 任意凸多边形 | `PolyEx` | 只传 3..8 个凸点；复杂形状拆成多个凸片段。 |
-| 头像、图标、装备图 | `ImageEx` / `IconEx` | `fit = "cover"` 做头像裁切，`fit = "contain"` 做图标完整显示。 |
-| 血条、装填条 | `ProgressBarEx` | `h = 8..18`、`padding = 1..3`、`radius = h * 0.5` 通常最省心。 |
-| 弹药格、离散充能 | `SegmentBarEx` | `segments = 6..24` 常用；更密集时确认每段宽度仍大于 gap。 |
-| 圆形读条、仪表 | `RingEx` / `ArcEx` | 小 HUD `width = 4..12`，大仪表 `12..24`。 |
-| 轮盘菜单 wedge | `SectorEx` | 用 `innerRadius, outerRadius, startDeg, endDeg` 表达真实扇区。 |
-| 普通文本、表格、玩家名 | `Text` / 原生 GMod text | 只有需要描边、glow、渐变字面、shadow 时再用 `TextEx`。 |
-| 渐变、条纹、烟雾填充 | `LinearGradient` / `RadialGradient` / `StripePattern` / `SmokePattern` | 把它们作为 `fill` 或 `pattern` 传入，不要手工展开成很多 primitive。 |
+| Panels, buttons, rows | `RoundedBox` / `RoundedBoxEx` | Use `RoundedBoxEx` for shadow, backdrop, glow, pattern, or per-corner radius. |
+| Sci-fi chamfer panels | `ChamferBoxEx` | `cuts = 6..14` works well for HUD cards; use `{tl, tr, br, bl}` for per-corner cuts. |
+| Badges and regular shapes | `RegularPoly` / `RegularPolyEx` | `sides = 3..8`; use `sides = 3` for an equilateral triangle. |
+| Direction arrows | `Caret` / `CaretEx` | Use `direction = "left"`, `"right"`, `"up"`, or `"down"`. |
+| Convex custom polygons | `PolyEx` | Pass 3..8 convex points. Split complex paths into convex pieces. |
+| Avatars, icons, loadout art | `ImageEx` / `IconEx` | Use `fit = "cover"` for avatars and `fit = "contain"` for full icons. |
+| Health, ammo, loading bars | `ProgressBarEx` | `h = 8..18`, `padding = 1..3`, `radius = h * 0.5` is a good default. |
+| Discrete charge or ammo cells | `SegmentBarEx` | `segments = 6..24` is common; ensure each segment remains wider than the gap. |
+| Circular meters | `RingEx` / `ArcEx` | Small HUD rings often use `width = 4..12`; large meters use `12..24`. |
+| Radial menu wedges | `SectorEx` | Use `innerRadius`, `outerRadius`, `startDeg`, and `endDeg` for real sectors. |
+| Plain text, tables, player names | `Text` or native GMod text | Use `TextEx` only for stroke, glow, gradient face, or shader-side shadow. |
+| Gradients and patterns | `LinearGradient`, `RadialGradient`, `StripePattern`, `SmokePattern` | Pass them as `fill` or `pattern`; do not expand them into many primitives. |
 
-常见写法是：简单热路径用短签名；一旦参数开始需要解释，就切到 `Ex(..., style)`。GLua 用户可以继续像 `draw.RoundedBox` 那样直接调用，不需要额外封装一层 rect/helper。
+## Lux Usage
 
-## Lux 入口
-
-Lux 用户不需要关心某个函数内部属于 paint、primitive 还是 widget。推荐入口是统一门面：
+Lux users should import the public facade:
 
 ```lux
 import * as mgfx from "@lux/mgfx"
@@ -56,22 +52,50 @@ import * as mgfx from "@lux/mgfx"
 client fn drawPanel() {
   mgfx.api.roundedBoxEx(16, 16, 220, 48, {
     radius = 8,
-    fill = mgfx.api.linearGradient(0, 0, 1, 0, Color(80, 170, 255), Color(90, 220, 180)),
+    fill = mgfx.api.linearGradient(
+      0, 0, 1, 0,
+      Color(80, 170, 255),
+      Color(90, 220, 180)
+    ),
   })
 }
 ```
 
-`mgfx.api` 会自动初始化默认 runtime；不需要为了 shader/material/frame 状态手动调用 `installGlobal`。如果你确实需要给非 Lux GLua 代码暴露全局门面，再调用 `mgfx.installGlobal("MGFX")`。
+`mgfx.api` initializes the default runtime. You do not need to import primitive/widget internals or call `installGlobal` for normal Lux code.
 
-直接调用示例：
+The subpackages such as `@lux/mgfx/paint`, `@lux/mgfx/primitives`, and `@lux/mgfx/widgets` still exist, but they are mainly useful for internals, tools, or narrow dependencies. Application code should prefer `@lux/mgfx` and `mgfx.api`.
 
-```lux
-mgfx.api.roundedBoxEx(16, 16, 220, 48, { radius = 8, fill = Color(28, 34, 46) })
+## Plain GLua Usage
+
+MGFX also ships a precompiled GLua runtime. It is intended for projects that do not use Lux at all.
+
+Load the bundled loader once, then call the global API:
+
+```lua
+include("mgfx/loader_client.lua")
+
+hook.Add("HUDPaint", "MyMGFXHud", function()
+    MGFX.StartScreen(ScrW(), ScrH())
+
+    MGFX.ChamferBoxEx(64, 64, 360, 120, {
+        cuts = {24, 8, 24, 8},
+        fill = Color(5, 12, 18, 180),
+        backdrop = {blur = 6, tint = Color(0, 0, 0, 70)},
+        outerGlow = {
+            color = Color(60, 180, 255, 76),
+            width = 14,
+            x = 8,
+            y = -4,
+        },
+    })
+
+    MGFX.EndScreen()
+end)
 ```
 
-`@lux/mgfx/paint`、`@lux/mgfx/primitives`、`@lux/mgfx/widgets` 等子包仍可导入，但它们现在更适合内部维护、工具或很窄的依赖面；普通 UI 代码优先使用 `@lux/mgfx` / `mgfx.api`。
+`installGlobal("MGFX")` is the plain-GLua bridge. The precompiled loader calls it for the default runtime, so normal GLua users can use `MGFX.RoundedBoxEx`, `MGFX.ImageEx`, `MGFX.ProgressBarEx`, and the rest of the API directly.
 
-## 帧作用域
+## Frame Scope
 
 ```lua
 MGFX.StartPanel(panel, w, h)
@@ -84,13 +108,13 @@ MGFX.PushClip(x, y, w, h)
 MGFX.PopClip()
 ```
 
-所有坐标都相对于当前 active frame。`StartPanel` 会读取 panel 的屏幕位置并建立 panel-local 坐标系；调用方不要再手动把本地坐标转换成屏幕坐标。
+All coordinates are relative to the current active frame. `StartPanel` reads the panel's screen position and establishes panel-local coordinates. Callers should not manually convert panel-local positions to screen positions.
 
-形状、图像和 widget 通常立即绘制。文本和 clip command 会在 frame 内记录，并在 `EndPanel` / `EndScreen` 统一 flush，以便文本路由和 composer 能稳定工作。需要控制 painter order 时，先画底层 shape/image，再发出应当在上层显示的 text 调用。
+Shapes, images, and widgets are usually drawn immediately. Text and clip commands are recorded inside the frame and flushed at `EndPanel` / `EndScreen`, so text routing and the composer remain stable.
 
-`PushClip` / `PopClip` 是矩形 scissor，不是任意形状 mask 栈。形状 mask 是每个 primitive 自己的 shader coverage。
+`PushClip` / `PopClip` are rectangular scissor operations. Arbitrary shape masks are handled by each primitive's own shader coverage.
 
-## 基础图元
+## Primitive Functions
 
 ```lua
 MGFX.RoundedBox(x, y, w, h, radius, fill, stroke, strokeWidth)
@@ -121,33 +145,26 @@ MGFX.Capsule(x, y, w, h, fill, stroke, strokeWidth)
 MGFX.CapsuleEx(x, y, w, h, style)
 ```
 
-`RoundedBoxEx` 使用 `style.radius`，`ChamferBoxEx` 使用 `style.cuts`，`LineEx` 使用 `style.width`。`Poly` / `PolyEx` 的 public contract 是凸多边形；复杂路径应先拆成凸片段。
+`RoundedBoxEx` uses `style.radius`, `ChamferBoxEx` uses `style.cuts`, and `LineEx` uses `style.width`. `Poly` and `PolyEx` accept convex polygons only.
 
-常用凸多边形不用手写点表：
+## Shadow, Glow, and Backdrop
 
-- `RegularPoly` 是正多边形，`sides` 限制为 3..8；三角形语义请用 `RegularPoly(..., 3, ...)`，不要猜一个含糊的 `Triangle`。
-- `Diamond` 是盒子内的上/右/下/左四点菱形。
-- `Caret` 是方向明确的三角箭头，`direction` 支持 `"right"`、`"left"`、`"up"`、`"down"`；`CaretEx` 可用 `style.direction` 或 `style.dir`。
+`shadow`, `outerGlow`, and `backdrop` are separate style fields:
 
-## 阴影、Glow 与 Backdrop
+- `shadow` is a soft external shadow pass. It defaults to `x = 0, y = 4` and is meant for projection.
+- `outerGlow` is an external glow pass. It defaults to no offset and is meant for luminous edges.
+- `outerGlow.x/y` is directional bias for one-sided glow. It does not move the source shape like `shadow.x/y` does.
+- `backdrop` blurs and tints the framebuffer inside the current shape or image mask. It is not a shadow.
 
-`shadow`、`outerGlow` 和 `backdrop` 是三个不同的 style 字段：
-
-- `shadow` 是外部软阴影 pass，默认 `x = 0, y = 4`，适合表达投影。Rounded、Circle、Capsule、Chamfer、Ring、Arc、Sector、Convex Poly 和 texture/image mask 都使用 shape-aware shader pass。
-- `outerGlow` 是外部光晕 pass，默认无偏移，适合表达发光边缘。`outerGlow.x/y` 表示方向偏置，用来做单侧发光；它不会像 `shadow.x/y` 一样移动发光源形状。
-- `backdrop` 是 shape/image 覆盖范围内的背景 blur/tint，不是阴影。
-
-实际选择可以按目的判断：
-
-| 目的 | 字段 | 典型值 |
+| Goal | Field | Typical value |
 | --- | --- | --- |
-| 控件从背景上“浮起来” | `shadow` | `{x = 0, y = 4, blur = 10, spread = 1, color = Color(0,0,0,120), softness = 0.68}` |
-| 大面板有真实下坠阴影 | `shadow` | `{x = 0, y = 8, blur = 18, spread = 2, color = Color(0,0,0,120), softness = 0.62}` |
-| 边缘发光或选中态 | `outerGlow` | `{x = 0, y = 0, width = 12, color = Color(80,190,255,72), softness = 0.58}` |
-| 毛玻璃/背景染色 | `backdrop` | `{blur = 5, tint = Color(8,14,24,110), opacity = 1}` |
-| 内部边缘高光 | `innerGlow` | `{width = 6, color = Color(255,255,255,34), softness = 0.70}` |
+| Lift a control from the background | `shadow` | `{x = 0, y = 4, blur = 10, spread = 1, color = Color(0,0,0,120), softness = 0.68}` |
+| Add selected-edge light | `outerGlow` | `{width = 12, color = Color(80,190,255,72), softness = 0.58}` |
+| Push glow to one side | `outerGlow` | `{x = 8, y = -4, width = 16, color = Color(80,190,255,72)}` |
+| Frosted glass panel | `backdrop` | `{blur = 5, tint = Color(8,14,24,110), opacity = 1}` |
+| Inner edge polish | `innerGlow` | `{width = 6, color = Color(255,255,255,34), softness = 0.70}` |
 
-`shadow` 和 `outerGlow` 都支持偏移：
+Example:
 
 ```lua
 MGFX.RoundedBoxEx(x, y, w, h, {
@@ -161,8 +178,8 @@ MGFX.RoundedBoxEx(x, y, w, h, {
         softness = 0.62,
     },
     outerGlow = {
-        x = 0,
-        y = 0,
+        x = 8,
+        y = -4,
         width = 16,
         color = Color(70, 205, 255, 76),
         softness = 0.55,
@@ -170,80 +187,7 @@ MGFX.RoundedBoxEx(x, y, w, h, {
 })
 ```
 
-可用别名：
-
-```lua
-shadow = true
-shadow = 14
-shadow = Color(...)
-shadow = {
-    x = 0, y = 8,
-    offsetX = 0, offsetY = 8,
-    dx = 0, dy = 8,
-    offset = {x = 0, y = 8},
-    blur = 18,      -- aliases: radius, size, width
-    spread = 2,     -- shape grow; aliases: grow, expand, shapeSpread
-    extent = 22,    -- draw padding; alias: padding
-    opacity = 1,    -- alias: strength
-    softness = 0.62 -- or falloff
-}
-```
-
-`innerGlow` 始终裁剪在 shape 内部，当前不支持偏移。
-
-推荐取值范围：
-
-| 字段 | 推荐值 | 说明 |
-| --- | --- | --- |
-| `shadow.x / shadow.y` | 小控件 `y = 1..3`，面板 `y = 4..10` | 像素偏移；正 x 向右，正 y 向下。 |
-| `shadow.blur` | 小控件 `4..8`，面板 `10..20`，大遮罩 `20+` | 阴影软边宽度，不是偏移。 |
-| `shadow.spread` | `0..3` 常用 | 先扩大形状再做软边；不是 blur。 |
-| `outerGlow.size / width` | `6..18` 常用 | 发光半径；需要偏移时使用 x/y。 |
-| `innerGlow.width / size` | `4..14` 常用 | 裁剪在形状内部，无偏移。 |
-| `softness` | `0..1`，常用 `0.55..0.75` | 数值越大越柔和；锐利 HUD 光可用 `0.35..0.55`。 |
-| `opacity / strength` | 推荐 `0..1` | 当前实现允许略高于 1，但只有夸张高光才建议这样做。 |
-| `backdrop.blur` | `3..10` 常用 | 只模糊形状内部背景，不产生投影。 |
-
-Backdrop 不是独立 primitive，而是 shape/image 的内部背景效果：
-
-```lua
-MGFX.RoundedBoxEx(x, y, w, h, {
-    radius = 12,
-    fill = Color(0, 0, 0, 0),
-    backdrop = {
-        blur = 6,
-        tint = Color(8, 14, 24, 110),
-        opacity = 1,
-    },
-})
-```
-
-支持的简写：
-
-```lua
-backdrop = true         -- blur = 4
-backdrop = 6            -- blur = 6
-backdrop = Color(...)   -- only tint
-backdrop = {blur = 6, tint = Color(...), opacity = 0.8}
-```
-
-`style.backdrop` 会按当前 shape coverage 裁剪。Rounded、Circle、Capsule、Chamfer、Poly、Line、Ring、Arc、Sector 和 Image mask 都使用自己的形状范围来裁剪 blur/tint。不要再使用旧的 `BackdropEx` 思路，也不要用 backdrop 去模拟 drop shadow。
-
-如果需要暗角或额外光效，单独叠一个透明渐变 fill：
-
-```lua
-MGFX.RoundedBoxEx(x, y, w, h, {
-    radius = 12,
-    fill = MGFX.RadialGradient(0.5, 0.5, 0.85, {
-        {0, Color(0, 0, 0, 0)},
-        {1, Color(0, 0, 0, 96)},
-    }),
-})
-```
-
-透明渐变的最后一个 stop 必须显式写 `alpha = 0`。缺省 alpha 是 `255`，否则透明衰减可能变成不透明黑层。
-
-## 图像与遮罩
+## Images and Masks
 
 ```lua
 MGFX.Image(x, y, w, h, source, radius, tint)
@@ -253,232 +197,96 @@ MGFX.Icon(x, y, w, h, source, tint)
 MGFX.IconEx(x, y, w, h, source, style)
 ```
 
-`Image` 是普通图像路径。需要 `fit`、`crop`、`uv`、`mask`、`outerGlow`、背景 fill 或高级 stroke 时使用 `ImageEx`。
+Use `ImageEx` when you need `fit`, `crop`, `uv`, `mask`, `outerGlow`, background fill, or advanced stroke.
 
-显式 mask 写法：
-
-```lua
-mask = MGFX.Mask("rounded", {radius = 8})
-mask = MGFX.Mask("chamfer", {cuts = {tl = 10, tr = 0, br = 10, bl = 0}})
-mask = MGFX.Mask("circle")
-mask = MGFX.Mask("capsule")
-mask = MGFX.Mask("texture", {
-    source = maskMaterial,
-    channel = "a", -- a, r, g, b, luma
-})
-```
-
-圆形头像是普通图像加 circle mask：
+Mask examples:
 
 ```lua
 MGFX.ImageEx(x, y, size, size, avatarMaterial, {
-    mask = MGFX.Mask("circle"),
     fit = "cover",
-})
-```
-
-## 组件图元
-
-```lua
-MGFX.ProgressBar(x, y, w, h, value, radius, track, fill, stroke, strokeWidth)
-MGFX.ProgressBarEx(x, y, w, h, value, style)
-
-MGFX.SegmentBar(x, y, w, h, value, segments, fill, track)
-MGFX.SegmentBarEx(x, y, w, h, value, style)
-
-MGFX.Ring(cx, cy, radius, width, fill)
-MGFX.RingEx(cx, cy, radius, width, style)
-
-MGFX.Arc(cx, cy, radius, startDeg, endDeg, width, fill)
-MGFX.ArcEx(cx, cy, radius, width, startDeg, endDeg, style)
-
-MGFX.Sector(cx, cy, innerRadius, outerRadius, startDeg, endDeg, fill)
-MGFX.SectorEx(cx, cy, innerRadius, outerRadius, startDeg, endDeg, style)
-```
-
-Ring 和 Arc 的厚度是显式 `width` 参数，不放进 `style.width`。Sector 的环形几何由 `innerRadius, outerRadius` 显式声明；`innerRadius = 0` 表示实心扇形。
-
-`ArcEx` 是圆头圆弧，适合 gauge、进度弧和圆形刻度。`SectorEx` 是直边径向扇区，适合轮盘菜单和环形 wedge。二者不能混为一个形状，因为端点几何和 SDF 边界不同。
-
-Wheel sector 示例：
-
-```lua
-MGFX.SectorEx(cx, cy, innerR, outerR, startDeg, endDeg, {
-    fill = MGFX.SectorAngularGradient(
-        Color(36, 40, 48, 150),
-        Color(150, 150, 160, 130)
-    ),
-    stroke = Color(255, 255, 255, 36),
+    mask = MGFX.Mask("chamfer", {cuts = 10}),
+    stroke = Color(80, 190, 255, 120),
     strokeWidth = 1,
 })
 ```
 
-## 文本
+## Widgets
 
 ```lua
-MGFX.RegisterTextFont(name, spec)
-MGFX.DefineTextStyle(name, style)
-MGFX.GetTextStyle(name)
-MGFX.ResolveTextStyle(style)
-MGFX.MeasureText(text, font)
-MGFX.MeasureTextBox(text, font, w, style)
-MGFX.PrewarmText(text, font, style)
-
-MGFX.Text(text, font, x, y, color, ax, ay)
-MGFX.TextEx(text, font, x, y, color, ax, ay, style)
-
-MGFX.TextBox(text, font, x, y, w, h, color, alignX, alignY)
-MGFX.TextBoxEx(text, font, x, y, w, h, style)
+MGFX.ProgressBarEx(x, y, w, h, value, style)
+MGFX.SegmentBarEx(x, y, w, h, value, style)
+MGFX.RingEx(cx, cy, radius, width, style)
+MGFX.ArcEx(cx, cy, radius, width, startDeg, endDeg, style)
+MGFX.SectorEx(cx, cy, innerRadius, outerRadius, startDeg, endDeg, style)
 ```
 
-普通文本走原生 GMod text。Scoreboard 行、玩家名、聊天、日志、表格和快速变化数字，不需要 shader 特效时应直接走原生文本。
+Widgets are still immediate primitives. They do not store state. Pass the current value every frame.
 
-只有需要 gradient fill、shadow、stroke/outline、glow、surface polish 或 shader-side weight adjust 时，才进入 MGFX whole-run composer。`PrewarmText` 只对 composer 路径有效，普通文本会返回 `false`。
+## Text
 
-## 绘制记录、渐变与图案
+Plain text should remain native where possible. MGFX text APIs are for explicit effects:
+
+```lua
+MGFX.Text("READY", "DermaLarge", x, y, Color(220, 245, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+
+MGFX.TextEx("OVERTIME", "DermaLarge", x, y, {
+    fill = MGFX.LinearGradient(0, 0, 1, 0, Color(255, 210, 90), Color(255, 80, 70)),
+    glow = {color = Color(255, 96, 78, 120), blur = 10},
+    shadow = {x = 0, y = 2, blur = 4, color = Color(0, 0, 0, 150)},
+})
+```
+
+## Paint Records
+
+Paint helpers return records consumed by `fill`, `track`, `pattern`, and related fields:
 
 ```lua
 MGFX.Solid(color)
 MGFX.LinearGradient(x1, y1, x2, y2, colorA, colorB)
-MGFX.LinearGradient(x1, y1, x2, y2, stops)
 MGFX.LinearGradientStops(x1, y1, x2, y2, stops)
 MGFX.RadialGradient(cx, cy, radius, colorA, colorB)
-MGFX.RadialGradient(cx, cy, radius, stops)
-MGFX.ConicGradient(cx, cy, rotationDeg, colorA, colorB)
 MGFX.ConicGradient(cx, cy, rotationDeg, stops)
-MGFX.RingRadialGradient(stops)
-MGFX.SectorRadialGradient(stops)
-MGFX.ShapeAngularGradient(stops, rotationDeg)
-MGFX.RingAngularGradient(stops, rotationDeg)
-MGFX.ArcAngularGradient(stops, rotationDeg)
-MGFX.SectorAngularGradient(stops, rotationDeg)
-MGFX.StripePattern(spec)
-MGFX.SmokePattern(spec)
+MGFX.StripePattern(options)
+MGFX.SmokePattern(options)
 ```
 
-所有 gradient helper 都支持 stops，并通过统一 LUT 采样。差异只在 `t` 的几何含义：
+Patterns are shader paint slots. Do not draw smoke or stripes by emitting many `LineEx` calls.
 
-| Helper | `t` 空间 |
-| --- | --- |
-| `LinearGradient` | primitive-local linear axis |
-| `RadialGradient` | primitive-local radial distance，并按短边修正避免矩形拉伸 |
-| `ConicGradient` | 以 normalized center 为中心的完整 360 度角场 |
-| `RingRadialGradient` / `SectorRadialGradient` | ring/sector local innerRadius 到 outerRadius |
-| `ShapeAngularGradient` / `RingAngularGradient` / `ArcAngularGradient` / `SectorAngularGradient` | 当前 shape 的 startDeg 到 endDeg |
+## Visual Transforms
 
-Stop 表写法：
-
-```lua
-local stops = {
-    Color(80, 170, 255),                         -- 按索引自动分布
-    {0.35, Color(90, 220, 180)},                 -- compact {pos, color}
-    {pos = 0.70, color = Color(255, 210, 110)},  -- named form
-    {offset = 1, color = Color(255, 96, 78, 0)}, -- pos/t/offset 都可用
-}
-```
-
-Pattern 是 shader paint slot，不是几何 recipe。不要在 UI 层把斜线或烟雾拆成大量 `LineEx`。需要大面积 stripe/smoke 时，应补对应 shape 的 pattern shader path。
-
-## 视觉变换
-
-`style.transform` 是绘制阶段的视觉 transform，不改变 layout、input hit test、frame 坐标或矩形 clip。
-
-```lua
-MGFX.RoundedBoxEx(x, y, w, h, {
-    radius = 10,
-    fill = Color(28, 34, 46, 230),
-    transform = {
-        origin = "50% 50%",
-        perspective = 900,
-        rotateX = -4,
-        rotateY = 6,
-        scale = 1.02,
-        steps = 12,
-    },
-})
-```
-
-指针驱动的 2.5D 效果使用 helper：
+Transforms are visual-only. They affect drawing, not layout or hit testing.
 
 ```lua
 local tilt = MGFX.PointerTilt(mx, my, {
-    origin = "50% 50%",
     perspective = 900,
     maxRotateX = 4,
     maxRotateY = 6,
-    strength = hoverAmount,
-    scaleLift = 0.01,
-    steps = 12,
+})
+
+MGFX.RoundedBoxEx(x, y, w, h, {
+    radius = 12,
+    fill = Color(12, 20, 28, 210),
+    transform = tilt,
 })
 ```
 
-复合绘制使用 transform stack：
+For repeated draws under the same transform, use:
 
 ```lua
-if MGFX.PushTransform(tilt, x, y, w, h) then
-    MGFX.RoundedBoxEx(x, y, w, h, {radius = 12, fill = panelFill})
-    MGFX.RingEx(cx, cy, 42, 6, {fill = ringFill})
+if MGFX.PushTransform(transform, x, y, w, h) then
+    MGFX.RoundedBoxEx(x, y, w, h, style)
+    MGFX.RingEx(cx, cy, 42, 6, ringStyle)
     MGFX.PopTransform()
 end
 ```
 
-## 常见 style 字段
-
-Shape:
+## Capability Queries
 
 ```lua
-{
-    fill = Color(...) or MGFX.LinearGradient(...),
-    stroke = Color(...),
-    strokeWidth = 1,
-    radius = 8,
-    cuts = 8,
-    shadow = {x = 0, y = 8, blur = 18, spread = 2, color = Color(...)},
-    backdrop = {blur = 6, tint = Color(...)},
-    innerGlow = {color = Color(...), width = 10, opacity = 0.6},
-    outerGlow = {x = 0, y = 0, color = Color(...), width = 18, opacity = 0.6},
-    pattern = MGFX.SmokePattern(...),
-    transform = MGFX.PointerTilt(mx, my, {perspective = 900}),
-}
+local caps = MGFX.GetCapabilities(MGFX.TARGET.POLY)
+if MGFX.Supports(MGFX.TARGET.POLY, "outerGlow") then
+    MGFX.PolyEx(points, {fill = Color(30, 80, 120), outerGlow = {width = 12}})
+end
 ```
 
-Image:
-
-```lua
-{
-    tint = Color(...),
-    alpha = 0.9,
-    fit = "cover", -- fill, contain, cover
-    position = {x = 0.5, y = 0.5},
-    crop = {x = 0, y = 0, w = 1, h = 1},
-    uv = {u0 = 0, v0 = 0, u1 = 1, v1 = 1},
-    mask = MGFX.Mask("chamfer", {cuts = 8}),
-    shadow = {...},
-    outerGlow = {...},
-    backdrop = {...},
-}
-```
-
-Ring / Arc / Sector:
-
-```lua
-{
-    fill = Color(...) or MGFX.SectorAngularGradient(...),
-    stroke = Color(...),
-    strokeWidth = 1,
-    shadow = {...},
-    backdrop = {blur = 6, tint = Color(...)},
-    pattern = MGFX.StripePattern(...),
-    innerGlow = {...},
-    outerGlow = {...},
-}
-```
-
-## 能力查询
-
-```lua
-MGFX.GetCapabilities(MGFX.TARGET.ROUNDED_BOX)
-MGFX.Supports(MGFX.TARGET.RING, "outerGlow")
-```
-
-能力表描述的是已经实现的 render slots，不是计划表。当前 shape rendering 以 immediate shader/fallback path 为主；旧的 shape/data-texture batch prototype 已移除，原因见 [已移除的 Shape 批处理设计](./BATCHING)。
+Capabilities describe implemented render slots, not future plans.

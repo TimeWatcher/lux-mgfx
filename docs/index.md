@@ -4,27 +4,30 @@ layout: home
 hero:
   name: "MGFX"
   text: "Modern GMod FX"
-  tagline: "Garry's Mod 的 shader-backed immediate UI renderer。保留直接绘制的心智模型，把抗锯齿、渐变、mask、glow、backdrop、ring/sector 和可选文字特效放进明确的渲染 API。"
+  tagline: "A shader-backed immediate renderer for Garry's Mod UI. MGFX keeps the direct drawing model you already know, while adding anti-aliased shapes, gradients, masks, glow, backdrop blur, rings, sectors, images, and optional shader text effects."
   actions:
     - theme: brand
-      text: 阅读 API
+      text: Read the API
       link: /API
     - theme: alt
-      text: 查看详细参考
-      link: /api-reference/
+      text: Plain GLua Usage
+      link: /API#plain-glua-usage
+    - theme: alt
+      text: 中文文档
+      link: /zh-CN/
 
 features:
-  - title: 直接绘制优先
-    details: Shape 和 widget 走直接 shader/fallback 路径；不再维护昂贵的通用 batch scheduler。
-  - title: 按形状裁剪的效果
-    details: Rounded、Chamfer、Circle、Capsule、Ring、Arc、Sector、Image mask 都按自身覆盖范围处理 glow 和 backdrop。
-  - title: 完整 stop 渐变
-    details: Linear、Radial、Conic、Ring/Sector local radial、Shape angular 都走统一 LUT stop 路径。
-  - title: 矩阵参数上传
-    details: 热路径参数优先用 $viewprojmat / c11 一次上传，SetFloat 只作为辅助参数页。
+  - title: Immediate first
+    details: Shapes and widgets use direct shader/fallback paths. There is no heavy general-purpose batch scheduler between your HUD code and the renderer.
+  - title: Shape-aware effects
+    details: Rounded boxes, chamfer boxes, circles, capsules, rings, arcs, sectors, convex polygons, and image masks clip glow and backdrop effects to their own coverage.
+  - title: Real paint records
+    details: Linear, radial, conic, ring/sector radial, angular gradients, stripe patterns, and smoke patterns are paint slots instead of hand-expanded geometry.
+  - title: Lux and plain GLua
+    details: Lux projects import @lux/mgfx. Non-Lux projects can load the bundled runtime and call MGFX.* directly.
 ---
 
-## 快速开始
+## Quick Start
 
 ```lua
 function PANEL:Paint(w, h)
@@ -36,6 +39,11 @@ function PANEL:Paint(w, h)
         backdrop = {
             blur = 8,
             tint = Color(0, 8, 12, 120),
+        },
+        outerGlow = {
+            color = Color(70, 205, 255, 64),
+            width = 12,
+            softness = 0.58,
         },
     })
 
@@ -53,45 +61,45 @@ function PANEL:Paint(w, h)
 end
 ```
 
-## 文档入口
+## Documentation
 
 <div class="mgfx-capability-grid">
   <a href="./API">
     <span>API</span>
-    <strong>总览</strong>
-    <small>帧作用域、图元、图像、组件、文本、绘制记录、视觉变换和能力查询。</small>
+    <strong>Overview</strong>
+    <small>Frame scope, primitives, images, widgets, text, paint records, transforms, and capability queries.</small>
   </a>
   <a href="./api-reference/">
-    <span>参考</span>
-    <strong>详细 API</strong>
-    <small>按功能分组的逐函数参数表、注意事项、返回值和示例。</small>
+    <span>Reference</span>
+    <strong>API Reference</strong>
+    <small>Function signatures, style fields, return values, examples, and caveats grouped by API family.</small>
   </a>
   <a href="./PERFORMANCE">
-    <span>性能</span>
-    <strong>性能模型</strong>
-    <small>immediate 路径、matrix 参数上传、pattern 数学化和分配规则。</small>
+    <span>Runtime</span>
+    <strong>Performance Model</strong>
+    <small>Immediate paths, matrix parameter upload, shader/fallback routing, and allocation rules.</small>
   </a>
   <a href="./SHADERS">
-    <span>Shader</span>
-    <strong>Shader 与打包</strong>
-    <small>shaderpack 构建、参数布局、gradient LUT、GMA 校验和踩坑记录。</small>
+    <span>Shaders</span>
+    <strong>Build and Packaging</strong>
+    <small>Shaderpack generation, parameter layout, gradient LUTs, GMA mounting, and Source engine limits.</small>
   </a>
 </div>
 
-## 核心边界
+## Scope
 
-MGFX 是底层 renderer，不是 UI framework。它不拥有 layout、input、focus、component lifecycle 或 transition state。调用方每帧计算当前视觉状态，再把明确的 draw arguments 传给 `MGFX.*`。
+MGFX is a renderer, not a UI framework. It does not own layout, input, focus, component lifecycle, transition state, or hit testing. Callers compute the current visual state every frame and pass explicit draw arguments to `MGFX.*`.
 
-文本也不是“全部进 MGFX composer”。普通文本优先走原生 GMod text；只有需要 shader text effects 的内容才进入 whole-run composer。
+Text is also not forced through MGFX. Plain labels should use native GMod text. Use `MGFX.TextEx` only when you need shader text effects such as gradient faces, glow, stroke, or high-quality shadow.
 
-## 维护规则
+## Maintenance Rules
 
-- 改 public API 时，同步更新 [API 总览](./API) 和对应的 [详细 API 分组页](./api-reference/)。
-- 改 shader 参数布局、gradient LUT、alpha 处理或 shaderpack 构建时，同步更新 [Shader 构建与打包](./SHADERS)。
-- 改性能路径时，同步更新 [MGFX 性能模型](./PERFORMANCE)。
-- 不要手改 `docs-site/` 产物；修改 `docs/` 源文件后重新构建。
+- Public API changes must update [API Overview](./API) and the matching [API Reference group](./api-reference/).
+- Shader parameter layout, gradient LUT, alpha, or shaderpack changes must update [Shaders and Packaging](./SHADERS).
+- Runtime performance changes must update [Performance Model](./PERFORMANCE).
+- Do not edit `docs-site/` by hand. Update `docs/` and rebuild the site.
 
-## 示例：轮盘扇区
+## Example: Wheel Sector
 
 ```lua
 local fill = MGFX.SectorAngularGradient({
