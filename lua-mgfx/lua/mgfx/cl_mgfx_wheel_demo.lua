@@ -5,7 +5,7 @@ if SERVER then return end
 -- an ember glow that bleeds into the hub, white figure icons, and a hub with
 -- the action name plus Select / Back mouse hints.
 --
--- Rendering rule for this file (see docs/API.md): GPU gradients and shader
+-- Rendering rule for this file (see shared docs/API.md): GPU gradients and shader
 -- glows, used the cache-friendly way. Static gradient stop tables are reused
 -- where possible; the pointer light quantizes opacity so the LUT cache sees a
 -- small bounded key set while animation still goes through geometry.

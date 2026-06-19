@@ -124,31 +124,15 @@ treated as a shadow substitute.
 
 ## Documentation
 
-- [API Reference](docs/API.md)
-- [Performance Notes](docs/PERFORMANCE.md)
-- [Internal Architecture](docs/ARCHITECTURE.md)
-- [Retired Batching Notes](docs/BATCHING.md)
-- [Retired Batch Coverage](docs/BATCH_COVERAGE.md)
-- [Text Renderer](docs/TEXT.md)
-- [Shader Build And Packaging](docs/SHADERS.md)
-- [Documentation Site](docs/DOCS_SITE.md)
+Shared MGFX documentation lives one level up in `../docs`:
 
-## Documentation Site
-
-The docs website is built with VitePress. Markdown files in `docs/` are the
-source of truth and the static site is generated into `docs-site/`.
-
-```powershell
-npm install
-npm run docs:dev
-npm run docs:build
-```
-
-Deploy the generated site to Cloudflare Pages:
-
-```powershell
-npx wrangler pages deploy docs-site --project-name mgfx-docs
-```
+- [API Reference](../docs/API.md)
+- [Performance Notes](../docs/PERFORMANCE.md)
+- [Internal Architecture](../docs/ARCHITECTURE.md)
+- [Retired Batching Notes](../docs/BATCHING.md)
+- [Retired Batch Coverage](../docs/BATCH_COVERAGE.md)
+- [Text Renderer](../docs/TEXT.md)
+- [Shader Build And Packaging](../docs/SHADERS.md)
 
 ## Build Shaders
 
@@ -175,9 +159,9 @@ The addon is GMA-valid. A validation package can be generated with:
 gmad.exe create -folder "garrysmod/addons/mgfx" -out "%TEMP%/mgfx.gma"
 ```
 
-Runtime package contents are Lua and the bundled lowercase TTF font. Markdown
-docs, the VitePress site, Node dependencies, shader source, demo-only assets,
-and build tools are ignored for Workshop packaging.
+Runtime package contents are Lua and the bundled lowercase TTF font. Shared
+repository docs live outside this addon directory; shader source, demo-only
+assets, and build tools are ignored for Workshop packaging.
 
 ## Maintenance Rules
 
@@ -185,6 +169,6 @@ and build tools are ignored for Workshop packaging.
 - Do not add global paint state or hidden component lifecycle.
 - Do not use stencil to emulate shape masks; use shader coverage.
 - Keep shape rendering on the immediate path unless a new prototype proves a
-  representative GMod UI win; see `docs/BATCHING.md` before rebuilding batch.
+  representative GMod UI win; see `../docs/BATCHING.md` before rebuilding batch.
 - Keep runtime Lua modules below 2000 lines.
 - Keep gamemode-specific UI code outside MGFX.

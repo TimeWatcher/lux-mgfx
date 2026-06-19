@@ -190,11 +190,11 @@ resource/fonts/notosanssc-vf.ttf
 期望忽略内容：
 
 ```text
-docs/*.md
-docs-site/*
-node_modules/*
 shadersrc/*
 tools/*
+*.md
 ```
+
+共享文档和 npm 站点文件位于仓库根目录，不进入 `lua-mgfx` addon 打包边界。
 
 批处理原型的失败原因见 [已移除的批处理设计](./BATCHING)。

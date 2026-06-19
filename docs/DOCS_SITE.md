@@ -92,4 +92,4 @@ ae643569b59080c5ae1bcc21bb30685e
 
 ## 打包边界
 
-addon GMA 不应该包含文档源文件、VitePress 依赖或文档站构建产物。`addon.json` 会忽略 docs、docs-site、Node package files 和 `node_modules`。
+共享文档和 npm 站点文件放在仓库根目录，不属于 `lua-mgfx` addon。`lua-mgfx/addon.json` 只忽略 addon 内的 shader source、SDK tools、README 等非运行时文件。

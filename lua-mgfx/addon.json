@@ -8,11 +8,6 @@
 	"ignore": [
 		"shadersrc/*",
 		"tools/*",
-		"docs/*",
-		"docs-site/*",
-		"node_modules/*",
-		"package.json",
-		"package-lock.json",
 		"*.md"
 	]
 }

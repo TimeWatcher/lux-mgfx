@@ -3,10 +3,10 @@ build/
 target/
 lux-mgfx/dist/tmp/
 lux-mgfx/dist/*.zip
-lua-mgfx/docs-site/
-lua-mgfx/node_modules/
-lua-mgfx/.wrangler/
-lua-mgfx/.vitepress-preview.*
+docs-site/
+node_modules/
+.wrangler/
+.vitepress-preview.*
 
 # Shader pack outputs
 lux-mgfx/lux/mgfx/shaderpack/src/cl_mgfx_shaderpack.lua

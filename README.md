@@ -8,6 +8,7 @@ This repository now carries two maintained MGFX implementations:
 
 - `lua-mgfx/` is the plain GLua addon. This is the source to copy or package for non-Lux Garry's Mod projects.
 - `lux-mgfx/` is the Lux package project. It contains the Lux source tree, shader tooling, and the legacy generated loader output.
+- `docs/` is the shared documentation source for both implementations.
 
 MGFX is a renderer, not a UI framework. It provides immediate draw calls for rounded shapes, chamfers, polygons, rings, progress widgets, images, text effects, gradients, masks, glow layers, backdrop effects, and shader-backed polish. Layout, input, focus, animation state, and panel lifecycle stay in caller code.
 
@@ -49,11 +50,34 @@ The root `lux.package.toml` points to `lux-mgfx/lux/mgfx`, so existing Lux insta
 
 `innerGlow` remains clipped inside the shape and does not use offset.
 
+## Documentation
+
+The documentation is shared by both implementations:
+
+- [API Reference](docs/API.md)
+- [Performance Notes](docs/PERFORMANCE.md)
+- [Internal Architecture](docs/ARCHITECTURE.md)
+- [Text Renderer](docs/TEXT.md)
+- [Shader Build And Packaging](docs/SHADERS.md)
+
+The docs website is built with VitePress from the repository root:
+
+```powershell
+npm install
+npm run docs:dev
+npm run docs:build
+```
+
+The generated site is written to `docs-site/`.
+
 ## Layout
 
 ```text
-lua-mgfx/       Plain GLua addon source and docs
+docs/           Shared documentation source
+lua-mgfx/       Plain GLua addon source
 lux-mgfx/       Lux package source, shader tools, and legacy generated dist
+scripts/        Shared documentation/tooling scripts
+package.json
 lux.package.toml
 README.md
 LICENSE*
