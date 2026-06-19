@@ -4,6 +4,19 @@
 
 API 名称、Lua 参数名和 shader 术语保留英文；解释性文本统一使用中文。
 
+## 按需求选择
+
+| 你要做什么 | 先看哪里 | 直接可用的入口 |
+| --- | --- | --- |
+| 面板、按钮、徽章、箭头、凸多边形 | [基础图元](./primitives) | `RoundedBoxEx`、`ChamferBoxEx`、`RegularPolyEx`、`DiamondEx`、`CaretEx`、`PolyEx` |
+| 头像、图标、裁切、圆形/切角/纹理遮罩 | [图像与遮罩](./images) | `ImageEx`、`IconEx`、`Mask` |
+| 血条、弹药格、圆环、仪表、轮盘扇区 | [组件图元](./widgets) | `ProgressBarEx`、`SegmentBarEx`、`RingEx`、`ArcEx`、`SectorEx` |
+| 普通文字、描边文字、glow 标题、多行文本框 | [文本 API](./text-api) | `Text`、`TextEx`、`TextBoxEx`、`MeasureTextBox` |
+| 线性/径向/角向渐变、stops、pattern、2.5D transform | [绘制记录、图案、变换与能力](./paint) | `LinearGradient`、`RadialGradient`、`SectorAngularGradient`、`StripePattern`、`PointerTilt` |
+| VGUI Paint / HUDPaint 中的 MGFX 生命周期 | [帧作用域与调试](./frame) | `StartPanel`、`StartScreen`、`PushClip`、`DebugOverlay` |
+
+如果只是要一个普通控件，优先用短签名或对应的 `Ex` style 表。不要为了“统一”再包一层复杂 helper；GLua 用户更容易接受直接、明确的调用。
+
 ## 分组入口
 
 <div class="mgfx-capability-grid">

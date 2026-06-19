@@ -18,6 +18,65 @@
 - [PopClip](#popclip) - 弹出当前矩形裁剪，并恢复上一个 scissor 矩形。
 - [DebugOverlay](#debugoverlay) - 绘制一个小型内部渲染统计叠层。
 
+## 常用帧模板
+
+#### VGUI 面板 Paint
+
+```lua
+function PANEL:Paint(w, h)
+    MGFX.StartPanel(self, w, h)
+
+    MGFX.RoundedBoxEx(0, 0, w, h, {
+        radius = 10,
+        fill = Color(20, 24, 32, 235),
+        shadow = {x = 0, y = 6, blur = 14, color = Color(0, 0, 0, 110), softness = 0.68},
+    })
+
+    MGFX.Text("READY", "DermaDefaultBold", 16, 18, color_white, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+
+    MGFX.EndPanel()
+end
+```
+
+`StartPanel` 之后的坐标已经是 panel-local。不要再把 `x/y` 手动加上 `LocalToScreen`。
+
+#### HUDPaint
+
+```lua
+hook.Add("HUDPaint", "MyMGFXHud", function()
+    MGFX.StartScreen()
+
+    local x, y = 32, ScrH() - 72
+    MGFX.ProgressBarEx(x, y, 220, 14, LocalPlayer():Health() / 100, {
+        radius = 7,
+        padding = 2,
+        track = Color(255, 255, 255, 22),
+        fill = MGFX.LinearGradient(0, 0, 1, 0, Color(255, 96, 78), Color(255, 190, 66)),
+    })
+
+    MGFX.EndScreen()
+end)
+```
+
+`StartScreen` 使用屏幕坐标，适合 HUD 和 overlay。面板内绘制仍然用 `StartPanel`。
+
+#### 局部矩形裁剪
+
+```lua
+MGFX.StartPanel(self, w, h)
+MGFX.PushClip(12, 44, w - 24, h - 56)
+
+for i, row in ipairs(rows) do
+    local rowY = 44 + (i - 1) * 24 - scroll
+    MGFX.Text(row.name, "DermaDefault", 18, rowY + 12, color_white, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+end
+
+MGFX.PopClip()
+MGFX.EndPanel()
+```
+
+`PushClip` 是矩形 scissor。圆形头像、切角图、扇区等形状裁剪应使用各自的 mask/style，不要试图用 clip 栈表达。
+
 ## 函数参考
 
 ## StartPanel

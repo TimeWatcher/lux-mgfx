@@ -33,6 +33,141 @@ Color/gradient paint record、程序化 pattern、2.5D transform helper 和 capa
 - [GetCapabilities](#getcapabilities) - 返回某个 target 已实现的渲染槽位和元数据。
 - [Supports](#supports) - 检查某个 target 是否支持一个公共渲染槽位。
 
+## 先选哪种 paint
+
+| 视觉需求 | 推荐记录 | 典型用途 |
+| --- | --- | --- |
+| 纯色 | `Color(...)` 或 `MGFX.Solid(color)` | 大多数 `fill` 直接传 Color 就够了。 |
+| 左到右、上到下、斜向渐变 | `LinearGradient` / `LinearGradientStops` | 按钮、血条、列表选中态。 |
+| 中心光、暗角、局部高光 | `RadialGradient` | 卡片暗角、spotlight、hover 光。 |
+| 完整圆盘角向色相 | `ConicGradient` | 色相盘、全圆仪表背景。 |
+| 圆环/扇区从内到外变色 | `RingRadialGradient` / `SectorRadialGradient` | Ring、Arc、Sector 的厚度方向渐变。 |
+| 圆环/扇区沿角度变色 | `ShapeAngularGradient` / `RingAngularGradient` / `ArcAngularGradient` / `SectorAngularGradient` | 冷却环、仪表弧、轮盘 wedge。 |
+| 斜线、扫描线 | `StripePattern` | HUD 装饰、分段条纹。 |
+| 程序化噪声/烟雾 | `SmokePattern` | 能量面板、稀有物品背景。 |
+
+坐标是图元本地归一化空间，不是屏幕像素：`LinearGradient(0, 0, 1, 0, ...)` 表示从图元左到右；`RadialGradient(0.5, 0.5, 0.85, ...)` 表示以图元中心为圆心。
+
+## Stops 实用写法
+
+```lua
+local coldToHot = {
+    {0.00, Color(80, 170, 255)},
+    {0.45, Color(90, 220, 180)},
+    {0.78, Color(255, 210, 110)},
+    {1.00, Color(255, 96, 78)},
+}
+
+local fill = MGFX.LinearGradient(0, 0, 1, 0, coldToHot)
+```
+
+stop 支持三种常用写法，可以混用：
+
+```lua
+local stops = {
+    Color(80, 170, 255),                         -- 只写 Color 时按索引自动分布
+    {0.35, Color(90, 220, 180)},                 -- compact {pos, color}
+    {pos = 0.70, color = Color(255, 210, 110)},  -- named form
+    {offset = 1, color = Color(255, 96, 78)},    -- pos / t / offset 都可用
+}
+```
+
+透明衰减必须显式写 alpha：
+
+```lua
+local vignette = MGFX.RadialGradient(0.5, 0.5, 0.9, {
+    {0.00, Color(0, 0, 0, 0)},
+    {0.72, Color(0, 0, 0, 0)},
+    {1.00, Color(0, 0, 0, 110)},
+})
+```
+
+缺省 alpha 是 255。只写 `Color(0, 0, 0)` 会得到不透明黑色，不会得到透明 stop。
+
+## 常用 paint 配方
+
+#### 按钮面板渐变
+
+```lua
+MGFX.RoundedBoxEx(x, y, w, h, {
+    radius = 8,
+    fill = MGFX.LinearGradient(0, 0, 0, 1,
+        Color(36, 46, 58, 235),
+        Color(18, 24, 32, 235)
+    ),
+})
+```
+
+#### 轮盘扇区角向渐变
+
+```lua
+MGFX.SectorEx(cx, cy, innerR, outerR, startDeg, endDeg, {
+    fill = MGFX.SectorAngularGradient({
+        {0, Color(36, 44, 54, 210)},
+        {1, Color(80, 170, 255, 170)},
+    }, startDeg),
+})
+```
+
+`SectorAngularGradient` 的 `t` 覆盖当前 sector 的角度范围，适合 wedge 内沿角度变化。不要用全局 `ConicGradient` 去模拟局部扇区色带。
+
+#### 圆环厚度方向高光
+
+```lua
+MGFX.RingEx(cx, cy, 36, 10, {
+    fill = MGFX.RingRadialGradient({
+        {0, Color(255, 255, 255, 70)},
+        {0.45, Color(80, 170, 255, 220)},
+        {1, Color(20, 70, 120, 220)},
+    }),
+})
+```
+
+`RingRadialGradient` 的 `t = 0` 在 inner edge，`t = 1` 在 outer edge。
+
+#### 条纹和烟雾图案
+
+```lua
+MGFX.RoundedBoxEx(x, y, w, h, {
+    radius = 10,
+    fill = Color(20, 26, 34, 230),
+    pattern = MGFX.StripePattern({
+        color = Color(255, 255, 255, 18),
+        spacing = 10,
+        width = 2,
+        angle = 135,
+    }),
+})
+
+MGFX.ChamferBoxEx(x, y, w, h, {
+    cuts = 10,
+    fill = Color(18, 24, 30, 230),
+    pattern = MGFX.SmokePattern({
+        color = Color(80, 170, 255, 24),
+        scale = 120,
+        density = 0.45,
+        softness = 0.32,
+        seed = "loadout-card",
+    }),
+})
+```
+
+`StripePattern.spacing = 8..16`、`width = 1..3` 常用。`SmokePattern.scale = 90..180`、`density = 0.35..0.6`、`softness = 0.2..0.45` 比较稳。
+
+## 参数速查
+
+| 字段 | 推荐范围 | 说明 |
+| --- | --- | --- |
+| gradient 坐标 | `0..1` 最常用 | 可以超出 0..1 做偏移光，但默认先按图元局部空间理解。 |
+| stop `pos/t/offset` | `0..1` | 缺失的 0/1 端点会用首尾颜色补齐。 |
+| stop 数量 | `2..6` 常用 | 过多 stop 会更难维护；需要复杂色带再增加。 |
+| `ConicGradient.rotation` | 度数 | 用于整体角度偏移；局部 ring/sector 优先用 `*AngularGradient`。 |
+| `StripePattern.spacing` | `8..16` | 越小越密；HUD 小控件不要低于 6。 |
+| `StripePattern.width` | `1..3` | 通常低于 spacing 的三分之一。 |
+| `SmokePattern.scale` | `90..180` | 越小纹理越细碎。 |
+| `SmokePattern.density` | `0.35..0.6` | 越大越明显。 |
+| `SmokePattern.softness` | `0.2..0.45` | 越大边缘越散。 |
+
 ## 函数参考
 
 ## Solid

@@ -16,6 +16,91 @@
 - [IconEx](#iconex) - 高级图标路径，支持 ImageEx 风格字段，默认 contain 布局。
 - [Mask](#mask) - 为 ImageEx/IconEx 创建显式图像遮罩记录。
 
+## 图像布局配方
+
+#### 圆形头像
+
+```lua
+MGFX.ImageEx(x, y, 64, 64, avatarMat, {
+    fit = "cover",
+    mask = MGFX.Mask("circle"),
+    stroke = Color(255, 255, 255, 42),
+    strokeWidth = 1,
+    shadow = {x = 0, y = 4, blur = 10, color = Color(0, 0, 0, 120), softness = 0.68},
+})
+```
+
+头像通常用 `fit = "cover"`，让图片填满方框并裁掉多余部分。圆形不是特殊头像组件，而是 `ImageEx + Mask("circle")`。
+
+#### 图标完整显示
+
+```lua
+MGFX.IconEx(x, y, 20, 20, "icon16/star.png", {
+    tint = Color(255, 220, 120),
+    alpha = 0.92,
+    outerGlow = {width = 8, color = Color(255, 190, 66, 42), softness = 0.55},
+})
+```
+
+图标默认应保持比例，所以优先用 `Icon` / `IconEx`。如果改用 `ImageEx`，请显式写 `fit = "contain"`，避免小图标被拉伸。
+
+#### 固定画幅裁切
+
+```lua
+MGFX.ImageEx(x, y, 220, 96, bannerMat, {
+    fit = "cover",
+    position = {x = 0.5, y = 0.35},
+    radius = 8,
+    fill = Color(8, 12, 16, 180),
+})
+```
+
+`position.x/y` 是 `0..1` 的对齐因子。`cover` 下用于决定裁掉哪边：`y = 0` 偏上，`0.5` 居中，`1` 偏下。
+
+#### 图集 / atlas 裁切
+
+```lua
+MGFX.ImageEx(x, y, 32, 32, atlasMat, {
+    fit = "contain",
+    crop = {x = 64, y = 32, w = 32, h = 32, pixels = true},
+    tint = Color(255, 255, 255),
+})
+```
+
+`crop` 可以用归一化单位，也可以加 `pixels = true` 用源图像像素。`uv` 更底层，适合已经算好 `{u0, v0, u1, v1}` 的工具链。
+
+#### 纹理遮罩
+
+```lua
+local mask = MGFX.Mask("texture", {
+    source = maskMat,
+    channel = "a", -- a, r, g, b, luma
+})
+
+MGFX.ImageEx(x, y, w, h, sourceMat, {
+    fit = "cover",
+    mask = mask,
+    outerGlow = {width = 14, color = Color(80, 170, 255, 70), softness = 0.64},
+    backdrop = {blur = 4, tint = Color(8, 14, 24, 90)},
+})
+```
+
+纹理遮罩的 glow/backdrop 会按 mask coverage 裁剪。需要投影时加 `shadow`；`backdrop` 仍然只是内部背景 blur/tint。
+
+## 参数速查
+
+| 字段 | 推荐写法 | 说明 |
+| --- | --- | --- |
+| `fit = "fill"` | 普通铺满、允许拉伸 | 默认路径；不保证源图比例。 |
+| `fit = "cover"` | 头像、banner、卡片图 | 保持比例并裁切，多余部分由 `position` 决定。 |
+| `fit = "contain"` | 图标、logo、需要完整显示的物品图 | 保持比例并留空，空白可用 `fill/background` 补底。 |
+| `position` | `{x = 0.5, y = 0.5}` | cover/contain 对齐；范围通常 `0..1`。 |
+| `radius` | 小图 `4..8`，头像 `"circle"` 或 `Mask("circle")` | 没有显式 mask 时会变成 rounded mask。 |
+| `alpha` | `0..1` 或 `0..255` | `0.8` 和 `204` 都可表达约 80% 不透明度。 |
+| `shadow` | `y = 3..8`、`blur = 8..16` | 圆角、切角、纹理遮罩都走 mask-aware 外部软阴影。 |
+| `outerGlow` | `width = 6..18`、`softness = 0.55..0.75` | 选中态、稀有物品、技能图标常用。 |
+| `backdrop.blur` | `3..8` | 只对图像或 mask 覆盖区内部的背景生效。 |
+
 ## 函数参考
 
 ## Image

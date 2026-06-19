@@ -22,6 +22,89 @@
 - [TextBox](#textbox) - 简单文本框绘制 helper。
 - [TextBoxEx](#textboxex) - 支持换行、对齐和合成特效的高级文本框。
 
+## 路径选择
+
+| 需求 | 推荐路径 | 原因 |
+| --- | --- | --- |
+| 玩家名、聊天、日志、表格、快速变化数字 | `Text` 或原生 GMod text | 最少开销，不需要整段 glyph composer。 |
+| 单行 HUD 标签，有轻微阴影 | `Text` 或 `TextEx` 加轻量 `shadow` | 只要 `x = 0, y = 1..2, blur = 1..3` 即可。 |
+| 标题、击杀提示、奖励数字 | `TextEx` | 需要 stroke/glow/gradient 时进入 composer。 |
+| 固定宽度描述、技能说明、列表列名 | `TextBoxEx` + `MeasureTextBox` | 先测量再绘制，避免手工算 baseline 和省略号。 |
+| 稳定重复文本 | `PrewarmText` | 适合标题、列名、固定标签；不适合每帧都变的唯一字符串。 |
+
+普通文字不要为了“统一”强行用 `TextEx`。只有 `style` 里出现 `fill` 渐变、`stroke`、`glow`、`shadow`、`surface`、`tracking`、`lineHeight` 等高级排版/特效时，才值得走 composer。
+
+## 常用文本配方
+
+#### 原生普通标签
+
+```lua
+MGFX.Text(playerName, "DermaDefault", x, y, Color(230, 238, 245), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+```
+
+这是 scoreboard、玩家名和行内数字的默认选择。
+
+#### 清晰 HUD 数字
+
+```lua
+MGFX.TextEx("128,450", "ScoreNum", x, y, Color(236, 248, 255), TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER, {
+    stroke = {width = 0.45, softness = 0.66, color = Color(0, 0, 0, 120)},
+    shadow = {x = 0, y = 2, blur = 4, color = Color(0, 0, 0, 120)},
+})
+```
+
+普通字号先用 `stroke.width = 0.3..0.8`。标题可以到 `1.0..1.6`，再高会吃掉字面细节。
+
+#### Glow 标题
+
+```lua
+MGFX.TextEx("ROUND 4", "ScoreTitle", x, y, nil, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, {
+    fill = MGFX.LinearGradient(0, 0, 1, 0, Color(255, 255, 255), Color(130, 210, 255)),
+    stroke = {width = 0.9, softness = 0.58, color = Color(2, 9, 12, 185)},
+    glow = {size = 6, color = Color(66, 188, 255, 72), opacity = 0.65, softness = 0.58},
+    shadow = {x = 0, y = 2, blur = 5, color = Color(0, 0, 0, 140)},
+    surface = {strength = 0.12},
+})
+```
+
+`glow.size = 4..10` 适合 HUD 标题，`opacity = 0.4..0.8` 常用。`surface.strength = 0.08..0.18` 是很轻的字面 polish，不要当描边用。
+
+#### 多行说明 / 省略号
+
+```lua
+local tw, th = MGFX.MeasureTextBox(description, "ScoreSmall", 220, {
+    lineHeight = 18,
+    overflow = "ellipsis",
+})
+
+MGFX.TextBoxEx(description, "ScoreSmall", x, y, 220, th, {
+    fill = Color(220, 230, 245),
+    alignX = TEXT_ALIGN_LEFT,
+    alignY = TEXT_ALIGN_TOP,
+    lineHeight = 18,
+    overflow = "ellipsis",
+    shadow = {x = 0, y = 1, blur = 2, color = Color(0, 0, 0, 95)},
+})
+```
+
+`overflow = "ellipsis"` 返回单行省略文本。省略 `overflow` 时按宽度换行。
+
+## 参数速查
+
+| 字段 | 推荐范围 | 说明 |
+| --- | --- | --- |
+| `font.size` | 小字 `13..16`，正文 `16..20`，标题 `24..36` | 注册字体时写实际 UI 字号，MGFX 内部会按需要 oversample。 |
+| `font.weight` | 正文 `400..550`，强调 `600..750`，数字标题 `700..900` | 也接受 1..10 快捷值，但公开文档推荐写真实 weight。 |
+| `lineHeight` | `font.size + 2..6` | 多行和文本框必须显式控制，避免不同字体 baseline 漂移。 |
+| `tracking` / `letterSpacing` | `0..1.5` | 英文小 caps 可用；中文/CJK 大多保持 0。 |
+| `shadow.x/y` | label `y = 1..2`，标题 `y = 2..5` | 正 x 向右，正 y 向下。 |
+| `shadow.blur` | label `1..3`，标题 `4..8` | 文本阴影的软边，和偏移分开。 |
+| `stroke.width` | 普通 `0.3..0.8`，标题 `0.9..1.6` | 数值过大会吞掉笔画；先调 color alpha，再调 width。 |
+| `stroke.softness` | `0..1`，常用 `0.55..0.75` | 越大越柔，硬像素描边用 `0.35..0.55`。 |
+| `glow.size` | 小标签 `3..5`，标题 `5..10` | glow 太大时优先降低 color alpha 或 opacity。 |
+| `glow.opacity` | `0.4..0.8` 常用 | 实现接受数字强度；常规 UI 不建议超过 1。 |
+| `weightAdjust` | `-0.4..0.6` 常用 | `bold` 和 `thin` 是快捷值；细调时直接写数字。 |
+
 ## 函数参考
 
 ## RegisterTextFont
@@ -105,6 +188,7 @@ MGFX.DefineTextStyle(name, style)
 | `shadow`<br>true、数字，或 {x/offsetX, y/offsetY, blur/radius, color/tint, strength}。 | `nil` | 合成文本投影。 |
 | `stroke / outline`<br>true、数字，或 {width/size, color/tint, samples, softness}。 | `nil` | 文本描边。 |
 | `glow`<br>true、数字，或 {size, color/tint, opacity, softness}。 | `nil` | 文本发光 pass。 |
+| `surface`<br>true、数字，或 {strength}。 | `nil` | 轻量字面 polish，常用 strength 0.08..0.18。 |
 | `bold / thin / weightAdjust`<br>布尔快捷值，或 -2 到 2 的数字。 | `0` | 合成边缘字重调整。 |
 | `italic`<br>布尔值。 | `false` | 可能时请求斜体原生字体变体。 |
 
@@ -182,6 +266,7 @@ MGFX.ResolveTextStyle(style)
 | `shadow`<br>true、数字，或 {x/offsetX, y/offsetY, blur/radius, color/tint, strength}。 | `nil` | 合成文本投影。 |
 | `stroke / outline`<br>true、数字，或 {width/size, color/tint, samples, softness}。 | `nil` | 文本描边。 |
 | `glow`<br>true、数字，或 {size, color/tint, opacity, softness}。 | `nil` | 文本发光 pass。 |
+| `surface`<br>true、数字，或 {strength}。 | `nil` | 轻量字面 polish，常用 strength 0.08..0.18。 |
 | `bold / thin / weightAdjust`<br>布尔快捷值，或 -2 到 2 的数字。 | `0` | 合成边缘字重调整。 |
 | `italic`<br>布尔值。 | `false` | 可能时请求斜体原生字体变体。 |
 
@@ -261,6 +346,7 @@ width, height, lines。
 | `shadow`<br>true、数字，或 {x/offsetX, y/offsetY, blur/radius, color/tint, strength}。 | `nil` | 合成文本投影。 |
 | `stroke / outline`<br>true、数字，或 {width/size, color/tint, samples, softness}。 | `nil` | 文本描边。 |
 | `glow`<br>true、数字，或 {size, color/tint, opacity, softness}。 | `nil` | 文本发光 pass。 |
+| `surface`<br>true、数字，或 {strength}。 | `nil` | 轻量字面 polish，常用 strength 0.08..0.18。 |
 | `bold / thin / weightAdjust`<br>布尔快捷值，或 -2 到 2 的数字。 | `0` | 合成边缘字重调整。 |
 | `italic`<br>布尔值。 | `false` | 可能时请求斜体原生字体变体。 |
 
@@ -310,6 +396,7 @@ MGFX.PrewarmText(text, font, style)
 | `shadow`<br>true、数字，或 {x/offsetX, y/offsetY, blur/radius, color/tint, strength}。 | `nil` | 合成文本投影。 |
 | `stroke / outline`<br>true、数字，或 {width/size, color/tint, samples, softness}。 | `nil` | 文本描边。 |
 | `glow`<br>true、数字，或 {size, color/tint, opacity, softness}。 | `nil` | 文本发光 pass。 |
+| `surface`<br>true、数字，或 {strength}。 | `nil` | 轻量字面 polish，常用 strength 0.08..0.18。 |
 | `bold / thin / weightAdjust`<br>布尔快捷值，或 -2 到 2 的数字。 | `0` | 合成边缘字重调整。 |
 | `italic`<br>布尔值。 | `false` | 可能时请求斜体原生字体变体。 |
 
@@ -379,6 +466,7 @@ MGFX.TextEx(text, font, x, y, color, ax, ay, style)
 | `shadow`<br>true、数字，或 {x/offsetX, y/offsetY, blur/radius, color/tint, strength}。 | `nil` | 合成文本投影。 |
 | `stroke / outline`<br>true、数字，或 {width/size, color/tint, samples, softness}。 | `nil` | 文本描边。 |
 | `glow`<br>true、数字，或 {size, color/tint, opacity, softness}。 | `nil` | 文本发光 pass。 |
+| `surface`<br>true、数字，或 {strength}。 | `nil` | 轻量字面 polish，常用 strength 0.08..0.18。 |
 | `bold / thin / weightAdjust`<br>布尔快捷值，或 -2 到 2 的数字。 | `0` | 合成边缘字重调整。 |
 | `italic`<br>布尔值。 | `false` | 可能时请求斜体原生字体变体。 |
 
@@ -453,6 +541,7 @@ MGFX.TextBoxEx(text, font, x, y, w, h, style)
 | `shadow`<br>true、数字，或 {x/offsetX, y/offsetY, blur/radius, color/tint, strength}。 | `nil` | 合成文本投影。 |
 | `stroke / outline`<br>true、数字，或 {width/size, color/tint, samples, softness}。 | `nil` | 文本描边。 |
 | `glow`<br>true、数字，或 {size, color/tint, opacity, softness}。 | `nil` | 文本发光 pass。 |
+| `surface`<br>true、数字，或 {strength}。 | `nil` | 轻量字面 polish，常用 strength 0.08..0.18。 |
 | `bold / thin / weightAdjust`<br>布尔快捷值，或 -2 到 2 的数字。 | `0` | 合成边缘字重调整。 |
 | `italic`<br>布尔值。 | `false` | 可能时请求斜体原生字体变体。 |
 

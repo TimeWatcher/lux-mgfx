@@ -25,6 +25,27 @@ fill, stroke, strokeWidth
 
 `stroke == nil`、`strokeWidth == nil` 或 `strokeWidth <= 0` 表示不绘制描边。
 
+## 先按需求选 API
+
+多数 UI 不需要先想“primitive、widget、paint 该去哪一页”。先按要画的东西选入口：
+
+| 需求 | 首选 API | 何时换成 Ex 或专用 API |
+| --- | --- | --- |
+| 普通面板、按钮、列表行 | `RoundedBox` / `RoundedBoxEx` | 需要 shadow、backdrop、glow、pattern、单角半径时用 `RoundedBoxEx`。 |
+| 切角科幻面板 | `ChamferBoxEx` | `cuts = 6..14` 适合 HUD 卡片；单角切角用 `{tl, tr, br, bl}`。 |
+| 正三角形、五边形、六边形徽章 | `RegularPoly` / `RegularPolyEx` | `sides = 3..8`；等边三角形写 `sides = 3`，不要等一个含糊的 `Triangle`。 |
+| 方向箭头 | `Caret` / `CaretEx` | `direction` 写 `"left"`、`"right"`、`"up"` 或 `"down"`，比手写点表稳定。 |
+| 任意凸多边形 | `PolyEx` | 只传 3..8 个凸点；复杂形状拆成多个凸片段。 |
+| 头像、图标、装备图 | `ImageEx` / `IconEx` | `fit = "cover"` 做头像裁切，`fit = "contain"` 做图标完整显示。 |
+| 血条、装填条 | `ProgressBarEx` | `h = 8..18`、`padding = 1..3`、`radius = h * 0.5` 通常最省心。 |
+| 弹药格、离散充能 | `SegmentBarEx` | `segments = 6..24` 常用；更密集时确认每段宽度仍大于 gap。 |
+| 圆形读条、仪表 | `RingEx` / `ArcEx` | 小 HUD `width = 4..12`，大仪表 `12..24`。 |
+| 轮盘菜单 wedge | `SectorEx` | 用 `innerRadius, outerRadius, startDeg, endDeg` 表达真实扇区。 |
+| 普通文本、表格、玩家名 | `Text` / 原生 GMod text | 只有需要描边、glow、渐变字面、shadow 时再用 `TextEx`。 |
+| 渐变、条纹、烟雾填充 | `LinearGradient` / `RadialGradient` / `StripePattern` / `SmokePattern` | 把它们作为 `fill` 或 `pattern` 传入，不要手工展开成很多 primitive。 |
+
+常见写法是：简单热路径用短签名；一旦参数开始需要解释，就切到 `Ex(..., style)`。GLua 用户可以继续像 `draw.RoundedBox` 那样直接调用，不需要额外封装一层 rect/helper。
+
 ## Lux 入口
 
 Lux 用户不需要关心某个函数内部属于 paint、primitive 还是 widget。推荐入口是统一门面：
@@ -114,6 +135,16 @@ MGFX.CapsuleEx(x, y, w, h, style)
 - `shadow` 是外部软阴影 pass，默认 `x = 0, y = 4`，适合表达投影。Rounded、Circle、Capsule、Chamfer、Ring、Arc、Sector、Convex Poly 和 texture/image mask 都使用 shape-aware shader pass。
 - `outerGlow` 是外部光晕 pass，默认无偏移，适合表达发光边缘。
 - `backdrop` 是 shape/image 覆盖范围内的背景 blur/tint，不是阴影。
+
+实际选择可以按目的判断：
+
+| 目的 | 字段 | 典型值 |
+| --- | --- | --- |
+| 控件从背景上“浮起来” | `shadow` | `{x = 0, y = 4, blur = 10, spread = 1, color = Color(0,0,0,120), softness = 0.68}` |
+| 大面板有真实下坠阴影 | `shadow` | `{x = 0, y = 8, blur = 18, spread = 2, color = Color(0,0,0,120), softness = 0.62}` |
+| 边缘发光或选中态 | `outerGlow` | `{x = 0, y = 0, width = 12, color = Color(80,190,255,72), softness = 0.58}` |
+| 毛玻璃/背景染色 | `backdrop` | `{blur = 5, tint = Color(8,14,24,110), opacity = 1}` |
+| 内部边缘高光 | `innerGlow` | `{width = 6, color = Color(255,255,255,34), softness = 0.70}` |
 
 `shadow` 和 `outerGlow` 都支持偏移：
 
