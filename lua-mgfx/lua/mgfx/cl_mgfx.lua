@@ -694,6 +694,27 @@ end
 
 local drawMaterialPoly
 
+drawMaterialPoly = function(poly, mat)
+	if not poly or not mat then return false end
+
+	local verts = {}
+	for i, p in ipairs(poly.points or {}) do
+		verts[i] = {
+			x = poly.x + p.x,
+			y = poly.y + p.y,
+			u = poly.w ~= 0 and p.x / poly.w or 0,
+			v = poly.h ~= 0 and p.y / poly.h or 0,
+		}
+	end
+
+	if #verts < 3 then return false end
+
+	surface_SetMaterial(mat)
+	drawTransformedPoly(verts)
+	M.stats.draws = M.stats.draws + 1
+	return true
+end
+
 local textRendererFactory = M._CreateTextRenderer
 if type(textRendererFactory) == "function" then
 	textRenderer = textRendererFactory({
@@ -780,6 +801,8 @@ local function drawBlurredCustomQuad(mat, x, y, w, h, amount, setup)
 end
 
 local function drawBlurredPoly(poly, mat, amount)
+	if not poly or not mat then return false end
+
 	surface_SetDrawColor(255, 255, 255, 255)
 
 	render_CopyRenderTargetToTexture(blurRT)
@@ -791,6 +814,7 @@ local function drawBlurredPoly(poly, mat, amount)
 	drawMaterialPoly(poly, mat)
 
 	M.stats.blurPasses = M.stats.blurPasses + 2
+	return true
 end
 
 local roundRectApi = assert(M._InstallRoundRect and M._InstallRoundRect({
