@@ -1,6 +1,7 @@
 export client fn createTextRenderer(deps = nil) {
   deps = deps ?? {}
   configureTextRenderer(deps)
+  atlasNamespace = nextAtlasNamespace()
 
   local owner = deps.M ?? deps.owner ?? {}
   local stats = deps.stats ?? owner.stats ?? {}

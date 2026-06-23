@@ -66,11 +66,23 @@ fn beginAtlasDraw() {
   if renderSetBlend ~= nil {
     renderSetBlend(1)
   }
+  if renderOverrideAlphaWriteEnable ~= nil {
+    renderOverrideAlphaWriteEnable(true, true)
+  }
+  if renderOverrideBlend ~= nil {
+    renderOverrideBlend(true, BLEND_SRC_ALPHA, BLEND_ONE_MINUS_SRC_ALPHA, BLENDFUNC_ADD, BLEND_ONE, BLEND_ONE_MINUS_SRC_ALPHA, BLENDFUNC_ADD)
+  }
 
   return alpha, cr, cg, cb, blend
 }
 
 fn endAtlasDraw(alpha, cr, cg, cb, blend) {
+  if renderOverrideBlend ~= nil {
+    renderOverrideBlend(false)
+  }
+  if renderOverrideAlphaWriteEnable ~= nil {
+    renderOverrideAlphaWriteEnable(false)
+  }
   if surfaceSetAlphaMultiplier ~= nil {
     surfaceSetAlphaMultiplier(alpha ?? 1)
   }
@@ -164,9 +176,10 @@ fn createAtlasPage(index) {
   }
 
   local stamp = sysTime ~= nil then sysTime() else index
+  local baseName = (atlasNamespace ?? nextAtlasNamespace()) .. "_" .. toString(index) .. "_" .. toString(stamp)
   local flags = bitBor(256, 4, 8)
   local rt = getRenderTargetEx(
-    "MGFXTextComposeAtlas_" .. toString(index) .. "_" .. toString(stamp),
+    baseName,
     ATLAS_W,
     ATLAS_H,
     RT_SIZE_LITERAL,
@@ -179,7 +192,7 @@ fn createAtlasPage(index) {
     return nil
   }
 
-  local pageMaterial = createAtlasMaterial("MGFXTextComposeAtlas_" .. toString(index) .. "_" .. toString(stamp), rt)
+  local pageMaterial = createAtlasMaterial(baseName, rt)
   local page = {
     index = index,
       rt = rt,

@@ -64,6 +64,8 @@ function M._CreateTextRenderer(deps)
 	local surface_SetTextColor = surface.SetTextColor
 	local surface_SetTextPos = surface.SetTextPos
 	local Matrix = Matrix
+	_G.__MGFXTextAtlasSerial = (tonumber(_G.__MGFXTextAtlasSerial) or 0) + 1
+	local atlasNamespace = "MGFXTextComposeAtlas_" .. tostring(_G.__MGFXTextAtlasSerial)
 
 	local renderer = {}
 	local measureCache = {}
@@ -765,10 +767,16 @@ function M._CreateTextRenderer(deps)
 		if surface_SetAlphaMultiplier then surface_SetAlphaMultiplier(1) end
 		if render_SetColorModulation then render_SetColorModulation(1, 1, 1) end
 		if render_SetBlend then render_SetBlend(1) end
+		if render_OverrideAlphaWriteEnable then render_OverrideAlphaWriteEnable(true, true) end
+		if render_OverrideBlend then
+			render_OverrideBlend(true, BLEND_SRC_ALPHA, BLEND_ONE_MINUS_SRC_ALPHA, BLENDFUNC_ADD, BLEND_ONE, BLEND_ONE_MINUS_SRC_ALPHA, BLENDFUNC_ADD)
+		end
 		return am, cr, cg, cb, blend
 	end
 
 	local function endAtlasDraw(am, cr, cg, cb, blend)
+		if render_OverrideBlend then render_OverrideBlend(false) end
+		if render_OverrideAlphaWriteEnable then render_OverrideAlphaWriteEnable(false) end
 		if surface_SetAlphaMultiplier then surface_SetAlphaMultiplier(am or 1) end
 		if render_SetColorModulation and cr ~= nil then render_SetColorModulation(cr, cg, cb) end
 		if render_SetBlend and blend ~= nil then render_SetBlend(blend) end
@@ -815,10 +823,11 @@ function M._CreateTextRenderer(deps)
 		-- Text atlas must stay filterable. POINTSAMPLE is correct for data RTs,
 		-- but it destroys native glyph antialiasing during the compose blit.
 		local flags = bit.bor(256, 4, 8)
-		local art = GetRenderTargetEx("MGFXTextComposeAtlas_" .. tostring(index) .. "_" .. SysTime(), ATLAS_W, ATLAS_H, RT_SIZE_LITERAL, MATERIAL_RT_DEPTH_SEPARATE, flags, 0, IMAGE_FORMAT_BGRA8888)
+		local atlasName = atlasNamespace .. "_" .. tostring(index) .. "_" .. SysTime()
+		local art = GetRenderTargetEx(atlasName, ATLAS_W, ATLAS_H, RT_SIZE_LITERAL, MATERIAL_RT_DEPTH_SEPARATE, flags, 0, IMAGE_FORMAT_BGRA8888)
 		if not art then return false end
 
-		local pageMat = CreateMaterial("MGFXTextComposeAtlas_" .. tostring(index) .. "_" .. SysTime(), "UnlitGeneric", {
+		local pageMat = CreateMaterial(atlasName, "UnlitGeneric", {
 			["$basetexture"] = art:GetName(),
 			["$translucent"] = 1,
 			["$vertexalpha"] = 1,

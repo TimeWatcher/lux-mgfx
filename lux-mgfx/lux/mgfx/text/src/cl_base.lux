@@ -96,6 +96,7 @@ local restoreScissor = () => {}
 local gradientLutForFill = () => nil
 local materialOK = (material) => material ~= nil and material.IsError ~= nil and not material:IsError()
 local defaultTextRenderer = nil
+local atlasNamespace = nil
 local textParamMatrixProbe = matrixCtor ~= nil then matrixCtor() else nil
 local textParamMatrixSetUnpacked = textParamMatrixProbe?.SetUnpacked
 local textParamMatrices = {}
@@ -125,6 +126,13 @@ local profile = {
     measures = 0,
     times = {},
     counts = {}
+}
+
+fn nextAtlasNamespace() {
+  local root = _G
+  local serial = (toNumber(root.__MGFXTextAtlasSerial) ?? 0) + 1
+  root.__MGFXTextAtlasSerial = serial
+  "MGFXTextComposeAtlas_" .. toString(serial)
 }
 
 fn textComposerCapable() =
