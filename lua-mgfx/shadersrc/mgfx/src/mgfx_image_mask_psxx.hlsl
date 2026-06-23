@@ -142,8 +142,10 @@ float texture_mask_inner(float2 uv, float kind, float invert, float strokeWidth)
 
 float4 main(PS_INPUT i) : COLOR
 {
-	float strokeWidth = floor(MASK_KIND_PACKED / 256.0 + 0.001);
-	float packedKind = MASK_KIND_PACKED - strokeWidth * 256.0;
+	float sourceAlphaMask = step(65536.0, MASK_KIND_PACKED);
+	float packedKindBase = MASK_KIND_PACKED - sourceAlphaMask * 65536.0;
+	float strokeWidth = floor(packedKindBase / 256.0 + 0.001);
+	float packedKind = packedKindBase - strokeWidth * 256.0;
 	float invert = step(128.0, packedKind);
 	float kind = packedKind - invert * 128.0;
 	float2 sourceUV = lerp(SOURCE_UV.xy, SOURCE_UV.zw, saturate(i.uv));
@@ -166,7 +168,7 @@ float4 main(PS_INPUT i) : COLOR
 	}
 
 	float borderMask = saturate(outer - inner);
-	float fillMask = strokeWidth > 0.0 && MASK_STROKE_COLOR.a > 0.0 ? inner : outer;
+	float fillMask = sourceAlphaMask > 0.5 ? 1.0 : (strokeWidth > 0.0 && MASK_STROKE_COLOR.a > 0.0 ? inner : outer);
 	float texAlpha = texColor.a * fillMask;
 	float strokeAlpha = MASK_STROKE_COLOR.a * borderMask;
 	float alpha = texAlpha + strokeAlpha;

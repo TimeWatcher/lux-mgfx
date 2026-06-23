@@ -135,34 +135,130 @@ fn drawChamferOuterGlowSpec(x, y, w, h, cuts, spec, biasOffset = false) {
   local grow = mathMax(0, toNumber(spec.grow ?? spec.shapeSpread ?? spec.expand) ?? 0)
   local ox = toNumber(spec.x ?? spec.offsetX ?? spec.dx) ?? 0
   local oy = toNumber(spec.y ?? spec.offsetY ?? spec.dy) ?? 0
-  if biasOffset and (mathAbs(ox) > 0.001 or mathAbs(oy) > 0.001) {
-    polyEx(chamferPoints(x, y, w, h, cuts), {
-      outerGlow = spec
-    })
-    return true
-  }
-
   local gx = x + ox - grow
   local gy = y + oy - grow
   local gw = w + grow * 2
   local gh = h + grow * 2
   local gcuts = cutsWithGrow(cuts, grow)
-  local spread = mathMax(1, toNumber(spec.spread ?? spec.width) ?? 18)
+  local width = mathMax(0.001, toNumber(spec.width) ?? 18)
+  local spread = roundrect.effectExtentFromSpec(spec, 18)
+  local left = spread
+  local top = spread
+  local right = spread
+  local bottom = spread
+  if biasOffset {
+    left, top, right, bottom = roundrect.glowBiasPads(spread, ox, oy)
+    gx = x - grow
+    gy = y - grow
+  }
+  local sw = gw + left + right
+  local sh = gh + top + bottom
   local tl, tr, br, bl = chamferTuple(gcuts, gw, gh)
   local material = primitiveMaterials.chamfer_outerglow
-  local r, g, b, a = style.color01(color)
   setupParamMatrix(material,
-    r, g, b, a,
-    gw + spread * 2, gh + spread * 2, spread, spread,
-    tl, tr, br, bl,
-    mathMax(0.001, toNumber(spec.width) ?? spread),
-    mathMax(0, toNumber(spec.strength) ?? 1),
-    mathMax(0.001, toNumber(spec.falloff) ?? 1.9),
-    0
+    sw, sh, left, top,
+    gw, gh, tl, tr,
+    br, bl, width, mathMax(0.001, toNumber(spec.falloff) ?? 1.9),
+    mathMax(0, toNumber(spec.strength) ?? 1), 0, 0, 0
   )
-  surfaceSetMaterial(material)
-  surfaceSetDrawColor(255, 255, 255, 255)
-  drawTexturedQuad(gx - spread, gy - spread, gw + spread * 2, gh + spread * 2)
+  local sx = gx - left
+  local sy = gy - top
+  local bleedLeft, bleedTop, bleedRight, bleedBottom = effectBleedFromDrawRect(x, y, w, h, sx, sy, sw, sh)
+  withPanelEffectBleed(bleedLeft, bleedTop, bleedRight, bleedBottom, () => {
+    surfaceSetMaterial(material)
+    style.setDrawColor(color)
+    drawTexturedQuad(sx, sy, sw, sh)
+  })
+  true
+}
+
+fn drawChamferShadowSpec(x, y, w, h, cuts, spec) {
+  stopif spec == nil or not shadersActive() or not materialOK(primitiveMaterials.chamfer_shadow), false
+
+  local color = spec.color
+  stopif color == nil or (color.a ?? 255) <= 0, false
+
+  local grow = mathMax(0, toNumber(spec.grow ?? spec.shapeSpread ?? spec.expand) ?? 0)
+  local ox = toNumber(spec.x ?? spec.offsetX ?? spec.dx) ?? 0
+  local oy = toNumber(spec.y ?? spec.offsetY ?? spec.dy) ?? 0
+  local gx = x + ox - grow
+  local gy = y + oy - grow
+  local gw = w + grow * 2
+  local gh = h + grow * 2
+  local gcuts = cutsWithGrow(cuts, grow)
+  local width = mathMax(0.001, toNumber(spec.width) ?? 18)
+  local spread = roundrect.effectExtentFromSpec(spec, 18)
+  local sw = gw + spread * 2
+  local sh = gh + spread * 2
+  local tl, tr, br, bl = chamferTuple(gcuts, gw, gh)
+  local material = primitiveMaterials.chamfer_shadow
+  setupParamMatrix(material,
+    sw, sh, spread, spread,
+    gw, gh, tl, tr,
+    br, bl, width, mathMax(0.001, toNumber(spec.falloff) ?? 1.9),
+    mathMax(0, toNumber(spec.strength) ?? 1), 0, 0, 0
+  )
+  local sx = gx - spread
+  local sy = gy - spread
+  local bleedLeft, bleedTop, bleedRight, bleedBottom = effectBleedFromDrawRect(x, y, w, h, sx, sy, sw, sh)
+  withPanelEffectBleed(bleedLeft, bleedTop, bleedRight, bleedBottom, () => {
+    surfaceSetMaterial(material)
+    style.setDrawColor(color)
+    drawTexturedQuad(sx, sy, sw, sh)
+  })
+  true
+}
+
+fn chamferBackdropTintColor(spec) {
+  stopif spec == nil or spec.tint == nil, nil
+
+  local tint = spec.tint
+  local alpha = (tint.a ?? 255) * (spec.opacity ?? 1)
+  stopif alpha <= 0, nil
+
+  makeColor(tint.r ?? 0, tint.g ?? 0, tint.b ?? 0, mathFloor(mathClamp(alpha, 0, 255) + 0.5))
+}
+
+fn drawChamferBackdrop(x, y, w, h, cuts, backdrop) {
+  local spec = style.backdropStyle(backdrop)
+  stopif spec == nil or not shadersActive(), nil
+
+  local pad = mathMax(0, toNumber(spec.padding) ?? 0)
+  local bx = x - pad
+  local by = y - pad
+  local bw = w + pad * 2
+  local bh = h + pad * 2
+  local bcuts = cutsWithGrow(cuts, pad)
+  local tl, tr, br, bl = chamferTuple(bcuts, bw, bh)
+
+  if spec.blur > 0 and primitiveBlurRT ~= nil and renderCopyRenderTargetToTexture ~= nil and materialOK(primitiveMaterials.chamfer_backdrop) {
+    local material = primitiveMaterials.chamfer_backdrop
+    local intensity = backdropBlurIntensity(spec.blur)
+    surfaceSetMaterial(material)
+    surfaceSetDrawColor(255, 255, 255, 255)
+    renderCopyRenderTargetToTexture(primitiveBlurRT)
+    setupParamMatrix(material,
+      bw, bh, 0, 0,
+      bw, bh, tl, tr,
+      br, bl, 0, 0,
+      0, intensity, 0, 0
+    )
+    drawTexturedQuad(bx, by, bw, bh)
+    renderCopyRenderTargetToTexture(primitiveBlurRT)
+    setupParamMatrix(material,
+      bw, bh, 0, 0,
+      bw, bh, tl, tr,
+      br, bl, 0, 0,
+      1, intensity, 0, 0
+    )
+    drawTexturedQuad(bx, by, bw, bh)
+  }
+
+  local tint = chamferBackdropTintColor(spec)
+  if tint ~= nil {
+    drawChamferBasePass(bx, by, bw, bh, bcuts, style.solid(tint), nil, 0, nil)
+  }
+
   true
 }
 
@@ -288,12 +384,17 @@ fn drawChamferBoxImmediate(x, y, w, h, drawStyle = nil, resolvedCuts = nil) {
   local cuts = resolvedCuts ?? resolved.cuts ?? 0
   local shadow = roundrect.shadowStyle(resolved.shadow)
   if shadow ~= nil {
-    drawChamferOuterGlowSpec(x, y, w, h, cuts, shadow)
+    drawChamferShadowSpec(x, y, w, h, cuts, shadow)
   }
 
   local outer = roundrect.outerGlowStyle(resolved.outerGlow)
   if outer ~= nil {
     drawChamferOuterGlowSpec(x, y, w, h, cuts, outer, true)
+  }
+
+  local backdrop = nil
+  if resolved.backdrop ~= nil {
+    backdrop = drawChamferBackdrop(x, y, w, h, cuts, resolved.backdrop)
   }
 
   local fill = style.fillFromStyle(resolved.fill ?? resolved.color)
@@ -306,7 +407,7 @@ fn drawChamferBoxImmediate(x, y, w, h, drawStyle = nil, resolvedCuts = nil) {
   local baseDrewStroke = false
   local baseDrewInner = false
 
-  if resolved.backdrop == nil and (fillVisible or strokeVisible or inner ~= nil) {
+  if fillVisible or strokeVisible or inner ~= nil {
     if pattern == nil {
       baseDrawn = drawChamferBasePass(x, y, w, h, cuts, fill, resolved.stroke, strokeWidth, inner)
       baseDrewStroke = baseDrawn and strokeVisible
@@ -316,7 +417,7 @@ fn drawChamferBoxImmediate(x, y, w, h, drawStyle = nil, resolvedCuts = nil) {
     }
   }
 
-  if not baseDrawn and (fillVisible or resolved.backdrop ~= nil) {
+  if not baseDrawn and fillVisible {
     drawChamferFallback(x, y, w, h, cuts, resolved, true)
   }
 

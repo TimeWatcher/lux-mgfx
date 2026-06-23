@@ -9,10 +9,21 @@ function MGFX._CreateFrameGeometry(C)
 	local stats = C.stats or M.stats or {}
 	local clipStack = C.clipStack or {}
 	local frameState = C.frameState or {}
+	local DisableClipping = DisableClipping
 	local math_floor = math.floor
 	local math_ceil = math.ceil
 	local math_max = math.max
 	local math_min = math.min
+
+	local function panelClip()
+		for i = 1, #clipStack do
+			local clip = clipStack[i]
+			if clip and clip.frame then
+				return clip
+			end
+		end
+		return clipStack[1]
+	end
 
 	local function isCulled(x, y, w, h)
 		if w <= 0 or h <= 0 then
@@ -84,10 +95,49 @@ function MGFX._CreateFrameGeometry(C)
 		restoreScissor()
 	end
 
+	local function withPanelEffectBleed(left, top, right, bottom, fn)
+		left = math_max(0, tonumber(left) or 0)
+		top = math_max(0, tonumber(top) or 0)
+		right = math_max(0, tonumber(right) or 0)
+		bottom = math_max(0, tonumber(bottom) or 0)
+		if left <= 0 and top <= 0 and right <= 0 and bottom <= 0 then
+			return fn()
+		end
+
+		local clip = panelClip()
+		if not clip then
+			return fn()
+		end
+
+		local prevClipping
+		if DisableClipping then
+			prevClipping = DisableClipping(true)
+		end
+
+		render.SetScissorRect(
+			math_floor(clip.x - left),
+			math_floor(clip.y - top),
+			math_ceil(clip.x + clip.w + right),
+			math_ceil(clip.y + clip.h + bottom),
+			true
+		)
+
+		local ok, a, b, c, d = pcall(fn)
+		restoreScissor()
+		if DisableClipping then
+			DisableClipping(prevClipping)
+		end
+		if not ok then
+			error(a, 2)
+		end
+		return a, b, c, d
+	end
+
 	return {
 		isCulled = isCulled,
 		restoreScissor = restoreScissor,
 		withLocalScissor = withLocalScissor,
 		withScreenScissorPixels = withScreenScissorPixels,
+		withPanelEffectBleed = withPanelEffectBleed,
 	}
 end

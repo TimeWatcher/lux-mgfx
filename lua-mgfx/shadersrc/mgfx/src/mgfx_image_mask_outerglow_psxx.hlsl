@@ -7,6 +7,7 @@
 #define GLOW_SPREAD EXTRA2.x
 #define GLOW_OPACITY EXTRA2.y
 #define GLOW_SOFTNESS EXTRA2.z
+#define GLOW_EXTENT EXTRA2.w
 #define MASK_PARAMS EXTRA3
 
 #define MASK_ROUNDED 0.0
@@ -112,44 +113,50 @@ float texture_mask_value(float2 localUV, float kind)
 
 float texture_mask_sample(float2 localUV, float kind, float invert)
 {
+	float inBounds = step(0.0, localUV.x) * step(localUV.x, 1.0) * step(0.0, localUV.y) * step(localUV.y, 1.0);
 	float v = texture_mask_value(localUV, kind);
-	return lerp(v, 1.0 - v, invert);
+	return inBounds * lerp(v, 1.0 - v, invert);
 }
 
 float texture_glow(float2 localUV, float kind, float invert)
 {
-	float spread = max(GLOW_SPREAD, 1.0);
-	float2 stepUV = spread / max(SHAPE_SIZE, float2(1.0, 1.0));
+	float blur = max(GLOW_SPREAD, 0.001);
+	float falloff = max(1.0 / max(GLOW_SOFTNESS, 0.1), 0.35);
+	float2 stepUV = blur / max(SHAPE_SIZE, float2(1.0, 1.0));
 	float center = texture_mask_sample(localUV, kind, invert);
-	float glow = 0.0;
+	float accum = center;
+	float total = 1.0;
 
 	[unroll]
 	for (int ring = 1; ring <= 4; ring++)
 	{
 		float t = ring / 4.0;
 		float2 d = stepUV * t;
-		float weight = pow(1.0 - t, max(0.35, GLOW_SOFTNESS * 2.0));
+		float weight = exp2(-2.88539008 * t * t * falloff);
 
-		glow = max(glow, texture_mask_sample(localUV + float2(d.x, 0.0), kind, invert) * weight);
-		glow = max(glow, texture_mask_sample(localUV - float2(d.x, 0.0), kind, invert) * weight);
-		glow = max(glow, texture_mask_sample(localUV + float2(0.0, d.y), kind, invert) * weight);
-		glow = max(glow, texture_mask_sample(localUV - float2(0.0, d.y), kind, invert) * weight);
-		glow = max(glow, texture_mask_sample(localUV + d * 0.70710678, kind, invert) * weight);
-		glow = max(glow, texture_mask_sample(localUV + float2(-d.x, d.y) * 0.70710678, kind, invert) * weight);
-		glow = max(glow, texture_mask_sample(localUV + float2(d.x, -d.y) * 0.70710678, kind, invert) * weight);
-		glow = max(glow, texture_mask_sample(localUV - d * 0.70710678, kind, invert) * weight);
+		accum += texture_mask_sample(localUV + float2(d.x, 0.0), kind, invert) * weight;
+		accum += texture_mask_sample(localUV - float2(d.x, 0.0), kind, invert) * weight;
+		accum += texture_mask_sample(localUV + float2(0.0, d.y), kind, invert) * weight;
+		accum += texture_mask_sample(localUV - float2(0.0, d.y), kind, invert) * weight;
+		accum += texture_mask_sample(localUV + d * 0.70710678, kind, invert) * weight;
+		accum += texture_mask_sample(localUV + float2(-d.x, d.y) * 0.70710678, kind, invert) * weight;
+		accum += texture_mask_sample(localUV + float2(d.x, -d.y) * 0.70710678, kind, invert) * weight;
+		accum += texture_mask_sample(localUV - d * 0.70710678, kind, invert) * weight;
+		total += weight * 8.0;
 	}
 
-	return saturate(glow * (1.0 - center));
+	return saturate((accum / max(total, 0.0001)) * (1.0 - center));
 }
 
 float4 main(PS_INPUT i) : COLOR
 {
 	float invert = step(128.0, MASK_KIND_PACKED);
 	float kind = MASK_KIND_PACKED - invert * 128.0;
-	float spread = max(GLOW_SPREAD, 1.0);
-	float2 expandedSize = SHAPE_SIZE + spread * 2.0;
-	float2 localPos = i.uv * expandedSize - spread;
+	float blur = max(GLOW_SPREAD, 0.001);
+	float extent = max(max(GLOW_EXTENT, blur), 1.0);
+	float opacity = max(GLOW_OPACITY, 0.0);
+	float2 expandedSize = SHAPE_SIZE + extent * 2.0;
+	float2 localPos = i.uv * expandedSize - extent;
 	float2 localUV = localPos / max(SHAPE_SIZE, float2(1.0, 1.0));
 	float glow = 0.0;
 
@@ -157,16 +164,14 @@ float4 main(PS_INPUT i) : COLOR
 	{
 		float dist = procedural_dist(localPos, kind);
 		dist = lerp(dist, -dist, invert);
-		float outside = 1.0 - aa_coverage(dist);
-		float falloff = pow(saturate(1.0 - dist / spread), max(0.35, GLOW_SOFTNESS * 2.0));
-		glow = outside * falloff;
+		glow = mgfx_css_outer_effect(dist, blur, max(1.0 / max(GLOW_SOFTNESS, 0.1), 0.35));
 	}
 	else
 	{
 		glow = texture_glow(localUV, kind, invert);
 	}
 
-	float alpha = GLOW_COLOR.a * GLOW_OPACITY * glow;
+	float alpha = GLOW_COLOR.a * opacity * glow;
 	clip(alpha - 0.001);
 	return float4(saturate(GLOW_COLOR.rgb), saturate(alpha));
 }

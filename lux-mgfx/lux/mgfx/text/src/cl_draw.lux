@@ -109,13 +109,14 @@ fn normalizeGlow(value) {
     value = { width = toNumber(value) ?? 6 }
   }
 
-  local width = mathMax(0, toNumber(value.width ?? value.radius ?? value[1]) ?? 6)
+  local width = mathMax(0, toNumber(value.width ?? value.size ?? value.radius ?? value[1]) ?? 6)
   stopif width <= 0, nil
 
   {
     width = width,
       samples = mathClamp(mathCeil(width * 2), 8, 36),
       strength = toNumber(value.strength ?? value.opacity) ?? 0.45,
+      falloff = toNumber(value.falloff) ?? style.glowSoftnessToFalloff(value.softness, 0.58),
       color = style.colorOr(value.color ?? value.tint, makeColor(255, 255, 255, 120))
   }
 }
@@ -198,6 +199,11 @@ export client fn draw(value, font, x, y, color, ax = 0, ay = 0) =
   drawEx(value, font, x, y, color, ax, ay, nil)
 
 export client fn drawEx(value, font, x, y, color, ax = 0, ay = 0, textStyle = nil) {
+  local renderer = sharedTextRenderer()
+  if renderer?.DrawTextImmediate ~= nil {
+    return renderer.DrawTextImmediate(value, font, x, y, color, ax, ay, textStyle)
+  }
+
   local resolved = resolveStyle(textStyle ?? {})
   local record = {
     text = toString(value ?? ""),
@@ -228,6 +234,11 @@ fn textBoxLineStyle(textStyle) {
 }
 
 export client fn boxEx(value, font, x, y, w, h, textStyle = nil) {
+  local renderer = sharedTextRenderer()
+  if renderer?.DrawTextBoxImmediate ~= nil {
+    return renderer.DrawTextBoxImmediate(value, font, x, y, w, h, textStyle)
+  }
+
   local resolved = resolveStyle(textStyle ?? {})
   local resolvedFont = resolved.font ?? font ?? "DermaDefault"
   local lines = wrapText(value, resolvedFont, toNumber(w) ?? 0, resolved.overflow)
@@ -245,6 +256,27 @@ export client fn boxEx(value, font, x, y, w, h, textStyle = nil) {
 }
 
 export client fn batch(records) {
+  local renderer = sharedTextRenderer()
+  if renderer?.Flush ~= nil and renderer.MakeRecord ~= nil {
+    local normalized = {}
+    for index = 1, #(records ?? {}) {
+      local record = records[index]
+      if record ~= nil {
+        normalized[#normalized + 1] = renderer.MakeRecord(
+          record.text ?? record.value,
+          record.font,
+          record.x,
+          record.y,
+          record.color,
+          record.alignX ?? record.ax,
+          record.alignY ?? record.ay,
+          record.style ?? {}
+        )
+      }
+    }
+    return renderer.Flush(normalized, "batch")
+  }
+
   for index = 1, #(records ?? {}) {
     local record = records[index]
     drawNativeFallbackRecord({
@@ -263,6 +295,11 @@ export client fn batch(records) {
 }
 
 export client fn prewarm(value, font, textStyle = nil) {
+  local renderer = sharedTextRenderer()
+  if renderer?.PrewarmText ~= nil {
+    return renderer.PrewarmText(value, font, textStyle)
+  }
+
   local resolved = resolveStyle(textStyle ?? {})
   local layout = layoutFor(value, font ?? resolved.font ?? "DermaDefault", resolved)
   layout ~= nil

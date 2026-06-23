@@ -93,6 +93,7 @@ local profiler = nil
 local restoreScissor = () => {}
 local gradientLutForFill = () => nil
 local materialOK = (material) => material ~= nil and material.IsError ~= nil and not material:IsError()
+local defaultTextRenderer = nil
 
 local MEASURE_LIMIT = 4096
 local ATLAS_W = 2048
@@ -133,6 +134,26 @@ fn configureTextRenderer(deps = nil) {
   gradientLutForFill = deps.gradientLutForFill ?? deps.GradientLutForFill ?? gradientLutForFill ?? (() => nil)
   materialOK = deps.matOK ?? deps.MaterialOK ?? materialOK
   true
+}
+
+fn sharedTextRenderer() {
+  if defaultTextRenderer ~= nil {
+    return defaultTextRenderer
+  }
+
+  local factory = _G.MGFX?._CreateTextRenderer
+  if factory ~= nil {
+    defaultTextRenderer = factory({
+      materials = materials,
+      createPageTextMaterials = createPageTextMaterials,
+      matOK = materialOK,
+      profiler = profiler,
+      restoreScissor = restoreScissor,
+      gradientLutForFill = gradientLutForFill
+    })
+  }
+
+  defaultTextRenderer
 }
 
 fn isMaterialOK(material) =

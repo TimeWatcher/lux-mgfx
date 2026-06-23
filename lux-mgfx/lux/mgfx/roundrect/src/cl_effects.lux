@@ -52,6 +52,14 @@ export client fn glowBiasPads(base, x = 0, y = 0, minPad = 1) {
     mathMax(minPad, pad + oy)
 }
 
+export client fn effectExtentFromSpec(spec, defaultWidth = 18) {
+  local width = mathMax(0.001, toNumber(spec?.width) ?? defaultWidth)
+  local falloff = mathMax(0.35, toNumber(spec?.falloff) ?? 1.9)
+  local sigma = mathMax(width / mathSqrt(falloff) * 0.72, 0.35)
+  local tail = sigma * 3.72
+  mathMax(1, toNumber(spec?.spread) ?? width, tail)
+}
+
 export client fn outerGlowStyle(glow) {
   stopif glow == nil or glow == false, nil
 

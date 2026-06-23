@@ -98,22 +98,43 @@ float arc_angle_mask(float2 p)
 
 float inner_glow_profile(float depth, float width, float falloff)
 {
-	float t = max(depth, 0.0) / max(width, 0.001);
-	float decay = max(falloff, 0.001) * 1.55;
-	return exp2(-pow(t, 1.35) * decay);
+	return mgfx_css_inner_effect(depth, width, falloff);
+}
+
+float ring_inner_glow(float2 p, float r, float innerR, float outerR, float width, float falloff)
+{
+	float effect = inner_glow_profile(outerR - r, width, falloff);
+	if (innerR > 0.001)
+		effect = mgfx_css_combine_effect(effect, inner_glow_profile(r - innerR, width, falloff));
+
+	float span = END_RAD - START_RAD;
+	if (span < 0.0)
+		span += 6.28318530718;
+
+	if (ARC_MODE > 0.5 && span < 6.282)
+	{
+		float startA = normalize_angle(START_RAD);
+		float endA = startA + span;
+		float startDepth = dot(p, float2(-sin(startA), cos(startA)));
+		float endDepth = dot(p, float2(sin(endA), -cos(endA)));
+		effect = mgfx_css_combine_effect(effect, inner_glow_profile(startDepth, width, falloff));
+		effect = mgfx_css_combine_effect(effect, inner_glow_profile(endDepth, width, falloff));
+	}
+
+	return effect;
 }
 
 float4 main(PS_INPUT i) : COLOR
 {
 	float2 p = (i.uv - 0.5) * DRAW_SIZE;
 	float innerR = max(INNER_RADIUS, 0.0);
+	float r = length(p);
 	float dist = ring_dist(p);
 	float shape = aa_coverage(dist);
 	float ringThickness = max(OUTER_RADIUS - innerR, 0.001);
 	float width = min(max(GLOW_WIDTH, 0.001), ringThickness);
 	float falloff = max(GLOW_FALLOFF, 0.001);
-	float innerDepth = max(-dist, 0.0);
-	float glow = inner_glow_profile(innerDepth, width, falloff) * shape * max(GLOW_STRENGTH, 0.0);
+	float glow = ring_inner_glow(p, r, innerR, OUTER_RADIUS, width, falloff) * shape * max(GLOW_STRENGTH, 0.0);
 	float alpha = saturate(GLOW_COLOR.a * glow);
 
 	clip(alpha - 0.001);

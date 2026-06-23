@@ -1,10 +1,14 @@
 local drawSimpleText = _G.draw.SimpleText
+local disableClipping = DisableClipping
+local errorFn = error
+local pcallFn = pcall
 local renderSetScissorRect = render.SetScissorRect
 local surfaceSetDrawColor = surface.SetDrawColor
 local surfaceDrawRect = surface.DrawRect
 local mathCeil = math.ceil
 local mathFloor = math.floor
 local mathMax = math.max
+local mathMin = math.min
 
 local state = {
   active = false,
@@ -12,6 +16,7 @@ local state = {
     screenY = 0,
     w = 0,
     h = 0,
+    clipToFrame = false,
     clipStack = {},
     commandStack = nil,
     replaying = false
@@ -37,25 +42,68 @@ export client fn restoreScissor() {
   }
 }
 
+fn panelClip() {
+  for index = 1, #state.clipStack {
+    local clip = state.clipStack[index]
+    if clip ~= nil and clip.frame == true {
+      return clip
+    }
+  }
+
+  state.clipStack[1]
+}
+
 export client fn toScreen(x, y) {
   return state.screenX + (x ?? 0),
     state.screenY + (y ?? 0)
 }
 
 export client fn isCulled(x, y, w, h) {
-  local sx, sy = toScreen(x, y)
-  local ex = sx + (w ?? 0)
-  local ey = sy + (h ?? 0)
-
-  if ex <= state.screenX or ey <= state.screenY {
+  if (w ?? 0) <= 0 or (h ?? 0) <= 0 {
     return true
   }
 
-  if sx >= state.screenX + state.w or sy >= state.screenY + state.h {
+  local clip = state.clipStack[#state.clipStack]
+  if clip == nil {
+    return false
+  }
+
+  if (clip.w ?? 0) <= 0 or (clip.h ?? 0) <= 0 {
+    return true
+  }
+
+  if x + w < (clip.localX ?? 0) or y + h < (clip.localY ?? 0) or x > (clip.localX ?? 0) + clip.w or y > (clip.localY ?? 0) + clip.h {
     return true
   }
 
   false
+}
+
+fn installFrameClip() {
+  clearArray(state.clipStack)
+  if not state.clipToFrame {
+    renderSetScissorRect(0, 0, 0, 0, false)
+    return
+  }
+
+  local fw = state.w ?? 0
+  local fh = state.h ?? 0
+  if fw <= 0 or fh <= 0 {
+    return
+  }
+
+  local sx = state.screenX ?? 0
+  local sy = state.screenY ?? 0
+  state.clipStack[#state.clipStack + 1] = {
+    localX = 0,
+      localY = 0,
+      x = sx,
+      y = sy,
+      w = fw,
+      h = fh,
+      frame = true
+  }
+  renderSetScissorRect(sx, sy, sx + fw, sy + fh, true)
 }
 
 export client fn startScreen(w = ScrW(), h = ScrH()) {
@@ -64,13 +112,20 @@ export client fn startScreen(w = ScrW(), h = ScrH()) {
   state.screenY = 0
   state.w = w
   state.h = h
-  clearArray(state.clipStack)
+  state.clipToFrame = false
+  installFrameClip()
   return state
 }
 
 export client fn endScreen() {
-  restoreScissor()
+  clearArray(state.clipStack)
+  renderSetScissorRect(0, 0, 0, 0, false)
   state.active = false
+  state.w = 0
+  state.h = 0
+  state.screenX = 0
+  state.screenY = 0
+  state.clipToFrame = false
   state.commandStack = nil
   state.replaying = false
   return state
@@ -89,7 +144,8 @@ export client fn startPanel(panel, w, h) {
   state.screenY = y
   state.w = w ?? (panel ~= nil and panel.GetWide ~= nil then panel:GetWide() else 0)
   state.h = h ?? (panel ~= nil and panel.GetTall ~= nil then panel:GetTall() else 0)
-  clearArray(state.clipStack)
+  state.clipToFrame = true
+  installFrameClip()
   return state
 }
 
@@ -97,12 +153,43 @@ export client fn endPanel() =
   endScreen()
 
 export client fn pushClip(x, y, w, h) {
+  x = x ?? 0
+  y = y ?? 0
+  w = w ?? 0
+  h = h ?? 0
+
   local sx, sy = toScreen(x, y)
+  local ex = sx + w
+  local ey = sy + h
+  local parent = state.clipStack[#state.clipStack]
+  if parent ~= nil {
+    sx = mathMax(sx, parent.x)
+    sy = mathMax(sy, parent.y)
+    ex = mathMin(ex, parent.x + parent.w)
+    ey = mathMin(ey, parent.y + parent.h)
+  }
+
+  if ex <= sx or ey <= sy {
+    local clip = {
+      localX = x,
+        localY = y,
+        x = sx,
+        y = sy,
+        w = 0,
+        h = 0
+    }
+    state.clipStack[#state.clipStack + 1] = clip
+    renderSetScissorRect(0, 0, 0, 0, true)
+    return clip
+  }
+
   local clip = {
-    x = mathFloor(sx),
-      y = mathFloor(sy),
-      w = mathMax(0, mathCeil(w ?? 0)),
-      h = mathMax(0, mathCeil(h ?? 0))
+    localX = sx - (state.screenX ?? 0),
+      localY = sy - (state.screenY ?? 0),
+      x = sx,
+      y = sy,
+      w = ex - sx,
+      h = ey - sy
   }
 
   state.clipStack[#state.clipStack + 1] = clip
@@ -120,14 +207,54 @@ export client fn popClip() {
 
 export client fn withClip(x, y, w, h, callback) {
   pushClip(x, y, w, h)
-  local ok, result = pcall(callback)
+  local ok, a, b, c, d = pcallFn(callback)
   popClip()
 
   if not ok {
-    error(result, 2)
+    errorFn(a, 2)
   }
 
-  result
+  return a, b, c, d
+}
+
+export client fn withPanelEffectBleed(left = 0, top = 0, right = 0, bottom = 0, callback) {
+  left = mathMax(0, left ?? 0)
+  top = mathMax(0, top ?? 0)
+  right = mathMax(0, right ?? 0)
+  bottom = mathMax(0, bottom ?? 0)
+  if left <= 0 and top <= 0 and right <= 0 and bottom <= 0 {
+    return callback()
+  }
+
+  local clip = panelClip()
+  if clip == nil {
+    return callback()
+  }
+
+  local prevClipping = nil
+  if disableClipping ~= nil {
+    prevClipping = disableClipping(true)
+  }
+
+  renderSetScissorRect(
+    mathFloor(clip.x - left),
+    mathFloor(clip.y - top),
+    mathCeil(clip.x + clip.w + right),
+    mathCeil(clip.y + clip.h + bottom),
+    true
+  )
+
+  local ok, a, b, c, d = pcallFn(callback)
+  restoreScissor()
+  if disableClipping ~= nil {
+    disableClipping(prevClipping)
+  }
+
+  if not ok {
+    errorFn(a, 2)
+  }
+
+  return a, b, c, d
 }
 
 export client fn beginCommands() {
@@ -178,6 +305,7 @@ export client fn install(owner) {
   owner.EndScreen = endScreen
   owner.PushClip = pushClip
   owner.PopClip = popClip
+  owner.WithPanelEffectBleed = withPanelEffectBleed
   owner.DebugOverlay = debugOverlay
   owner._FrameState = state
   owner

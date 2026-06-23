@@ -141,9 +141,30 @@ float4 ring_fill(float2 uv, float r, float innerR, float outerR, float angularT,
 
 float inner_glow_profile(float depth, float width, float falloff)
 {
-	float t = max(depth, 0.0) / max(width, 0.001);
-	float decay = max(falloff, 0.001) * 1.55;
-	return exp2(-pow(t, 1.35) * decay);
+	return mgfx_css_inner_effect(depth, width, falloff);
+}
+
+float ring_inner_glow(float2 p, float r, float innerR, float outerR, float width, float falloff)
+{
+	float effect = inner_glow_profile(outerR - r, width, falloff);
+	if (innerR > 0.001)
+		effect = mgfx_css_combine_effect(effect, inner_glow_profile(r - innerR, width, falloff));
+
+	float span = END_RAD - START_RAD;
+	if (span < 0.0)
+		span += 6.28318530718;
+
+	if (ARC_MODE > 0.5 && span < 6.282)
+	{
+		float startA = normalize_angle(START_RAD);
+		float endA = startA + span;
+		float startDepth = dot(p, float2(-sin(startA), cos(startA)));
+		float endDepth = dot(p, float2(sin(endA), -cos(endA)));
+		effect = mgfx_css_combine_effect(effect, inner_glow_profile(startDepth, width, falloff));
+		effect = mgfx_css_combine_effect(effect, inner_glow_profile(endDepth, width, falloff));
+	}
+
+	return effect;
 }
 
 float4 source_over(float4 top, float4 bottom)
@@ -169,8 +190,7 @@ float4 main(PS_INPUT i) : COLOR
 	{
 		float ringThickness = max(outerR - innerR, 0.001);
 		float width = min(max(INNER_GLOW_WIDTH, 0.001), ringThickness);
-		float depth = max(-dist, 0.0);
-		float glow = inner_glow_profile(depth, width, INNER_GLOW_FALLOFF) * shape * max(INNER_GLOW_STRENGTH, 0.0);
+		float glow = ring_inner_glow(p, r, innerR, outerR, width, INNER_GLOW_FALLOFF) * shape * max(INNER_GLOW_STRENGTH, 0.0);
 		float4 glowColor = float4(saturate(INNER_GLOW_COLOR.rgb), saturate(INNER_GLOW_COLOR.a * glow));
 		outColor = source_over(glowColor, outColor);
 	}

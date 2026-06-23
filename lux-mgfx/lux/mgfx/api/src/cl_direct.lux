@@ -10,6 +10,23 @@ import * as widgets from "@lux/mgfx/widgets"
 -- Direct mgfx.api.* calls should work without exporting a global MGFX table.
 local defaultRuntime = install({})
 
+local TARGET_ROUNDED_BOX = 1
+local TARGET_CHAMFER_BOX = 2
+local TARGET_POLY = 3
+local TARGET_LINE = 4
+local TARGET_CIRCLE = 5
+local TARGET_CAPSULE = 6
+local TARGET_IMAGE = 8
+local TARGET_PROGRESS_BAR = 9
+local TARGET_SEGMENT_BAR = 10
+local TARGET_RING = 11
+local TARGET_ARC = 12
+local TARGET_TEXT = 13
+local TARGET_SECTOR = 14
+
+fn resolvedStyle(drawStyle, target) =
+  capabilities.normalizeStyle(drawStyle, target)
+
 export client fn solid(color) =
   style.solid(color)
 
@@ -134,97 +151,97 @@ export client fn untransformPoint(sx, sy) =
   geometry.untransformPoint(sx, sy)
 
 export client fn roundedBoxEx(x, y, w, h, drawStyle = nil) =
-  roundrect.roundedBoxEx(x, y, w, h, drawStyle)
+  roundrect.roundedBoxEx(x, y, w, h, resolvedStyle(drawStyle, TARGET_ROUNDED_BOX))
 
 export client fn roundedBox(x, y, w, h, radius, fill, stroke = nil, strokeWidth = nil) =
   roundrect.roundedBox(x, y, w, h, radius, fill, stroke, strokeWidth)
 
 export client fn circleEx(cx, cy, radius, drawStyle = nil) =
-  roundrect.circleEx(cx, cy, radius, drawStyle)
+  roundrect.circleEx(cx, cy, radius, resolvedStyle(drawStyle, TARGET_CIRCLE))
 
 export client fn circle(cx, cy, radius, fill, stroke = nil, strokeWidth = nil) =
   roundrect.circle(cx, cy, radius, fill, stroke, strokeWidth)
 
 export client fn capsuleEx(x, y, w, h, drawStyle = nil) =
-  roundrect.capsuleEx(x, y, w, h, drawStyle)
+  roundrect.capsuleEx(x, y, w, h, resolvedStyle(drawStyle, TARGET_CAPSULE))
 
 export client fn capsule(x, y, w, h, fill, stroke = nil, strokeWidth = nil) =
   roundrect.capsule(x, y, w, h, fill, stroke, strokeWidth)
 
 export client fn chamferBoxEx(x, y, w, h, drawStyle = nil) =
-  primitives.chamferBoxEx(x, y, w, h, drawStyle)
+  primitives.chamferBoxEx(x, y, w, h, resolvedStyle(drawStyle, TARGET_CHAMFER_BOX))
 
 export client fn chamferBox(x, y, w, h, cuts, fill, stroke = nil, strokeWidth = nil) =
   primitives.chamferBox(x, y, w, h, cuts, fill, stroke, strokeWidth)
 
 export client fn regularPolyEx(cx, cy, radius, sides, drawStyle = nil) =
-  primitives.regularPolyEx(cx, cy, radius, sides, drawStyle)
+  primitives.regularPolyEx(cx, cy, radius, sides, resolvedStyle(drawStyle, TARGET_POLY))
 
 export client fn regularPoly(cx, cy, radius, sides, rotation, fill, stroke = nil, strokeWidth = nil) =
   primitives.regularPoly(cx, cy, radius, sides, rotation, fill, stroke, strokeWidth)
 
 export client fn diamondEx(x, y, w, h, drawStyle = nil) =
-  primitives.diamondEx(x, y, w, h, drawStyle)
+  primitives.diamondEx(x, y, w, h, resolvedStyle(drawStyle, TARGET_POLY))
 
 export client fn diamond(x, y, w, h, fill, stroke = nil, strokeWidth = nil) =
   primitives.diamond(x, y, w, h, fill, stroke, strokeWidth)
 
 export client fn caretEx(x, y, w, h, drawStyle = nil) =
-  primitives.caretEx(x, y, w, h, drawStyle)
+  primitives.caretEx(x, y, w, h, resolvedStyle(drawStyle, TARGET_POLY))
 
 export client fn caret(x, y, w, h, direction, fill, stroke = nil, strokeWidth = nil) =
   primitives.caret(x, y, w, h, direction, fill, stroke, strokeWidth)
 
 export client fn polyEx(points, drawStyle = nil) =
-  primitives.polyEx(points, drawStyle)
+  primitives.polyEx(points, resolvedStyle(drawStyle, TARGET_POLY))
 
 export client fn poly(points, fill, stroke = nil, strokeWidth = nil) =
   primitives.poly(points, fill, stroke, strokeWidth)
 
 export client fn lineEx(x1, y1, x2, y2, drawStyle = nil) =
-  primitives.lineEx(x1, y1, x2, y2, drawStyle)
+  primitives.lineEx(x1, y1, x2, y2, resolvedStyle(drawStyle, TARGET_LINE))
 
 export client fn line(x1, y1, x2, y2, width = 1, fill = nil) =
   primitives.line(x1, y1, x2, y2, width, fill)
 
 export client fn progressBarEx(x, y, w, h, value, drawStyle = nil) =
-  widgets.progressBarEx(x, y, w, h, value, drawStyle)
+  widgets.progressBarEx(x, y, w, h, value, resolvedStyle(drawStyle, TARGET_PROGRESS_BAR))
 
 export client fn progressBar(x, y, w, h, value, radius, track, fill, stroke = nil, strokeWidth = nil) =
   widgets.progressBar(x, y, w, h, value, radius, track, fill, stroke, strokeWidth)
 
 export client fn segmentBarEx(x, y, w, h, value, drawStyle = nil) =
-  widgets.segmentBarEx(x, y, w, h, value, drawStyle)
+  widgets.segmentBarEx(x, y, w, h, value, resolvedStyle(drawStyle, TARGET_SEGMENT_BAR))
 
 export client fn segmentBar(x, y, w, h, value, segments, fill, track) =
   widgets.segmentBar(x, y, w, h, value, segments, fill, track)
 
 export client fn ringEx(cx, cy, radius, width, drawStyle = nil) =
-  widgets.ringEx(cx, cy, radius, width, drawStyle)
+  widgets.ringEx(cx, cy, radius, width, resolvedStyle(drawStyle, TARGET_RING))
 
 export client fn ring(cx, cy, radius, width, fill) =
   widgets.ring(cx, cy, radius, width, fill)
 
 export client fn arcEx(cx, cy, radius, width, startDeg, endDeg, drawStyle = nil) =
-  widgets.arcEx(cx, cy, radius, width, startDeg, endDeg, drawStyle)
+  widgets.arcEx(cx, cy, radius, width, startDeg, endDeg, resolvedStyle(drawStyle, TARGET_ARC))
 
 export client fn arc(cx, cy, radius, startDeg, endDeg, width, fill) =
   widgets.arc(cx, cy, radius, startDeg, endDeg, width, fill)
 
 export client fn sectorEx(cx, cy, innerRadius, outerRadius, startDeg, endDeg, drawStyle = nil) =
-  widgets.sectorEx(cx, cy, innerRadius, outerRadius, startDeg, endDeg, drawStyle)
+  widgets.sectorEx(cx, cy, innerRadius, outerRadius, startDeg, endDeg, resolvedStyle(drawStyle, TARGET_SECTOR))
 
 export client fn sector(cx, cy, innerRadius, outerRadius, startDeg, endDeg, fill) =
   widgets.sector(cx, cy, innerRadius, outerRadius, startDeg, endDeg, fill)
 
 export client fn imageEx(x, y, w, h, source, drawStyle = nil) =
-  widgets.imageEx(x, y, w, h, source, drawStyle)
+  widgets.imageEx(x, y, w, h, source, resolvedStyle(drawStyle, TARGET_IMAGE))
 
 export client fn image(x, y, w, h, source, radius = nil, tint = nil) =
   widgets.image(x, y, w, h, source, radius, tint)
 
 export client fn iconEx(x, y, w, h, source, drawStyle = nil) =
-  widgets.iconEx(x, y, w, h, source, drawStyle)
+  widgets.iconEx(x, y, w, h, source, resolvedStyle(drawStyle, TARGET_IMAGE))
 
 export client fn icon(x, y, w, h, source, tint = nil) =
   widgets.icon(x, y, w, h, source, tint)
@@ -251,13 +268,13 @@ export client fn text(value, font, x, y, color, ax = 0, ay = 0) =
   textModule.draw(value, font, x, y, color, ax, ay)
 
 export client fn textEx(value, font, x, y, color, ax = 0, ay = 0, textStyle = nil) =
-  textModule.drawEx(value, font, x, y, color, ax, ay, textStyle)
+  textModule.drawEx(value, font, x, y, color, ax, ay, resolvedStyle(textStyle, TARGET_TEXT))
 
 export client fn textBox(value, font, x, y, w, h, color, alignX = TEXT_ALIGN_LEFT, alignY = TEXT_ALIGN_TOP) =
   textModule.box(value, font, x, y, w, h, color, alignX, alignY)
 
 export client fn textBoxEx(value, font, x, y, w, h, textStyle = nil) =
-  textModule.boxEx(value, font, x, y, w, h, textStyle)
+  textModule.boxEx(value, font, x, y, w, h, resolvedStyle(textStyle, TARGET_TEXT))
 
 export client fn textBatchEx(records) =
   textModule.batch(records)

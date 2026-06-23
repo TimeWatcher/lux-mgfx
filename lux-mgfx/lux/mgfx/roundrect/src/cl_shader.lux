@@ -187,6 +187,18 @@ fn radiusWithGrow(radius, grow) {
   (toNumber(radius) ?? 0) + grow
 }
 
+fn effectExtent(spec, defaultWidth = 18) {
+  effectExtentFromSpec(spec, defaultWidth)
+}
+
+fn effectBleedFromDrawRect(x, y, w, h, drawX, drawY, drawW, drawH) {
+  local left = mathMax(0, x - drawX)
+  local top = mathMax(0, y - drawY)
+  local right = mathMax(0, drawX + drawW - (x + w))
+  local bottom = mathMax(0, drawY + drawH - (y + h))
+  return left, top, right, bottom
+}
+
 fn drawRoundRectInnerGlowSpec(x, y, w, h, radius, spec) {
   if spec == nil or spec.color == nil or (spec.color.a ?? 255) <= 0 or not shadersActive() or not materialOK(roundRectMaterials.roundrect_innerglow) {
     return false
@@ -220,7 +232,7 @@ fn drawRoundRectOuterGlowSpec(x, y, w, h, radius, spec, biasOffset = false) {
   local gw = w + grow * 2
   local gh = h + grow * 2
   local gr = radiusWithGrow(radius, grow)
-  local spread = mathMax(1, toNumber(spec.spread ?? spec.width) ?? 18)
+  local spread = effectExtent(spec, 18)
   local gx = x + ox - grow
   local gy = y + oy - grow
   local left = spread
@@ -241,13 +253,56 @@ fn drawRoundRectOuterGlowSpec(x, y, w, h, radius, spec, biasOffset = false) {
     sw, sh, 0, 0,
     left, top, gw, gh,
     style.radiusScalar(gr, gw, gh),
-    mathMax(0.001, toNumber(spec.width) ?? spread),
+    mathMax(0.001, toNumber(spec.width) ?? 18),
     mathMax(0, toNumber(spec.strength) ?? 1),
     mathMax(0.001, toNumber(spec.falloff) ?? 1.9)
   )
-  surfaceSetMaterial(material)
-  surfaceSetDrawColor(255, 255, 255, 255)
-  drawTexturedQuad(gx - left, gy - top, sw, sh)
+  local sx = gx - left
+  local sy = gy - top
+  local bleedLeft, bleedTop, bleedRight, bleedBottom = effectBleedFromDrawRect(x, y, w, h, sx, sy, sw, sh)
+  withPanelEffectBleed(bleedLeft, bleedTop, bleedRight, bleedBottom, () => {
+    surfaceSetMaterial(material)
+    surfaceSetDrawColor(255, 255, 255, 255)
+    drawTexturedQuad(sx, sy, sw, sh)
+  })
+  true
+}
+
+fn drawRoundRectShadowSpec(x, y, w, h, radius, spec) {
+  if spec == nil or spec.color == nil or (spec.color.a ?? 255) <= 0 or not shadersActive() or not materialOK(roundRectMaterials.roundrect_shadow) {
+    return false
+  }
+
+  local grow = mathMax(0, toNumber(spec.grow ?? spec.shapeSpread ?? spec.expand) ?? 0)
+  local ox = toNumber(spec.x ?? spec.offsetX ?? spec.dx) ?? 0
+  local oy = toNumber(spec.y ?? spec.offsetY ?? spec.dy) ?? 0
+  local gw = w + grow * 2
+  local gh = h + grow * 2
+  local gr = radiusWithGrow(radius, grow)
+  local spread = effectExtent(spec, 18)
+  local gx = x + ox - grow
+  local gy = y + oy - grow
+  local sw = gw + spread * 2
+  local sh = gh + spread * 2
+  local material = roundRectMaterials.roundrect_shadow
+  local r, g, b, a = style.color01(spec.color)
+  setupParamMatrix(material,
+    r, g, b, a,
+    sw, sh, 0, 0,
+    spread, spread, gw, gh,
+    style.radiusScalar(gr, gw, gh),
+    mathMax(0.001, toNumber(spec.width) ?? 18),
+    mathMax(0, toNumber(spec.strength) ?? 1),
+    mathMax(0.001, toNumber(spec.falloff) ?? 1.9)
+  )
+  local sx = gx - spread
+  local sy = gy - spread
+  local bleedLeft, bleedTop, bleedRight, bleedBottom = effectBleedFromDrawRect(x, y, w, h, sx, sy, sw, sh)
+  withPanelEffectBleed(bleedLeft, bleedTop, bleedRight, bleedBottom, () => {
+    surfaceSetMaterial(material)
+    surfaceSetDrawColor(255, 255, 255, 255)
+    drawTexturedQuad(sx, sy, sw, sh)
+  })
   true
 }
 
@@ -264,32 +319,39 @@ fn backdropTintColor(spec) {
 fn drawRoundRectBackdrop(x, y, w, h, radius, backdrop) {
   local spec = style.backdropStyle(backdrop)
   stopif spec == nil, nil
+  local pad = mathMax(0, toNumber(spec.padding) ?? 0)
+  local bx = x - pad
+  local by = y - pad
+  local bw = w + pad * 2
+  local bh = h + pad * 2
+  local br = radiusWithGrow(radius, pad)
 
   if spec.blur > 0 and roundRectBlurRT ~= nil and renderCopyRenderTargetToTexture ~= nil and materialOK(roundRectMaterials.roundrect_blur) {
     local material = roundRectMaterials.roundrect_blur
+    local intensity = blurIntensity(spec.blur)
     surfaceSetMaterial(material)
     surfaceSetDrawColor(255, 255, 255, 255)
     renderCopyRenderTargetToTexture(roundRectBlurRT)
     setupParamMatrix(material,
-      0, spec.blur, 0, 0,
-      w, h, 0, style.radiusScalar(radius, w, h),
-      0, 0, 1, 0,
+      0, intensity, 0, 0,
+      bw, bh, 0, style.radiusScalar(br, bw, bh),
+      0, 0, 1, 1,
       0, 0, 0, 0
     )
-    drawTexturedQuad(x, y, w, h)
+    drawTexturedQuad(bx, by, bw, bh)
     renderCopyRenderTargetToTexture(roundRectBlurRT)
     setupParamMatrix(material,
-      1, spec.blur, 0, 0,
-      w, h, 0, style.radiusScalar(radius, w, h),
-      0, 0, 1, 0,
+      1, intensity, 0, 0,
+      bw, bh, 0, style.radiusScalar(br, bw, bh),
+      0, 0, 1, 1,
       0, 0, 0, 0
     )
-    drawTexturedQuad(x, y, w, h)
+    drawTexturedQuad(bx, by, bw, bh)
   }
 
   local tint = backdropTintColor(spec)
   if tint ~= nil {
-    drawRoundRectFillPass(x, y, w, h, radius, style.solid(tint))
+    drawRoundRectFillPass(bx, by, bw, bh, br, style.solid(tint))
   }
 
   spec
@@ -352,7 +414,7 @@ fn drawRoundRectShader(x, y, w, h, drawStyle) {
   local radius = drawStyle.radius ?? drawStyle.r ?? 0
   local shadow = shadowStyle(drawStyle.shadow)
   if shadow ~= nil {
-    drawRoundRectOuterGlowSpec(x, y, w, h, radius, shadow)
+    drawRoundRectShadowSpec(x, y, w, h, radius, shadow)
   }
 
   local outer = outerGlowStyle(drawStyle.outerGlow)

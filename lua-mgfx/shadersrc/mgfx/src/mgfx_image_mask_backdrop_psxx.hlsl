@@ -1,10 +1,10 @@
 #include "mgfx_common.hlsl"
 #include "mgfx_blur_common.hlsl"
 
+#define DRAW_SIZE EXTRA0.zw
 #define SHAPE_SIZE EXTRA1.xy
 #define MASK_KIND_PACKED EXTRA1.z
 #define MASK_PARAM EXTRA1.w
-#define SOURCE_UV EXTRA2
 #define MASK_PARAMS EXTRA3
 
 #define MASK_ROUNDED 0.0
@@ -77,10 +77,9 @@ float chamfer_dist_mask(float2 p, float2 s, float4 cuts)
 	return lerp(d, -d, inside);
 }
 
-float procedural_alpha(float2 uv, float kind, float invert)
+float procedural_dist(float2 p, float2 shapeSize, float kind)
 {
-	float2 p = uv * SHAPE_SIZE;
-	float2 center = SHAPE_SIZE * 0.5;
+	float2 center = shapeSize * 0.5;
 	float dist = 1.0;
 
 	if (kind < 0.5)
@@ -90,23 +89,25 @@ float procedural_alpha(float2 uv, float kind, float invert)
 	}
 	else if (kind < 1.5)
 	{
-		dist = chamfer_dist_mask(p, SHAPE_SIZE, MASK_PARAMS);
+		dist = chamfer_dist_mask(p, shapeSize, MASK_PARAMS);
 	}
 	else if (kind < 2.5)
 	{
-		dist = length(p - center) - min(SHAPE_SIZE.x, SHAPE_SIZE.y) * 0.5;
+		dist = length(p - center) - min(shapeSize.x, shapeSize.y) * 0.5;
 	}
 	else
 	{
-		dist = sd_roundrect_mask(p - center, center, min(SHAPE_SIZE.x, SHAPE_SIZE.y) * 0.5);
+		dist = sd_roundrect_mask(p - center, center, min(shapeSize.x, shapeSize.y) * 0.5);
 	}
 
-	dist = lerp(dist, -dist, invert);
-	return aa_coverage(dist);
+	return dist;
 }
 
 float texture_mask_value(float2 uv, float kind)
 {
+	if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0)
+		return 0.0;
+
 	float2 maskUV = lerp(MASK_PARAMS.xy, MASK_PARAMS.zw, saturate(uv));
 	float4 m = tex2D(Tex2, maskUV);
 
@@ -117,23 +118,57 @@ float texture_mask_value(float2 uv, float kind)
 	return dot(m.rgb, float3(0.2126, 0.7152, 0.0722));
 }
 
+float texture_mask_dilate(float2 uv, float kind, float invert, float radiusPx, float2 shapeSize)
+{
+	float base = lerp(texture_mask_value(uv, kind), 1.0 - texture_mask_value(uv, kind), invert);
+	if (radiusPx <= 0.5)
+		return saturate(base);
+
+	float2 stepUV = radiusPx / max(shapeSize, float2(1.0, 1.0));
+	float dilated = base;
+
+	[unroll]
+	for (int ring = 1; ring <= 4; ring++)
+	{
+		float t = ring / 4.0;
+		float2 d = stepUV * t;
+		dilated = max(dilated, lerp(texture_mask_value(uv + float2(d.x, 0.0), kind), 1.0 - texture_mask_value(uv + float2(d.x, 0.0), kind), invert));
+		dilated = max(dilated, lerp(texture_mask_value(uv - float2(d.x, 0.0), kind), 1.0 - texture_mask_value(uv - float2(d.x, 0.0), kind), invert));
+		dilated = max(dilated, lerp(texture_mask_value(uv + float2(0.0, d.y), kind), 1.0 - texture_mask_value(uv + float2(0.0, d.y), kind), invert));
+		dilated = max(dilated, lerp(texture_mask_value(uv - float2(0.0, d.y), kind), 1.0 - texture_mask_value(uv - float2(0.0, d.y), kind), invert));
+		dilated = max(dilated, lerp(texture_mask_value(uv + d * 0.70710678, kind), 1.0 - texture_mask_value(uv + d * 0.70710678, kind), invert));
+		dilated = max(dilated, lerp(texture_mask_value(uv + float2(-d.x, d.y) * 0.70710678, kind), 1.0 - texture_mask_value(uv + float2(-d.x, d.y) * 0.70710678, kind), invert));
+		dilated = max(dilated, lerp(texture_mask_value(uv + float2(d.x, -d.y) * 0.70710678, kind), 1.0 - texture_mask_value(uv + float2(d.x, -d.y) * 0.70710678, kind), invert));
+		dilated = max(dilated, lerp(texture_mask_value(uv - d * 0.70710678, kind), 1.0 - texture_mask_value(uv - d * 0.70710678, kind), invert));
+	}
+
+	return saturate(dilated);
+}
+
 float4 main(PS_INPUT i) : COLOR
 {
 	float packedKind = MASK_KIND_PACKED;
 	float invert = step(128.0, packedKind);
 	float kind = packedKind - invert * 128.0;
+	float2 drawSize = max(DRAW_SIZE, SHAPE_SIZE);
+	float2 shapeSize = max(SHAPE_SIZE, float2(1.0, 1.0));
+	float2 pad = max((drawSize - shapeSize) * 0.5, 0.0);
+	float padPx = min(pad.x, pad.y);
+	float2 localPos = i.uv * drawSize - pad;
+	float2 localUV = localPos / shapeSize;
 	float alpha;
 
 	if (kind < 9.5)
 	{
-		alpha = procedural_alpha(i.uv, kind, invert);
+		float dist = procedural_dist(localPos, shapeSize, kind);
+		dist = lerp(dist, -dist, invert) - padPx;
+		alpha = aa_coverage(dist);
 	}
 	else
 	{
-		float v = texture_mask_value(i.uv, kind);
-		alpha = lerp(v, 1.0 - v, invert);
+		alpha = texture_mask_dilate(localUV, kind, invert, padPx, shapeSize);
 	}
 
 	clip(alpha - 0.001);
-	return float4(mgfx_blur(i.pos * Tex1Size), alpha);
+	return float4(mgfx_blur(i.pos * TexBaseSize) * i.color.rgb, alpha * i.color.a);
 }

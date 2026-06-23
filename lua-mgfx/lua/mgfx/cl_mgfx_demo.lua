@@ -4,7 +4,6 @@ local DemoPanel
 local currentFontScale = -1
 local currentTextFontScale = -1
 local iconMaterial
-local maskMaterial
 local innerGlowCvar = CreateClientConVar("mgfx_demo_innerglow", "1", true, false)
 local outerGlowCvar = CreateClientConVar("mgfx_demo_outerglow", "1", true, false)
 local addCommand = MGFX._AddCommand or concommand.Add
@@ -94,27 +93,6 @@ local function demoIcon()
 
 	iconMaterial = false
 	return iconMaterial
-end
-
-local function demoMask()
-	if maskMaterial ~= nil then return maskMaterial end
-
-	for _, path in ipairs({
-		"vgui/gradient-r",
-		"vgui/gradient-u",
-		"gui/center_gradient",
-		"effects/flashlight001",
-		"color/white",
-	}) do
-		local mat = Material(path, "smooth noclamp")
-		if mat and not mat:IsError() then
-			maskMaterial = mat
-			return maskMaterial
-		end
-	end
-
-	maskMaterial = false
-	return maskMaterial
 end
 
 local function waveValue(offset, speed)
@@ -277,7 +255,6 @@ function PANEL:Paint(w, h)
 	local cardW = (gridW - gap * 3) / 4
 	local cardH = (gridH - gap * 2) / 3
 	local mat = demoIcon()
-	local maskMat = demoMask()
 	local labels = {}
 	local runtimeHitboxes = {}
 	local runtimeActionHitboxes = {}
@@ -725,15 +702,18 @@ function PANEL:Paint(w, h)
 				fill = Color(24, 14, 8, 220),
 			})
 			MGFX.ImageEx(rightX, bottomY, size, size, mat, {
-				mask = MGFX.Mask("texture", {
-					source = maskMat or mat,
-					channel = "luma",
-				}),
 				fit = "cover",
 				tint = Color(255, 112, 92, 238),
 				stroke = Color(255, 255, 255, 58),
 				strokeWidth = 1,
 				fill = Color(24, 10, 8, 220),
+				shadow = {
+					x = 0,
+					y = 5,
+					blur = 12,
+					color = Color(0, 0, 0, 146),
+					softness = 0.68,
+				},
 				outerGlow = showOuterGlow and {
 					color = Color(255, 190, 66, 118),
 					size = 14,
@@ -745,7 +725,7 @@ function PANEL:Paint(w, h)
 			addText("rounded", "MGFXDemoTiny", leftX + size * 0.5, topY + size + 4, COLORS.muted, TEXT_ALIGN_CENTER)
 			addText("circle", "MGFXDemoTiny", rightX + size * 0.5, topY + size + 4, COLORS.muted, TEXT_ALIGN_CENTER)
 			addText("chamfer", "MGFXDemoTiny", leftX + size * 0.5, bottomY + size + 4, COLORS.muted, TEXT_ALIGN_CENTER)
-			addText("texture", "MGFXDemoTiny", rightX + size * 0.5, bottomY + size + 4, COLORS.muted, TEXT_ALIGN_CENTER)
+			addText("alpha fx", "MGFXDemoTiny", rightX + size * 0.5, bottomY + size + 4, COLORS.muted, TEXT_ALIGN_CENTER)
 		end
 
 		x, y, cw, ch = card(5, "Segment Bar", "SegmentBarEx: scoreboard threat", COLORS.red)

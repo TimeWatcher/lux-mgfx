@@ -7,9 +7,17 @@
 
 float inner_glow_profile(float depth, float width, float falloff)
 {
-	float t = max(depth, 0.0) / max(width, 0.001);
-	float decay = max(falloff, 0.001) * 1.55;
-	return exp2(-pow(t, 1.35) * decay);
+	return mgfx_css_inner_effect(depth, width, falloff);
+}
+
+float roundrect_inner_glow(float2 pos, float2 size, float width, float falloff)
+{
+	float effect = 0.0;
+	effect = mgfx_css_combine_effect(effect, inner_glow_profile(pos.x, width, falloff));
+	effect = mgfx_css_combine_effect(effect, inner_glow_profile(size.x - pos.x, width, falloff));
+	effect = mgfx_css_combine_effect(effect, inner_glow_profile(pos.y, width, falloff));
+	effect = mgfx_css_combine_effect(effect, inner_glow_profile(size.y - pos.y, width, falloff));
+	return effect;
 }
 
 float4 main(PS_INPUT i) : COLOR
@@ -22,8 +30,7 @@ float4 main(PS_INPUT i) : COLOR
 
 	float outerDist = sd_roundrect(pos - halfSize, halfSize, radius);
 	float shape = roundrect_coverage_from_dist(outerDist);
-	float depth = max(-outerDist, 0.0);
-	float glow = inner_glow_profile(depth, width, falloff) * shape * max(GLOW_STRENGTH, 0.0);
+	float glow = roundrect_inner_glow(pos, SIZE, width, falloff) * shape * max(GLOW_STRENGTH, 0.0);
 	float alpha = saturate(GLOW_COLOR.a * glow);
 
 	clip(alpha - 0.001);

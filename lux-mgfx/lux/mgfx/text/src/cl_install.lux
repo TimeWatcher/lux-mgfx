@@ -44,6 +44,7 @@ export client fn install(owner) {
   owner.DebugDrawTextAtlas = renderer.DebugDrawAtlas
   owner._CreateTextRenderer = createTextRenderer
   owner._TextRenderer = renderer
+  defaultTextRenderer = renderer
   owner._TextStyles = styles
   owner._TextFonts = fonts
   owner

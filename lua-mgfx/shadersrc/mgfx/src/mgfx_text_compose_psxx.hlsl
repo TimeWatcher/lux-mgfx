@@ -163,14 +163,14 @@ float blur_alpha_disk(float2 uv, float radius, float falloff)
 	radius = max(radius, 0.5);
 	falloff = max(falloff, 0.25);
 
-	float accum = sample_alpha(uv) * 0.18;
-	float total = 0.18;
+	float accum = sample_alpha(uv);
+	float total = 1.0;
 
 	[unroll] for (int ring = 1; ring <= 4; ring++)
 	{
 		float t = ring / 4.0;
 		float r = max(radius * t, 0.35);
-		float weight = pow(saturate(1.05 - t * 0.72), falloff);
+		float weight = exp2(-2.88539008 * t * t * falloff);
 		float2 step = TEXT_ATLAS_TEXEL * r;
 
 		[unroll] for (int i = 0; i < 16; i++)
@@ -232,7 +232,7 @@ float glow_coverage(float2 uv, float baseAlpha, float width, float falloff)
 
 	float blur = blur_alpha_disk(uv, width, falloff);
 	float outside = outside_from_fill(baseAlpha);
-	float glow = pow(saturate(blur * 1.85), max(0.72, falloff * 0.62));
+	float glow = saturate(blur * lerp(1.85, 1.20, saturate(falloff / 3.25)));
 	return saturate(glow * outside);
 }
 
@@ -273,27 +273,29 @@ float shadow_coverage(float2 uv, float2 offset, float blur)
 	if (blur <= 0.5)
 		return sample_alpha(center);
 
-	float2 r = TEXT_ATLAS_TEXEL * blur;
-	float a = sample_alpha(center) * 0.2200;
+	float accum = sample_alpha(center);
+	float total = 1.0;
 
-	a += sample_alpha(center + float2( r.x, 0.0)) * 0.0900;
-	a += sample_alpha(center + float2(-r.x, 0.0)) * 0.0900;
-	a += sample_alpha(center + float2(0.0,  r.y)) * 0.0900;
-	a += sample_alpha(center + float2(0.0, -r.y)) * 0.0900;
+	[unroll] for (int ring = 1; ring <= 4; ring++)
+	{
+		float t = ring / 4.0;
+		float2 r = TEXT_ATLAS_TEXEL * max(blur * t, 0.35);
+		float weight = exp2(-2.88539008 * t * t);
 
-	float2 d1 = r * 0.7071;
-	a += sample_alpha(center + float2( d1.x,  d1.y)) * 0.0550;
-	a += sample_alpha(center + float2(-d1.x,  d1.y)) * 0.0550;
-	a += sample_alpha(center + float2( d1.x, -d1.y)) * 0.0550;
-	a += sample_alpha(center + float2(-d1.x, -d1.y)) * 0.0550;
+		accum += sample_alpha(center + float2( r.x, 0.0)) * weight;
+		accum += sample_alpha(center + float2(-r.x, 0.0)) * weight;
+		accum += sample_alpha(center + float2(0.0,  r.y)) * weight;
+		accum += sample_alpha(center + float2(0.0, -r.y)) * weight;
 
-	float2 r2 = r * 0.45;
-	a += sample_alpha(center + float2( r2.x, 0.0)) * 0.0500;
-	a += sample_alpha(center + float2(-r2.x, 0.0)) * 0.0500;
-	a += sample_alpha(center + float2(0.0,  r2.y)) * 0.0500;
-	a += sample_alpha(center + float2(0.0, -r2.y)) * 0.0500;
+		float2 d = r * 0.70710678;
+		accum += sample_alpha(center + float2( d.x,  d.y)) * weight;
+		accum += sample_alpha(center + float2(-d.x,  d.y)) * weight;
+		accum += sample_alpha(center + float2( d.x, -d.y)) * weight;
+		accum += sample_alpha(center + float2(-d.x, -d.y)) * weight;
+		total += weight * 8.0;
+	}
 
-	return saturate(a);
+	return saturate(accum / max(total, 0.0001));
 }
 
 void blend_over(inout float3 premul, inout float alpha, float3 srcRgb, float srcAlpha)

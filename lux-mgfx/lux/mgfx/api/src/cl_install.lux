@@ -55,6 +55,75 @@ fn installFrameStatsReset(owner) {
   owner
 }
 
+fn installNormalizedDrawApi(owner) {
+  local rawRoundedBoxEx = owner.RoundedBoxEx
+  local rawCircleEx = owner.CircleEx
+  local rawCapsuleEx = owner.CapsuleEx
+  local rawChamferBoxEx = owner.ChamferBoxEx
+  local rawRegularPolyEx = owner.RegularPolyEx
+  local rawDiamondEx = owner.DiamondEx
+  local rawCaretEx = owner.CaretEx
+  local rawPolyEx = owner.PolyEx
+  local rawLineEx = owner.LineEx
+  local rawProgressBarEx = owner.ProgressBarEx
+  local rawSegmentBarEx = owner.SegmentBarEx
+  local rawRingEx = owner.RingEx
+  local rawArcEx = owner.ArcEx
+  local rawSectorEx = owner.SectorEx
+  local rawImageEx = owner.ImageEx
+  local rawIconEx = owner.IconEx
+
+  owner.RoundedBoxEx = (x, y, w, h, drawStyle = nil) =>
+    rawRoundedBoxEx(x, y, w, h, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.ROUNDED_BOX))
+
+  owner.CircleEx = (cx, cy, radius, drawStyle = nil) =>
+    rawCircleEx(cx, cy, radius, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.CIRCLE))
+
+  owner.CapsuleEx = (x, y, w, h, drawStyle = nil) =>
+    rawCapsuleEx(x, y, w, h, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.CAPSULE))
+
+  owner.ChamferBoxEx = (x, y, w, h, drawStyle = nil) =>
+    rawChamferBoxEx(x, y, w, h, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.CHAMFER_BOX))
+
+  owner.RegularPolyEx = (cx, cy, radius, sides, drawStyle = nil) =>
+    rawRegularPolyEx(cx, cy, radius, sides, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.POLY))
+
+  owner.DiamondEx = (x, y, w, h, drawStyle = nil) =>
+    rawDiamondEx(x, y, w, h, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.POLY))
+
+  owner.CaretEx = (x, y, w, h, drawStyle = nil) =>
+    rawCaretEx(x, y, w, h, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.POLY))
+
+  owner.PolyEx = (points, drawStyle = nil) =>
+    rawPolyEx(points, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.POLY))
+
+  owner.LineEx = (x1, y1, x2, y2, drawStyle = nil) =>
+    rawLineEx(x1, y1, x2, y2, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.LINE))
+
+  owner.ProgressBarEx = (x, y, w, h, value, drawStyle = nil) =>
+    rawProgressBarEx(x, y, w, h, value, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.PROGRESS_BAR))
+
+  owner.SegmentBarEx = (x, y, w, h, value, drawStyle = nil) =>
+    rawSegmentBarEx(x, y, w, h, value, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.SEGMENT_BAR))
+
+  owner.RingEx = (cx, cy, radius, width, drawStyle = nil) =>
+    rawRingEx(cx, cy, radius, width, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.RING))
+
+  owner.ArcEx = (cx, cy, radius, width, startDeg, endDeg, drawStyle = nil) =>
+    rawArcEx(cx, cy, radius, width, startDeg, endDeg, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.ARC))
+
+  owner.SectorEx = (cx, cy, innerRadius, outerRadius, startDeg, endDeg, drawStyle = nil) =>
+    rawSectorEx(cx, cy, innerRadius, outerRadius, startDeg, endDeg, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.SECTOR))
+
+  owner.ImageEx = (x, y, w, h, source, drawStyle = nil) =>
+    rawImageEx(x, y, w, h, source, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.IMAGE))
+
+  owner.IconEx = (x, y, w, h, source, drawStyle = nil) =>
+    rawIconEx(x, y, w, h, source, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.IMAGE))
+
+  owner
+}
+
 export client fn install(owner = nil) {
   local out = owner ?? {}
   out.Reload = () => install(out)
@@ -75,6 +144,7 @@ export client fn install(owner = nil) {
   roundrect.install(out)
   primitives.install(out)
   widgets.install(out)
+  installNormalizedDrawApi(out)
   installFrameStatsReset(out)
 
   out

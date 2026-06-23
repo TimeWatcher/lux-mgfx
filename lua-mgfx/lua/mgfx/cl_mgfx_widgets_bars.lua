@@ -348,7 +348,7 @@ local function drawSegmentBarFallback(x, y, w, h, value, style)
 	if segW <= 0 or h <= 0 then return end
 	local containerRadius = style.backgroundRadius or style.radius or math_min(3, h * 0.5)
 
-	if style.shadow or style.outerGlow or style.innerGlow or style.backdrop then
+	if style.shadow or style.outerGlow or style.innerGlow or style.backdrop or style.background then
 		M.RoundedBoxEx(x, y, w, h, {
 			radius = containerRadius,
 			fill = style.background or transparentColor,
@@ -356,13 +356,6 @@ local function drawSegmentBarFallback(x, y, w, h, value, style)
 			outerGlow = style.outerGlow,
 			innerGlow = style.innerGlow,
 			backdrop = style.backdrop,
-		})
-	end
-
-	if style.background and (style.background.a or 255) > 0 then
-		M.RoundedBoxEx(x, y, w, h, {
-			radius = containerRadius,
-			fill = style.background,
 		})
 	end
 

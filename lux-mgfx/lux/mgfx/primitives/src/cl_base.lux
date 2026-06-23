@@ -1,7 +1,9 @@
+import * as frameImport from "@lux/mgfx/frame"
 import * as geometryImport from "@lux/mgfx/geometry"
 import * as roundrectImport from "@lux/mgfx/roundrect"
 import * as styleImport from "@lux/mgfx/style"
 
+local frame = frameImport
 local geometry = geometryImport
 local roundrect = roundrectImport
 local style = styleImport
@@ -27,9 +29,12 @@ local makeColor = Color
 
 local drawTransformedPoly = geometry.drawTransformedPoly
 local drawTexturedQuad = geometry.drawTexturedQuad
+local backdropBlurIntensity = geometry.blurIntensity
 local hasTransform = geometry.hasTransform
+local isCulled = frame.isCulled
 local splitStyleTransform = geometry.splitStyleTransform
 local withTransform = geometry.withTransform
+local withPanelEffectBleed = frame.withPanelEffectBleed
 
 local paramMatrixProbe = matrixCtor ~= nil then matrixCtor() else nil
 local paramMatrixSetUnpacked = paramMatrixProbe?.SetUnpacked
@@ -116,5 +121,13 @@ fn fillColor(fill, fallback = nil) {
 fn pointXY(point) {
   return toNumber(point.x ?? point[1]) ?? 0,
     toNumber(point.y ?? point[2]) ?? 0
+}
+
+fn effectBleedFromDrawRect(x, y, w, h, drawX, drawY, drawW, drawH) {
+  local left = mathMax(0, x - drawX)
+  local top = mathMax(0, y - drawY)
+  local right = mathMax(0, drawX + drawW - (x + w))
+  local bottom = mathMax(0, drawY + drawH - (y + h))
+  return left, top, right, bottom
 }
 

@@ -20,19 +20,17 @@ fn setupPrimitiveBlurConstants(material, w, h, vertical, intensity, radius = 0) 
   )
 }
 
-fn blurIntensity(amount) =
-  mathMax(0.001, toNumber(amount) ?? 1)
-
 fn drawBlurredPoly(poly, material, amount) {
   stopif material == nil or primitiveBlurRT == nil or renderCopyRenderTargetToTexture == nil, false
 
+  local intensity = backdropBlurIntensity(amount)
   surfaceSetDrawColor(255, 255, 255, 255)
   renderCopyRenderTargetToTexture(primitiveBlurRT)
-  setupPrimitiveBlurConstants(material, poly.w, poly.h, false, blurIntensity(amount), 0)
+  setupPrimitiveBlurConstants(material, poly.w, poly.h, false, intensity, 0)
   drawMaterialPoly(poly, material)
 
   renderCopyRenderTargetToTexture(primitiveBlurRT)
-  setupPrimitiveBlurConstants(material, poly.w, poly.h, true, blurIntensity(amount), 0)
+  setupPrimitiveBlurConstants(material, poly.w, poly.h, true, intensity, 0)
   drawMaterialPoly(poly, material)
   true
 }
@@ -54,17 +52,19 @@ fn polyBackdropTintColor(spec) {
 fn drawPolyBackdrop(poly, backdrop) {
   local spec = style.backdropStyle(backdrop)
   stopif spec == nil, nil
+  local pad = mathMax(0, toNumber(spec.padding) ?? 0)
+  local backdropPoly = pad > 0 then growConvexPoly(poly, pad) else poly
 
   if spec.blur > 0 {
-    drawBlurredPoly(poly, primitiveMaterials[polyMaterialKey(poly, "_blur")], spec.blur)
+    drawBlurredPoly(backdropPoly, primitiveMaterials[polyMaterialKey(backdropPoly, "_blur")], spec.blur)
   }
 
   local tint = polyBackdropTintColor(spec)
   if tint ~= nil {
-    local material = primitiveMaterials[polyMaterialKey(poly)]
+    local material = primitiveMaterials[polyMaterialKey(backdropPoly)]
     if materialOK(material) {
-      setupPrimitiveFillConstants(material, poly.w, poly.h, style.solid(tint), nil, 0, 0)
-      drawMaterialPoly(poly, material)
+      setupPrimitiveFillConstants(material, backdropPoly.w, backdropPoly.h, style.solid(tint), nil, 0, 0)
+      drawMaterialPoly(backdropPoly, material)
     }
   }
 
@@ -76,7 +76,7 @@ fn polyShadowBounds(poly, shadow, biasOffset = false) {
 
   local width = mathMax(0.001, toNumber(shadow.width) ?? 12)
   local grow = mathMax(0, toNumber(shadow.grow) ?? 0)
-  local spread = mathMax(1, toNumber(shadow.spread) ?? width)
+  local spread = roundrect.effectExtentFromSpec(shadow, 12)
   local padding = grow + mathMax(spread, width)
   local ox = toNumber(shadow.x) ?? 0
   local oy = toNumber(shadow.y) ?? 0
@@ -109,6 +109,16 @@ fn polyShadowBounds(poly, shadow, biasOffset = false) {
       falloff = mathMax(0.001, toNumber(shadow.falloff) ?? 1.7),
       strength = mathMax(0, toNumber(shadow.strength) ?? 1)
   }
+}
+
+fn includeBounds(x, y, w, h, bounds) {
+  stopif bounds == nil, x, y, w, h
+
+  local minX = mathMin(x, bounds.x)
+  local minY = mathMin(y, bounds.y)
+  local maxX = mathMax(x + w, bounds.x + bounds.w)
+  local maxY = mathMax(y + h, bounds.y + bounds.h)
+  return minX, minY, maxX - minX, maxY - minY
 }
 
 fn shadowVertex(poly, point, bounds) {
@@ -179,9 +189,28 @@ fn drawPolyShadow(poly, shadow, bounds) {
   stopif not materialOK(material), false
 
   setupPolyShadowConstants(material, poly, shadow, bounds)
-  surfaceSetMaterial(material)
-  surfaceSetDrawColor(255, 255, 255, 255)
-  drawTexturedQuad(bounds.x, bounds.y, bounds.w, bounds.h)
+  local bleedLeft, bleedTop, bleedRight, bleedBottom = effectBleedFromDrawRect(poly.x, poly.y, poly.w, poly.h, bounds.x, bounds.y, bounds.w, bounds.h)
+  withPanelEffectBleed(bleedLeft, bleedTop, bleedRight, bleedBottom, () => {
+    surfaceSetMaterial(material)
+    surfaceSetDrawColor(255, 255, 255, 255)
+    drawTexturedQuad(bounds.x, bounds.y, bounds.w, bounds.h)
+  })
+  true
+}
+
+fn drawPolyOuterGlow(poly, glow, bounds) {
+  stopif bounds == nil, false
+
+  local material = primitiveMaterials[polyMaterialKey(poly, "_outerglow")]
+  stopif not materialOK(material), false
+
+  setupPolyShadowConstants(material, poly, glow, bounds)
+  local bleedLeft, bleedTop, bleedRight, bleedBottom = effectBleedFromDrawRect(poly.x, poly.y, poly.w, poly.h, bounds.x, bounds.y, bounds.w, bounds.h)
+  withPanelEffectBleed(bleedLeft, bleedTop, bleedRight, bleedBottom, () => {
+    surfaceSetMaterial(material)
+    surfaceSetDrawColor(255, 255, 255, 255)
+    drawTexturedQuad(bounds.x, bounds.y, bounds.w, bounds.h)
+  })
   true
 }
 
@@ -231,24 +260,36 @@ fn drawPolyPattern(poly, pattern) {
 }
 
 fn setupPolyStrokeConstants(material, poly, color, strokeWidth) {
-  local p1 = poly.points[1]
-  local p2 = poly.points[2]
-  local p3 = poly.points[3]
-  local p4 = poly.points[4] ?? p3
+  local points = poly.points
+  local p1 = points[1]
+  local p2 = points[2]
+  local p3 = points[3]
+  local p4 = points[4] ?? p3
+  local p5 = points[5] ?? p4
+  local p6 = points[6] ?? p5
+  local p7 = points[7] ?? p6
+  local p8 = points[8] ?? p7
   local r, g, b, a = style.color01(color)
 
   setupParamMatrix(material,
     p1.x, p1.y, p2.x, p2.y,
     p3.x, p3.y, p4.x, p4.y,
+    p5.x, p5.y, p6.x, p6.y,
+    p7.x, p7.y, p8.x, p8.y
+  )
+  setupPolyShadowAuxConstants(material,
     r, g, b, a,
-    poly.w, poly.h, mathMax(0, style.strokeWidthValue(strokeWidth, 0)), poly.count
+    poly.w, poly.h, mathMax(0, style.strokeWidthValue(strokeWidth, 0)), 0,
+    0, 0, 0, 0,
+    0, 0, 0, 0
   )
 }
 
 fn drawPolyStrokeShader(poly, color, strokeWidth) {
-  stopif poly.count > 4 or not shadersActive() or not materialOK(primitiveMaterials.poly_stroke), false
+  stopif not shadersActive(), false
 
-  local material = primitiveMaterials.poly_stroke
+  local material = primitiveMaterials[polyMaterialKey(poly, "_stroke")]
+  stopif not materialOK(material), false
   setupPolyStrokeConstants(material, poly, color, strokeWidth)
   surfaceSetDrawColor(255, 255, 255, 255)
   drawMaterialPoly(poly, material)
@@ -307,13 +348,34 @@ fn drawPolyImmediate(points, drawStyle = nil) {
   local shadowBounds = polyShadowBounds(poly, shadow)
   local outer = roundrect.outerGlowStyle(resolved.outerGlow)
   local outerBounds = polyShadowBounds(poly, outer, true)
+  local backdrop = style.backdropStyle(resolved.backdrop)
+  local cullX = poly.x
+  local cullY = poly.y
+  local cullW = poly.w
+  local cullH = poly.h
+  cullX, cullY, cullW, cullH = includeBounds(cullX, cullY, cullW, cullH, shadowBounds)
+  cullX, cullY, cullW, cullH = includeBounds(cullX, cullY, cullW, cullH, outerBounds)
+  if backdrop ~= nil {
+    local pad = mathMax(0, toNumber(backdrop.padding) ?? 0)
+    if pad > 0 {
+      cullX, cullY, cullW, cullH = includeBounds(cullX, cullY, cullW, cullH, {
+        x = poly.x - pad,
+        y = poly.y - pad,
+        w = poly.w + pad * 2,
+        h = poly.h + pad * 2
+      })
+    }
+  }
+  if not hasTransform() and isCulled(cullX, cullY, cullW, cullH) {
+    return
+  }
 
   if not shadersActive() {
     return drawPolyFallback(points, resolved)
   }
 
   drawPolyShadow(poly, shadow, shadowBounds)
-  drawPolyShadow(poly, outer, outerBounds)
+  drawPolyOuterGlow(poly, outer, outerBounds)
   drawPolyBackdrop(poly, resolved.backdrop)
 
   local material = primitiveMaterials[polyMaterialKey(poly)]

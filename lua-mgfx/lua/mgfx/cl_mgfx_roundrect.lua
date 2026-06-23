@@ -35,6 +35,7 @@ function MGFX._InstallRoundRect(C)
 	local splitStyleTransform = C.splitStyleTransform or function(style) return nil, style end
 	local hasTransform = C.hasTransform or function() return false end
 	local drawBlurredQuad = C.drawBlurredQuad
+	local withPanelEffectBleed = assert(C.withPanelEffectBleed, "MGFX panel bleed helper unavailable")
 	local math_floor = math.floor
 	local math_abs = math.abs
 	local math_max = math.max
@@ -73,6 +74,15 @@ local function glowBiasPads(base, x, y, minPad)
 		math_max(minPad, pad + oy)
 end
 
+local function effectExtentFromSpec(spec, defaultWidth)
+	defaultWidth = defaultWidth or 18
+	local width = math_max(0.001, tonumber(spec and spec.width) or defaultWidth)
+	local falloff = math_max(0.35, tonumber(spec and spec.falloff) or 1.9)
+	local sigma = math_max(width / math.sqrt(falloff) * 0.72, 0.35)
+	local tail = sigma * 3.72
+	return math_max(1, tonumber(spec and spec.spread) or width, tail)
+end
+
 local function profileEndBase(kind, started)
 	if not started then return end
 	local elapsed = (SysTime() - started) * 1000
@@ -93,6 +103,14 @@ local function drawSolidRectFast(x, y, w, h, fill)
 	surface_SetDrawColor(color.r or 255, color.g or 255, color.b or 255, color.a == nil and 255 or color.a)
 	surface_DrawRect(x, y, w, h)
 	M.stats.draws = M.stats.draws + 1
+end
+
+local function effectBleedFromDrawRect(x, y, w, h, drawX, drawY, drawW, drawH)
+	local left = math_max(0, x - drawX)
+	local top = math_max(0, y - drawY)
+	local right = math_max(0, drawX + drawW - (x + w))
+	local bottom = math_max(0, drawY + drawH - (y + h))
+	return left, top, right, bottom
 end
 
 local function drawSolidRoundFast(x, y, w, h, radiusValue, fill)
@@ -484,6 +502,10 @@ local function radiusWithGrow(radius, grow)
 	return (tonumber(radius) or 0) + grow
 end
 
+local function effectExtent(spec, defaultWidth)
+	return effectExtentFromSpec(spec, defaultWidth)
+end
+
 local function drawRoundRectOuterGlowSpec(x, y, w, h, radius, spec, biasOffset)
 	if not spec then return end
 
@@ -497,7 +519,7 @@ local function drawRoundRectOuterGlowSpec(x, y, w, h, radius, spec, biasOffset)
 	local gw = w + grow * 2
 	local gh = h + grow * 2
 	local gr = radiusWithGrow(radius, grow)
-	local spread = math_max(1, tonumber(spec.spread) or tonumber(spec.width) or 18)
+	local spread = effectExtent(spec, 18)
 	local gx = x + ox - grow
 	local gy = y + oy - grow
 	local left, top, right, bottom = spread, spread, spread, spread
@@ -516,13 +538,55 @@ local function drawRoundRectOuterGlowSpec(x, y, w, h, radius, spec, biasOffset)
 		sw, sh, 0, 0,
 		left, top, gw, gh,
 		radiusScalar(gr, gw, gh),
-		math_max(0.001, tonumber(spec.width) or spread),
+		math_max(0.001, tonumber(spec.width) or 18),
 		math_max(0, tonumber(spec.strength) or 1),
 		math_max(0.001, tonumber(spec.falloff) or 1.9)
 	)
-	surface_SetMaterial(mat)
-	surface_SetDrawColor(255, 255, 255, 255)
-	drawTexturedQuad(sx, sy, sw, sh)
+	local bleedLeft, bleedTop, bleedRight, bleedBottom = effectBleedFromDrawRect(x, y, w, h, sx, sy, sw, sh)
+	withPanelEffectBleed(bleedLeft, bleedTop, bleedRight, bleedBottom, function()
+		surface_SetMaterial(mat)
+		surface_SetDrawColor(255, 255, 255, 255)
+		drawTexturedQuad(sx, sy, sw, sh)
+	end)
+end
+
+local function drawRoundRectShadowSpec(x, y, w, h, radius, spec)
+	if not spec then return end
+
+	local color = spec.color
+	if (color.a or 255) <= 0 then return end
+	if not shadersActive() or not matOK(materials.roundrect_shadow) then return end
+
+	local grow = math_max(0, tonumber(spec.grow) or tonumber(spec.shapeSpread) or tonumber(spec.expand) or 0)
+	local ox = tonumber(spec.x) or tonumber(spec.offsetX) or tonumber(spec.dx) or 0
+	local oy = tonumber(spec.y) or tonumber(spec.offsetY) or tonumber(spec.dy) or 0
+	local gw = w + grow * 2
+	local gh = h + grow * 2
+	local gr = radiusWithGrow(radius, grow)
+	local spread = effectExtent(spec, 18)
+	local gx = x + ox - grow
+	local gy = y + oy - grow
+	local sw = gw + spread * 2
+	local sh = gh + spread * 2
+	local mat = materials.roundrect_shadow
+	local r, g, b, a = color01(color)
+
+	setupParamMatrix(mat,
+		r, g, b, a,
+		sw, sh, 0, 0,
+		spread, spread, gw, gh,
+		radiusScalar(gr, gw, gh),
+		math_max(0.001, tonumber(spec.width) or 18),
+		math_max(0, tonumber(spec.strength) or 1),
+		math_max(0.001, tonumber(spec.falloff) or 1.9)
+	)
+	local sx, sy = gx - spread, gy - spread
+	local bleedLeft, bleedTop, bleedRight, bleedBottom = effectBleedFromDrawRect(x, y, w, h, sx, sy, sw, sh)
+	withPanelEffectBleed(bleedLeft, bleedTop, bleedRight, bleedBottom, function()
+		surface_SetMaterial(mat)
+		surface_SetDrawColor(255, 255, 255, 255)
+		drawTexturedQuad(sx, sy, sw, sh)
+	end)
 end
 
 local function drawRoundRectOuterGlow(x, y, w, h, radius, glow)
@@ -548,14 +612,20 @@ end
 local function drawRoundRectBackdrop(x, y, w, h, radius, backdrop)
 	local spec = backdropStyle(backdrop)
 	if not spec then return nil end
+	local pad = math_max(0, tonumber(spec.padding) or 0)
+	local bx = x - pad
+	local by = y - pad
+	local bw = w + pad * 2
+	local bh = h + pad * 2
+	local br = radiusWithGrow(radius, pad)
 
-	if spec.blur > 0 then
-		drawBlurredQuad(materials.roundrect_blur, x, y, w, h, radiusScalar(radius, w, h), spec.blur)
+	if spec.blur > 0 and shadersActive() and matOK(materials.roundrect_blur) and drawBlurredQuad then
+		drawBlurredQuad(materials.roundrect_blur, bx, by, bw, bh, radiusScalar(br, bw, bh), spec.blur)
 	end
 
 	local tint = backdropTintColor(spec)
 	if tint then
-		drawRoundRectFillPass(x, y, w, h, radius, hotFillFromStyle(tint))
+		drawRoundRectFillPass(bx, by, bw, bh, br, hotFillFromStyle(tint))
 	end
 
 	return spec
@@ -621,14 +691,18 @@ drawRoundRectImmediate = function(x, y, w, h, style)
 	style = style or {}
 	local shadowSpec = shadowStyle(style.shadow)
 	local outerSpec = outerGlowStyle(style.outerGlow)
+	local backdropSpec = backdropStyle(style.backdrop)
 	local shaderReady = shadersActive()
 	local cullSpread = 0
 	if shaderReady then
 		if shadowSpec then
-			cullSpread = math_max(cullSpread, math_abs(tonumber(shadowSpec.x) or 0) + math_abs(tonumber(shadowSpec.y) or 0) + (tonumber(shadowSpec.spread) or tonumber(shadowSpec.width) or 0) + (tonumber(shadowSpec.grow) or 0))
+			cullSpread = math_max(cullSpread, math_abs(tonumber(shadowSpec.x) or 0) + math_abs(tonumber(shadowSpec.y) or 0) + effectExtentFromSpec(shadowSpec, 12) + (tonumber(shadowSpec.grow) or 0))
 		end
 		if outerSpec then
-			cullSpread = math_max(cullSpread, math_abs(tonumber(outerSpec.x) or 0) + math_abs(tonumber(outerSpec.y) or 0) + (tonumber(outerSpec.spread) or tonumber(outerSpec.width) or 0) + (tonumber(outerSpec.grow) or 0))
+			cullSpread = math_max(cullSpread, math_abs(tonumber(outerSpec.x) or 0) + math_abs(tonumber(outerSpec.y) or 0) + effectExtentFromSpec(outerSpec, 18) + (tonumber(outerSpec.grow) or 0))
+		end
+		if backdropSpec then
+			cullSpread = math_max(cullSpread, math_max(0, tonumber(backdropSpec.padding) or 0))
 		end
 	end
 	if not hasTransform() and isCulled(x - cullSpread, y - cullSpread, w + cullSpread * 2, h + cullSpread * 2) then
@@ -648,17 +722,17 @@ drawRoundRectImmediate = function(x, y, w, h, style)
 	end
 
 	local radius = style.radius or 0
+	local profile
 	if shadowSpec then
-		local profile = profiling and profileStart() or nil
-		drawRoundRectOuterGlowSpec(x, y, w, h, radius, shadowSpec)
-		if profiling then profileEnd("round.shadow", profile) end
+		local shadowProfile = profiling and profileStart() or nil
+		drawRoundRectShadowSpec(x, y, w, h, radius, shadowSpec)
+		if profiling then profileEnd("round.shadow", shadowProfile) end
 	end
 
-	local profile
 	if outerSpec then
-		profile = profiling and profileStart() or nil
+		local glowProfile = profiling and profileStart() or nil
 		drawRoundRectOuterGlowSpec(x, y, w, h, radius, outerSpec, true)
-		if profiling then profileEnd("round.outerGlow", profile) end
+		if profiling then profileEnd("round.outerGlow", glowProfile) end
 	end
 
 	local backdrop
@@ -832,5 +906,6 @@ end
 		outerGlowStyle = outerGlowStyle,
 		shadowStyle = shadowStyle,
 		glowBiasPads = glowBiasPads,
+		effectExtentFromSpec = effectExtentFromSpec,
 	}
 end

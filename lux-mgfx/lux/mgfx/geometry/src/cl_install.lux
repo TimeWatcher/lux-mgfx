@@ -1,5 +1,5 @@
 export client fn blurIntensity(value) =
-  mathClamp((toNumber(value) ?? 16) / 16, 0.25, 4)
+  mathClamp((toNumber(value) ?? 16) / 16, 0.001, 4)
 
 fn bindStats(owner) {
   owner.stats = owner.stats ?? {}

@@ -111,6 +111,13 @@ fn imageRoundedRadius(drawStyle, mask, maskKind, w, h) {
   }
 }
 
+fn imageUsesSourceAlphaEffectMask(drawStyle, shadow, outer, backdrop) {
+  stopif typeOf(drawStyle) ~= "table", false
+  stopif drawStyle.mask ~= nil, false
+  stopif drawStyle.radius ~= nil, false
+  shadow ~= nil or outer ~= nil or backdrop ~= nil
+}
+
 fn drawImageRoundRectShader(x, y, w, h, texture, u0, v0, u1, v1, drawStyle, radius) {
   local material = widgetMaterials.roundrect_texture
   if not materialOK(material) {
@@ -152,19 +159,24 @@ fn imageImmediate(x, y, w, h, source, drawStyle) {
     return
   }
 
-  local mask = style.imageMaskStyle(resolved.mask, resolved)
-  local maskKind = imageMaskKindValue(mask)
+  local shadow = roundrect.shadowStyle(resolved.shadow)
+  local outer = roundrect.outerGlowStyle(resolved.outerGlow)
   local backdrop = style.backdropStyle(resolved.backdrop)
-  if backdrop ~= nil and mask == nil {
-    mask = { kind = "texture", source = source, channel = "alpha" }
+  local mask
+  local maskKind
+  if imageUsesSourceAlphaEffectMask(resolved, shadow, outer, backdrop) {
+    mask = { kind = "texture", source = source, channel = "alpha", sourceAlpha = true, u0 = u0, v0 = v0, u1 = u1, v1 = v1 }
     maskKind = ImageMaskKind.TextureA
+  } else {
+    mask = style.imageMaskStyle(resolved.mask, resolved)
+    maskKind = imageMaskKindValue(mask)
   }
 
   if imageMaskUsesTexture(maskKind) {
     local maskTexture = imageMaskTextureSource(mask)
     local backdropMaskKind = imageMaskTextureChannelKind(mask.channel) ?? maskKind
-    drawImageMaskOuterGlow(x, y, w, h, mask, maskKind, roundrect.shadowStyle(resolved.shadow))
-    drawImageMaskOuterGlow(x, y, w, h, mask, maskKind, roundrect.outerGlowStyle(resolved.outerGlow))
+    drawImageMaskShadow(x, y, w, h, mask, maskKind, shadow)
+    drawImageMaskOuterGlow(x, y, w, h, mask, maskKind, outer)
     drawImageMaskBackdrop(x, y, w, h, mask, backdropMaskKind, maskTexture, resolved.backdrop)
     if drawImageMaskShader(x, y, w, h, texture, u0, v0, u1, v1, resolved, mask, maskKind) {
       return

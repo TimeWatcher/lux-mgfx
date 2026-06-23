@@ -1,3 +1,4 @@
+import * as frameImport from "@lux/mgfx/frame"
 import * as geometryImport from "@lux/mgfx/geometry"
 import * as paintImport from "@lux/mgfx/paint"
 import * as primitivesImport from "@lux/mgfx/primitives"
@@ -5,6 +6,7 @@ import * as roundrectImport from "@lux/mgfx/roundrect"
 import * as styleImport from "@lux/mgfx/style"
 import * as textImport from "@lux/mgfx/text"
 
+local frame = frameImport
 local geometry = geometryImport
 local paint = paintImport
 local primitives = primitivesImport
@@ -30,7 +32,9 @@ local toNumber = tonumber
 local typeOf = type
 
 local drawTexturedQuad = geometry.drawTexturedQuad
+local blurIntensity = geometry.blurIntensity
 local hasTransform = geometry.hasTransform
+local withPanelEffectBleed = frame.withPanelEffectBleed
 local paramMatrixProbe = matrixCtor ~= nil then matrixCtor() else nil
 local paramMatrixSetUnpacked = paramMatrixProbe?.SetUnpacked
 local paramMatrices = {}
@@ -160,4 +164,12 @@ fn fxFlags(drawStyle) {
   }
 
   return glow, sheen, marker, mathClamp(mathFloor(toNumber(ticks) ?? 0), 0, 31)
+}
+
+fn effectBleedFromDrawRect(x, y, w, h, drawX, drawY, drawW, drawH) {
+  local left = mathMax(0, x - drawX)
+  local top = mathMax(0, y - drawY)
+  local right = mathMax(0, drawX + drawW - (x + w))
+  local bottom = mathMax(0, drawY + drawH - (y + h))
+  return left, top, right, bottom
 }

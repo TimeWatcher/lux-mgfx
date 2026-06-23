@@ -15,6 +15,7 @@ export client fn install(owner) {
   owner._Primitives = {
     chamferTuple = chamferTuple,
       chamferPoints = chamferPoints,
+      growConvexPoly = growConvexPoly,
       normalizePoly = normalizePoly,
       drawLineImmediate = drawLineImmediate
   }

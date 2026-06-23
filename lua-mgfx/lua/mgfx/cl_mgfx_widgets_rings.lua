@@ -32,6 +32,7 @@ function MGFX._InstallWidgetRings(C)
 	local withTransform = C.withTransform or function(_, _, _, _, _, fn) return fn() end
 	local splitStyleTransform = C.splitStyleTransform or function(style) return nil, style end
 	local hasTransform = C.hasTransform or function() return false end
+	local withPanelEffectBleed = assert(C.withPanelEffectBleed, "MGFX panel bleed helper unavailable")
 	local drawBlurredCustomQuad = C.drawBlurredCustomQuad
 	local drawCreatedMaterialTexturedRectUV = C.drawCreatedMaterialTexturedRectUV
 	local imageTint = C.imageTint
@@ -45,6 +46,12 @@ function MGFX._InstallWidgetRings(C)
 	local innerGlowStyle = C.innerGlowStyle
 	local outerGlowStyle = C.outerGlowStyle
 	local shadowStyle = C.shadowStyle or function() return nil end
+	local effectExtentFromSpec = C.effectExtentFromSpec or function(spec, defaultWidth)
+		local width = math.max(0.001, tonumber(spec and spec.width) or defaultWidth or 18)
+		local falloff = math.max(0.35, tonumber(spec and spec.falloff) or 1.9)
+		local sigma = math.max(width / math.sqrt(falloff) * 0.72, 0.35)
+		return math.max(1, tonumber(spec and spec.spread) or width, sigma * 3.72)
+	end
 	local chamferTuple = C.chamferTuple
 	local drawChamferOuterGlow = C.drawChamferOuterGlow
 	local drawChamferPattern = C.drawChamferPattern
@@ -86,6 +93,14 @@ function MGFX._InstallWidgetRings(C)
 	local RING_MODE_FULL = 0
 	local RING_MODE_ARC = 1
 	local RING_MODE_SECTOR = 2
+
+	local function effectBleedFromDrawRect(x, y, w, h, drawX, drawY, drawW, drawH)
+		local left = math_max(0, x - drawX)
+		local top = math_max(0, y - drawY)
+		local right = math_max(0, drawX + drawW - (x + w))
+		local bottom = math_max(0, drawY + drawH - (y + h))
+		return left, top, right, bottom
+	end
 
 	local function hotFillFromStyle(fill, fallback, scratch)
 		if istable(fill) then
@@ -285,7 +300,8 @@ local function drawRingOuterGlowPass(x, y, w, h, innerRadius, outerRadius, start
 	local gh = h + grow * 2
 	local gi = math_max(0, (tonumber(innerRadius) or 0) - grow)
 	local go = math_max(0.001, (tonumber(outerRadius) or math_min(w, h) * 0.5) + grow)
-	local spread = math_max(1, tonumber(spec.spread) or tonumber(spec.width) or 18)
+	local width = math_max(0.001, tonumber(spec.width) or 18)
+	local spread = effectExtentFromSpec(spec, 18)
 	local mat = materials.ring_outerglow
 	local r, g, b, a = color01(color)
 	local sw, sh, ir, orad, sr, er, modeValue = setupRingShapeConstants(mat, gw, gh, gi, go, startDeg, endDeg, mode)
@@ -293,14 +309,59 @@ local function drawRingOuterGlowPass(x, y, w, h, innerRadius, outerRadius, start
 		r, g, b, a,
 		sw, sh, ir, orad,
 		sr, er, modeValue, spread,
-		math_max(0.001, tonumber(spec.width) or spread),
+		width,
 		math_max(0, tonumber(spec.strength) or 1),
 		math_max(0.001, tonumber(spec.falloff) or 1.9),
 		0
 	)
-	surface_SetMaterial(mat)
-	surface_SetDrawColor(255, 255, 255, 255)
-	drawTexturedQuad(gx - spread, gy - spread, gw + spread * 2, gh + spread * 2)
+	local sx, sy = gx - spread, gy - spread
+	local drawW, drawH = gw + spread * 2, gh + spread * 2
+	local bleedLeft, bleedTop, bleedRight, bleedBottom = effectBleedFromDrawRect(x, y, w, h, sx, sy, drawW, drawH)
+	withPanelEffectBleed(bleedLeft, bleedTop, bleedRight, bleedBottom, function()
+		surface_SetMaterial(mat)
+		surface_SetDrawColor(255, 255, 255, 255)
+		drawTexturedQuad(sx, sy, drawW, drawH)
+	end)
+end
+
+local function drawRingShadowPass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, spec)
+	if not spec then return end
+	if not shadersActive() or not matOK(materials.ring_shadow) then return end
+
+	local color = spec.color
+	if (color.a or 255) <= 0 then return end
+
+	local grow = math_max(0, tonumber(spec.grow) or tonumber(spec.shapeSpread) or tonumber(spec.expand) or 0)
+	local ox = tonumber(spec.x) or tonumber(spec.offsetX) or tonumber(spec.dx) or 0
+	local oy = tonumber(spec.y) or tonumber(spec.offsetY) or tonumber(spec.dy) or 0
+	local gx = x + ox - grow
+	local gy = y + oy - grow
+	local gw = w + grow * 2
+	local gh = h + grow * 2
+	local gi = math_max(0, (tonumber(innerRadius) or 0) - grow)
+	local go = math_max(0.001, (tonumber(outerRadius) or math_min(w, h) * 0.5) + grow)
+	local width = math_max(0.001, tonumber(spec.width) or 18)
+	local spread = effectExtentFromSpec(spec, 18)
+	local mat = materials.ring_shadow
+	local r, g, b, a = color01(color)
+	local sw, sh, ir, orad, sr, er, modeValue = setupRingShapeConstants(mat, gw, gh, gi, go, startDeg, endDeg, mode)
+	setupParamMatrix(mat,
+		r, g, b, a,
+		sw, sh, ir, orad,
+		sr, er, modeValue, spread,
+		width,
+		math_max(0, tonumber(spec.strength) or 1),
+		math_max(0.001, tonumber(spec.falloff) or 1.9),
+		0
+	)
+	local sx, sy = gx - spread, gy - spread
+	local drawW, drawH = gw + spread * 2, gh + spread * 2
+	local bleedLeft, bleedTop, bleedRight, bleedBottom = effectBleedFromDrawRect(x, y, w, h, sx, sy, drawW, drawH)
+	withPanelEffectBleed(bleedLeft, bleedTop, bleedRight, bleedBottom, function()
+		surface_SetMaterial(mat)
+		surface_SetDrawColor(255, 255, 255, 255)
+		drawTexturedQuad(sx, sy, drawW, drawH)
+	end)
 end
 
 local function drawRingPatternPass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, pattern)
@@ -359,17 +420,24 @@ end
 local function drawRingBackdropPass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, backdrop)
 	local spec = backdropStyle(backdrop)
 	if not spec then return nil end
+	local pad = math_max(0, tonumber(spec.padding) or 0)
+	local bx = x - pad
+	local by = y - pad
+	local bw = w + pad * 2
+	local bh = h + pad * 2
+	local bi = math_max(0, (tonumber(innerRadius) or 0) - pad)
+	local bo = math_max(0.001, (tonumber(outerRadius) or math_min(w, h) * 0.5) + pad)
 
 	if spec.blur > 0 and shadersActive() and matOK(materials.ring_backdrop) and drawBlurredCustomQuad then
 		local mat = materials.ring_backdrop
-		drawBlurredCustomQuad(mat, x, y, w, h, spec.blur, function(passMat, vertical, intensity)
-			setupRingBackdropConstants(passMat, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, vertical, intensity)
+		drawBlurredCustomQuad(mat, bx, by, bw, bh, spec.blur, function(passMat, vertical, intensity)
+			setupRingBackdropConstants(passMat, bw, bh, bi, bo, startDeg, endDeg, mode, vertical, intensity)
 		end)
 	end
 
 	local tint = backdropTintColor(spec)
 	if tint then
-		drawRingFillPass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, hotFillFromStyle(tint, nil, backdropFillScratch))
+		drawRingFillPass(bx, by, bw, bh, bi, bo, startDeg, endDeg, mode, hotFillFromStyle(tint, nil, backdropFillScratch))
 	end
 
 	return spec
@@ -379,20 +447,24 @@ local function drawRingBox(x, y, w, h, innerRadius, outerRadius, startDeg, endDe
 	style = style or {}
 	local shadowSpec = shadowStyle(style.shadow)
 	local outerSpec = outerGlowStyle(style.outerGlow)
+	local backdropSpec = backdropStyle(style.backdrop)
 	local shaderReady = shadersActive()
 	local cullSpread = 0
 	if shaderReady then
 		if shadowSpec then
-			cullSpread = math_max(cullSpread, math_abs(tonumber(shadowSpec.x) or 0) + math_abs(tonumber(shadowSpec.y) or 0) + (tonumber(shadowSpec.spread) or tonumber(shadowSpec.width) or 0) + (tonumber(shadowSpec.grow) or 0))
+			cullSpread = math_max(cullSpread, math_abs(tonumber(shadowSpec.x) or 0) + math_abs(tonumber(shadowSpec.y) or 0) + effectExtentFromSpec(shadowSpec, 12) + (tonumber(shadowSpec.grow) or 0))
 		end
 		if outerSpec then
-			cullSpread = math_max(cullSpread, math_abs(tonumber(outerSpec.x) or 0) + math_abs(tonumber(outerSpec.y) or 0) + (tonumber(outerSpec.spread) or tonumber(outerSpec.width) or 0) + (tonumber(outerSpec.grow) or 0))
+			cullSpread = math_max(cullSpread, math_abs(tonumber(outerSpec.x) or 0) + math_abs(tonumber(outerSpec.y) or 0) + effectExtentFromSpec(outerSpec, 18) + (tonumber(outerSpec.grow) or 0))
+		end
+		if backdropSpec then
+			cullSpread = math_max(cullSpread, math_max(0, tonumber(backdropSpec.padding) or 0))
 		end
 	end
 	if not hasTransform() and isCulled(x - cullSpread, y - cullSpread, w + cullSpread * 2, h + cullSpread * 2) then return end
 
 	if shadowSpec then
-		drawRingOuterGlowPass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, shadowSpec)
+		drawRingShadowPass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, shadowSpec)
 	end
 	if outerSpec then
 		drawRingOuterGlowPass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, outerSpec)

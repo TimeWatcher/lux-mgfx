@@ -16,6 +16,13 @@ float chamfer_edge_side(float2 p, float2 a, float2 b)
 	return e.x * q.y - e.y * q.x;
 }
 
+float chamfer_edge_depth(float2 p, float2 a, float2 b)
+{
+	float2 e = b - a;
+	float2 q = p - a;
+	return chamfer_edge_side(p, a, b) / max(length(e), 0.0001);
+}
+
 float chamfer_dist_shape(float2 p, float2 s, float4 cuts)
 {
 	float limit = min(s.x, s.y) * 0.5;

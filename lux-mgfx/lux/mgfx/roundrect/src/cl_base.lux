@@ -1,6 +1,8 @@
+import * as frameImport from "@lux/mgfx/frame"
 import * as geometryImport from "@lux/mgfx/geometry"
 import * as styleImport from "@lux/mgfx/style"
 
+local frame = frameImport
 local geometry = geometryImport
 local style = styleImport
 
@@ -14,6 +16,7 @@ local mathMax = math.max
 local mathMin = math.min
 local mathRad = math.rad
 local mathSin = math.sin
+local mathSqrt = math.sqrt
 local renderCopyRenderTargetToTexture = render?.CopyRenderTargetToTexture
 local surfaceDrawOutlinedRect = surface.DrawOutlinedRect
 local surfaceDrawRect = surface.DrawRect
@@ -26,10 +29,12 @@ local realTime = RealTime
 
 local drawTransformedPoly = geometry.drawTransformedPoly
 local drawTexturedQuad = geometry.drawTexturedQuad
+local blurIntensity = geometry.blurIntensity
 local hasTransform = geometry.hasTransform
 local recordDraws = geometry.recordDraws
 local splitStyleTransform = geometry.splitStyleTransform
 local withTransform = geometry.withTransform
+local withPanelEffectBleed = frame.withPanelEffectBleed
 
 local paramMatrixProbe = matrixCtor ~= nil then matrixCtor() else nil
 local paramMatrixSetUnpacked = paramMatrixProbe?.SetUnpacked

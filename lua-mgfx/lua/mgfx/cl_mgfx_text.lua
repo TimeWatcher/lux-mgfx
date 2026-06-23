@@ -27,6 +27,10 @@ function M._CreateTextRenderer(deps)
 			math.Clamp((color.b or 0) / 255, 0, 1),
 			math.Clamp((color.a == nil and 255 or color.a) / 255, 0, 1)
 	end
+	local glowSoftnessToFalloff = deps.glowSoftnessToFalloff or function(softness, defaultSoftness)
+		softness = math.Clamp(tonumber(softness) or defaultSoftness or 0.55, 0, 1)
+		return math.Clamp(3.25 - softness * 2.5, 0.75, 3.25)
+	end
 
 	local math_abs = math.abs
 	local math_ceil = math.ceil
@@ -332,50 +336,44 @@ function M._CreateTextRenderer(deps)
 	end
 
 	local function normalizeShadow(value)
-		if not value then return nil end
-		if value == true then return {x = 0, y = 2, blur = 3, color = Color(0, 0, 0, 150), strength = 1} end
-		if isnumber(value) then return {x = 0, y = value, blur = math_abs(value), color = Color(0, 0, 0, 150), strength = 1} end
-		if not istable(value) then return nil end
-		local color = asColor(value.color or value.tint, Color(0, 0, 0, 150))
-		if (color.a or 255) <= 0 then return nil end
+		if value == nil or value == false then return nil end
+		if value == true then value = {} end
+		if not istable(value) then value = {blur = tonumber(value) or 0} end
 		return {
-			x = tonumber(value.x or value.offsetX or value[1]) or 0,
-			y = tonumber(value.y or value.offsetY or value[2]) or 2,
+			x = tonumber(value.x or value.offsetX or value[1]) or 1,
+			y = tonumber(value.y or value.offsetY or value[2]) or 1,
 			blur = math_max(0, tonumber(value.blur or value.radius or value[3]) or 0),
-			color = color,
-			strength = tonumber(value.strength) or 1,
+			strength = tonumber(value.strength or value.opacity) or 1,
+			color = asColor(value.color or value.tint, Color(0, 0, 0, 180)),
 		}
 	end
 
 	local function normalizeStroke(value)
-		if not value then return nil end
-		if value == true then value = {width = 1, color = Color(0, 0, 0, 220)} end
-		if isnumber(value) then value = {width = value, color = Color(0, 0, 0, 220)} end
-		if not istable(value) then return nil end
+		if value == nil or value == false then return nil end
+		if value == true then value = {} end
+		if not istable(value) then value = {width = tonumber(value) or 1} end
 		local width = math_max(0, tonumber(value.width or value.size or value[1]) or 1)
-		local color = asColor(value.color or value.tint or value[2], Color(0, 0, 0, 220))
-		if width <= 0 or (color.a or 255) <= 0 then return nil end
+		if width <= 0 then return nil end
 		return {
 			width = width,
-			color = color,
-			samples = math.Clamp(math_floor(tonumber(value.samples) or math_max(8, width * 8)), 4, 32),
-			softness = math.Clamp(tonumber(value.softness) or 0.55, 0, 1),
+			samples = math.Clamp(math_ceil(width * 6), 8, 32),
+			softness = tonumber(value.softness) or 0,
+			color = asColor(value.color or value.tint, Color(0, 0, 0, 220)),
 		}
 	end
 
 	local function normalizeGlow(value)
-		if not value then return nil end
-		if value == true then value = {size = 6, color = Color(80, 190, 255, 90), opacity = 1} end
-		if isnumber(value) then value = {size = value, color = Color(80, 190, 255, 90), opacity = 1} end
-		if not istable(value) then return nil end
-		local width = math_max(0, tonumber(value.size or value[1]) or 6)
-		local color = asColor(value.color or value.tint or value[2], Color(80, 190, 255, 90))
-		if width <= 0 or (color.a or 255) <= 0 then return nil end
+		if value == nil or value == false then return nil end
+		if value == true then value = {} end
+		if not istable(value) then value = {width = tonumber(value) or 6} end
+		local width = math_max(0, tonumber(value.width or value.size or value.radius or value[1]) or 6)
+		if width <= 0 then return nil end
 		return {
 			width = width,
-			color = color,
-			strength = tonumber(value.opacity) or 1,
-			falloff = math.Clamp(3.25 - math.Clamp(tonumber(value.softness) or 0.58, 0, 1) * 2.5, 0.75, 3.25),
+			samples = math.Clamp(math_ceil(width * 2), 8, 36),
+			strength = tonumber(value.strength or value.opacity) or 0.45,
+			falloff = tonumber(value.falloff) or glowSoftnessToFalloff(value.softness, 0.58),
+			color = asColor(value.color or value.tint, Color(255, 255, 255, 120)),
 		}
 	end
 
@@ -862,6 +860,8 @@ function M._CreateTextRenderer(deps)
 		return createAtlasPage(index)
 	end
 
+	local clearCache
+
 	local function alloc(w, h, gutter)
 		if not ensureTargets() then return nil end
 		w = math_ceil(w)
@@ -903,7 +903,7 @@ function M._CreateTextRenderer(deps)
 		return nil
 	end
 
-	local function clearCache()
+	clearCache = function()
 		cache = {}
 		cacheCount = 0
 		stats.textComposedEntries = 0
@@ -1050,6 +1050,16 @@ function M._CreateTextRenderer(deps)
 		return istable(fill) and not isColorValue(fill) and fill.kind ~= nil
 	end
 
+	local function scaledColor(input, scale)
+		local color = asColor(input, white)
+		return Color(
+			color.r or 255,
+			color.g or 255,
+			color.b or 255,
+			math.Clamp(math_floor((color.a == nil and 255 or color.a) * (scale or 1)), 0, 255)
+		)
+	end
+
 	local function drawNativeFallback(record)
 		local profile = profileStart()
 		local style = record.style or {}
@@ -1057,17 +1067,27 @@ function M._CreateTextRenderer(deps)
 		local x = (record.x or 0) - layout.w * alignFactor(record.alignX)
 		local y = (record.y or 0) - layout.h * alignFactor(record.alignY, true)
 		x, y = snapTextPos(x, y, style)
-		local fill = style.fill or record.color or style.color or white
+		local fill = style.fill or style.color or record.color or white
 		local shadow = normalizeShadow(style.shadow)
 		local stroke = normalizeStroke(style.stroke or style.outline)
+		local glow = normalizeGlow(style.glow)
 
 		stats.textFallbacks = stats.textFallbacks + 1
 		stats.textNativeDraws = stats.textNativeDraws + 1
-		if shadow then drawLayout(layout, x + shadow.x, y + shadow.y, shadow.color) end
+		if shadow then
+			drawLayout(layout, x + shadow.x, y + shadow.y, scaledColor(shadow.color, shadow.strength), shadow.color)
+		end
+		if glow then
+			for i = 1, glow.samples do
+				local ang = i / glow.samples * math.pi * 2
+				local radius = glow.width * (0.35 + 0.65 * i / glow.samples)
+				drawLayout(layout, x + math_cos(ang) * radius, y + math_sin(ang) * radius, scaledColor(glow.color, glow.strength / glow.samples * 2), glow.color)
+			end
+		end
 		if stroke then
 			for i = 1, stroke.samples do
-				local ang = (i - 1) / stroke.samples * math.pi * 2
-				drawLayout(layout, x + math_cos(ang) * stroke.width, y + math_sin(ang) * stroke.width, stroke.color)
+				local ang = i / stroke.samples * math.pi * 2
+				drawLayout(layout, x + math_cos(ang) * stroke.width, y + math_sin(ang) * stroke.width, stroke.color, stroke.color)
 			end
 		end
 		drawLayout(layout, x, y, fill, record.color or white)
@@ -1109,7 +1129,7 @@ function M._CreateTextRenderer(deps)
 			return nil
 		end
 		local style = record.style or {}
-		if style.noComposed then
+		if style.noComposed or style.native == true then
 			profileEnd("text.entryFor", profile)
 			return nil
 		end
@@ -1132,10 +1152,6 @@ function M._CreateTextRenderer(deps)
 			return cached, nil
 		end
 		stats.textEntryCacheMisses = stats.textEntryCacheMisses + 1
-		if not prewarm and bakesThisFrame >= budget() then
-			profileEnd("text.entryFor", profile)
-			return nil, nil
-		end
 		layout = layoutFor(record.text, record.font, style)
 		bakesThisFrame = bakesThisFrame + 1
 		local ok, entry = pcall(bake, record, key, layout, shadow, stroke, glow, face, weightAdjust, info.pad, info.gutter)
@@ -1172,8 +1188,6 @@ function M._CreateTextRenderer(deps)
 			if recordNeedsComposedEntry(record) then
 				record.__mgfxTextRoute = "compose"
 				composeCount = composeCount + 1
-			elseif recordHasShaderWork(record) then
-				record.__mgfxTextRoute = "nativeFallback"
 			else
 				record.__mgfxTextRoute = "native"
 			end
@@ -1352,8 +1366,8 @@ function M._CreateTextRenderer(deps)
 		-- The atlas slot this entry points at may have been evicted by a mid-flush
 		-- atlas reset (alloc -> resetAtlasPages bumps page.generation and clears the
 		-- RT). Blitting from a stale slot samples whatever glyph now occupies it --
-		-- the intermittent "garbled digit" artifact. Bail so the caller redraws this
-		-- text natively for one frame; the entry re-bakes cleanly next frame.
+		-- the intermittent "garbled digit" artifact. Bail so the caller can re-bake
+		-- the entry against the current atlas generation.
 		if entry.generation ~= page.generation then
 			return nil
 		end
@@ -1400,8 +1414,10 @@ function M._CreateTextRenderer(deps)
 		local contentY = (record.y or 0) - entry.contentH * alignFactor(record.alignY, true)
 		local fx = drawEntryAt(entry, record, contentX, contentY)
 		if fx == nil then
-			drawNativeFallback(record)
-			return
+			local refreshed = entryFor(record, false)
+			if not refreshed then return nil end
+			fx = drawEntryAt(refreshed, record, contentX, contentY)
+			if fx == nil then return nil end
 		end
 		stats.textComposedDraws = stats.textComposedDraws + 1
 		if fx then
@@ -1409,6 +1425,7 @@ function M._CreateTextRenderer(deps)
 		else
 			stats.textComposedFaceDraws = stats.textComposedFaceDraws + 1
 		end
+		return fx
 	end
 
 	local function textBatchKey(entry, record)
@@ -1474,9 +1491,16 @@ function M._CreateTextRenderer(deps)
 			local record = batch[1]
 			local fx = drawEntryAt(record.__mgfxTextEntry, record, record.__mgfxContentX, record.__mgfxContentY, record.__mgfxBatchColor)
 			if fx == nil then
-				drawNativeFallback(record)
-				profileEnd("text.composeBatch", profile)
-				return
+				local entry = entryFor(record, false)
+				if not entry then
+					profileEnd("text.composeBatch", profile)
+					return
+				end
+				fx = drawEntryAt(entry, record, record.__mgfxContentX, record.__mgfxContentY, record.__mgfxBatchColor)
+				if fx == nil then
+					profileEnd("text.composeBatch", profile)
+					return
+				end
 			end
 			stats.textComposedDraws = stats.textComposedDraws + 1
 			stats.textComposedFxDraws = stats.textComposedFxDraws + 1
@@ -1488,12 +1512,17 @@ function M._CreateTextRenderer(deps)
 		local firstEntry = first.__mgfxTextEntry
 		-- A mid-flush atlas reset can have invalidated entries queued earlier in this
 		-- batch (their slots now hold different glyphs). The mesh path blits straight
-		-- from the slots, so guard here: if any entry went stale, fall back to the
-		-- per-record blit, whose drawEntryAt generation check redraws it natively.
+		-- from the slots, so guard here: if any entry went stale, switch to per-record
+		-- blits so each entry can be refreshed against the current atlas generation.
 		for i = 1, #batch do
 			local e = batch[i].__mgfxTextEntry
 			if not e or not e.page or e.generation ~= e.page.generation then
-				for _, record in ipairs(batch) do blit(record.__mgfxTextEntry, record) end
+				for _, record in ipairs(batch) do
+					local refreshed = entryFor(record, false)
+					if refreshed then
+						blit(refreshed, record)
+					end
+				end
 				profileEnd("text.composeBatch", profile)
 				return
 			end
@@ -1604,13 +1633,8 @@ function M._CreateTextRenderer(deps)
 		local prewarmProfile = profileStart()
 		local composerReady = composeRequested <= 0 or prewarmFlushRecords(records)
 		profileEnd("text.prewarm", prewarmProfile)
-		if composeRequested > 0 then
-			if composerReady then
-				stats.textComposedReadyBatches = stats.textComposedReadyBatches + 1
-			else
-				stats.textComposedFallbackBatches = stats.textComposedFallbackBatches + 1
-				stats.textComposedFallbackRecords = stats.textComposedFallbackRecords + composeRequested
-			end
+		if composeRequested > 0 and composerReady then
+			stats.textComposedReadyBatches = stats.textComposedReadyBatches + 1
 		end
 		profileEnd("text.route", routeProfile)
 
@@ -1632,26 +1656,17 @@ function M._CreateTextRenderer(deps)
 			if route == "native" then
 				flushQueuedTextBatches()
 				drawNativePlain(record)
-			elseif route == "nativeFallback" then
-				flushQueuedTextBatches()
-				drawNativeFallback(record)
-			elseif not composerReady then
-				flushQueuedTextBatches()
-				drawNativeFallback(record)
 			else
 				local entry = record.__mgfxTextEntry
 				if not (entry and entry.page and entry.generation == entry.page.generation) then
-					entry = entryFor(record)
+					entry = entryFor(record, false)
 				end
 				if entry then
-					if not queueTextComposeBatch(textBatches, textBatchOrder, entry, record) then
+					if composerReady and queueTextComposeBatch(textBatches, textBatchOrder, entry, record) then
+					else
 						flushQueuedTextBatches()
 						blit(entry, record)
 					end
-				else
-					flushQueuedTextBatches()
-					stats.textComposedFallbackRecords = stats.textComposedFallbackRecords + 1
-					drawNativeFallback(record)
 				end
 			end
 		end

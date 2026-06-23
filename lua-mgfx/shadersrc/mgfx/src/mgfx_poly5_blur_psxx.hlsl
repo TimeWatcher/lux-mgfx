@@ -4,5 +4,5 @@
 
 float4 main(PS_INPUT i) : COLOR
 {
-	return float4(mgfx_blur(i.pos * Tex1Size), 1.0);
+	return float4(mgfx_blur(i.pos * TexBaseSize), 1.0);
 }

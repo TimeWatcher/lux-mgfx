@@ -72,11 +72,12 @@ fn lineQuadVertsInto(out, x1, y1, x2, y2, strokeWidth, noCaps, fringeOverride = 
 }
 
 fn drawLineRect(x, y, w, h, fill, resolved) {
-  if resolved.radius ~= nil or resolved.outerGlow ~= nil or resolved.backdrop ~= nil {
+  if resolved.radius ~= nil or resolved.shadow ~= nil or resolved.outerGlow ~= nil or resolved.backdrop ~= nil {
     return roundrect.roundedBoxEx(x, y, w, h, {
       radius = resolved.radius ?? 0,
         backdrop = resolved.backdrop,
         fill = fill,
+        shadow = resolved.shadow,
         outerGlow = resolved.outerGlow
     })
   }
@@ -89,7 +90,7 @@ fn drawLineRect(x, y, w, h, fill, resolved) {
   })
 }
 
-fn drawLineFallbackVerts(verts, fill, backdrop = nil, outerGlow = nil) {
+fn drawLineFallbackVerts(verts, fill, backdrop = nil, shadow = nil, outerGlow = nil) {
   polyEx({
     { x = verts[1].x, y = verts[1].y },
       { x = verts[2].x, y = verts[2].y },
@@ -98,6 +99,7 @@ fn drawLineFallbackVerts(verts, fill, backdrop = nil, outerGlow = nil) {
   }, {
     backdrop = backdrop,
       fill = fill,
+      shadow = shadow,
       outerGlow = outerGlow
   })
 }
@@ -110,12 +112,12 @@ fn drawLineQuad(x1, y1, x2, y2, strokeWidth, noCaps, verts, fill, resolved) {
     }
   }
 
-  if resolved.radius == nil and resolved.outerGlow == nil and drawLineShaderVerts(verts, fill) {
+  if resolved.radius == nil and resolved.shadow == nil and resolved.outerGlow == nil and drawLineShaderVerts(verts, fill) {
     return
   }
 
   local fallbackVerts = lineQuadVertsInto(lineFallbackVertsScratch, x1, y1, x2, y2, strokeWidth, noCaps, 0)
-  drawLineFallbackVerts(fallbackVerts ?? verts, fill, nil, resolved.outerGlow)
+  drawLineFallbackVerts(fallbackVerts ?? verts, fill, nil, resolved.shadow, resolved.outerGlow)
 }
 
 export client fn drawLineImmediate(x1, y1, x2, y2, color = nil, width = nil, drawStyle = nil) {
@@ -137,7 +139,7 @@ export client fn drawLineImmediate(x1, y1, x2, y2, color = nil, width = nil, dra
       return
     }
     local y = y1 - strokeWidth * 0.5
-    if resolved.radius ~= nil or resolved.outerGlow ~= nil {
+    if resolved.radius ~= nil or resolved.shadow ~= nil or resolved.outerGlow ~= nil {
       return drawLineRect(x, y, w, strokeWidth, fill, resolved)
     }
   }
@@ -149,7 +151,7 @@ export client fn drawLineImmediate(x1, y1, x2, y2, color = nil, width = nil, dra
       return
     }
     local x = x1 - strokeWidth * 0.5
-    if resolved.radius ~= nil or resolved.outerGlow ~= nil {
+    if resolved.radius ~= nil or resolved.shadow ~= nil or resolved.outerGlow ~= nil {
       return drawLineRect(x, y, strokeWidth, h, fill, resolved)
     }
   }

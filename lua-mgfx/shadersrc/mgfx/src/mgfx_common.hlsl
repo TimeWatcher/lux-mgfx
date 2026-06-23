@@ -49,6 +49,37 @@ float aa_coverage(float dist)
 	return smoothstep(0.5 * width, -0.5 * width, dist);
 }
 
+float mgfx_css_blur_profile(float distancePx, float blurPx, float falloff)
+{
+	float blur = max(blurPx, 0.001);
+	float hardness = max(falloff, 0.35);
+	float sigma = max(blur * rsqrt(hardness) * 0.72, 0.35);
+	float t = max(distancePx, 0.0) / sigma;
+	return exp2(-0.72134752 * t * t);
+}
+
+float mgfx_css_outer_effect(float dist, float blurPx, float falloff)
+{
+	return mgfx_css_blur_profile(max(dist, 0.0), blurPx, falloff) * (1.0 - aa_coverage(dist));
+}
+
+float mgfx_css_shadow_effect(float dist, float blurPx, float falloff)
+{
+	return mgfx_css_blur_profile(max(dist, 0.0), blurPx, falloff);
+}
+
+float mgfx_css_inner_effect(float depth, float blurPx, float falloff)
+{
+	return mgfx_css_blur_profile(max(depth, 0.0), blurPx, falloff);
+}
+
+float mgfx_css_combine_effect(float accumulated, float contribution)
+{
+	float a = saturate(accumulated);
+	float b = saturate(contribution);
+	return 1.0 - (1.0 - a) * (1.0 - b);
+}
+
 float4 mgfx_gradient_lut(float t)
 {
 	float u = saturate(t);

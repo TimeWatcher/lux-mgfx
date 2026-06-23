@@ -147,6 +147,61 @@ export client fn normalizePoly(points) {
   }
 }
 
+fn offsetEdgeLine(ax, ay, bx, by, amount) {
+  local dx = bx - ax
+  local dy = by - ay
+  local length = mathMax(0.0001, mathSqrt(dx * dx + dy * dy))
+  local nx = dy / length
+  local ny = -dx / length
+  return nx, ny, nx * ax + ny * ay + amount
+}
+
+fn offsetLineIntersection(px, py, n1x, n1y, c1, n2x, n2y, c2, amount) {
+  local det = n1x * n2y - n1y * n2x
+  if mathAbs(det) > 0.0001 {
+    return (c1 * n2y - n1y * c2) / det,
+      (n1x * c2 - c1 * n2x) / det
+  }
+
+  local ax = n1x + n2x
+  local ay = n1y + n2y
+  local alen = mathMax(0.0001, mathSqrt(ax * ax + ay * ay))
+  ax /= alen
+  ay /= alen
+  local scale = amount / mathMax(0.001, ax * n1x + ay * n1y)
+  return px + ax * scale, py + ay * scale
+}
+
+export client fn growConvexPoly(poly, amount) {
+  amount = mathMax(0, toNumber(amount) ?? 0)
+  if poly == nil or amount <= 0 {
+    return poly
+  }
+
+  local absolute = {}
+  local count = poly.count ?? #poly.points
+  for index = 1, count {
+    local point = poly.points[index]
+    absolute[index] = {
+      x = poly.x + point.x,
+      y = poly.y + point.y
+    }
+  }
+
+  local grown = {}
+  for index = 1, count {
+    local prev = absolute[(index - 2 + count) % count + 1]
+    local point = absolute[index]
+    local next = absolute[index % count + 1]
+    local n1x, n1y, c1 = offsetEdgeLine(prev.x, prev.y, point.x, point.y, amount)
+    local n2x, n2y, c2 = offsetEdgeLine(point.x, point.y, next.x, next.y, amount)
+    local gx, gy = offsetLineIntersection(point.x, point.y, n1x, n1y, c1, n2x, n2y, c2, amount)
+    grown[index] = { x = gx, y = gy }
+  }
+
+  normalizePoly(grown) ?? poly
+}
+
 fn polyDrawVerts(poly) {
   local verts = {}
   for index, point in ipairs(poly.points) {

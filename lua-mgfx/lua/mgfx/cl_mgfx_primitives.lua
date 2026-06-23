@@ -34,6 +34,12 @@ function MGFX._InstallPrimitives(C)
 		local oy = tonumber(y) or 0
 		return math.max(minPad, pad - ox), math.max(minPad, pad - oy), math.max(minPad, pad + ox), math.max(minPad, pad + oy)
 	end
+	local effectExtentFromSpec = C.effectExtentFromSpec or function(spec, defaultWidth)
+		local width = math.max(0.001, tonumber(spec and spec.width) or defaultWidth or 18)
+		local falloff = math.max(0.35, tonumber(spec and spec.falloff) or 1.9)
+		local sigma = math.max(width / math.sqrt(falloff) * 0.72, 0.35)
+		return math.max(1, tonumber(spec and spec.spread) or width, sigma * 3.72)
+	end
 	local patternStyle = C.patternStyle
 	local patternOffset = C.patternOffset
 	local drawTexturedQuad = C.drawTexturedQuad
@@ -41,12 +47,14 @@ function MGFX._InstallPrimitives(C)
 	local withTransform = C.withTransform or function(_, _, _, _, _, fn) return fn() end
 	local splitStyleTransform = C.splitStyleTransform or function(style) return nil, style end
 	local hasTransform = C.hasTransform or function() return false end
+	local withPanelEffectBleed = assert(C.withPanelEffectBleed, "MGFX panel bleed helper unavailable")
 	local drawRoundRectImmediate = C.drawRoundRectImmediate
 	local setupParamMatrix = C.setupParamMatrix
 	local setupConstants = C.setupConstants
 	local setupExtraParams = C.setupExtraParams
 	local setupLineConstants = C.setupLineConstants
 	local drawLineShaderVerts = C.drawLineShaderVerts
+	local drawBlurredCustomQuad = C.drawBlurredCustomQuad
 	local drawBlurredPoly = C.drawBlurredPoly
 	local FILL_SOLID = C.FILL_SOLID or 0
 	local math_abs = math.abs
@@ -74,6 +82,14 @@ end
 
 local function profileEnd(name, started)
 	if profiler and profiler.End then profiler.End(name, started) end
+end
+
+local function effectBleedFromDrawRect(x, y, w, h, drawX, drawY, drawW, drawH)
+	local left = math_max(0, x - drawX)
+	local top = math_max(0, y - drawY)
+	local right = math_max(0, drawX + drawW - (x + w))
+	local bottom = math_max(0, drawY + drawH - (y + h))
+	return left, top, right, bottom
 end
 
 local function chamferTuple(cuts, w, h)
@@ -177,36 +193,126 @@ local function drawChamferOuterGlowSpec(x, y, w, h, cuts, spec, biasOffset)
 	local grow = math_max(0, tonumber(spec.grow) or tonumber(spec.shapeSpread) or tonumber(spec.expand) or 0)
 	local ox = tonumber(spec.x) or tonumber(spec.offsetX) or tonumber(spec.dx) or 0
 	local oy = tonumber(spec.y) or tonumber(spec.offsetY) or tonumber(spec.dy) or 0
-	if biasOffset and (math_abs(ox) > 0.001 or math_abs(oy) > 0.001) then
-		M.PolyEx(chamferPoints(x, y, w, h, cuts), {
-			outerGlow = spec,
-		})
-		return
-	end
 
 	local gx = x + ox - grow
 	local gy = y + oy - grow
 	local gw = w + grow * 2
 	local gh = h + grow * 2
 	local gcuts = cutsWithGrow(cuts, grow)
-	local spread = math_max(1, tonumber(spec.spread) or tonumber(spec.width) or 18)
-	if not hasTransform() and isCulled(gx - spread, gy - spread, gw + spread * 2, gh + spread * 2) then return end
+	local width = math_max(0.001, tonumber(spec.width) or 18)
+	local spread = effectExtentFromSpec(spec, 18)
+	local left = spread
+	local top = spread
+	local right = spread
+	local bottom = spread
+	if biasOffset then
+		left, top, right, bottom = glowBiasPads(spread, ox, oy)
+		gx = x - grow
+		gy = y - grow
+	end
+	local sw = gw + left + right
+	local sh = gh + top + bottom
+	if not hasTransform() and isCulled(gx - left, gy - top, sw, sh) then return end
 
 	local tl, tr, br, bl = chamferTuple(gcuts, gw, gh)
 	local mat = materials.chamfer_outerglow
-	local r, g, b, a = color01(color)
 	setupParamMatrix(mat,
-		r, g, b, a,
-		gw + spread * 2, gh + spread * 2, spread, spread,
-		tl, tr, br, bl,
-		math_max(0.001, tonumber(spec.width) or spread),
-		math_max(0, tonumber(spec.strength) or 1),
-		math_max(0.001, tonumber(spec.falloff) or 1.9),
-		0
+		sw, sh, left, top,
+		gw, gh, tl, tr,
+		br, bl, width, math_max(0.001, tonumber(spec.falloff) or 1.9),
+		math_max(0, tonumber(spec.strength) or 1), 0, 0, 0
 	)
-	surface_SetMaterial(mat)
-	surface_SetDrawColor(255, 255, 255, 255)
-	drawTexturedQuad(gx - spread, gy - spread, gw + spread * 2, gh + spread * 2)
+	local sx, sy = gx - left, gy - top
+	local bleedLeft, bleedTop, bleedRight, bleedBottom = effectBleedFromDrawRect(x, y, w, h, sx, sy, sw, sh)
+	withPanelEffectBleed(bleedLeft, bleedTop, bleedRight, bleedBottom, function()
+		surface_SetMaterial(mat)
+		setDrawColor(color)
+		drawTexturedQuad(sx, sy, sw, sh)
+	end)
+end
+
+local function drawChamferShadowSpec(x, y, w, h, cuts, spec)
+	if not spec then return end
+	if not shadersActive() or not matOK(materials.chamfer_shadow) then return end
+
+	local color = spec.color
+	if (color.a or 255) <= 0 then return end
+
+	local grow = math_max(0, tonumber(spec.grow) or tonumber(spec.shapeSpread) or tonumber(spec.expand) or 0)
+	local ox = tonumber(spec.x) or tonumber(spec.offsetX) or tonumber(spec.dx) or 0
+	local oy = tonumber(spec.y) or tonumber(spec.offsetY) or tonumber(spec.dy) or 0
+	local gx = x + ox - grow
+	local gy = y + oy - grow
+	local gw = w + grow * 2
+	local gh = h + grow * 2
+	local gcuts = cutsWithGrow(cuts, grow)
+	local width = math_max(0.001, tonumber(spec.width) or 18)
+	local spread = effectExtentFromSpec(spec, 18)
+	local sw = gw + spread * 2
+	local sh = gh + spread * 2
+	local tl, tr, br, bl = chamferTuple(gcuts, gw, gh)
+	local mat = materials.chamfer_shadow
+	setupParamMatrix(mat,
+		sw, sh, spread, spread,
+		gw, gh, tl, tr,
+		br, bl, width, math_max(0.001, tonumber(spec.falloff) or 1.9),
+		math_max(0, tonumber(spec.strength) or 1), 0, 0, 0
+	)
+	local sx, sy = gx - spread, gy - spread
+	local bleedLeft, bleedTop, bleedRight, bleedBottom = effectBleedFromDrawRect(x, y, w, h, sx, sy, sw, sh)
+	withPanelEffectBleed(bleedLeft, bleedTop, bleedRight, bleedBottom, function()
+		surface_SetMaterial(mat)
+		setDrawColor(color)
+		drawTexturedQuad(sx, sy, sw, sh)
+	end)
+end
+
+local function chamferBackdropTintColor(spec)
+	if not spec or not spec.tint then return nil end
+	local tint = spec.tint
+	local alpha = (tint.a == nil and 255 or tint.a) * (spec.opacity == nil and 1 or spec.opacity)
+	if alpha <= 0 then return nil end
+	return Color(
+		tint.r or 0,
+		tint.g or 0,
+		tint.b or 0,
+		math_floor(math.Clamp(alpha, 0, 255) + 0.5)
+	)
+end
+
+local drawChamferBasePass
+
+local function drawChamferBackdrop(x, y, w, h, cuts, backdrop)
+	local spec = backdropStyle(backdrop)
+	if not spec then return nil end
+	if not shadersActive() then return nil end
+
+	local pad = math_max(0, tonumber(spec.padding) or 0)
+	local bx = x - pad
+	local by = y - pad
+	local bw = w + pad * 2
+	local bh = h + pad * 2
+	local bcuts = cutsWithGrow(cuts, pad)
+	local tl, tr, br, bl = chamferTuple(bcuts, bw, bh)
+
+	if spec.blur > 0 and matOK(materials.chamfer_backdrop) and drawBlurredCustomQuad then
+		local mat = materials.chamfer_backdrop
+		drawBlurredCustomQuad(mat, bx, by, bw, bh, spec.blur, function(passMat, vertical, intensity)
+			setupParamMatrix(passMat,
+				bw, bh, 0, 0,
+				bw, bh, tl, tr,
+				br, bl, 0, 0,
+				vertical and 1 or 0, intensity or 1, 0, 0
+			)
+		end)
+	end
+
+	local tint = chamferBackdropTintColor(spec)
+	if tint then
+		drawChamferBasePass(bx, by, bw, bh, bcuts, fillFromStyle(tint), nil, 0, nil)
+	end
+
+	return spec
 end
 
 local function drawChamferOuterGlow(x, y, w, h, cuts, glow)
@@ -270,7 +376,7 @@ local function drawChamferStroke(x, y, w, h, cuts, stroke, strokeWidth)
 	return true
 end
 
-local function drawChamferBasePass(x, y, w, h, cuts, fill, stroke, strokeWidth, innerSpec)
+drawChamferBasePass = function(x, y, w, h, cuts, fill, stroke, strokeWidth, innerSpec)
 	if not shadersActive() or not matOK(materials.chamfer) then return false end
 
 	local tl, tr, br, bl = chamferTuple(cuts, w, h)
@@ -306,12 +412,16 @@ local function drawChamferBoxImmediate(x, y, w, h, style, resolvedCuts)
 	local totalProfile = profiling and profileStart() or nil
 	local shadowSpec = shadowStyle(style.shadow)
 	local outerSpec = outerGlowStyle(style.outerGlow)
+	local backdropSpec = backdropStyle(style.backdrop)
 	local cullSpread = 0
 	if shadowSpec then
-		cullSpread = math_max(cullSpread, math_abs(tonumber(shadowSpec.x) or 0) + math_abs(tonumber(shadowSpec.y) or 0) + (tonumber(shadowSpec.spread) or tonumber(shadowSpec.width) or 0) + (tonumber(shadowSpec.grow) or 0))
+		cullSpread = math_max(cullSpread, math_abs(tonumber(shadowSpec.x) or 0) + math_abs(tonumber(shadowSpec.y) or 0) + effectExtentFromSpec(shadowSpec, 12) + (tonumber(shadowSpec.grow) or 0))
 	end
 	if outerSpec then
-		cullSpread = math_max(cullSpread, math_abs(tonumber(outerSpec.x) or 0) + math_abs(tonumber(outerSpec.y) or 0) + (tonumber(outerSpec.spread) or tonumber(outerSpec.width) or 0) + (tonumber(outerSpec.grow) or 0))
+		cullSpread = math_max(cullSpread, math_abs(tonumber(outerSpec.x) or 0) + math_abs(tonumber(outerSpec.y) or 0) + effectExtentFromSpec(outerSpec, 18) + (tonumber(outerSpec.grow) or 0))
+	end
+	if backdropSpec then
+		cullSpread = math_max(cullSpread, math_max(0, tonumber(backdropSpec.padding) or 0))
 	end
 	if not hasTransform() and isCulled(x - cullSpread, y - cullSpread, w + cullSpread * 2, h + cullSpread * 2) then
 		if profiling then profileEnd("chamfer.immediate", totalProfile) end
@@ -323,7 +433,7 @@ local function drawChamferBoxImmediate(x, y, w, h, style, resolvedCuts)
 	local profile
 	if shadowSpec then
 		profile = profiling and profileStart() or nil
-		drawChamferOuterGlowSpec(x, y, w, h, resolvedCuts, shadowSpec)
+		drawChamferShadowSpec(x, y, w, h, resolvedCuts, shadowSpec)
 		if profiling then profileEnd("chamfer.shadow", profile) end
 	end
 
@@ -343,8 +453,7 @@ local function drawChamferBoxImmediate(x, y, w, h, style, resolvedCuts)
 	local baseDrawn = false
 	local baseDrewStroke = false
 	local baseDrewInnerGlow = false
-	if not style.backdrop
-		and (fillIsVisible or strokeIsVisible or innerSpec) then
+	if fillIsVisible or strokeIsVisible or innerSpec then
 		if pattern == nil then
 			baseDrawn = drawChamferBasePass(x, y, w, h, resolvedCuts, fill, style.stroke, strokeWidth, innerSpec)
 			baseDrewStroke = baseDrawn and strokeIsVisible
@@ -354,7 +463,13 @@ local function drawChamferBoxImmediate(x, y, w, h, style, resolvedCuts)
 		end
 	end
 
-	if not baseDrawn and (fillIsVisible or style.backdrop) then
+	if style.backdrop ~= nil then
+		profile = profiling and profileStart() or nil
+		drawChamferBackdrop(x, y, w, h, resolvedCuts, style.backdrop)
+		if profiling then profileEnd("chamfer.backdrop", profile) end
+	end
+
+	if not baseDrawn and fillIsVisible then
 		local fillStyle = chamferFillFallbackStyle
 		for k in pairs(fillStyle) do
 			fillStyle[k] = nil
@@ -423,11 +538,12 @@ function M.ChamferBox(x, y, w, h, cuts, fill, stroke, strokeWidth)
 end
 
 local function drawLineRect(x, y, w, h, fill, style)
-	if style.radius ~= nil or style.outerGlow or style.backdrop then
+	if style.radius ~= nil or style.shadow or style.outerGlow or style.backdrop then
 		return drawRoundRectImmediate(x, y, w, h, {
 			radius = style.radius or 0,
 			backdrop = style.backdrop,
 			fill = fill,
+			shadow = style.shadow,
 			outerGlow = style.outerGlow,
 		})
 	end
@@ -443,7 +559,7 @@ local function drawLineRect(x, y, w, h, fill, style)
 	})
 end
 
-local function lineFallbackVerts(verts, fill, backdrop, outerGlow)
+local function lineFallbackVerts(verts, fill, backdrop, shadow, outerGlow)
 	return drawPolyImmediate({
 		{x = verts[1].x, y = verts[1].y},
 		{x = verts[2].x, y = verts[2].y},
@@ -452,11 +568,18 @@ local function lineFallbackVerts(verts, fill, backdrop, outerGlow)
 	}, {
 		backdrop = backdrop,
 		fill = fill,
+		shadow = shadow,
 		outerGlow = outerGlow,
 	})
 end
 
 local lineQuadVertsInto
+local drawLineImmediate
+local LINE_AA_FRINGE = 1
+local LINE_NO_CAPS_UV_OFFSET = 8
+local defaultLineColor = Color(255, 255, 255, 32)
+local lineVertsScratch = {{}, {}, {}, {}}
+local lineFallbackVertsScratch = {{}, {}, {}, {}}
 
 local function drawLineQuad(x1, y1, x2, y2, strokeWidth, noCaps, verts, fill, style)
 	if style.backdrop then
@@ -466,17 +589,10 @@ local function drawLineQuad(x1, y1, x2, y2, strokeWidth, noCaps, verts, fill, st
 		end
 	end
 
-	if not style.radius and not style.outerGlow and drawLineShaderVerts(verts, fill) then return end
+	if not style.radius and not style.shadow and not style.outerGlow and drawLineShaderVerts(verts, fill) then return end
 	local fallbackVerts = lineQuadVertsInto(lineFallbackVertsScratch, x1, y1, x2, y2, strokeWidth, noCaps, 0)
-	return lineFallbackVerts(fallbackVerts or verts, fill, nil, style.outerGlow)
+	return lineFallbackVerts(fallbackVerts or verts, fill, nil, style.shadow, style.outerGlow)
 end
-
-local drawLineImmediate
-local LINE_AA_FRINGE = 1
-local LINE_NO_CAPS_UV_OFFSET = 8
-local defaultLineColor = Color(255, 255, 255, 32)
-local lineVertsScratch = {{}, {}, {}, {}}
-local lineFallbackVertsScratch = {{}, {}, {}, {}}
 
 lineQuadVertsInto = function(out, x1, y1, x2, y2, strokeWidth, noCaps, fringeOverride)
 	local dx, dy = x2 - x1, y2 - y1
@@ -535,7 +651,7 @@ drawLineImmediate = function(x1, y1, x2, y2, color, width, style)
 		local w = math_abs(x2 - x1)
 		if w <= 0 then return end
 		local y = y1 - strokeWidth * 0.5
-		if style.radius ~= nil or style.outerGlow then
+		if style.radius ~= nil or style.shadow or style.outerGlow then
 			return drawLineRect(x, y, w, strokeWidth, fill, style)
 		end
 	end
@@ -545,7 +661,7 @@ drawLineImmediate = function(x1, y1, x2, y2, color, width, style)
 		local h = math_abs(y2 - y1)
 		if h <= 0 then return end
 		local x = x1 - strokeWidth * 0.5
-		if style.radius ~= nil or style.outerGlow then
+		if style.radius ~= nil or style.shadow or style.outerGlow then
 			return drawLineRect(x, y, strokeWidth, h, fill, style)
 		end
 	end
@@ -662,6 +778,59 @@ normalizePoly = function(points)
 	}
 end
 
+local function offsetEdgeLine(ax, ay, bx, by, amount)
+	local dx = bx - ax
+	local dy = by - ay
+	local length = math_max(0.0001, math_sqrt(dx * dx + dy * dy))
+	local nx = dy / length
+	local ny = -dx / length
+	return nx, ny, nx * ax + ny * ay + amount
+end
+
+local function offsetLineIntersection(px, py, n1x, n1y, c1, n2x, n2y, c2, amount)
+	local det = n1x * n2y - n1y * n2x
+	if math_abs(det) > 0.0001 then
+		return (c1 * n2y - n1y * c2) / det,
+			(n1x * c2 - c1 * n2x) / det
+	end
+
+	local ax = n1x + n2x
+	local ay = n1y + n2y
+	local alen = math_max(0.0001, math_sqrt(ax * ax + ay * ay))
+	ax = ax / alen
+	ay = ay / alen
+	local scale = amount / math_max(0.001, ax * n1x + ay * n1y)
+	return px + ax * scale, py + ay * scale
+end
+
+local function growConvexPoly(poly, amount)
+	amount = math_max(0, tonumber(amount) or 0)
+	if not poly or amount <= 0 then return poly end
+
+	local absolute = {}
+	local count = poly.count or #poly.points
+	for index = 1, count do
+		local point = poly.points[index]
+		absolute[index] = {
+			x = poly.x + point.x,
+			y = poly.y + point.y,
+		}
+	end
+
+	local grown = {}
+	for index = 1, count do
+		local prev = absolute[(index - 2 + count) % count + 1]
+		local point = absolute[index]
+		local nextPoint = absolute[index % count + 1]
+		local n1x, n1y, c1 = offsetEdgeLine(prev.x, prev.y, point.x, point.y, amount)
+		local n2x, n2y, c2 = offsetEdgeLine(point.x, point.y, nextPoint.x, nextPoint.y, amount)
+		local gx, gy = offsetLineIntersection(point.x, point.y, n1x, n1y, c1, n2x, n2y, c2, amount)
+		grown[index] = {x = gx, y = gy}
+	end
+
+	return normalizePoly(grown) or poly
+end
+
 local function polyDrawVerts(poly)
 	local verts = {}
 	for i, p in ipairs(poly.points) do
@@ -675,8 +844,13 @@ local function polyDrawVerts(poly)
 	return verts
 end
 
+local drawPolyStrokeShader
+
 local function drawPolyStroke(poly, color, strokeWidth)
 	strokeWidth = strokeWidthValue(strokeWidth, 1)
+	if shadersActive() and drawPolyStrokeShader(poly, color, strokeWidth) then
+		return
+	end
 	if drawLineImmediate and (shadersActive() or hasTransform()) then
 		local style = {
 			width = strokeWidth,
@@ -705,20 +879,28 @@ local function setupPolyStrokeConstants(mat, poly, color, strokeWidth)
 	local p2 = poly.points[2]
 	local p3 = poly.points[3]
 	local p4 = poly.points[4] or p3
+	local p5 = poly.points[5] or p4
+	local p6 = poly.points[6] or p5
+	local p7 = poly.points[7] or p6
+	local p8 = poly.points[8] or p7
 	local r, g, b, a = color01(color)
 
 	setupParamMatrix(mat,
 		p1.x, p1.y, p2.x, p2.y,
 		p3.x, p3.y, p4.x, p4.y,
+		p5.x, p5.y, p6.x, p6.y,
+		p7.x, p7.y, p8.x, p8.y
+	)
+	setupExtraParams(mat,
 		r, g, b, a,
-		poly.w, poly.h, math_max(0, strokeWidthValue(strokeWidth, 0)), poly.count
+		poly.w, poly.h, math_max(0, strokeWidthValue(strokeWidth, 0)), 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0
 	)
 end
 
-local function drawPolyStrokeShader(poly, color, strokeWidth)
-	if poly.count > 4 then return false end
-
-	local mat = materials.poly_stroke
+drawPolyStrokeShader = function(poly, color, strokeWidth)
+	local mat = materials["poly" .. poly.count .. "_stroke"]
 	if not matOK(mat) then return false end
 
 	setupPolyStrokeConstants(mat, poly, color, strokeWidth)
@@ -750,17 +932,22 @@ end
 local function drawPolyBackdrop(poly, backdrop)
 	local spec = backdropStyle(backdrop)
 	if not spec then return nil end
+	local pad = math_max(0, tonumber(spec.padding) or 0)
+	local backdropPoly = pad > 0 and growConvexPoly(poly, pad) or poly
 
 	if spec.blur > 0 then
-		local key = "poly" .. poly.count .. "_blur"
-		drawBlurredPoly(poly, materials[key], spec.blur)
+		local key = "poly" .. backdropPoly.count .. "_blur"
+		drawBlurredPoly(backdropPoly, materials[key], spec.blur)
 	end
 
 	local tint = backdropTintColor(spec)
 	if tint then
-		local key = "poly" .. poly.count
-		setupConstants(materials[key], poly.w, poly.h, M.Solid(tint), nil, 0, 0)
-		drawMaterialPoly(poly, materials[key])
+		local key = "poly" .. backdropPoly.count
+		local mat = materials[key]
+		if matOK(mat) then
+			setupConstants(mat, backdropPoly.w, backdropPoly.h, M.Solid(tint), nil, 0, 0)
+			drawMaterialPoly(backdropPoly, mat)
+		end
 	end
 
 	return spec
@@ -771,7 +958,7 @@ local function polyShadowBounds(poly, shadow, biasOffset)
 
 	local width = math_max(0.001, tonumber(shadow.width) or 12)
 	local grow = math_max(0, tonumber(shadow.grow) or 0)
-	local spread = math_max(1, tonumber(shadow.spread) or width)
+	local spread = effectExtentFromSpec(shadow, 12)
 	local padding = grow + math_max(spread, width)
 	local ox = tonumber(shadow.x) or 0
 	local oy = tonumber(shadow.y) or 0
@@ -853,9 +1040,28 @@ local function drawPolyShadow(poly, shadow, bounds)
 	if not matOK(mat) then return false end
 
 	setupPolyShadowConstants(mat, poly, shadow, bounds)
-	surface_SetMaterial(mat)
-	surface_SetDrawColor(255, 255, 255, 255)
-	drawTexturedQuad(bounds.x, bounds.y, bounds.w, bounds.h)
+	local bleedLeft, bleedTop, bleedRight, bleedBottom = effectBleedFromDrawRect(poly.x, poly.y, poly.w, poly.h, bounds.x, bounds.y, bounds.w, bounds.h)
+	withPanelEffectBleed(bleedLeft, bleedTop, bleedRight, bleedBottom, function()
+		surface_SetMaterial(mat)
+		surface_SetDrawColor(255, 255, 255, 255)
+		drawTexturedQuad(bounds.x, bounds.y, bounds.w, bounds.h)
+	end)
+	return true
+end
+
+local function drawPolyOuterGlow(poly, glow, bounds)
+	if not bounds or not setupExtraParams then return false end
+
+	local mat = materials["poly" .. poly.count .. "_outerglow"]
+	if not matOK(mat) then return false end
+
+	setupPolyShadowConstants(mat, poly, glow, bounds)
+	local bleedLeft, bleedTop, bleedRight, bleedBottom = effectBleedFromDrawRect(poly.x, poly.y, poly.w, poly.h, bounds.x, bounds.y, bounds.w, bounds.h)
+	withPanelEffectBleed(bleedLeft, bleedTop, bleedRight, bleedBottom, function()
+		surface_SetMaterial(mat)
+		surface_SetDrawColor(255, 255, 255, 255)
+		drawTexturedQuad(bounds.x, bounds.y, bounds.w, bounds.h)
+	end)
 	return true
 end
 
@@ -942,8 +1148,20 @@ drawPolyImmediate = function(points, style)
 	local shadowBounds = polyShadowBounds(poly, shadow)
 	local outer = outerGlowStyle(style.outerGlow)
 	local outerBounds = polyShadowBounds(poly, outer, true)
+	local backdropSpec = backdropStyle(style.backdrop)
 	local cullX, cullY, cullW, cullH = includeBounds(poly.x, poly.y, poly.w, poly.h, shadowBounds)
 	cullX, cullY, cullW, cullH = includeBounds(cullX, cullY, cullW, cullH, outerBounds)
+	if backdropSpec ~= nil then
+		local pad = math_max(0, tonumber(backdropSpec.padding) or 0)
+		if pad > 0 then
+			cullX, cullY, cullW, cullH = includeBounds(cullX, cullY, cullW, cullH, {
+				x = poly.x - pad,
+				y = poly.y - pad,
+				w = poly.w + pad * 2,
+				h = poly.h + pad * 2,
+			})
+		end
+	end
 	if not hasTransform() and isCulled(cullX, cullY, cullW, cullH) then return end
 
 	if not shadersActive() then
@@ -951,7 +1169,7 @@ drawPolyImmediate = function(points, style)
 	end
 
 	drawPolyShadow(poly, shadow, shadowBounds)
-	drawPolyShadow(poly, outer, outerBounds)
+	drawPolyOuterGlow(poly, outer, outerBounds)
 
 	local backdrop = drawPolyBackdrop(poly, style.backdrop)
 

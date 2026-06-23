@@ -21,14 +21,11 @@ float4 main(PS_INPUT i) : COLOR
 	float2 halfSize = max(SHAPE_SIZE * 0.5, float2(0.001, 0.001));
 	float radius = min(max(GLOW_RADIUS, 0.0), min(halfSize.x, halfSize.y));
 	float dist = sd_roundrect(pos - SHAPE_OFFSET - halfSize, halfSize, radius);
-	float outside = max(dist, 0.0);
 	float width = max(GLOW_WIDTH, 0.001);
 	float falloff = max(GLOW_FALLOFF, 0.001);
-
-	float outsideMask = 1.0 - aa_coverage(dist);
-	float edge = 1.0 - smoothstep(0.0, width, outside);
-	float glow = pow(saturate(edge), falloff) * outsideMask * max(GLOW_STRENGTH, 0.0);
-	float alpha = saturate(GLOW_COLOR.a * glow);
+	float strength = max(GLOW_STRENGTH, 0.0);
+	float effect = mgfx_css_outer_effect(dist, width, falloff) * strength;
+	float alpha = saturate(GLOW_COLOR.a * effect);
 
 	clip(alpha - 0.001);
 	return float4(saturate(GLOW_COLOR.rgb), alpha);

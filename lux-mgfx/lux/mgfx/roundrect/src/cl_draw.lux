@@ -14,7 +14,7 @@ export client fn drawRoundRectImmediate(x, y, w, h, drawStyle = nil) {
   if shadow ~= nil and shadow.color ~= nil {
     local shadowAlpha = style.alpha(shadow.color.a)
     if shadowAlpha > 0 {
-      local spread = mathMax(1, toNumber(shadow.spread ?? shadow.width) ?? 12)
+      local spread = effectExtentFromSpec(shadow, 12)
       local grow = mathMax(0, toNumber(shadow.grow ?? shadow.shapeSpread ?? shadow.expand) ?? 0)
       local ox = toNumber(shadow.x ?? shadow.offsetX ?? shadow.dx) ?? 0
       local oy = toNumber(shadow.y ?? shadow.offsetY ?? shadow.dy) ?? 0
@@ -39,7 +39,7 @@ export client fn drawRoundRectImmediate(x, y, w, h, drawStyle = nil) {
   if outer ~= nil and outer.color ~= nil {
     local outerAlpha = style.alpha(outer.color.a)
     if outerAlpha > 0 {
-      local spread = mathMax(1, toNumber(outer.spread ?? outer.width) ?? 18)
+      local spread = effectExtentFromSpec(outer, 18)
       local grow = mathMax(0, toNumber(outer.grow ?? outer.shapeSpread ?? outer.expand) ?? 0)
       local ox = toNumber(outer.x ?? outer.offsetX ?? outer.dx) ?? 0
       local oy = toNumber(outer.y ?? outer.offsetY ?? outer.dy) ?? 0

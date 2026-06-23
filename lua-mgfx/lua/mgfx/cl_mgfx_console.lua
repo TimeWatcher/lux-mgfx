@@ -80,12 +80,16 @@ addCommand("mgfx_status", function()
 	print("[MGFX] chamfer material: " .. tostring(status.chamfer))
 	print("[MGFX] chamfer image material: " .. tostring(status.chamferImage))
 	print("[MGFX] image mask material: " .. tostring(status.imageMask))
+	print("[MGFX] image mask shadow material: " .. tostring(status.imageMaskShadow))
 	print("[MGFX] image mask outerglow material: " .. tostring(status.imageMaskOuterGlow))
 	print("[MGFX] chamfer stroke material: " .. tostring(status.chamferStroke))
 	print("[MGFX] inner glow material: " .. tostring(status.innerGlow))
 	print("[MGFX] chamfer inner glow material: " .. tostring(status.chamferInnerGlow))
+	print("[MGFX] shadow material: " .. tostring(status.shadow))
 	print("[MGFX] outer glow material: " .. tostring(status.outerGlow))
+	print("[MGFX] chamfer shadow material: " .. tostring(status.chamferShadow))
 	print("[MGFX] chamfer outer glow material: " .. tostring(status.chamferOuterGlow))
+	print("[MGFX] chamfer backdrop material: " .. tostring(status.chamferBackdrop))
 	print("[MGFX] progress fx material: " .. tostring(status.progressFx))
 	print("[MGFX] segmentbar material: " .. tostring(status.segmentbar))
 	print("[MGFX] line material: " .. tostring(status.line))
@@ -95,11 +99,24 @@ addCommand("mgfx_status", function()
 	print("[MGFX] poly pattern material: " .. tostring(status.polyPattern))
 	print("[MGFX] ring material: " .. tostring(status.ring))
 	print("[MGFX] ring fx material: " .. tostring(status.ringFx))
+	print("[MGFX] ring backdrop material: " .. tostring(status.ringBackdrop))
 	print("[MGFX] ring stroke material: " .. tostring(status.ringStroke))
 	print("[MGFX] ring inner glow material: " .. tostring(status.ringInnerGlow))
+	print("[MGFX] ring shadow material: " .. tostring(status.ringShadow))
 	print("[MGFX] ring outer glow material: " .. tostring(status.ringOuterGlow))
 	print("[MGFX] ring pattern material: " .. tostring(status.ringPattern))
-	print("[MGFX] poly stroke material: " .. tostring(status.polyStroke))
+	print("[MGFX] poly3 stroke material: " .. tostring(status.poly3Stroke))
+	print("[MGFX] poly3 outer glow material: " .. tostring(status.poly3OuterGlow))
+	print("[MGFX] poly4 stroke material: " .. tostring(status.poly4Stroke))
+	print("[MGFX] poly4 outer glow material: " .. tostring(status.poly4OuterGlow))
+	print("[MGFX] poly5 stroke material: " .. tostring(status.poly5Stroke))
+	print("[MGFX] poly5 outer glow material: " .. tostring(status.poly5OuterGlow))
+	print("[MGFX] poly6 stroke material: " .. tostring(status.poly6Stroke))
+	print("[MGFX] poly6 outer glow material: " .. tostring(status.poly6OuterGlow))
+	print("[MGFX] poly7 stroke material: " .. tostring(status.poly7Stroke))
+	print("[MGFX] poly7 outer glow material: " .. tostring(status.poly7OuterGlow))
+	print("[MGFX] poly8 stroke material: " .. tostring(status.poly8Stroke))
+	print("[MGFX] poly8 outer glow material: " .. tostring(status.poly8OuterGlow))
 	print("[MGFX] poly3 shadow material: " .. tostring(status.poly3Shadow))
 	print("[MGFX] poly4 shadow material: " .. tostring(status.poly4Shadow))
 	print("[MGFX] poly5 shadow material: " .. tostring(status.poly5Shadow))
@@ -697,14 +714,19 @@ addCommand("mgfx_selftest", function()
 		"chamfer",
 		"chamfer_texture",
 		"image_mask",
+		"image_mask_shadow",
 		"image_mask_outerglow",
 		"image_mask_backdrop",
+		"image_mask_backdrop_fill",
 		"chamfer_stroke",
 		"roundrect_blur",
 		"roundrect_innerglow",
 		"chamfer_innerglow",
+		"roundrect_shadow",
 		"roundrect_outerglow",
+		"chamfer_shadow",
 		"chamfer_outerglow",
+		"chamfer_backdrop",
 		"progress",
 		"progress_fx",
 		"segmentbar",
@@ -719,21 +741,33 @@ addCommand("mgfx_selftest", function()
 		"ring_backdrop",
 		"ring_stroke",
 		"ring_innerglow",
+		"ring_shadow",
 		"ring_outerglow",
 		"ring_pattern",
-		"poly_stroke",
+		"poly3_stroke",
 		"poly3",
 		"poly3_shadow",
+		"poly3_outerglow",
+		"poly4_stroke",
 		"poly4",
 		"poly4_shadow",
+		"poly4_outerglow",
+		"poly5_stroke",
 		"poly5",
 		"poly5_shadow",
+		"poly5_outerglow",
+		"poly6_stroke",
 		"poly6",
 		"poly6_shadow",
+		"poly6_outerglow",
+		"poly7_stroke",
 		"poly7",
 		"poly7_shadow",
+		"poly7_outerglow",
+		"poly8_stroke",
 		"poly8",
 		"poly8_shadow",
+		"poly8_outerglow",
 		"poly3_blur",
 		"poly4_blur",
 		"poly5_blur",

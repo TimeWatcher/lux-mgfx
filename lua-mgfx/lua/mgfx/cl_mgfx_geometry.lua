@@ -22,7 +22,7 @@ function MGFX._CreateGeometryHelpers(deps)
 	local surface_DrawTexturedRectUV = surface.DrawTexturedRectUV
 
 	local function blurIntensity(value)
-		return math.Clamp((tonumber(value) or 16) / 16, 0.25, 4)
+		return math.Clamp((tonumber(value) or 16) / 16, 0.001, 4)
 	end
 
 	local quadVerts = {

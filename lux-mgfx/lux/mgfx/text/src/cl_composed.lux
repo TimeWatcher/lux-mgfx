@@ -241,10 +241,6 @@ fn entryFor(record, stats = nil, prewarm = false) {
   }
 
   statAdd(stats ?? {}, "textEntryCacheMisses")
-  if not prewarm and bakesThisFrame >= textComposeBudget() {
-    return nil
-  }
-
   local layout = layoutFor(record.text, record.font, textStyle)
   bakesThisFrame += 1
   local ok, entry = protectedCall(bakeEntry, record, key, layout, info.shadow, info.stroke, info.glow, info.face, info.weightAdjust, info.pad, info.gutter, stats)
@@ -285,8 +281,6 @@ fn prepareTextRoutes(records) {
     if recordNeedsComposedEntry(record) {
       record.__mgfxTextRoute = "compose"
       composeCount += 1
-    } else if recordHasShaderWork(record) {
-      record.__mgfxTextRoute = "nativeFallback"
     } else {
       record.__mgfxTextRoute = "native"
     }
@@ -512,9 +506,14 @@ fn blitEntry(entry, record, stats = nil) {
   local contentY = (record.y ?? 0) - entry.contentH * alignFactor(record.alignY, true)
   local fx = drawEntryAt(entry, record, contentX, contentY, nil, stats)
   if fx == nil {
-    drawNativeFallbackRecord(record)
-    statAdd(stats ?? {}, "textComposedFallbackRecords")
-    return nil
+    local refreshed = entryFor(record, stats, false)
+    if refreshed == nil {
+      return nil
+    }
+    fx = drawEntryAt(refreshed, record, contentX, contentY, nil, stats)
+    if fx == nil {
+      return nil
+    }
   }
 
   statAdd(stats ?? {}, "textComposedDraws")
@@ -605,8 +604,14 @@ fn flushTextComposeBatch(batch, stats = nil) {
     local record = batch[1]
     local fx = drawEntryAt(record.__mgfxTextEntry, record, record.__mgfxContentX, record.__mgfxContentY, record.__mgfxBatchColor, stats)
     if fx == nil {
-      drawNativeFallbackRecord(record)
-      return false
+      local entry = entryFor(record, stats, false)
+      if entry == nil {
+        return false
+      }
+      fx = drawEntryAt(entry, record, record.__mgfxContentX, record.__mgfxContentY, record.__mgfxBatchColor, stats)
+      if fx == nil {
+        return false
+      }
     }
     statAdd(stats ?? {}, "textComposedDraws")
     statAdd(stats ?? {}, "textComposedFxDraws")
@@ -619,7 +624,10 @@ fn flushTextComposeBatch(batch, stats = nil) {
     local entry = batch[index].__mgfxTextEntry
     if entry == nil or entry.page == nil or entry.generation ~= entry.page.generation {
       for _, record in ipairs(batch) {
-        blitEntry(record.__mgfxTextEntry, record, stats)
+        local refreshed = entryFor(record, stats, false)
+        if refreshed ~= nil {
+          blitEntry(refreshed, record, stats)
+        }
       }
       return false
     }
@@ -726,9 +734,6 @@ fn flushTextRecords(records, stats = nil) {
   if composeRequested > 0 {
     if composerReady {
       statAdd(stats ?? {}, "textComposedReadyBatches")
-    } else {
-      statAdd(stats ?? {}, "textComposedFallbackBatches")
-      statAdd(stats ?? {}, "textComposedFallbackRecords", composeRequested)
     }
   }
 
@@ -741,27 +746,17 @@ fn flushTextRecords(records, stats = nil) {
       flushQueuedTextBatches(batches, order, stats)
       statAdd(stats ?? {}, "textNativeDraws")
       drawNativePlainRecord(record)
-    } else if route == "nativeFallback" or not composerReady {
-      flushQueuedTextBatches(batches, order, stats)
-      statAdd(stats ?? {}, "textNativeDraws")
-      statAdd(stats ?? {}, "textFallbacks")
-      drawNativeFallbackRecord(record)
     } else {
       local entry = record.__mgfxTextEntry
       if not (entry ~= nil and entry.page ~= nil and entry.generation == entry.page.generation) {
         entry = entryFor(record, stats, false)
       }
       if entry ~= nil {
-        if not queueTextComposeBatch(batches, order, entry, record) {
+        if composerReady and queueTextComposeBatch(batches, order, entry, record) {
+        } else {
           flushQueuedTextBatches(batches, order, stats)
           blitEntry(entry, record, stats)
         }
-      } else {
-        flushQueuedTextBatches(batches, order, stats)
-        statAdd(stats ?? {}, "textComposedFallbackRecords")
-        statAdd(stats ?? {}, "textNativeDraws")
-        statAdd(stats ?? {}, "textFallbacks")
-        drawNativeFallbackRecord(record)
       }
     }
   }

@@ -80,5 +80,5 @@ float4 main(PS_INPUT i) : COLOR
 	float2 p = (i.uv - 0.5) * DRAW_SIZE;
 	float alpha = aa_coverage(ring_dist(p));
 	clip(alpha - 0.001);
-	return float4(mgfx_blur(i.pos * Tex1Size), alpha);
+	return float4(mgfx_blur(i.pos * TexBaseSize), alpha);
 }
