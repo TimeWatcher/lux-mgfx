@@ -3,10 +3,25 @@ return function(__lux_import)
   local installTargets
   local resetFrameStats
   local installFrameStatsReset
+  local installNormalizedDrawApi
   local install
   local installGlobal
   local create
   local defaultRuntime
+  local TARGET_ROUNDED_BOX
+  local TARGET_CHAMFER_BOX
+  local TARGET_POLY
+  local TARGET_LINE
+  local TARGET_CIRCLE
+  local TARGET_CAPSULE
+  local TARGET_IMAGE
+  local TARGET_PROGRESS_BAR
+  local TARGET_SEGMENT_BAR
+  local TARGET_RING
+  local TARGET_ARC
+  local TARGET_TEXT
+  local TARGET_SECTOR
+  local resolvedStyle
   local solid
   local linearGradient
   local linearGradientStops
@@ -148,6 +163,164 @@ return function(__lux_import)
       end
       return owner
     end
+    installNormalizedDrawApi = function(owner)
+      local rawRoundedBoxEx = owner.RoundedBoxEx
+      local rawCircleEx = owner.CircleEx
+      local rawCapsuleEx = owner.CapsuleEx
+      local rawChamferBoxEx = owner.ChamferBoxEx
+      local rawRegularPolyEx = owner.RegularPolyEx
+      local rawDiamondEx = owner.DiamondEx
+      local rawCaretEx = owner.CaretEx
+      local rawPolyEx = owner.PolyEx
+      local rawLineEx = owner.LineEx
+      local rawProgressBarEx = owner.ProgressBarEx
+      local rawSegmentBarEx = owner.SegmentBarEx
+      local rawRingEx = owner.RingEx
+      local rawArcEx = owner.ArcEx
+      local rawSectorEx = owner.SectorEx
+      local rawImageEx = owner.ImageEx
+      local rawIconEx = owner.IconEx
+      owner.RoundedBoxEx = function(x, y, w, h, drawStyle)
+        return rawRoundedBoxEx(
+          x,
+          y,
+          w,
+          h,
+          capabilities.normalizeStyle(drawStyle, capabilities.TARGET.ROUNDED_BOX)
+        )
+      end
+      owner.CircleEx = function(cx, cy, radius, drawStyle)
+        return rawCircleEx(
+          cx,
+          cy,
+          radius,
+          capabilities.normalizeStyle(drawStyle, capabilities.TARGET.CIRCLE)
+        )
+      end
+      owner.CapsuleEx = function(x, y, w, h, drawStyle)
+        return rawCapsuleEx(
+          x,
+          y,
+          w,
+          h,
+          capabilities.normalizeStyle(drawStyle, capabilities.TARGET.CAPSULE)
+        )
+      end
+      owner.ChamferBoxEx = function(x, y, w, h, drawStyle)
+        return rawChamferBoxEx(
+          x,
+          y,
+          w,
+          h,
+          capabilities.normalizeStyle(drawStyle, capabilities.TARGET.CHAMFER_BOX)
+        )
+      end
+      owner.RegularPolyEx = function(cx, cy, radius, sides, drawStyle)
+        return rawRegularPolyEx(
+          cx,
+          cy,
+          radius,
+          sides,
+          capabilities.normalizeStyle(drawStyle, capabilities.TARGET.POLY)
+        )
+      end
+      owner.DiamondEx = function(x, y, w, h, drawStyle)
+        return rawDiamondEx(
+          x,
+          y,
+          w,
+          h,
+          capabilities.normalizeStyle(drawStyle, capabilities.TARGET.POLY)
+        )
+      end
+      owner.CaretEx = function(x, y, w, h, drawStyle)
+        return rawCaretEx(x, y, w, h, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.POLY))
+      end
+      owner.PolyEx = function(points, drawStyle)
+        return rawPolyEx(points, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.POLY))
+      end
+      owner.LineEx = function(x1, y1, x2, y2, drawStyle)
+        return rawLineEx(
+          x1,
+          y1,
+          x2,
+          y2,
+          capabilities.normalizeStyle(drawStyle, capabilities.TARGET.LINE)
+        )
+      end
+      owner.ProgressBarEx = function(x, y, w, h, value, drawStyle)
+        return rawProgressBarEx(
+          x,
+          y,
+          w,
+          h,
+          value,
+          capabilities.normalizeStyle(drawStyle, capabilities.TARGET.PROGRESS_BAR)
+        )
+      end
+      owner.SegmentBarEx = function(x, y, w, h, value, drawStyle)
+        return rawSegmentBarEx(
+          x,
+          y,
+          w,
+          h,
+          value,
+          capabilities.normalizeStyle(drawStyle, capabilities.TARGET.SEGMENT_BAR)
+        )
+      end
+      owner.RingEx = function(cx, cy, radius, width, drawStyle)
+        return rawRingEx(
+          cx,
+          cy,
+          radius,
+          width,
+          capabilities.normalizeStyle(drawStyle, capabilities.TARGET.RING)
+        )
+      end
+      owner.ArcEx = function(cx, cy, radius, width, startDeg, endDeg, drawStyle)
+        return rawArcEx(
+          cx,
+          cy,
+          radius,
+          width,
+          startDeg,
+          endDeg,
+          capabilities.normalizeStyle(drawStyle, capabilities.TARGET.ARC)
+        )
+      end
+      owner.SectorEx = function(cx, cy, innerRadius, outerRadius, startDeg, endDeg, drawStyle)
+        return rawSectorEx(
+          cx,
+          cy,
+          innerRadius,
+          outerRadius,
+          startDeg,
+          endDeg,
+          capabilities.normalizeStyle(drawStyle, capabilities.TARGET.SECTOR)
+        )
+      end
+      owner.ImageEx = function(x, y, w, h, source, drawStyle)
+        return rawImageEx(
+          x,
+          y,
+          w,
+          h,
+          source,
+          capabilities.normalizeStyle(drawStyle, capabilities.TARGET.IMAGE)
+        )
+      end
+      owner.IconEx = function(x, y, w, h, source, drawStyle)
+        return rawIconEx(
+          x,
+          y,
+          w,
+          h,
+          source,
+          capabilities.normalizeStyle(drawStyle, capabilities.TARGET.IMAGE)
+        )
+      end
+      return owner
+    end
     install = function(owner)
       local out = owner
       if out == nil then
@@ -172,6 +345,7 @@ return function(__lux_import)
       roundrect.install(out)
       primitives.install(out)
       widgets.install(out)
+      installNormalizedDrawApi(out)
       installFrameStatsReset(out)
       return out
     end
@@ -200,6 +374,22 @@ return function(__lux_import)
     local textModule = __lux_import("lux/mgfx/text#client")
     local widgets = __lux_import("lux/mgfx/widgets#client")
     defaultRuntime = install({})
+    TARGET_ROUNDED_BOX = 1
+    TARGET_CHAMFER_BOX = 2
+    TARGET_POLY = 3
+    TARGET_LINE = 4
+    TARGET_CIRCLE = 5
+    TARGET_CAPSULE = 6
+    TARGET_IMAGE = 8
+    TARGET_PROGRESS_BAR = 9
+    TARGET_SEGMENT_BAR = 10
+    TARGET_RING = 11
+    TARGET_ARC = 12
+    TARGET_TEXT = 13
+    TARGET_SECTOR = 14
+    resolvedStyle = function(drawStyle, target)
+      return capabilities.normalizeStyle(drawStyle, target)
+    end
     solid = function(color)
       return style.solid(color)
     end
@@ -372,55 +562,55 @@ return function(__lux_import)
       return geometry.untransformPoint(sx, sy)
     end
     roundedBoxEx = function(x, y, w, h, drawStyle)
-      return roundrect.roundedBoxEx(x, y, w, h, drawStyle)
+      return roundrect.roundedBoxEx(x, y, w, h, resolvedStyle(drawStyle, TARGET_ROUNDED_BOX))
     end
     roundedBox = function(x, y, w, h, radius, fill, stroke, strokeWidth)
       return roundrect.roundedBox(x, y, w, h, radius, fill, stroke, strokeWidth)
     end
     circleEx = function(cx, cy, radius, drawStyle)
-      return roundrect.circleEx(cx, cy, radius, drawStyle)
+      return roundrect.circleEx(cx, cy, radius, resolvedStyle(drawStyle, TARGET_CIRCLE))
     end
     circle = function(cx, cy, radius, fill, stroke, strokeWidth)
       return roundrect.circle(cx, cy, radius, fill, stroke, strokeWidth)
     end
     capsuleEx = function(x, y, w, h, drawStyle)
-      return roundrect.capsuleEx(x, y, w, h, drawStyle)
+      return roundrect.capsuleEx(x, y, w, h, resolvedStyle(drawStyle, TARGET_CAPSULE))
     end
     capsule = function(x, y, w, h, fill, stroke, strokeWidth)
       return roundrect.capsule(x, y, w, h, fill, stroke, strokeWidth)
     end
     chamferBoxEx = function(x, y, w, h, drawStyle)
-      return primitives.chamferBoxEx(x, y, w, h, drawStyle)
+      return primitives.chamferBoxEx(x, y, w, h, resolvedStyle(drawStyle, TARGET_CHAMFER_BOX))
     end
     chamferBox = function(x, y, w, h, cuts, fill, stroke, strokeWidth)
       return primitives.chamferBox(x, y, w, h, cuts, fill, stroke, strokeWidth)
     end
     regularPolyEx = function(cx, cy, radius, sides, drawStyle)
-      return primitives.regularPolyEx(cx, cy, radius, sides, drawStyle)
+      return primitives.regularPolyEx(cx, cy, radius, sides, resolvedStyle(drawStyle, TARGET_POLY))
     end
     regularPoly = function(cx, cy, radius, sides, rotation, fill, stroke, strokeWidth)
       return primitives.regularPoly(cx, cy, radius, sides, rotation, fill, stroke, strokeWidth)
     end
     diamondEx = function(x, y, w, h, drawStyle)
-      return primitives.diamondEx(x, y, w, h, drawStyle)
+      return primitives.diamondEx(x, y, w, h, resolvedStyle(drawStyle, TARGET_POLY))
     end
     diamond = function(x, y, w, h, fill, stroke, strokeWidth)
       return primitives.diamond(x, y, w, h, fill, stroke, strokeWidth)
     end
     caretEx = function(x, y, w, h, drawStyle)
-      return primitives.caretEx(x, y, w, h, drawStyle)
+      return primitives.caretEx(x, y, w, h, resolvedStyle(drawStyle, TARGET_POLY))
     end
     caret = function(x, y, w, h, direction, fill, stroke, strokeWidth)
       return primitives.caret(x, y, w, h, direction, fill, stroke, strokeWidth)
     end
     polyEx = function(points, drawStyle)
-      return primitives.polyEx(points, drawStyle)
+      return primitives.polyEx(points, resolvedStyle(drawStyle, TARGET_POLY))
     end
     poly = function(points, fill, stroke, strokeWidth)
       return primitives.poly(points, fill, stroke, strokeWidth)
     end
     lineEx = function(x1, y1, x2, y2, drawStyle)
-      return primitives.lineEx(x1, y1, x2, y2, drawStyle)
+      return primitives.lineEx(x1, y1, x2, y2, resolvedStyle(drawStyle, TARGET_LINE))
     end
     line = function(x1, y1, x2, y2, width, fill)
       if width == nil then
@@ -429,43 +619,59 @@ return function(__lux_import)
       return primitives.line(x1, y1, x2, y2, width, fill)
     end
     progressBarEx = function(x, y, w, h, value, drawStyle)
-      return widgets.progressBarEx(x, y, w, h, value, drawStyle)
+      return widgets.progressBarEx(x, y, w, h, value, resolvedStyle(drawStyle, TARGET_PROGRESS_BAR))
     end
     progressBar = function(x, y, w, h, value, radius, track, fill, stroke, strokeWidth)
       return widgets.progressBar(x, y, w, h, value, radius, track, fill, stroke, strokeWidth)
     end
     segmentBarEx = function(x, y, w, h, value, drawStyle)
-      return widgets.segmentBarEx(x, y, w, h, value, drawStyle)
+      return widgets.segmentBarEx(x, y, w, h, value, resolvedStyle(drawStyle, TARGET_SEGMENT_BAR))
     end
     segmentBar = function(x, y, w, h, value, segments, fill, track)
       return widgets.segmentBar(x, y, w, h, value, segments, fill, track)
     end
     ringEx = function(cx, cy, radius, width, drawStyle)
-      return widgets.ringEx(cx, cy, radius, width, drawStyle)
+      return widgets.ringEx(cx, cy, radius, width, resolvedStyle(drawStyle, TARGET_RING))
     end
     ring = function(cx, cy, radius, width, fill)
       return widgets.ring(cx, cy, radius, width, fill)
     end
     arcEx = function(cx, cy, radius, width, startDeg, endDeg, drawStyle)
-      return widgets.arcEx(cx, cy, radius, width, startDeg, endDeg, drawStyle)
+      return widgets.arcEx(
+        cx,
+        cy,
+        radius,
+        width,
+        startDeg,
+        endDeg,
+        resolvedStyle(drawStyle, TARGET_ARC)
+      )
     end
     arc = function(cx, cy, radius, startDeg, endDeg, width, fill)
       return widgets.arc(cx, cy, radius, startDeg, endDeg, width, fill)
     end
     sectorEx = function(cx, cy, innerRadius, outerRadius, startDeg, endDeg, drawStyle)
-      return widgets.sectorEx(cx, cy, innerRadius, outerRadius, startDeg, endDeg, drawStyle)
+      return widgets.sectorEx(
+        cx,
+        cy,
+        innerRadius,
+        outerRadius,
+        startDeg,
+        endDeg,
+        resolvedStyle(drawStyle, TARGET_SECTOR)
+      )
     end
     sector = function(cx, cy, innerRadius, outerRadius, startDeg, endDeg, fill)
       return widgets.sector(cx, cy, innerRadius, outerRadius, startDeg, endDeg, fill)
     end
     imageEx = function(x, y, w, h, source, drawStyle)
-      return widgets.imageEx(x, y, w, h, source, drawStyle)
+      return widgets.imageEx(x, y, w, h, source, resolvedStyle(drawStyle, TARGET_IMAGE))
     end
     image = function(x, y, w, h, source, radius, tint)
       return widgets.image(x, y, w, h, source, radius, tint)
     end
     iconEx = function(x, y, w, h, source, drawStyle)
-      return widgets.iconEx(x, y, w, h, source, drawStyle)
+      return widgets.iconEx(x, y, w, h, source, resolvedStyle(drawStyle, TARGET_IMAGE))
     end
     icon = function(x, y, w, h, source, tint)
       return widgets.icon(x, y, w, h, source, tint)
@@ -507,7 +713,16 @@ return function(__lux_import)
       if ay == nil then
         ay = 0
       end
-      return textModule.drawEx(value, font, x, y, color, ax, ay, textStyle)
+      return textModule.drawEx(
+        value,
+        font,
+        x,
+        y,
+        color,
+        ax,
+        ay,
+        resolvedStyle(textStyle, TARGET_TEXT)
+      )
     end
     textBox = function(value, font, x, y, w, h, color, alignX, alignY)
       if alignX == nil then
@@ -519,7 +734,7 @@ return function(__lux_import)
       return textModule.box(value, font, x, y, w, h, color, alignX, alignY)
     end
     textBoxEx = function(value, font, x, y, w, h, textStyle)
-      return textModule.boxEx(value, font, x, y, w, h, textStyle)
+      return textModule.boxEx(value, font, x, y, w, h, resolvedStyle(textStyle, TARGET_TEXT))
     end
     textBatchEx = function(records)
       return textModule.batch(records)

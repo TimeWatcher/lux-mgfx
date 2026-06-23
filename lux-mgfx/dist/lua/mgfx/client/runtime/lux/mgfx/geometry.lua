@@ -721,41 +721,43 @@ return function(__lux_import)
       local steps = 1
       for index = 1, #transformStack do
         local t = transformStack[index]
-        local __lux_tmp_53 = t.kind == "projected" or t.perspective > 0
-        if not __lux_tmp_53 then
-          local __lux_cmp_52 = false
-          if mathAbs(t.rotateX) ~= nil then
-            __lux_cmp_52 = mathAbs(t.rotateX) > 0.0001
-          end
-          __lux_tmp_53 = __lux_cmp_52
-        end
-        local __lux_tmp_55 = __lux_tmp_53
-        if not __lux_tmp_55 then
-          local __lux_cmp_54 = false
-          if mathAbs(t.rotateY) ~= nil then
-            __lux_cmp_54 = mathAbs(t.rotateY) > 0.0001
-          end
-          __lux_tmp_55 = __lux_cmp_54
-        end
-        if __lux_tmp_55 then
-          do
-            local __lux_tmp_56
-            if t.steps > 0 then
-              __lux_tmp_56 = t.steps
-            else
-              __lux_tmp_56 = 10
+        do
+          local __lux_tmp_53 = t.kind == "projected" or t.perspective > 0
+          if not __lux_tmp_53 then
+            local __lux_cmp_52 = false
+            if mathAbs(t.rotateX) ~= nil then
+              __lux_cmp_52 = mathAbs(t.rotateX) > 0.0001
             end
-            steps = mathMax(steps, __lux_tmp_56)
+            __lux_tmp_53 = __lux_cmp_52
           end
-        else
-          do
-            local __lux_tmp_57
-            if t.steps > 0 then
-              __lux_tmp_57 = t.steps
-            else
-              __lux_tmp_57 = 1
+          local __lux_tmp_55 = __lux_tmp_53
+          if not __lux_tmp_55 then
+            local __lux_cmp_54 = false
+            if mathAbs(t.rotateY) ~= nil then
+              __lux_cmp_54 = mathAbs(t.rotateY) > 0.0001
             end
-            steps = mathMax(steps, __lux_tmp_57)
+            __lux_tmp_55 = __lux_cmp_54
+          end
+          if __lux_tmp_55 then
+            do
+              local __lux_tmp_56
+              if t.steps > 0 then
+                __lux_tmp_56 = t.steps
+              else
+                __lux_tmp_56 = 10
+              end
+              steps = mathMax(steps, __lux_tmp_56)
+            end
+          else
+            do
+              local __lux_tmp_57
+              if t.steps > 0 then
+                __lux_tmp_57 = t.steps
+              else
+                __lux_tmp_57 = 1
+              end
+              steps = mathMax(steps, __lux_tmp_57)
+            end
           end
         end
       end
@@ -1084,7 +1086,7 @@ return function(__lux_import)
       u0, v0 = (u0 - du) / (1 - 2 * du), (v0 - dv) / (1 - 2 * dv)
       u1, v1 = (u1 - du) / (1 - 2 * du), (v1 - dv) / (1 - 2 * dv)
       if hasTransform() then
-        drawTexturedQuadUV(x, y, w, h, u0, v0, u1, v1)
+        return drawTexturedQuadUV(x, y, w, h, u0, v0, u1, v1)
       else
         surfaceDrawTexturedRectUV(x, y, w, h, u0, v0, u1, v1)
         do
@@ -1098,7 +1100,7 @@ return function(__lux_import)
     end
     drawTexturedRectUV = function(x, y, w, h, u0, v0, u1, v1)
       if hasTransform() then
-        drawTexturedQuadUV(x, y, w, h, u0, v0, u1, v1)
+        return drawTexturedQuadUV(x, y, w, h, u0, v0, u1, v1)
       else
         surfaceDrawTexturedRectUV(x, y, w, h, u0, v0, u1, v1)
         do
@@ -1524,7 +1526,7 @@ return function(__lux_import)
       if __lux_tmp_value_106 == nil then
         __lux_tmp_value_106 = 16
       end
-      return mathClamp(__lux_tmp_value_106 / 16, 0.25, 4)
+      return mathClamp(__lux_tmp_value_106 / 16, 0.001, 4)
     end
     bindStats = function(owner)
       do

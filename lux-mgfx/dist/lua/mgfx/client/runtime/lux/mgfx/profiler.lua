@@ -542,9 +542,9 @@ return function(__lux_import)
             "mgfx_profile",
             function(_, _, newValue)
               if toBool(newValue) then
-                wrapApi()
+                return wrapApi()
               else
-                unwrapApi()
+                return unwrapApi()
               end
             end,
             "MGFXProfileApiWrappers"
