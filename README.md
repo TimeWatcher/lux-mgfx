@@ -46,7 +46,7 @@ Lux code should use `@lux/mgfx` and its unified `mgfx.api` facade instead of cho
 
 `shadow`, `outerGlow`, and `backdrop` are separate effects:
 
-- `shadow` is an external soft pass for shader-backed shapes. It supports `x/y`, `offsetX/offsetY`, `dx/dy`, `offset = {x, y}`, `blur`, `spread`, `opacity`, `softness`, and color/tint. Convex poly still uses its silhouette fallback.
+- `shadow` is an external soft pass for shader-backed shapes. It supports `x/y`, `offsetX/offsetY`, `dx/dy`, `offset = {x, y}`, `blur`, `spread`, `opacity`, `softness`, and color/tint. Shader paths now render shadow from the full solid shape mask, while `outerGlow` remains exterior-only.
 - `outerGlow` is an external glow pass. It supports the same offset aliases, but defaults to no offset.
 - `backdrop` samples and tints the background inside the current shape or image mask. It is not a shadow.
 
@@ -56,6 +56,7 @@ Lux code should use `@lux/mgfx` and its unified `mgfx.api` facade instead of cho
 
 The documentation is shared by both implementations:
 
+- [Online Documentation](https://timewatcher.github.io/mgfx-docs-site/)
 - [API Reference](docs/API.md)
 - [Performance Notes](docs/PERFORMANCE.md)
 - [Internal Architecture](docs/ARCHITECTURE.md)
@@ -71,6 +72,43 @@ npm run docs:build
 ```
 
 The generated site is written to `docs-site/`.
+
+## Changelog
+
+### Last 7 Days: 2026-06-16 to 2026-06-23
+
+#### Rendering Fixes
+
+- 2026-06-23 (`934d91a`) Fixed effect rendering semantics across the Lua and Lux implementations. `shadow` now uses a full blurred shape alpha mask like CSS `box-shadow`; it no longer reuses the exterior-only `outerGlow` formula that could leave hard transparent holes when offsets were applied.
+- 2026-06-23 (`934d91a`) Added dedicated shadow draw paths and shader materials for rounded rectangles, chamfers, rings, image masks, and convex polygons. Shadow, outer glow, inner glow, and backdrop are now routed as separate effects instead of sharing ambiguous fallback behavior.
+- 2026-06-23 (`934d91a`) Added automatic panel effect bleed handling. Effects that should extend outside the panel, such as `shadow` and `outerGlow`, temporarily expand clipping and scissor bounds based on their computed blur/spread extent, while fill, stroke, backdrop, and inner glow stay clipped to the panel.
+- 2026-06-23 (`934d91a`) Reworked effect extent calculation to use the blur/falloff tail instead of fixed `width * 1.8` style padding. This reduces clipped shadow edges when blur radius or offset is large.
+- 2026-06-23 (`934d91a`) Improved shape-aware backdrop and blur routing for round rects, chamfers, rings, polygons, and image masks, including better padding handling and shader-backed tint passes.
+- 2026-06-21 (`c940f2d`) Fixed blurred polygon backdrop rendering in the plain Lua implementation, including the `drawMaterialPoly` binding issue hit by polygon backdrop blur.
+- 2026-06-19 (`8ad24b2`) Fixed outer glow offset bias so offset glows are drawn with the correct expanded bounds instead of leaving asymmetric hard edges.
+- 2026-06-19 (`7cee3b2`) Added true convex polygon shadow shaders, replacing lower-quality polygon shadow approximations.
+
+#### Features And API
+
+- 2026-06-19 (`dab15db`, `205be62`) Initialized and fixed the unified `MGFX.api` facade runtime for Lux. Lux users can call the unified API surface without choosing between paint, primitives, widgets, text, or style modules.
+- 2026-06-19 (`d0018ae`) Unified the MGFX API facade and polygon helper APIs across Lua and Lux, including dedicated helpers for common polygon construction and shader-backed polygon effects.
+- 2026-06-19 (`bacf4fd`) Loaded Lua MGFX demo commands by default so plain GLua users can run demo and inspection commands without manual includes.
+- 2026-06-19 (`0b5e3b3`) Restructured the repository into `lua-mgfx/` and `lux-mgfx/`, with the plain Lua addon and the Lux package maintained side by side.
+
+#### Documentation
+
+- 2026-06-20 (`5eea18a`) Added the English MGFX documentation site and VitePress build output workflow.
+- 2026-06-19 (`c955c0f`) Linked the documentation site from project documentation.
+- 2026-06-19 (`d99da27`) Expanded API documentation with practical examples, parameter guidance, effect semantics, and usage notes instead of only listing parameters.
+- 2026-06-19 (`f50b128`) Moved MGFX documentation into the shared root `docs/` tree so both Lua and Lux implementations use one documentation source.
+- 2026-06-16 (`bd555c5`) Improved the MGFX README with clearer positioning, install notes, feature overview, and project layout.
+
+#### Build And Packaging
+
+- 2026-06-23 (`c9964cd`) Rebuilt the shaderpack at version `1782205200`, including the new dedicated shadow, outer glow, stroke, backdrop, and polygon shader outputs.
+- 2026-06-23 (`959122c`) Rebuilt the Lux generated `dist/lua` output from the updated Lux sources.
+- 2026-06-17 (`6b28641`, `92d3792`) Added and refreshed the precompiled MGFX Lua loader distribution for Lux consumers that need generated GLua output.
+- 2026-06-17 (`ce1a7e1`) Fixed package diagnostics in MGFX source packages so Lux build/install errors are easier to identify.
 
 ## Layout
 
