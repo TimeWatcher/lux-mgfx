@@ -43,6 +43,7 @@ function MGFX._InstallPrimitives(C)
 	local patternStyle = C.patternStyle
 	local patternOffset = C.patternOffset
 	local drawTexturedQuad = C.drawTexturedQuad
+	local drawTexturedQuadUV = C.drawTexturedQuadUV
 	local drawTransformedPoly = C.drawTransformedPoly or surface.DrawPoly
 	local withTransform = C.withTransform or function(_, _, _, _, _, fn) return fn() end
 	local splitStyleTransform = C.splitStyleTransform or function(style) return nil, style end
@@ -844,6 +845,23 @@ local function polyDrawVerts(poly)
 	return verts
 end
 
+local function polyDrawRect(poly, pad)
+	pad = math_max(1, tonumber(pad) or 1)
+	local invW = 1 / poly.w
+	local invH = 1 / poly.h
+	return {
+		x = poly.x - pad,
+		y = poly.y - pad,
+		w = poly.w + pad * 2,
+		h = poly.h + pad * 2,
+		pad = pad,
+		u0 = -pad * invW,
+		v0 = -pad * invH,
+		u1 = 1 + pad * invW,
+		v1 = 1 + pad * invH,
+	}
+end
+
 local drawPolyStrokeShader
 
 local function drawPolyStroke(poly, color, strokeWidth)
@@ -875,6 +893,7 @@ local function drawPolyStroke(poly, color, strokeWidth)
 end
 
 local function setupPolyStrokeConstants(mat, poly, color, strokeWidth)
+	local drawRect = polyDrawRect(poly, math_max(2, strokeWidthValue(strokeWidth, 0) + 2))
 	local p1 = poly.points[1]
 	local p2 = poly.points[2]
 	local p3 = poly.points[3]
@@ -897,15 +916,18 @@ local function setupPolyStrokeConstants(mat, poly, color, strokeWidth)
 		0, 0, 0, 0,
 		0, 0, 0, 0
 	)
+
+	return drawRect
 end
 
 drawPolyStrokeShader = function(poly, color, strokeWidth)
 	local mat = materials["poly" .. poly.count .. "_stroke"]
 	if not matOK(mat) then return false end
 
-	setupPolyStrokeConstants(mat, poly, color, strokeWidth)
+	local drawRect = setupPolyStrokeConstants(mat, poly, color, strokeWidth)
 	surface_SetDrawColor(255, 255, 255, 255)
-	drawMaterialPoly(poly, mat)
+	surface_SetMaterial(mat)
+	drawTexturedQuadUV(drawRect.x, drawRect.y, drawRect.w, drawRect.h, drawRect.u0, drawRect.v0, drawRect.u1, drawRect.v1)
 	return true
 end
 
@@ -1100,6 +1122,28 @@ local function drawPolyPattern(poly, pattern)
 	M.stats.draws = M.stats.draws + 1
 end
 
+local function setupPolyFillConstants(mat, poly, fill)
+	local drawRect = polyDrawRect(poly, 2)
+	local p1 = poly.points[1]
+	local p2 = poly.points[2]
+	local p3 = poly.points[3]
+	local p4 = poly.points[4] or p3
+	local p5 = poly.points[5] or p4
+	local p6 = poly.points[6] or p5
+	local p7 = poly.points[7] or p6
+	local p8 = poly.points[8] or p7
+
+	setupConstants(mat, poly.w, poly.h, fill, nil, 0, 0)
+	setupExtraParams(mat,
+		p1.x, p1.y, p2.x, p2.y,
+		p3.x, p3.y, p4.x, p4.y,
+		p5.x, p5.y, p6.x, p6.y,
+		p7.x, p7.y, p8.x, p8.y
+	)
+
+	return drawRect
+end
+
 local function drawPolyFallback(points, style)
 	M.stats.fallbacks = M.stats.fallbacks + 1
 	local fill = fillFromStyle(style.fill)
@@ -1181,8 +1225,9 @@ drawPolyImmediate = function(points, style)
 	local hasStroke = strokeVisible(style.stroke, strokeWidth)
 
 	if hasFill then
-		setupConstants(mat, poly.w, poly.h, fill, nil, 0, 0)
-		drawMaterialPoly(poly, mat)
+		local drawRect = setupPolyFillConstants(mat, poly, fill)
+		surface_SetMaterial(mat)
+		drawTexturedQuadUV(drawRect.x, drawRect.y, drawRect.w, drawRect.h, drawRect.u0, drawRect.v0, drawRect.u1, drawRect.v1)
 	end
 
 	drawPolyPattern(poly, style.pattern)

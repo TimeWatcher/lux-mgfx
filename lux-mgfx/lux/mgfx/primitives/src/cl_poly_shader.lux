@@ -11,6 +11,23 @@ fn drawMaterialPoly(poly, material) {
   true
 }
 
+fn polyDrawRect(poly, pad = 1) {
+  pad = mathMax(1, toNumber(pad) ?? 1)
+  local invW = 1 / poly.w
+  local invH = 1 / poly.h
+  {
+    x = poly.x - pad,
+      y = poly.y - pad,
+      w = poly.w + pad * 2,
+      h = poly.h + pad * 2,
+      pad = pad,
+      u0 = -pad * invW,
+      v0 = -pad * invH,
+      u1 = 1 + pad * invW,
+      v1 = 1 + pad * invH
+  }
+}
+
 fn setupPrimitiveBlurConstants(material, w, h, vertical, intensity, radius = 0) {
   setupParamMatrix(material,
     vertical and 1 or 0, intensity ?? 1, 0, 0,
@@ -260,6 +277,7 @@ fn drawPolyPattern(poly, pattern) {
 }
 
 fn setupPolyStrokeConstants(material, poly, color, strokeWidth) {
+  local drawRect = polyDrawRect(poly, mathMax(2, style.strokeWidthValue(strokeWidth, 0) + 2))
   local points = poly.points
   local p1 = points[1]
   local p2 = points[2]
@@ -283,6 +301,7 @@ fn setupPolyStrokeConstants(material, poly, color, strokeWidth) {
     0, 0, 0, 0,
     0, 0, 0, 0
   )
+  drawRect
 }
 
 fn drawPolyStrokeShader(poly, color, strokeWidth) {
@@ -290,9 +309,34 @@ fn drawPolyStrokeShader(poly, color, strokeWidth) {
 
   local material = primitiveMaterials[polyMaterialKey(poly, "_stroke")]
   stopif not materialOK(material), false
-  setupPolyStrokeConstants(material, poly, color, strokeWidth)
+  local drawRect = setupPolyStrokeConstants(material, poly, color, strokeWidth)
   surfaceSetDrawColor(255, 255, 255, 255)
-  drawMaterialPoly(poly, material)
+  surfaceSetMaterial(material)
+  drawTexturedQuadUV(drawRect.x, drawRect.y, drawRect.w, drawRect.h, drawRect.u0, drawRect.v0, drawRect.u1, drawRect.v1)
+  true
+}
+
+fn setupPolyFillConstants(material, poly, fill) {
+  local drawRect = polyDrawRect(poly, 2)
+  local points = poly.points
+  local p1 = points[1]
+  local p2 = points[2]
+  local p3 = points[3]
+  local p4 = points[4] ?? p3
+  local p5 = points[5] ?? p4
+  local p6 = points[6] ?? p5
+  local p7 = points[7] ?? p6
+  local p8 = points[8] ?? p7
+
+  setupPrimitiveFillConstants(material, poly.w, poly.h, fill, nil, 0, 0)
+  setupPolyShadowAuxConstants(material,
+    p1.x, p1.y, p2.x, p2.y,
+    p3.x, p3.y, p4.x, p4.y,
+    p5.x, p5.y, p6.x, p6.y,
+    p7.x, p7.y, p8.x, p8.y
+  )
+
+  drawRect
 }
 
 fn drawPolyStroke(poly, color, strokeWidth) {
@@ -385,8 +429,9 @@ fn drawPolyImmediate(points, drawStyle = nil) {
   local hasStroke = style.strokeVisible(resolved.stroke, strokeWidth)
 
   if hasFill and materialOK(material) {
-    setupPrimitiveFillConstants(material, poly.w, poly.h, fill, nil, 0, 0)
-    drawMaterialPoly(poly, material)
+    local drawRect = setupPolyFillConstants(material, poly, fill)
+    surfaceSetMaterial(material)
+    drawTexturedQuadUV(drawRect.x, drawRect.y, drawRect.w, drawRect.h, drawRect.u0, drawRect.v0, drawRect.u1, drawRect.v1)
   } else if hasFill {
     drawPolyFallback(points, {
       fill = fill

@@ -29,6 +29,7 @@ local makeColor = Color
 
 local drawTransformedPoly = geometry.drawTransformedPoly
 local drawTexturedQuad = geometry.drawTexturedQuad
+local drawTexturedQuadUV = geometry.drawTexturedQuadUV
 local backdropBlurIntensity = geometry.blurIntensity
 local hasTransform = geometry.hasTransform
 local isCulled = frame.isCulled

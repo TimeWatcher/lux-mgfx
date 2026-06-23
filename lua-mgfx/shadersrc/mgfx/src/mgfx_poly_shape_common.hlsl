@@ -7,6 +7,16 @@
 #define MGFX_POLY_COUNT 3
 #endif
 
+#if MGFX_POLY_VERTS_FROM_CONSTANTS
+#define POLY_V0 Constants0.xy
+#define POLY_V1 Constants0.zw
+#define POLY_V2 Constants1.xy
+#define POLY_V3 Constants1.zw
+#define POLY_V4 Constants2.xy
+#define POLY_V5 Constants2.zw
+#define POLY_V6 Constants3.xy
+#define POLY_V7 Constants3.zw
+#else
 #define POLY_V0 EXTRA0.xy
 #define POLY_V1 EXTRA0.zw
 #define POLY_V2 EXTRA1.xy
@@ -15,6 +25,7 @@
 #define POLY_V5 EXTRA2.zw
 #define POLY_V6 EXTRA3.xy
 #define POLY_V7 EXTRA3.zw
+#endif
 
 float cross2(float2 a, float2 b)
 {
@@ -83,6 +94,65 @@ float convex_poly_dist(float2 p)
 #endif
 
 	return maxOutside <= 0.0 ? maxOutside : minSegment;
+}
+
+float poly_coverage_width(float2 p)
+{
+	float2 dx = ddx(p);
+	float2 dy = ddy(p);
+	return max(max(length(dx), length(dy)), 1.0) * 1.35;
+}
+
+float poly_coverage_from_dist(float dist, float width)
+{
+	return smoothstep(0.5 * width, -0.5 * width, dist);
+}
+
+float poly_shape_coverage_at(float2 p, float width)
+{
+	return poly_coverage_from_dist(convex_poly_dist(p), width);
+}
+
+float poly_shape_coverage(float2 p)
+{
+	float2 dx = ddx(p) * 0.375;
+	float2 dy = ddy(p) * 0.375;
+	float width = poly_coverage_width(p);
+	return (
+		poly_shape_coverage_at(p - dx - dy * 0.333333, width) +
+		poly_shape_coverage_at(p + dx * 0.333333 - dy, width) +
+		poly_shape_coverage_at(p + dx + dy * 0.333333, width) +
+		poly_shape_coverage_at(p - dx * 0.333333 + dy, width) +
+		poly_shape_coverage_at(p - dx * 0.333333 - dy, width) +
+		poly_shape_coverage_at(p + dx - dy * 0.333333, width) +
+		poly_shape_coverage_at(p + dx * 0.333333 + dy, width) +
+		poly_shape_coverage_at(p - dx + dy * 0.333333, width)
+	) * 0.125;
+}
+
+float poly_stroke_coverage_at(float2 p, float strokeWidth, float coverageWidth)
+{
+	float dist = convex_poly_dist(p);
+	float outer = poly_coverage_from_dist(dist, coverageWidth);
+	float inner = poly_coverage_from_dist(dist + strokeWidth, coverageWidth);
+	return outer * (1.0 - inner);
+}
+
+float poly_stroke_coverage(float2 p, float strokeWidth)
+{
+	float2 dx = ddx(p) * 0.375;
+	float2 dy = ddy(p) * 0.375;
+	float coverageWidth = poly_coverage_width(p);
+	return (
+		poly_stroke_coverage_at(p - dx - dy * 0.333333, strokeWidth, coverageWidth) +
+		poly_stroke_coverage_at(p + dx * 0.333333 - dy, strokeWidth, coverageWidth) +
+		poly_stroke_coverage_at(p + dx + dy * 0.333333, strokeWidth, coverageWidth) +
+		poly_stroke_coverage_at(p - dx * 0.333333 + dy, strokeWidth, coverageWidth) +
+		poly_stroke_coverage_at(p - dx * 0.333333 - dy, strokeWidth, coverageWidth) +
+		poly_stroke_coverage_at(p + dx - dy * 0.333333, strokeWidth, coverageWidth) +
+		poly_stroke_coverage_at(p + dx * 0.333333 + dy, strokeWidth, coverageWidth) +
+		poly_stroke_coverage_at(p - dx + dy * 0.333333, strokeWidth, coverageWidth)
+	) * 0.125;
 }
 
 #endif
