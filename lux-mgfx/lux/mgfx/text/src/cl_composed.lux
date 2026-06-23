@@ -365,12 +365,18 @@ fn packEffectParams(glow, shadow, face, weightAdjust, shaderFace) {
   blurByte * 131072 + falloffByte * 2048 + faceByte * 64 + weightByte
 }
 
-fn setupTextComposeMaterial(material, entry) {
+fn setupTextComposeMaterial(material, entry, u0, v0, u1, v1) {
   local stroke = entry.stroke
   local glow = entry.glow
   local shadow = entry.shadow
   local face = entry.face
   local oversample = normalizeOversample(entry.oversample)
+  setupTextParamMatrix(material,
+    u0, v0, u1, v1,
+    0, 0, 0, 0,
+    0, 0, 0, 0,
+    0, 0, 0, 0
+  )
   local r, g, b, a = scaledColor01(stroke, 1)
   material:SetFloat("$c0_x", r)
   material:SetFloat("$c0_y", g)
@@ -470,7 +476,7 @@ fn drawEntryAt(entry, record, contentX, contentY, fillOverride = nil, stats = ni
 
   if fx and isMaterialOK(material) {
     material:SetTexture("$basetexture", page.rt)
-    setupTextComposeMaterial(material, entry)
+    setupTextComposeMaterial(material, entry, u0, v0, u1, v1)
   } else if fx {
     return nil
   } else if faceMat ~= nil {
@@ -541,23 +547,7 @@ fn textBatchKey(entry, record) {
     return "plain\27" .. toString(page.index ?? 0)
   }
 
-  if not entry.shaderFace {
-    return nil
-  }
-  if entry.batchKey ~= nil {
-    return entry.batchKey
-  }
-
-  entry.batchKey = tableConcat({
-    page.index ?? 0,
-      entry.oversample ?? 1,
-      entry.stroke ~= nil then entry.stroke.width .. ":" .. entry.stroke.softness .. ":" .. colorKey(entry.stroke.color) else "",
-      entry.glow ~= nil then entry.glow.width .. ":" .. entry.glow.strength .. ":" .. (entry.glow.falloff ?? "") .. ":" .. colorKey(entry.glow.color) else "",
-      entry.shadow ~= nil then entry.shadow.x .. ":" .. entry.shadow.y .. ":" .. entry.shadow.blur .. ":" .. entry.shadow.strength .. ":" .. colorKey(entry.shadow.color) else "",
-      entry.face ~= nil then toString(entry.face.strength) else "",
-      toString(entry.weightAdjust ?? 0)
-  }, "\27")
-  entry.batchKey
+  nil
 }
 
 fn meshVertex(x, y, u, v, color) {
@@ -647,7 +637,12 @@ fn flushTextComposeBatch(batch, stats = nil) {
 
   if fx {
     material:SetTexture("$basetexture", firstEntry.page.rt)
-    setupTextComposeMaterial(material, firstEntry)
+    setupTextComposeMaterial(material, firstEntry,
+      firstEntry.slotX / firstEntry.page.w,
+      firstEntry.slotY / firstEntry.page.h,
+      (firstEntry.slotX + (firstEntry.atlasW ?? firstEntry.w)) / firstEntry.page.w,
+      (firstEntry.slotY + (firstEntry.atlasH ?? firstEntry.h)) / firstEntry.page.h
+    )
   }
   renderSetMaterial(material)
   meshBegin(MATERIAL_TRIANGLES, #batch * 2)

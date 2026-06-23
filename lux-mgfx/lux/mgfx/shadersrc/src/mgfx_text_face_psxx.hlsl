@@ -16,9 +16,17 @@ float glyph_coverage(float4 texel)
 	return min(a, rgb);
 }
 
+float atlas_rect_mask(float2 uv)
+{
+	float2 rectMin = TEXT_ATLAS_RECT.xy;
+	float2 rectMax = TEXT_ATLAS_RECT.zw;
+	float2 inside = step(rectMin, uv) * step(uv, rectMax);
+	return inside.x * inside.y;
+}
+
 float sample_alpha(float2 uv)
 {
-	return glyph_coverage(tex2D(TexBase, uv));
+	return glyph_coverage(tex2D(TexBase, uv)) * atlas_rect_mask(uv);
 }
 
 float filtered_face_alpha(float2 uv)

@@ -63,6 +63,7 @@ function M._CreateTextRenderer(deps)
 	local surface_SetMaterial = surface.SetMaterial
 	local surface_SetTextColor = surface.SetTextColor
 	local surface_SetTextPos = surface.SetTextPos
+	local Matrix = Matrix
 
 	local renderer = {}
 	local measureCache = {}
@@ -95,7 +96,7 @@ function M._CreateTextRenderer(deps)
 	-- pages are headroom so the current flush can still finish without overflowing.
 	local SOFT_ATLAS_PAGES = MAX_ATLAS_PAGES - 2
 	local PAD = 4
-	local CACHE_VERSION = 20
+	local CACHE_VERSION = 22
 	local MEASURE_LIMIT = 4096
 	local DEFAULT_BUDGET = 6
 	local DEFAULT_CJK_FACE = "Noto Sans SC"
@@ -153,6 +154,38 @@ function M._CreateTextRenderer(deps)
 		and render_PopRenderTarget ~= nil
 		and cam_Start2D ~= nil
 		and cam_End2D ~= nil
+
+	local textParamMatrices = {}
+	local textParamMatrixSetUnpacked
+	do
+		local probeMatrix = Matrix and Matrix() or nil
+		textParamMatrixSetUnpacked = probeMatrix and probeMatrix.SetUnpacked or nil
+	end
+
+	local function setupTextParamMatrix(mat,
+		a0, a1, a2, a3,
+		b0, b1, b2, b3,
+		c0, c1, c2, c3,
+		d0, d1, d2, d3)
+		if not mat or not Matrix or not textParamMatrixSetUnpacked then
+			error("MGFX text compose atlas rect matrix unavailable", 2)
+		end
+
+		local matrix = textParamMatrices[mat]
+		if not matrix then
+			matrix = Matrix()
+			textParamMatrices[mat] = matrix
+		end
+
+		textParamMatrixSetUnpacked(matrix,
+			a0 or 0, b0 or 0, c0 or 0, d0 or 0,
+			a1 or 0, b1 or 0, c1 or 0, d1 or 0,
+			a2 or 0, b2 or 0, c2 or 0, d2 or 0,
+			a3 or 0, b3 or 0, c3 or 0, d3 or 0
+		)
+		mat:SetMatrix("$viewprojmat", matrix)
+		return true
+	end
 
 	local quad = {
 		{x = 0, y = 0, u = 0, v = 0},
@@ -1269,13 +1302,19 @@ function M._CreateTextRenderer(deps)
 		return blurByte * 131072 + falloffByte * 2048 + faceByte * 64 + weightByte
 	end
 
-	local function setupTextComposeMaterial(mat, entry)
+	local function setupTextComposeMaterial(mat, entry, u0, v0, u1, v1)
 		local stroke = entry.stroke
 		local glow = entry.glow
 		local shadow = entry.shadow
 		local face = entry.face
 		local weightAdjust = entry.weightAdjust or 0
 		local oversample = normalizeOversample(entry.oversample)
+		setupTextParamMatrix(mat,
+			u0, v0, u1, v1,
+			0, 0, 0, 0,
+			0, 0, 0, 0,
+			0, 0, 0, 0
+		)
 		local r, g, b, a = scaledColor01(stroke, 1)
 		mat:SetFloat("$c0_x", r)
 		mat:SetFloat("$c0_y", g)
@@ -1386,7 +1425,7 @@ function M._CreateTextRenderer(deps)
 		local mat = fx and composeMat or faceMat
 		if fx and matOK(mat) then
 			mat:SetTexture("$basetexture", page.rt)
-			setupTextComposeMaterial(mat, entry)
+			setupTextComposeMaterial(mat, entry, u0, v0, u1, v1)
 		elseif fx then
 			return nil
 		elseif faceMat then
@@ -1437,18 +1476,7 @@ function M._CreateTextRenderer(deps)
 			if fillNeedsShader(fill) then return nil end
 			return "plain\27" .. tostring(page.index or 0)
 		end
-		if not entry.shaderFace then return nil end
-		if entry.batchKey then return entry.batchKey end
-		entry.batchKey = table.concat({
-			page.index or 0,
-			tostring(entry.oversample or 1),
-			entry.stroke and (entry.stroke.width .. ":" .. entry.stroke.softness .. ":" .. colorKey(entry.stroke.color)) or "",
-			entry.glow and (entry.glow.width .. ":" .. entry.glow.strength .. ":" .. entry.glow.falloff .. ":" .. colorKey(entry.glow.color)) or "",
-			entry.shadow and (entry.shadow.x .. ":" .. entry.shadow.y .. ":" .. entry.shadow.blur .. ":" .. entry.shadow.strength .. ":" .. colorKey(entry.shadow.color)) or "",
-			entry.face and tostring(entry.face.strength) or "",
-			tostring(entry.weightAdjust or 0),
-		}, "\27")
-		return entry.batchKey
+		return nil
 	end
 
 	local textBatchVertex = Vector()
@@ -1545,7 +1573,12 @@ function M._CreateTextRenderer(deps)
 
 		if fx then
 			mat:SetTexture("$basetexture", firstEntry.page.rt)
-			setupTextComposeMaterial(mat, firstEntry)
+			setupTextComposeMaterial(mat, firstEntry,
+				firstEntry.slotX / firstEntry.page.w,
+				firstEntry.slotY / firstEntry.page.h,
+				(firstEntry.slotX + (firstEntry.atlasW or firstEntry.w)) / firstEntry.page.w,
+				(firstEntry.slotY + (firstEntry.atlasH or firstEntry.h)) / firstEntry.page.h
+			)
 		end
 		render.SetMaterial(mat)
 		mesh.Begin(MATERIAL_TRIANGLES, #batch * 2)

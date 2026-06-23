@@ -8,6 +8,7 @@
 #define TEXT_GLOW_WIDTH TEXT_PARAMS.y
 #define TEXT_EFFECT_PACK TEXT_PARAMS.z
 #define TEXT_SHADOW_PACK TEXT_PARAMS.w
+#define TEXT_ATLAS_RECT EXTRA0
 #define TEXT_ATLAS_TEXEL float2(1.0 / 2048.0, 1.0 / 1024.0)
 
 static const float2 DIR16[16] = {
@@ -40,15 +41,25 @@ float glyph_coverage(float4 texel)
 	return min(a, rgb);
 }
 
+float atlas_rect_mask(float2 uv)
+{
+	float2 rectMin = TEXT_ATLAS_RECT.xy;
+	float2 rectMax = TEXT_ATLAS_RECT.zw;
+	float2 inside = step(rectMin, uv) * step(uv, rectMax);
+	return inside.x * inside.y;
+}
+
 float sample_alpha(float2 uv)
 {
-	return glyph_coverage(tex2D(TexBase, uv));
+	return glyph_coverage(tex2D(TexBase, uv)) * atlas_rect_mask(uv);
 }
 
 float4 sample_texel(float2 uv)
 {
 	float4 texel = tex2D(TexBase, uv);
-	texel.a = glyph_coverage(texel);
+	float mask = atlas_rect_mask(uv);
+	texel.rgb *= mask;
+	texel.a = glyph_coverage(texel) * mask;
 	return texel;
 }
 
@@ -329,7 +340,7 @@ float3 shade_face(float2 uv, float3 rgb, float alpha, float strength)
 
 float4 main(PS_INPUT i) : COLOR
 {
-	float4 atlas = tex2D(TexBase, i.uv);
+	float4 atlas = sample_texel(i.uv);
 	float shadowBlur = 0.0;
 	float glowFalloff = 1.65;
 	float faceStrength = 0.0;

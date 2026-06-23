@@ -9,8 +9,10 @@ local createMaterial = CreateMaterial
 local getConVar = GetConVar
 local getRenderTargetEx = GetRenderTargetEx
 local makeColor = Color
+local matrixCtor = Matrix
 local drawSimpleText = _G.draw.SimpleText
 local drawDrawText = _G.draw.DrawText
+local errorFn = error
 local errorNoHaltWithStack = ErrorNoHaltWithStack
 local meshBegin = mesh?.Begin
 local meshColor = mesh?.Color
@@ -94,6 +96,9 @@ local restoreScissor = () => {}
 local gradientLutForFill = () => nil
 local materialOK = (material) => material ~= nil and material.IsError ~= nil and not material:IsError()
 local defaultTextRenderer = nil
+local textParamMatrixProbe = matrixCtor ~= nil then matrixCtor() else nil
+local textParamMatrixSetUnpacked = textParamMatrixProbe?.SetUnpacked
+local textParamMatrices = {}
 
 local MEASURE_LIMIT = 4096
 local ATLAS_W = 2048
@@ -101,7 +106,7 @@ local ATLAS_H = 1024
 local MAX_ATLAS_PAGES = 16
 local SOFT_ATLAS_PAGES = 14
 local ATLAS_PAD = 4
-local CACHE_VERSION = 21
+local CACHE_VERSION = 22
 local DEFAULT_BUDGET = 6
 local DEFAULT_CJK_FACE = "Noto Sans SC"
 local RESOLVED_STYLE_MARK = "__mgfxTextResolved"
@@ -124,6 +129,31 @@ local profile = {
 
 fn textComposerCapable() =
   renderClear ~= nil and renderPushRenderTarget ~= nil and renderPopRenderTarget ~= nil and camStart2D ~= nil and camEnd2D ~= nil
+
+fn setupTextParamMatrix(material,
+  a0, a1, a2, a3,
+  b0, b1, b2, b3,
+  c0, c1, c2, c3,
+  d0, d1, d2, d3) {
+  if material == nil or matrixCtor == nil or textParamMatrixSetUnpacked == nil {
+    errorFn("MGFX text compose atlas rect matrix unavailable", 2)
+  }
+
+  local matrix = textParamMatrices[material]
+  if matrix == nil {
+    matrix = matrixCtor()
+    textParamMatrices[material] = matrix
+  }
+
+  textParamMatrixSetUnpacked(matrix,
+    a0 ?? 0, b0 ?? 0, c0 ?? 0, d0 ?? 0,
+    a1 ?? 0, b1 ?? 0, c1 ?? 0, d1 ?? 0,
+    a2 ?? 0, b2 ?? 0, c2 ?? 0, d2 ?? 0,
+    a3 ?? 0, b3 ?? 0, c3 ?? 0, d3 ?? 0
+  )
+  material:SetMatrix("$viewprojmat", matrix)
+  true
+}
 
 fn configureTextRenderer(deps = nil) {
   deps = deps ?? {}
