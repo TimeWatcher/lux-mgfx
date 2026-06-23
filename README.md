@@ -79,6 +79,9 @@ The generated site is written to `docs-site/`.
 
 #### Rendering Fixes
 
+- 2026-06-23 (`2788385`) Fixed text atlas isolation across independently bundled MGFX runtimes. Each text renderer now gets a process-wide unique atlas namespace, and render targets/materials use the same atlas page name. This prevents text shadows or composed text effects in one addon or window from sampling glyphs rendered by another addon.
+- 2026-06-23 (`2788385`) Restored deterministic text atlas bake state for both Lua and Lux runtimes by enabling alpha writes and explicit blend state while drawing glyphs into the atlas, then restoring render state immediately after the bake pass.
+- 2026-06-23 (`95eac72`) Fixed text effect atlas sampling so face, stroke, glow, and shadow passes read glyph coverage from the atlas rect only. This prevents text effect blur kernels from bleeding outside the intended glyph allocation.
 - 2026-06-23 (`934d91a`) Fixed effect rendering semantics across the Lua and Lux implementations. `shadow` now uses a full blurred shape alpha mask like CSS `box-shadow`; it no longer reuses the exterior-only `outerGlow` formula that could leave hard transparent holes when offsets were applied.
 - 2026-06-23 (`934d91a`) Added dedicated shadow draw paths and shader materials for rounded rectangles, chamfers, rings, image masks, and convex polygons. Shadow, outer glow, inner glow, and backdrop are now routed as separate effects instead of sharing ambiguous fallback behavior.
 - 2026-06-23 (`934d91a`) Added automatic panel effect bleed handling. Effects that should extend outside the panel, such as `shadow` and `outerGlow`, temporarily expand clipping and scissor bounds based on their computed blur/spread extent, while fill, stroke, backdrop, and inner glow stay clipped to the panel.
@@ -105,6 +108,7 @@ The generated site is written to `docs-site/`.
 
 #### Build And Packaging
 
+- 2026-06-23 (`2788385`) Rebuilt the shaderpack at version `1782220800` and regenerated the Lux `dist/lua` output after the text atlas isolation fix.
 - 2026-06-23 (`c9964cd`) Rebuilt the shaderpack at version `1782205200`, including the new dedicated shadow, outer glow, stroke, backdrop, and polygon shader outputs.
 - 2026-06-23 (`959122c`) Rebuilt the Lux generated `dist/lua` output from the updated Lux sources.
 - 2026-06-17 (`6b28641`, `92d3792`) Added and refreshed the precompiled MGFX Lua loader distribution for Lux consumers that need generated GLua output.
