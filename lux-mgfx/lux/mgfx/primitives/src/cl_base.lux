@@ -54,6 +54,8 @@ local linePolyPointsScratch = { {}, {}, {}, {} }
 local polyDrawRectScratch = {}
 local defaultLineColor = makeColor(255, 255, 255, 32)
 local transparentColor = makeColor(0, 0, 0, 0)
+local primitiveTransparentFill = { kind = style.FILL_SOLID, colorA = transparentColor, colorB = transparentColor, _mgfxFillVisible = false }
+local polyBackdropFill = { kind = style.FILL_SOLID, colorA = transparentColor, colorB = transparentColor }
 local LINE_AA_FRINGE = 1
 local LINE_NO_CAPS_UV_OFFSET = 8
 
@@ -118,6 +120,23 @@ fn fillColor(fill, fallback = nil) {
   fallback ?? color_white
 }
 
+fn hotFillVisible(fill) {
+  stopif fill == nil, false
+  stopif typeOf(fill) ~= "table", true
+
+  if style.isColor(fill) {
+    return fill.a == nil or fill.a > 0
+  }
+
+  if fill._mgfxFillVisible ~= nil {
+    return fill._mgfxFillVisible
+  }
+
+  local colorA = fill.colorA ?? fill.color ?? color_white
+  local colorB = fill.colorB ?? colorA
+  (colorA.a == nil or colorA.a > 0) or (colorB.a == nil or colorB.a > 0)
+}
+
 fn pointXY(point) {
   return toNumber(point.x ?? point[1]) ?? 0,
     toNumber(point.y ?? point[2]) ?? 0
@@ -131,3 +150,32 @@ fn effectBleedFromDrawRect(x, y, w, h, drawX, drawY, drawW, drawH) {
   return left, top, right, bottom
 }
 
+fn primitiveStrokeVisible(strokeValue, strokeWidth) =
+  strokeValue ~= nil and (strokeValue.a == nil or strokeValue.a > 0) and (strokeWidth ?? 0) > 0
+
+fn drawPreparedRoundRectPlain(x, y, w, h, radius, fill, strokeValue = nil, strokeWidth = 0, patternSpec = nil) {
+  roundrect.drawRoundRectPrepared(
+    x, y, w, h, radius,
+    fill ?? primitiveTransparentFill, hotFillVisible(fill), strokeValue, strokeWidth, primitiveStrokeVisible(strokeValue, strokeWidth),
+    false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0,
+    false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0,
+    false, 0, 0, 0, 0, 0, 0, 1,
+    nil, patternSpec
+  )
+}
+
+fn drawPreparedRoundRectEffects(
+  x, y, w, h, radius, fill,
+  hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread,
+  hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
+  backdropSpec
+) {
+  roundrect.drawRoundRectPrepared(
+    x, y, w, h, radius,
+    fill ?? primitiveTransparentFill, hotFillVisible(fill), nil, 0, false,
+    hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread,
+    hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
+    false, 0, 0, 0, 0, 0, 0, 1,
+    backdropSpec, nil
+  )
+}

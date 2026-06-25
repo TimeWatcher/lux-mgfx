@@ -72,8 +72,54 @@ fn lineQuadVertsInto(out, x1, y1, x2, y2, strokeWidth, noCaps, fringeOverride = 
 }
 
 fn drawLineRectRaw(x, y, w, h, fill, radius = nil, shadow = nil, outerGlow = nil, backdrop = nil) {
+  if radius ~= nil and shadow == nil and outerGlow == nil and backdrop == nil {
+    return drawPreparedRoundRectPlain(x, y, w, h, radius ?? 0, fill)
+  }
+
   if radius ~= nil or shadow ~= nil or outerGlow ~= nil or backdrop ~= nil {
-    return roundrect.drawRoundRectRaw(x, y, w, h, radius ?? 0, fill, nil, nil, shadow, outerGlow, nil, backdrop)
+    local hasShadow = false
+    local sr = 0
+    local sg = 0
+    local sb = 0
+    local sa = 0
+    local shadowX = 0
+    local shadowY = 0
+    local shadowWidth = 1
+    local shadowSpread = 1
+    local shadowGrow = 0
+    local shadowStrength = 0
+    local shadowFalloff = 1
+    local shadowExtent = 0
+    local shadowCullSpread = 0
+    if shadow ~= nil and shadow ~= false {
+      hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread = roundrect.shadowRaw(shadow)
+    }
+
+    local hasOuter = false
+    local orr = 0
+    local og = 0
+    local ob = 0
+    local oa = 0
+    local outerX = 0
+    local outerY = 0
+    local outerWidth = 1
+    local outerSpread = 1
+    local outerGrow = 0
+    local outerStrength = 0
+    local outerFalloff = 1
+    local outerExtent = 0
+    local outerCullSpread = 0
+    if outerGlow ~= nil and outerGlow ~= false {
+      hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread = roundrect.outerGlowRaw(outerGlow)
+    }
+
+    local backdropSpec = backdrop ~= nil and backdrop ~= false then style.backdropStyle(backdrop) else nil
+    return drawPreparedRoundRectEffects(
+      x, y, w, h, radius ?? 0, fill,
+      hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread,
+      hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
+      backdropSpec
+    )
   }
 
   local points = linePolyPointsScratch
@@ -124,7 +170,7 @@ export client fn drawLineRaw(x1, y1, x2, y2, fillInput = nil, widthInput = nil, 
   }
 
   local fill = style.fillFromStyle(fillInput ?? defaultLineColor)
-  if not style.fillVisible(fill) and backdrop == nil {
+  if not hotFillVisible(fill) and backdrop == nil {
     return
   }
 

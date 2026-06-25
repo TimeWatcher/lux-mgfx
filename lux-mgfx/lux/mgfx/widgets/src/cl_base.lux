@@ -58,6 +58,7 @@ local defaultSegmentFill = makeColor(255, 120, 72, 230)
 local defaultSegmentTrack = makeColor(255, 255, 255, 22)
 local defaultRingFill = makeColor(255, 255, 255, 180)
 local transparentColor = makeColor(0, 0, 0, 0)
+local transparentFill = { kind = style.FILL_SOLID, colorA = transparentColor, colorB = transparentColor, _mgfxFillVisible = false }
 
 fn configureWidgets(owner) {
   owner = owner ?? {}
@@ -176,4 +177,55 @@ fn effectBleedFromDrawRect(x, y, w, h, drawX, drawY, drawW, drawH) {
   local right = mathMax(0, drawX + drawW - (x + w))
   local bottom = mathMax(0, drawY + drawH - (y + h))
   return left, top, right, bottom
+}
+
+fn solidFillInto(out, color) {
+  local c = color ?? transparentColor
+  out.kind = style.FILL_SOLID
+  out.colorA = c
+  out.colorB = c
+  out._mgfxFillVisible = c.a == nil or c.a > 0
+  out
+}
+
+fn preparedStrokeVisible(strokeValue, strokeWidth) =
+  strokeValue ~= nil and (strokeValue.a == nil or strokeValue.a > 0) and (strokeWidth ?? 0) > 0
+
+fn preparedFillVisible(fill) {
+  stopif fill == nil, false
+  if fill._mgfxFillVisible ~= nil {
+    return fill._mgfxFillVisible
+  }
+  if style.isColor(fill) {
+    return fill.a == nil or fill.a > 0
+  }
+  style.fillVisible(fill)
+}
+
+fn drawPreparedRoundRectPlain(x, y, w, h, radius, fill, strokeValue = nil, strokeWidth = 0, patternSpec = nil) {
+  roundrect.drawRoundRectPrepared(
+    x, y, w, h, radius,
+    fill ?? transparentFill, preparedFillVisible(fill), strokeValue, strokeWidth, preparedStrokeVisible(strokeValue, strokeWidth),
+    false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0,
+    false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0,
+    false, 0, 0, 0, 0, 0, 0, 1,
+    nil, patternSpec
+  )
+}
+
+fn drawPreparedRoundRectEffects(
+  x, y, w, h, radius, fill, strokeValue, strokeWidth,
+  hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread,
+  hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
+  hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff,
+  backdropSpec, patternSpec
+) {
+  roundrect.drawRoundRectPrepared(
+    x, y, w, h, radius,
+    fill ?? transparentFill, preparedFillVisible(fill), strokeValue, strokeWidth, preparedStrokeVisible(strokeValue, strokeWidth),
+    hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread,
+    hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
+    hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff,
+    backdropSpec, patternSpec
+  )
 }

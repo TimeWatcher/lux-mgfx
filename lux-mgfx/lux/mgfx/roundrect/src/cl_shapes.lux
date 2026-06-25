@@ -1,28 +1,17 @@
 export client fn roundedBoxEx(x, y, w, h, drawStyle = nil) {
-  local trace = roundRectTraceStart("api.RoundedBoxEx")
-  local styleTrace = roundRectTraceStart("api.RoundedBoxEx.resolveDrawStyle")
   local resolved = drawStyle ?? {}
-  roundRectTraceEnd(styleTrace)
-  local transformTrace = roundRectTraceStart("api.RoundedBoxEx.splitStyleTransform")
   local transform, stripped = splitStyleTransform(resolved)
-  roundRectTraceEnd(transformTrace)
   if transform == nil {
     local result = drawRoundRectImmediate(x, y, w, h, stripped)
-    roundRectTraceEnd(trace)
     return result
   }
 
-  local withTransformTrace = roundRectTraceStart("api.RoundedBoxEx.withTransform")
   local result = withTransform(transform, x, y, w, h, () => drawRoundRectImmediate(x, y, w, h, stripped))
-  roundRectTraceEnd(withTransformTrace)
-  roundRectTraceEnd(trace)
   result
 }
 
 export client fn roundedBox(x, y, w, h, radius, fill, stroke = nil, strokeWidth = nil) {
-  local trace = roundRectTraceStart("api.RoundedBox")
   local result = drawRoundRectRaw(x, y, w, h, radius, fill, stroke, strokeWidth)
-  roundRectTraceEnd(trace)
   return result
 }
 

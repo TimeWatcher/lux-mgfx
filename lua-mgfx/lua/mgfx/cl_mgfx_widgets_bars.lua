@@ -38,6 +38,9 @@ function MGFX._InstallWidgetBars(C)
 	local imageUV = C.imageUV
 	local imageFitRect = C.imageFitRect
 	local drawRoundRectRaw = C.drawRoundRectRaw
+	local drawRoundRectPrepared = assert(C.drawRoundRectPrepared, "MGFX roundrect prepared helper unavailable")
+	local roundRaw = assert(C.roundRaw, "MGFX raw effect helper unavailable")
+	local backdropStyle = C.backdropStyle or function() return nil end
 	local drawRoundRectOuterGlow = C.drawRoundRectOuterGlow
 	local chamferTuple = C.chamferTuple
 	local drawChamferOuterGlow = C.drawChamferOuterGlow
@@ -78,12 +81,18 @@ function MGFX._InstallWidgetBars(C)
 	local defaultProgressStroke = Color(255, 255, 255, 18)
 	local defaultSegmentFill = Color(255, 120, 72, 230)
 	local defaultSegmentTrack = Color(255, 255, 255, 22)
+	local transparentFill = {kind = FILL_SOLID, colorA = transparentColor, colorB = transparentColor, _mgfxFillVisible = false}
+	local segmentItemFillScratch = {kind = FILL_SOLID, colorA = transparentColor, colorB = transparentColor, _mgfxFillVisible = false}
+	local segmentContainerFillScratch = {kind = FILL_SOLID, colorA = transparentColor, colorB = transparentColor, _mgfxFillVisible = false}
 	local progressTrackGradient = M.LinearGradient(0, 0, 0, 1, Color(0, 0, 0, 0), color_white)
 	local progressSheenGradient = M.LinearGradient(0, 0, 0, 1, Color(255, 255, 255, 42), Color(255, 255, 255, 0))
 	local progressTrackDarkColor = Color(0, 0, 0, 0)
 	local tickColor = Color(255, 255, 255, 18)
 	local glowColor = Color(80, 190, 255, 38)
 	local markerColor = Color(255, 255, 255, 96)
+	local progressTickFill = {kind = FILL_SOLID, colorA = tickColor, colorB = tickColor, _mgfxFillVisible = true}
+	local progressGlowFill = {kind = FILL_SOLID, colorA = glowColor, colorB = glowColor, _mgfxFillVisible = true}
+	local progressMarkerFill = {kind = FILL_SOLID, colorA = markerColor, colorB = markerColor, _mgfxFillVisible = true}
 
 	local function setGradientColors(fill, colorA, colorB)
 		fill.colorA = colorA
@@ -93,6 +102,54 @@ function MGFX._InstallWidgetBars(C)
 		fill._mgfxFillVisible = (colorA.a == nil or colorA.a > 0) or (colorB.a == nil or colorB.a > 0)
 		fill._mgfxLutCacheSafe = false
 		return fill
+	end
+
+	local function solidFillInto(out, color)
+		local c = color or transparentColor
+		out.kind = FILL_SOLID
+		out.colorA = c
+		out.colorB = c
+		out._mgfxFillVisible = c.a == nil or c.a > 0
+		return out
+	end
+
+	local function preparedStrokeVisible(strokeValue, strokeWidth)
+		return strokeValue ~= nil and (strokeValue.a == nil or strokeValue.a > 0) and (strokeWidth or 0) > 0
+	end
+
+	local function preparedFillVisible(fill)
+		if fill == nil then return false end
+		if fill._mgfxFillVisible ~= nil then return fill._mgfxFillVisible end
+		if fill.r ~= nil and fill.g ~= nil and fill.b ~= nil then return fill.a == nil or fill.a > 0 end
+		return fillVisible(fill)
+	end
+
+	local function drawPreparedRoundRectPlain(x, y, w, h, radius, fill, strokeValue, strokeWidth, patternSpec)
+		return drawRoundRectPrepared(
+			x, y, w, h, radius,
+			fill or transparentFill, preparedFillVisible(fill), strokeValue, strokeWidth or 0, preparedStrokeVisible(strokeValue, strokeWidth),
+			false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0,
+			false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0,
+			false, 0, 0, 0, 0, 0, 0, 1,
+			nil, patternSpec
+		)
+	end
+
+	local function drawPreparedRoundRectEffects(
+		x, y, w, h, radius, fill, strokeValue, strokeWidth,
+		hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread,
+		hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
+		hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff,
+		backdropSpec, patternSpec
+	)
+		return drawRoundRectPrepared(
+			x, y, w, h, radius,
+			fill or transparentFill, preparedFillVisible(fill), strokeValue, strokeWidth or 0, preparedStrokeVisible(strokeValue, strokeWidth),
+			hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread,
+			hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
+			hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff,
+			backdropSpec, patternSpec
+		)
 	end
 
 
@@ -223,63 +280,87 @@ local function drawProgressBarFxFast(x, y, w, h, value, fill, radius, inset, tra
 	drawTexturedQuad(x, y, w, h, mat)
 end
 
-local function drawProgressBarRaw(x, y, w, h, value, radiusInput, trackInput, fillInput, strokeInput, strokeWidthInput, paddingInput, fxInput, shadow, outerGlow, innerGlow, backdrop, pattern, fillPattern, trackPattern)
-	local frac = math.Clamp(tonumber(value) or 0, 0, 1)
-	local radius = radiusInput or math_min(4, h * 0.5)
-	local inset = math_max(0, tonumber(paddingInput) or 0)
-	local track = trackInput or defaultProgressTrack
-	local fill = fillFromStyle(fillInput or color_white)
-	local stroke = strokeInput or defaultProgressStroke
-	local strokeWidth = strokeWidthValue(strokeWidthInput, 1)
-	local flags, ticks = progressFx(fxInput)
-	local hasFx = flags ~= 0 or ticks > 1
-	recordDirectImmediate("DrawProgressBar", "progress")
+	local function drawProgressBarRaw(x, y, w, h, value, radiusInput, trackInput, fillInput, strokeInput, strokeWidthInput, paddingInput, fxInput, shadow, outerGlow, innerGlow, backdrop, pattern, fillPattern, trackPattern)
+		local frac = math.Clamp(tonumber(value) or 0, 0, 1)
+		local radius = radiusInput or math_min(4, h * 0.5)
+		local inset = math_max(0, tonumber(paddingInput) or 0)
+		local track = trackInput or defaultProgressTrack
+		local fill = fillFromStyle(fillInput or color_white)
+		local stroke = strokeInput or defaultProgressStroke
+		local strokeWidth = strokeWidthValue(strokeWidthInput, 1)
+		local flags, ticks = progressFx(fxInput)
+		local hasFx = flags ~= 0 or ticks > 1
+		recordDirectImmediate("DrawProgressBar", "progress")
 
 	if hasFx and canDrawProgressFxFast(fill, inset, strokeWidth, shadow, backdrop, outerGlow, innerGlow, pattern, fillPattern, trackPattern) then
 		return drawProgressBarFxFast(x, y, w, h, frac, fill, radius, inset, track, stroke, strokeWidth, flags, ticks)
-	elseif canDrawProgressFast(fill, flags, ticks, inset, strokeWidth, shadow, backdrop, outerGlow, innerGlow, pattern, fillPattern, trackPattern) then
-		return drawProgressBarFast(x, y, w, h, frac, fill, radius, inset, track, stroke, strokeWidth)
-	end
+		elseif canDrawProgressFast(fill, flags, ticks, inset, strokeWidth, shadow, backdrop, outerGlow, innerGlow, pattern, fillPattern, trackPattern) then
+			return drawProgressBarFast(x, y, w, h, frac, fill, radius, inset, track, stroke, strokeWidth)
+		end
 
-	progressTrackDarkColor.r = math_floor(track.r * 0.65)
-	progressTrackDarkColor.g = math_floor(track.g * 0.65)
-	progressTrackDarkColor.b = math_floor(track.b * 0.65)
-	progressTrackDarkColor.a = track.a or 190
-	local trackFill = setGradientColors(progressTrackGradient, progressTrackDarkColor, track)
-	drawRoundRectRaw(x, y, w, h, radius, trackFill, stroke, strokeWidth, shadow, outerGlow, innerGlow, backdrop, trackPattern)
+		local hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread = false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0
+		if shadow ~= nil and shadow ~= false then
+			hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread = roundRaw.shadow(shadow)
+		end
+		local hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread = false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0
+		if outerGlow ~= nil and outerGlow ~= false then
+			hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread = roundRaw.outerGlow(outerGlow)
+		end
+		local hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff = false, 0, 0, 0, 0, 0, 0, 1
+		if innerGlow ~= nil and innerGlow ~= false then
+			hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff = roundRaw.innerGlow(innerGlow)
+		end
+		local backdropSpec = backdrop ~= nil and backdrop ~= false and backdropStyle(backdrop) or nil
+		local patternSpec = pattern ~= nil and pattern ~= false and patternStyle(pattern) or nil
+		local fillPatternSpec = fillPattern ~= nil and fillPattern ~= false and patternStyle(fillPattern) or patternSpec
+		local trackPatternSpec = trackPattern ~= nil and trackPattern ~= false and patternStyle(trackPattern) or nil
+
+		progressTrackDarkColor.r = math_floor(track.r * 0.65)
+		progressTrackDarkColor.g = math_floor(track.g * 0.65)
+		progressTrackDarkColor.b = math_floor(track.b * 0.65)
+		progressTrackDarkColor.a = track.a or 190
+		local trackFill = setGradientColors(progressTrackGradient, progressTrackDarkColor, track)
+		drawPreparedRoundRectEffects(
+			x, y, w, h, radius,
+			trackFill, stroke, strokeWidth,
+			hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread,
+			hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
+			hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff,
+			backdropSpec, trackPatternSpec
+		)
 
 	local ih = h - inset * 2
 	local iw = (w - inset * 2) * frac
 	if frac >= 0.999 then iw = w - inset * 2 end
 	if ih <= 0 then return end
 
-	if ticks and ticks > 1 then
-		for i = 1, ticks - 1 do
-			local tx = x + math_floor(w * i / ticks)
-			drawRoundRectRaw(tx, y + 3, 1, math_max(1, h - 6), 0, tickColor, nil, nil, nil, nil, nil, nil, nil)
+		if ticks and ticks > 1 then
+			for i = 1, ticks - 1 do
+				local tx = x + math_floor(w * i / ticks)
+				drawPreparedRoundRectPlain(tx, y + 3, 1, math_max(1, h - 6), 0, progressTickFill)
+			end
 		end
-	end
 
 	if iw <= 0 then return end
 
-	if fxFlag(flags, FX_GLOW) and iw > 4 then
-		local glowRadius = math_min(radius + 2, (ih + 4) * 0.5, (iw + 4) * 0.5)
-		drawRoundRectRaw(x + inset - 2, y + inset - 2, iw + 4, ih + 4, glowRadius, glowColor, nil, nil, nil, nil, nil, nil, nil)
-	end
+		if fxFlag(flags, FX_GLOW) and iw > 4 then
+			local glowRadius = math_min(radius + 2, (ih + 4) * 0.5, (iw + 4) * 0.5)
+			drawPreparedRoundRectPlain(x + inset - 2, y + inset - 2, iw + 4, ih + 4, glowRadius, progressGlowFill)
+		end
 
-	local fillRadius = math_min(math_max(0, radius - inset), ih * 0.5, iw * 0.5)
-	drawRoundRectRaw(x + inset, y + inset, iw, ih, fillRadius, fill, nil, nil, nil, nil, nil, nil, fillPattern or pattern)
+		local fillRadius = math_min(math_max(0, radius - inset), ih * 0.5, iw * 0.5)
+		drawPreparedRoundRectPlain(x + inset, y + inset, iw, ih, fillRadius, fill, nil, nil, fillPatternSpec)
 
-	if fxFlag(flags, FX_SHEEN) and iw > 8 then
-		local sheenRadius = math_min(radius, ih * 0.25)
-		drawRoundRectRaw(x + inset + 1, y + inset + 1, math_max(1, iw - 2), math_max(1, ih * 0.38), sheenRadius, progressSheenGradient, nil, nil, nil, nil, nil, nil, nil)
-	end
+		if fxFlag(flags, FX_SHEEN) and iw > 8 then
+			local sheenRadius = math_min(radius, ih * 0.25)
+			drawPreparedRoundRectPlain(x + inset + 1, y + inset + 1, math_max(1, iw - 2), math_max(1, ih * 0.38), sheenRadius, progressSheenGradient)
+		end
 
-	if fxFlag(flags, FX_MARKER) and iw > 5 then
-		local mx = x + inset + iw - 2
-		drawRoundRectRaw(mx, y + 2, 2, h - 4, 1, markerColor, nil, nil, nil, nil, nil, nil, nil)
+		if fxFlag(flags, FX_MARKER) and iw > 5 then
+			local mx = x + inset + iw - 2
+			drawPreparedRoundRectPlain(mx, y + 2, 2, h - 4, 1, progressMarkerFill)
+		end
 	end
-end
 
 function M.ProgressBarEx(x, y, w, h, value, style)
 	style = resolveDrawStyle(style, M.TARGET.PROGRESS_BAR)
@@ -317,33 +398,60 @@ local function segmentFillEndpoints(fill)
 	return fill.colorA or color_white, fill.colorB or fill.colorA or color_white
 end
 
-local function drawSegmentBarFallbackRaw(x, y, w, h, value, segments, fillInput, colorInput, trackInput, radiusInput, gapInput, backgroundRadius, background, stroke, strokeWidthInput, shadow, outerGlow, innerGlow, backdrop, pattern, fillPattern, trackPattern)
-	local count = math.Clamp(math_floor(tonumber(segments) or 10), 1, 128)
-	local gap = math_max(0, tonumber(gapInput) or 2)
-	local frac = math.Clamp(tonumber(value) or 0, 0, 1)
-	local active = math_floor(frac * count + 0.0001)
-	local fill = fillFromStyle(fillInput or colorInput or defaultSegmentFill)
-	local track = trackInput or defaultSegmentTrack
-	local totalGap = gap * (count - 1)
-	local segW = (w - totalGap) / count
-	if segW <= 0 or h <= 0 then return end
-	local containerRadius = backgroundRadius or radiusInput or math_min(3, h * 0.5)
+	local function drawSegmentBarFallbackRaw(x, y, w, h, value, segments, fillInput, colorInput, trackInput, radiusInput, gapInput, backgroundRadius, background, stroke, strokeWidthInput, shadow, outerGlow, innerGlow, backdrop, pattern, fillPattern, trackPattern)
+		local count = math.Clamp(math_floor(tonumber(segments) or 10), 1, 128)
+		local gap = math_max(0, tonumber(gapInput) or 2)
+		local frac = math.Clamp(tonumber(value) or 0, 0, 1)
+		local active = math_floor(frac * count + 0.0001)
+		local fill = fillFromStyle(fillInput or colorInput or defaultSegmentFill)
+		local track = trackInput or defaultSegmentTrack
+		local strokeWidth = strokeWidthValue(strokeWidthInput, 0)
+		local totalGap = gap * (count - 1)
+		local segW = (w - totalGap) / count
+		if segW <= 0 or h <= 0 then return end
+		local containerRadius = backgroundRadius or radiusInput or math_min(3, h * 0.5)
 
-	if shadow or outerGlow or innerGlow or backdrop or background then
-		drawRoundRectRaw(x, y, w, h, containerRadius, background or transparentColor, nil, nil, shadow, outerGlow, innerGlow, backdrop, nil)
-	end
+		if shadow or outerGlow or innerGlow or backdrop or background then
+			local hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread = false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0
+			if shadow ~= nil and shadow ~= false then
+				hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread = roundRaw.shadow(shadow)
+			end
+			local hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread = false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0
+			if outerGlow ~= nil and outerGlow ~= false then
+				hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread = roundRaw.outerGlow(outerGlow)
+			end
+			local hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff = false, 0, 0, 0, 0, 0, 0, 1
+			if innerGlow ~= nil and innerGlow ~= false then
+				hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff = roundRaw.innerGlow(innerGlow)
+			end
+			local backdropSpec = backdrop ~= nil and backdrop ~= false and backdropStyle(backdrop) or nil
+			local backgroundFill = background ~= nil and fillFromStyle(background) or solidFillInto(segmentContainerFillScratch, transparentColor)
+			drawPreparedRoundRectEffects(
+				x, y, w, h, containerRadius,
+				backgroundFill, nil, 0,
+				hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread,
+				hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
+				hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff,
+				backdropSpec, nil
+			)
+		end
 
-	local itemRadius = radiusInput == nil and math_min(2, h * 0.35) or radiusInput
-	for i = 1, count do
-		local t = count == 1 and 1 or (i - 1) / (count - 1)
-		local sx = x + (i - 1) * (segW + gap)
-		local color = i <= active and colorAtFill(fill, t) or track
-		local itemPattern = i <= active and (fillPattern or pattern) or trackPattern
-		if (color and (color.a or 255) > 0) or itemPattern then
-			drawRoundRectRaw(sx, y, segW, h, itemRadius, color or transparentColor, stroke, strokeWidthInput or 0, nil, nil, nil, nil, itemPattern)
+		local itemRadius = radiusInput == nil and math_min(2, h * 0.35) or radiusInput
+		local trackFill = fillFromStyle(track)
+		local patternSpec = pattern ~= nil and pattern ~= false and patternStyle(pattern) or nil
+		local fillPatternSpec = fillPattern ~= nil and fillPattern ~= false and patternStyle(fillPattern) or patternSpec
+		local trackPatternSpec = trackPattern ~= nil and trackPattern ~= false and patternStyle(trackPattern) or nil
+		for i = 1, count do
+			local t = count == 1 and 1 or (i - 1) / (count - 1)
+			local sx = x + (i - 1) * (segW + gap)
+			local color = i <= active and colorAtFill(fill, t) or track
+			local itemFill = i <= active and solidFillInto(segmentItemFillScratch, color) or trackFill
+			local itemPattern = i <= active and fillPatternSpec or trackPatternSpec
+			if preparedFillVisible(itemFill) or itemPattern then
+				drawPreparedRoundRectPlain(sx, y, segW, h, itemRadius, itemFill, stroke, strokeWidth, itemPattern)
+			end
 		end
 	end
-end
 
 local function drawSegmentBarShaderRaw(x, y, w, h, value, segments, fillInput, colorInput, trackInput, radiusInput, gapInput, background, stroke, strokeWidthInput, shadow, outerGlow, innerGlow, backdrop, pattern, fillPattern, trackPattern)
 	if not shadersActive() or not matOK(materials.segmentbar) then return false end
@@ -360,7 +468,7 @@ local function drawSegmentBarShaderRaw(x, y, w, h, value, segments, fillInput, c
 	local fill = fillFromStyle(fillInput or colorInput or defaultSegmentFill)
 	local track = asColor(trackInput or defaultSegmentTrack, defaultSegmentTrack)
 	local fillA, fillB = segmentFillEndpoints(fill)
-	local hasFill = fillVisible(fill)
+	local hasFill = preparedFillVisible(fill)
 	local hasTrack = track.a == nil or track.a > 0
 	if not hasFill and not hasTrack then return true end
 

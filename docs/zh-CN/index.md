@@ -15,13 +15,15 @@ hero:
 
 features:
   - title: 直接绘制优先
-    details: Shape 和 widget 走直接 shader/fallback 路径；不再维护昂贵的通用 batch scheduler。
+    details: Shape 和 widget 走直接 shader/fallback 路径；public API 边界以下使用 prepared scalar 参数。
   - title: 按形状裁剪的效果
     details: Rounded、Chamfer、Circle、Capsule、Ring、Arc、Sector、Image mask 都按自身覆盖范围处理 glow 和 backdrop。
   - title: 完整 stop 渐变
     details: Linear、Radial、Conic、Ring/Sector local radial、Shape angular 都走统一 LUT stop 路径。
   - title: 矩阵参数上传
     details: 热路径参数优先用 $viewprojmat / c11 和 $invviewprojmat / c15 一次上传，SetFloat 只作为兼容或诊断手段。
+  - title: 实测 shop 性能
+    details: 复杂 shop UI 满列表可稳定 130+ FPS，商品较少分类可稳定 160+ FPS，测试时关闭 profile/draw_counts。
 ---
 
 ## 快速开始

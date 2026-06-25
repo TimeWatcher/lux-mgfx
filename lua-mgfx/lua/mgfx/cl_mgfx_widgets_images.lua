@@ -45,6 +45,7 @@ function MGFX._InstallWidgetImages(C)
 	local imageUV = C.imageUV
 	local imageFitRect = C.imageFitRect
 	local drawRoundRectRaw = C.drawRoundRectRaw
+	local drawRoundRectPrepared = assert(C.drawRoundRectPrepared, "MGFX roundrect prepared helper unavailable")
 	local drawRoundRectOuterGlow = C.drawRoundRectOuterGlow
 	local roundRaw = assert(C.roundRaw, "MGFX raw effect helper unavailable")
 	local chamferTuple = C.chamferTuple
@@ -83,7 +84,47 @@ function MGFX._InstallWidgetImages(C)
 	local MASK_TEXTURE_B = 13
 	local MASK_TEXTURE_LUMA = 14
 	local transparentColor = Color(0, 0, 0, 0)
+	local transparentFill = {kind = FILL_SOLID, colorA = transparentColor, colorB = transparentColor, _mgfxFillVisible = false}
 	local sourceAlphaMaskScratch = {kind = "texture", channel = "alpha", sourceAlpha = true}
+
+	local function preparedStrokeVisible(strokeValue, strokeWidth)
+		return strokeValue ~= nil and (strokeValue.a == nil or strokeValue.a > 0) and (strokeWidth or 0) > 0
+	end
+
+	local function preparedFillVisible(fill)
+		if fill == nil then return false end
+		if fill._mgfxFillVisible ~= nil then return fill._mgfxFillVisible end
+		if fill.r ~= nil and fill.g ~= nil and fill.b ~= nil then return fill.a == nil or fill.a > 0 end
+		return fillVisible(fill)
+	end
+
+	local function drawPreparedRoundRectPlain(x, y, w, h, radius, fill, strokeValue, strokeWidth, patternSpec)
+		return drawRoundRectPrepared(
+			x, y, w, h, radius,
+			fill or transparentFill, preparedFillVisible(fill), strokeValue, strokeWidth or 0, preparedStrokeVisible(strokeValue, strokeWidth),
+			false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0,
+			false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0,
+			false, 0, 0, 0, 0, 0, 0, 1,
+			nil, patternSpec
+		)
+	end
+
+	local function drawPreparedRoundRectEffects(
+		x, y, w, h, radius, fill, strokeValue, strokeWidth,
+		hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread,
+		hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
+		hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff,
+		backdropSpec, patternSpec
+	)
+		return drawRoundRectPrepared(
+			x, y, w, h, radius,
+			fill or transparentFill, preparedFillVisible(fill), strokeValue, strokeWidth or 0, preparedStrokeVisible(strokeValue, strokeWidth),
+			hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread,
+			hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
+			hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff,
+			backdropSpec, patternSpec
+		)
+	end
 
 	local function drawRoundImageEffect(x, y, w, h, radius, fill, shadow, outerGlow, backdrop, stroke, strokeWidth)
 		return drawRoundRectRaw(x, y, w, h, radius, fill, stroke, strokeWidth, shadow, outerGlow, nil, backdrop, nil)
@@ -268,13 +309,6 @@ local function imageChamferCuts(style, mask)
 	return nil
 end
 
-local function imageUsesSourceAlphaEffectMask(style, hasShadow, hasOuter, backdropSpec)
-	if not istable(style) then return false end
-	if style.mask ~= nil then return false end
-	if style.radius ~= nil then return false end
-	return hasShadow or hasOuter or backdropSpec ~= nil
-end
-
 local function maskKindValue(mask)
 	if not istable(mask) then return nil end
 	local kind = mask.kind or mask.shape
@@ -429,10 +463,9 @@ local function setupImageMaskBackdropConstants(mat, drawW, drawH, shapeW, shapeH
 	)
 end
 
-local function drawImageMaskBackdrop(x, y, w, h, mask, kind, maskTexture, backdrop)
-	local spec = backdropStyle(backdrop)
-	if not spec or not istable(mask) or not kind then return nil end
-	if kind >= MASK_TEXTURE_A and not maskTexture then return nil end
+	local function drawImageMaskBackdrop(x, y, w, h, mask, kind, maskTexture, spec)
+		if not spec or not istable(mask) or not kind then return nil end
+		if kind >= MASK_TEXTURE_A and not maskTexture then return nil end
 	local pad = math_max(0, tonumber(spec.padding) or 0)
 	local bx = x - pad
 	local by = y - pad
@@ -455,12 +488,12 @@ local function drawImageMaskBackdrop(x, y, w, h, mask, kind, maskTexture, backdr
 		drawTexturedQuad(bx, by, bw, bh, mat)
 	end
 
-	return spec
-end
+		return spec
+	end
 
-local function drawImageMaskShader(x, y, w, h, texture, u0, v0, u1, v1, style, mask, kind)
-	if not istable(mask) then return false end
-	kind = kind or maskKindValue(mask)
+	local function drawImageMaskShader(x, y, w, h, texture, u0, v0, u1, v1, tint, background, stroke, strokeWidth, mask, kind)
+		if not istable(mask) then return false end
+		kind = kind or maskKindValue(mask)
 	if not kind then return false end
 	if not matOK(materials.image_mask) then return true end
 
@@ -473,16 +506,15 @@ local function drawImageMaskShader(x, y, w, h, texture, u0, v0, u1, v1, style, m
 		if not maskTexture then return true end
 	end
 
-	local background = style.fill or style.background
-	if background and background.r and (background.a == nil or background.a > 0) then
-		local white = getWhiteTexture()
-		if white then
-			drawImageMaskPass(x, y, w, h, white, 0, 0, 1, 1, background, nil, 0, mask, kind, maskTexture)
+		if background and background.r and (background.a == nil or background.a > 0) then
+			local white = getWhiteTexture()
+			if white then
+				drawImageMaskPass(x, y, w, h, white, 0, 0, 1, 1, background, nil, 0, mask, kind, maskTexture)
+			end
 		end
-	end
 
-	return drawImageMaskPass(x, y, w, h, texture, u0, v0, u1, v1, imageTint(style), style.stroke, style.strokeWidth, mask, kind, maskTexture, mask.sourceAlpha == true)
-end
+		return drawImageMaskPass(x, y, w, h, texture, u0, v0, u1, v1, tint, stroke, strokeWidth, mask, kind, maskTexture, mask.sourceAlpha == true)
+	end
 
 local function setupImageMaskEffectParams(
 	mat, w, h, mask, kind, maskTexture, drawW, drawH, shadowX, shadowY, outerX, outerY,
@@ -578,24 +610,23 @@ local function drawImageMaskShadowOuter(
 	return true
 end
 
-local function drawImageChamfer(x, y, w, h, texture, u0, v0, u1, v1, style, cuts)
-	if not matOK(materials.chamfer_texture) then return false end
+	local function drawImageChamfer(x, y, w, h, texture, u0, v0, u1, v1, tint, background, stroke, strokeWidth, shadow, outerGlow, backdrop, cuts)
+		if not matOK(materials.chamfer_texture) then return false end
 
-	if style.shadow or style.outerGlow then
-		drawChamferImageEffect(x, y, w, h, cuts, transparentColor, style.shadow, style.outerGlow)
-	end
-	if style.backdrop then
-		drawChamferImageEffect(x, y, w, h, cuts, transparentColor, nil, nil, style.backdrop)
-	end
+		if shadow or outerGlow then
+			drawChamferImageEffect(x, y, w, h, cuts, transparentColor, shadow, outerGlow)
+		end
+		if backdrop then
+			drawChamferImageEffect(x, y, w, h, cuts, transparentColor, nil, nil, backdrop)
+		end
 
-	local background = style.fill or style.background
-	if background and (background.a or 255) > 0 then
-		drawChamferImageEffect(x, y, w, h, cuts, background)
-	end
+		if background and (background.a or 255) > 0 then
+			drawChamferImageEffect(x, y, w, h, cuts, background)
+		end
 
-	local tl, tr, br, bl = chamferTuple(cuts, w, h)
-	local mat = materials.chamfer_texture
-	local r, g, b, a = color01(imageTint(style))
+		local tl, tr, br, bl = chamferTuple(cuts, w, h)
+		local mat = materials.chamfer_texture
+		local r, g, b, a = color01(tint)
 	mat:SetTexture("$basetexture", texture)
 	setupParamMatrix(mat,
 		r, g, b, a,
@@ -607,23 +638,67 @@ local function drawImageChamfer(x, y, w, h, texture, u0, v0, u1, v1, style, cuts
 	surface_SetDrawColor(255, 255, 255, 255)
 	drawTexturedQuad(x, y, w, h, mat)
 
-	if style.pattern then
-		drawChamferPattern(x, y, w, h, cuts, style.pattern)
+		if strokeVisible(stroke, strokeWidth) then
+			drawChamferImageEffect(x, y, w, h, cuts, transparentColor, nil, nil, nil, stroke, strokeWidth)
+		end
+
+		return true
 	end
 
-	if strokeVisible(style.stroke, style.strokeWidth) then
-		drawChamferImageEffect(x, y, w, h, cuts, transparentColor, nil, nil, nil, style.stroke, style.strokeWidth)
+	local function imageRoundedRadius(radiusInput, mask, maskKind, w, h)
+		if maskKind == MASK_CIRCLE or maskKind == MASK_CAPSULE then
+			return math_min(w, h) * 0.5
+		elseif maskKind == MASK_ROUNDED and mask and mask.radius ~= nil then
+			return imageRadius(mask.radius, w, h)
+		end
+		return imageRadius(radiusInput, w, h)
 	end
 
-	return true
-end
+	local function imageUsesSourceAlphaEffectMaskPrepared(maskInput, radiusInput, hasShadow, hasOuter, backdropSpec)
+		if maskInput ~= nil then return false end
+		if radiusInput ~= nil then return false end
+		return hasShadow or hasOuter or backdropSpec ~= nil
+	end
 
-local function drawImageImmediate(x, y, w, h, source, style)
-	local totalProfile = profileStart()
-	if not istable(style) then style = imageStyle(style) end
-	local hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, _, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread = roundRaw.shadow(style.shadow)
-	local hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, _, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread = roundRaw.outerGlow(style.outerGlow)
-	local backdropSpec = backdropStyle(style.backdrop)
+	local function drawRoundImageShadowOuterPrepared(
+		x, y, w, h, radius,
+		hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread,
+		hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread
+	)
+		return drawPreparedRoundRectEffects(
+			x, y, w, h, radius,
+			transparentFill, nil, 0,
+			hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread,
+			hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
+			false, 0, 0, 0, 0, 0, 0, 1,
+			nil, nil
+		)
+	end
+
+	local function drawImageImmediate(x, y, w, h, source, style)
+		local totalProfile = profileStart()
+		if not istable(style) then style = imageStyle(style) end
+		local shadow = style.shadow
+		local outerGlow = style.outerGlow
+		local backdropInput = style.backdrop
+		local radiusInput = style.radius
+		local maskInput = style.mask
+		local tint = imageTint(style)
+		local background = style.fill or style.background
+		local stroke = style.stroke
+		local strokeWidth = strokeWidthValue(style.strokeWidth, 0)
+		local hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread = false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0
+		if shadow ~= nil and shadow ~= false then
+			hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread = roundRaw.shadow(shadow)
+		end
+		local hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread = false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0
+		if outerGlow ~= nil and outerGlow ~= false then
+			hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread = roundRaw.outerGlow(outerGlow)
+		end
+		local backdropSpec = nil
+		if backdropInput ~= nil and backdropInput ~= false then
+			backdropSpec = backdropStyle(backdropInput)
+		end
 	local shaderReady = shadersActive()
 	local cullSpread = 0
 	if shaderReady then
@@ -669,18 +744,18 @@ local function drawImageImmediate(x, y, w, h, source, style)
 
 	local mask
 	local maskKind
-	if imageUsesSourceAlphaEffectMask(style, hasShadow, hasOuter, backdropSpec) then
-		mask = sourceAlphaMaskScratch
-		mask.source = source
+		if imageUsesSourceAlphaEffectMaskPrepared(maskInput, radiusInput, hasShadow, hasOuter, backdropSpec) then
+			mask = sourceAlphaMaskScratch
+			mask.source = source
 		mask.u0 = u0
 		mask.v0 = v0
 		mask.u1 = u1
 		mask.v1 = v1
 		maskKind = MASK_TEXTURE_A
-	else
-		mask = imageMaskStyle(style.mask, style)
-		maskKind = maskKindValue(mask)
-	end
+		else
+			mask = imageMaskStyle(maskInput, style)
+			maskKind = maskKindValue(mask)
+		end
 
 	if maskKind == MASK_TEXTURE_A or maskKind == MASK_TEXTURE_R or maskKind == MASK_TEXTURE_G or maskKind == MASK_TEXTURE_B or maskKind == MASK_TEXTURE_LUMA then
 		profile = profileStart()
@@ -693,61 +768,60 @@ local function drawImageImmediate(x, y, w, h, source, style)
 				hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerExtent, outerGrow, outerStrength, outerFalloff
 			)
 		end
-		drawImageMaskBackdrop(x, y, w, h, mask, backdropMaskKind, maskTexture, style.backdrop)
-		if drawImageMaskShader(x, y, w, h, texture, u0, v0, u1, v1, style, mask, maskKind) then
-			profileEnd("image.mask", profile)
-			profileEnd("image.immediate", totalProfile)
+			drawImageMaskBackdrop(x, y, w, h, mask, backdropMaskKind, maskTexture, backdropSpec)
+			if drawImageMaskShader(x, y, w, h, texture, u0, v0, u1, v1, tint, background, stroke, strokeWidth, mask, maskKind) then
+				profileEnd("image.mask", profile)
+				profileEnd("image.immediate", totalProfile)
 			return
 		end
 		profileEnd("image.mask", profile)
 	end
 
-	local cuts = imageChamferCuts(style, mask)
-	profile = profileStart()
-	if cuts and drawImageChamfer(x, y, w, h, texture, u0, v0, u1, v1, style, cuts) then
-		profileEnd("image.chamfer", profile)
-		profileEnd("image.immediate", totalProfile)
+		local cuts = imageChamferCuts(style, mask)
+		profile = profileStart()
+		if cuts and drawImageChamfer(x, y, w, h, texture, u0, v0, u1, v1, tint, background, stroke, strokeWidth, hasShadow and shadow or nil, hasOuter and outerGlow or nil, backdropSpec and backdropInput or nil, cuts) then
+			profileEnd("image.chamfer", profile)
+			profileEnd("image.immediate", totalProfile)
 		return
 	end
 	profileEnd("image.chamfer", profile)
 
-	local radius
-	if maskKind == MASK_CIRCLE then
-		radius = math_min(w, h) * 0.5
-	elseif maskKind == MASK_CAPSULE then
-		radius = math_min(w, h) * 0.5
-	elseif maskKind == MASK_ROUNDED and mask and mask.radius ~= nil then
-		radius = imageRadius(mask.radius, w, h)
-	else
-		radius = imageRadius(style.radius, w, h)
-	end
-	if style.shadow or style.outerGlow then
-		profile = profileStart()
-		drawRoundImageEffect(x, y, w, h, radius, transparentColor, style.shadow, style.outerGlow)
-		profileEnd("image.shadowOuter", profile)
-	end
+		local radius = imageRoundedRadius(radiusInput, mask, maskKind, w, h)
+		if hasShadow or hasOuter then
+			profile = profileStart()
+			drawRoundImageShadowOuterPrepared(
+				x, y, w, h, radius,
+				hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread,
+				hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread
+			)
+			profileEnd("image.shadowOuter", profile)
+		end
 
-	if style.backdrop then
-		profile = profileStart()
-		drawRoundImageEffect(x, y, w, h, radius, transparentColor, nil, nil, style.backdrop)
-		profileEnd("image.backdrop", profile)
-	end
+		if backdropSpec then
+			profile = profileStart()
+			drawPreparedRoundRectEffects(
+				x, y, w, h, radius,
+				transparentFill, nil, 0,
+				false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0,
+				false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0,
+				false, 0, 0, 0, 0, 0, 0, 1,
+				backdropSpec, nil
+			)
+			profileEnd("image.backdrop", profile)
+		end
 
-	local background = style.fill or style.background
-	if background and (background.a or 255) > 0 then
-		profile = profileStart()
-		drawRoundImageEffect(x, y, w, h, radius, background)
-		profileEnd("image.background", profile)
-	end
+		if background and (background.a or 255) > 0 then
+			profile = profileStart()
+			drawPreparedRoundRectPlain(x, y, w, h, radius, fillFromStyle(background))
+			profileEnd("image.background", profile)
+		end
 
 	profile = profileStart()
 	local mat = materials.roundrect_texture
 	mat:SetTexture("$basetexture", texture)
-	local tint = imageTint(style)
-	local stroke = style.stroke or transparentColor
-	local strokeWidth = strokeWidthValue(style.strokeWidth, 0)
-	local packedStyle = math.Clamp(strokeWidth, 0, 255)
-	local sr, sg, sb, sa = color01(stroke)
+		stroke = stroke or transparentColor
+		local packedStyle = math.Clamp(strokeWidth, 0, 255)
+		local sr, sg, sb, sa = color01(stroke)
 	setupParamMatrix(mat,
 		0, 0, 0, 0,
 		w, h, packedStyle, radius,

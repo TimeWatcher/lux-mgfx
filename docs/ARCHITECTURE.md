@@ -12,6 +12,7 @@ MGFX owns rendering:
 - text routing and optional composer text
 - frame scopes and clipping
 - paint records for gradients and patterns
+- prepared scalar/fill/effect draw layers below the public API boundary
 - visual transforms
 - runtime capability queries
 
@@ -40,6 +41,31 @@ These are internal maintenance boundaries, not user-facing entry points. Applica
 | `materials` | Shaderpack mount, render targets, material creation, shader status. |
 | `text` | Native text route, shader text composer, measuring, prewarming. |
 | `api` | Public facade used by Lux and the precompiled runtime. |
+
+## Hot Draw Pipeline
+
+Public API calls are allowed to accept style tables. Internal renderer code
+should not keep forwarding those tables once a call has crossed the public API
+boundary.
+
+The intended shape is:
+
+```text
+MGFX.RoundedBoxEx(..., style)
+  -> resolve public aliases and defaults once
+  -> pass scalar radius/fill/stroke/effect parameters
+  -> execute shader/fallback draw path
+```
+
+The renderer should avoid hidden chains like:
+
+```text
+widget helper -> temporary style table -> shape helper -> style normalization -> draw
+```
+
+That chain is both harder to read and measurably slower in GMod because it
+adds table reads, temporary records, cache checks, and duplicated effect
+normalization before the actual draw call.
 
 ## Transforms
 

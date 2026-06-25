@@ -237,8 +237,7 @@ fn chamferBackdropTintColor(spec) {
   makeColor(tint.r ?? 0, tint.g ?? 0, tint.b ?? 0, mathFloor(mathClamp(alpha, 0, 255) + 0.5))
 }
 
-fn drawChamferBackdrop(x, y, w, h, cuts, backdrop) {
-  local spec = style.backdropStyle(backdrop)
+fn drawChamferBackdrop(x, y, w, h, cuts, spec) {
   stopif spec == nil or not shadersActive(), nil
 
   local pad = mathMax(0, toNumber(spec.padding) ?? 0)
@@ -280,8 +279,7 @@ fn drawChamferBackdrop(x, y, w, h, cuts, backdrop) {
   true
 }
 
-fn drawChamferPattern(x, y, w, h, cuts, pattern) {
-  local spec = roundrect.patternStyle(pattern)
+fn drawChamferPatternPrepared(x, y, w, h, cuts, spec) {
   stopif spec == nil or not shadersActive() or not materialOK(primitiveMaterials.chamfer_pattern), false
 
   local color = spec.color ?? spec.tint
@@ -320,6 +318,9 @@ fn drawChamferPattern(x, y, w, h, cuts, pattern) {
   true
 }
 
+fn drawChamferPattern(x, y, w, h, cuts, pattern) =
+  drawChamferPatternPrepared(x, y, w, h, cuts, roundrect.patternStyle(pattern))
+
 fn drawChamferStroke(x, y, w, h, cuts, stroke, strokeWidth) {
   stopif not style.strokeVisible(stroke, strokeWidth) or not shadersActive() or not materialOK(primitiveMaterials.chamfer_stroke), false
 
@@ -338,7 +339,10 @@ fn drawChamferStroke(x, y, w, h, cuts, stroke, strokeWidth) {
   true
 }
 
-fn drawChamferBasePass(x, y, w, h, cuts, fill, stroke, strokeWidth, innerEnabled, gr, gg, gb, ga, glowWidth, glowStrength, glowFalloff) {
+fn drawChamferBasePass(
+  x, y, w, h, cuts, fill, stroke = nil, strokeWidth = 0, innerEnabled = false,
+  gr = 0, gg = 0, gb = 0, ga = 0, glowWidth = 0, glowStrength = 0, glowFalloff = 1
+) {
   stopif not shadersActive() or not materialOK(primitiveMaterials.chamfer), false
 
   local tl, tr, br, bl = chamferTuple(cuts, w, h)
@@ -369,8 +373,41 @@ fn drawChamferBasePass(x, y, w, h, cuts, fill, stroke, strokeWidth, innerEnabled
 }
 
 export client fn drawChamferBoxRaw(x, y, w, h, cuts = 0, fillInput = nil, stroke = nil, strokeWidthInput = nil, shadow = nil, outerGlow = nil, innerGlow = nil, backdropInput = nil, pattern = nil) {
-  local hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpreadUnused, shadowGrow, shadowStrength, shadowFalloff, shadowExtent = roundrect.shadowRaw(shadow)
-  local hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpreadUnused, outerGrow, outerStrength, outerFalloff, outerExtent = roundrect.outerGlowRaw(outerGlow)
+  local hasShadow = false
+  local sr = 0
+  local sg = 0
+  local sb = 0
+  local sa = 0
+  local shadowX = 0
+  local shadowY = 0
+  local shadowWidth = 1
+  local shadowGrow = 0
+  local shadowStrength = 0
+  local shadowFalloff = 1
+  local shadowExtent = 0
+  if shadow ~= nil and shadow ~= false {
+    hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, _, shadowGrow, shadowStrength, shadowFalloff, shadowExtent = roundrect.shadowRaw(shadow)
+  }
+
+  local hasOuter = false
+  local orr = 0
+  local og = 0
+  local ob = 0
+  local oa = 0
+  local outerX = 0
+  local outerY = 0
+  local outerWidth = 1
+  local outerGrow = 0
+  local outerStrength = 0
+  local outerFalloff = 1
+  local outerExtent = 0
+  if outerGlow ~= nil and outerGlow ~= false {
+    hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, _, outerGrow, outerStrength, outerFalloff, outerExtent = roundrect.outerGlowRaw(outerGlow)
+  }
+
+  local backdropSpec = backdropInput ~= nil and backdropInput ~= false then style.backdropStyle(backdropInput) else nil
+  local patternSpec = pattern ~= nil and pattern ~= false then roundrect.patternStyle(pattern) else nil
+
   if hasShadow or hasOuter {
     drawChamferShadowOuterRaw(
       x, y, w, h, cuts,
@@ -381,20 +418,30 @@ export client fn drawChamferBoxRaw(x, y, w, h, cuts = 0, fillInput = nil, stroke
 
   local backdrop = nil
   if backdropInput ~= nil {
-    backdrop = drawChamferBackdrop(x, y, w, h, cuts, backdropInput)
+    backdrop = drawChamferBackdrop(x, y, w, h, cuts, backdropSpec)
   }
 
   local fill = style.fillFromStyle(fillInput)
   local strokeWidth = style.strokeWidthValue(strokeWidthInput, 0)
-  local fillVisible = style.fillVisible(fill)
+  local fillVisible = hotFillVisible(fill)
   local strokeVisible = style.strokeVisible(stroke, strokeWidth)
-  local hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff = roundrect.innerGlowRaw(innerGlow)
+  local hasInner = false
+  local igr = 0
+  local igg = 0
+  local igb = 0
+  local iga = 0
+  local innerWidth = 0
+  local innerStrength = 0
+  local innerFalloff = 1
+  if innerGlow ~= nil and innerGlow ~= false {
+    hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff = roundrect.innerGlowRaw(innerGlow)
+  }
   local baseDrawn = false
   local baseDrewStroke = false
   local baseDrewInner = false
 
   if fillVisible or strokeVisible or hasInner {
-    if pattern == nil {
+    if patternSpec == nil {
       baseDrawn = drawChamferBasePass(x, y, w, h, cuts, fill, stroke, strokeWidth, hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff)
       baseDrewStroke = baseDrawn and strokeVisible
       baseDrewInner = baseDrawn and hasInner
@@ -404,11 +451,11 @@ export client fn drawChamferBoxRaw(x, y, w, h, cuts = 0, fillInput = nil, stroke
   }
 
   if not baseDrawn and fillVisible {
-    drawPolyRaw(chamferPoints(x, y, w, h, cuts), nil, fillInput, nil, 0, shadow, outerGlow, backdropInput)
+    drawPolyRaw(chamferPoints(x, y, w, h, cuts), nil, fill, nil, 0, nil, nil, nil)
   }
 
-  if pattern ~= nil {
-    drawChamferPattern(x, y, w, h, cuts, pattern)
+  if patternSpec ~= nil {
+    drawChamferPatternPrepared(x, y, w, h, cuts, patternSpec)
   }
 
   if strokeVisible and not baseDrewStroke {

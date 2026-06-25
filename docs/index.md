@@ -18,13 +18,15 @@ hero:
 
 features:
   - title: Immediate first
-    details: Shapes and HUD meters use direct shader/fallback paths. There is no heavy general-purpose batch scheduler between your HUD code and the renderer.
+    details: Shapes and HUD meters use direct shader/fallback paths with prepared scalar parameters below the public API boundary.
   - title: Shape-aware effects
     details: Rounded boxes, chamfer boxes, circles, capsules, rings, arcs, sectors, convex polygons, and image masks clip shadow, glow, and backdrop effects to their own coverage.
   - title: Real paint records
     details: Linear, radial, conic, ring/sector radial, angular gradients, stripe patterns, and smoke patterns are paint slots instead of hand-expanded geometry.
   - title: Lux and plain GLua
     details: Lux projects import @lux/mgfx. Non-Lux projects can load the bundled runtime and call MGFX.* directly.
+  - title: Measured shop performance
+    details: Recent complex shop UI testing holds 130+ FPS with a full item list and 160+ FPS in lighter categories with diagnostics disabled.
 ---
 
 ## Quick Start

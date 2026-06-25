@@ -129,6 +129,17 @@ drop shadows. Use `outerGlow = {x = 0, y = 0, width = 16, color = Color(...)}`
 for glow. `backdrop` should be reserved for glass/blur/tint surfaces, not
 treated as a shadow substitute.
 
+## Performance Model
+
+MGFX keeps the immediate drawing model. It does not hide calls behind a general
+batch scheduler. Public `NameEx(..., style)` functions remain table-based for
+readability, but hot internal layers now flatten those records once and pass
+prepared scalar, fill, stroke, and effect parameters to the shader/fallback
+draw path.
+
+Recent shop UI profiling with diagnostics disabled holds 130+ FPS with a full
+item list and 160+ FPS in lighter categories.
+
 ## Documentation
 
 Shared MGFX documentation lives one level up in `../docs`:
@@ -174,6 +185,8 @@ assets, and build tools are ignored for Workshop packaging.
 ## Maintenance Rules
 
 - Keep public draw calls immediate and explicit.
+- Keep style table parsing at the public API boundary; internal draw helpers
+  should use prepared parameters.
 - Do not add global paint state or hidden component lifecycle.
 - Do not use stencil to emulate shape masks; use shader coverage.
 - Keep shape rendering on the immediate path unless a new prototype proves a

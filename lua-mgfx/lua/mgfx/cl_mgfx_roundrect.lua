@@ -16,8 +16,6 @@ function MGFX._InstallRoundRect(C)
 	local setDrawColor = C.setDrawColor
 	local strokeWidthValue = C.strokeWidthValue
 	local radiusScalar = C.radiusScalar
-	local fillFromStyle = C.fillFromStyle
-	local fillVisible = C.fillVisible
 	local strokeVisible = C.strokeVisible
 	local backdropStyle = C.backdropStyle or function() return nil end
 	local glowSoftnessToFalloff = C.glowSoftnessToFalloff
@@ -55,6 +53,7 @@ function MGFX._InstallRoundRect(C)
 
 local drawRoundRectImmediate
 local drawRoundRectRaw
+local drawRoundRectPrepared
 
 local function profileStart()
 	if profiler and profiler.Start then return profiler.Start() end
@@ -69,21 +68,7 @@ local function profileRecord(name, elapsed)
 	if elapsed and profiler and profiler.Record then profiler.Record(name, elapsed) end
 end
 
-local function traceStart(name)
-	if profiler and profiler._TraceActive and profiler.TraceStart then
-		return profiler.TraceStart(name)
-	end
-	return nil
-end
-
-local function traceEnd(token)
-	if token and profiler and profiler.TraceEnd then
-		profiler.TraceEnd(token)
-	end
-end
-
-local function finishImmediateTrace(trace, profiling, totalProfile)
-	traceEnd(trace)
+local function finishImmediateProfile(profiling, totalProfile)
 	if profiling then profileEnd("round.immediate", totalProfile) end
 end
 
@@ -176,7 +161,6 @@ local function drawSolidRoundFast(x, y, w, h, radiusValue, fill)
 
 	local profiling = profiler and profiler.IsActive and profiler.IsActive()
 	local setupProfile = profiling and profileStart() or nil
-	local setupTrace = traceStart("round.fast.solidRound.setup")
 	local color = fill.colorA or color_white
 	setupParamMatrixRaw(mat,
 		(color.r or 0) * inv255,
@@ -189,12 +173,9 @@ local function drawSolidRoundFast(x, y, w, h, radiusValue, fill)
 	)
 	surface_SetMaterial(mat)
 	surface_SetDrawColor(255, 255, 255, 255)
-	traceEnd(setupTrace)
 	if profiling then profileEnd("round.fast.solidRound.setup", setupProfile) end
 	local drawProfile = profiling and profileStart() or nil
-	local drawTrace = traceStart("round.fast.solidRound.draw")
 	drawTexturedQuad(x, y, w, h, mat)
-	traceEnd(drawTrace)
 	if profiling then profileEnd("round.fast.solidRound.draw", drawProfile) end
 	return true
 end
@@ -231,11 +212,13 @@ local function hotFillFromStyle(fill, fallback)
 		if kind ~= nil then
 			solidFillScratch.colorA = transparentFillColor
 			solidFillScratch.colorB = transparentFillColor
+			solidFillScratch._mgfxFillVisible = false
 			return solidFillScratch
 		end
 		if fill.r ~= nil and fill.g ~= nil and fill.b ~= nil then
 			solidFillScratch.colorA = fill
 			solidFillScratch.colorB = fill
+			solidFillScratch._mgfxFillVisible = fill.a == nil or fill.a > 0
 			return solidFillScratch
 		end
 	end
@@ -243,6 +226,7 @@ local function hotFillFromStyle(fill, fallback)
 	local color = asColor(fill, fallback or color_white)
 	solidFillScratch.colorA = color
 	solidFillScratch.colorB = color
+	solidFillScratch._mgfxFillVisible = color.a == nil or color.a > 0
 	return solidFillScratch
 end
 
@@ -348,35 +332,44 @@ local function drawFallbackStroke(points, color, width)
 	end
 end
 
-local function drawRoundRectFallbackRaw(x, y, w, h, radius, fillInput, stroke, strokeWidthInput)
+local function drawRoundRectFallbackPrepared(x, y, w, h, radius, fill, hasFill, stroke, strokeWidth, hasStroke)
 	M.stats.fallbacks = M.stats.fallbacks + 1
-	local fill = hotFillFromStyle(fillInput)
 	radius = radius or 0
 	if hasTransform() then
 		local points = fallbackRoundRectPoints(x, y, w, h, radius)
-		if fillVisible(fill) then
+		if hasFill then
 			setDrawColor(fill.colorA or color_white)
 			drawTransformedPoly(points)
 			M.stats.draws = M.stats.draws + 1
 		end
 
-		local strokeWidth = strokeWidthValue(strokeWidthInput, 1)
-		if strokeVisible(stroke, strokeWidth) then
+		if hasStroke then
 			drawFallbackStroke(points, stroke, math_max(1, math_floor(strokeWidth)))
 		end
 		return
 	end
 
-	if fillVisible(fill) then
+	if hasFill then
 		draw.RoundedBox(math_floor(tonumber(radius) or 0), x, y, w, h, fill.colorA or color_white)
 		M.stats.draws = M.stats.draws + 1
 	end
 
-	if strokeVisible(stroke, strokeWidthInput) then
+	if hasStroke then
 		setDrawColor(stroke)
-		surface.DrawOutlinedRect(x, y, w, h, math_max(1, math_floor(strokeWidthValue(strokeWidthInput, 1))))
+		surface.DrawOutlinedRect(x, y, w, h, math_max(1, math_floor(strokeWidth)))
 		M.stats.draws = M.stats.draws + 1
 	end
+end
+
+local function drawRoundRectFallbackRaw(x, y, w, h, radius, fillInput, stroke, strokeWidthInput)
+	local fill = hotFillFromStyle(fillInput)
+	local strokeWidth = 0
+	local hasStroke = false
+	if stroke then
+		strokeWidth = strokeWidthValue(strokeWidthInput, 0)
+		hasStroke = strokeWidth > 0 and (stroke.a == nil or stroke.a > 0)
+	end
+	return drawRoundRectFallbackPrepared(x, y, w, h, radius, fill, hotFillVisible(fill), stroke, strokeWidth, hasStroke)
 end
 
 function roundRaw.innerGlow(glow)
@@ -627,8 +620,7 @@ local function setupPatternConstants(mat, w, h, radius, pattern)
 	)
 end
 
-local function drawRoundRectPattern(x, y, w, h, radius, pattern)
-	local spec = patternStyle(pattern)
+local function drawRoundRectPatternPrepared(x, y, w, h, radius, spec)
 	if not spec then return end
 	if not shadersActive() or not matOK(materials.roundrect_pattern) then return end
 
@@ -636,21 +628,20 @@ local function drawRoundRectPattern(x, y, w, h, radius, pattern)
 	if color and (color.a or 255) <= 0 then return end
 
 	local mat = materials.roundrect_pattern
-	local setupTrace = traceStart("round.pattern.setup")
 	setupPatternConstants(mat, w, h, roundRectRadiusScalar(radius, w, h), spec)
 	surface_SetMaterial(mat)
 	surface_SetDrawColor(255, 255, 255, 255)
-	traceEnd(setupTrace)
-	local drawTrace = traceStart("round.pattern.draw")
 	drawTexturedQuad(x, y, w, h, mat)
-	traceEnd(drawTrace)
+end
+
+local function drawRoundRectPattern(x, y, w, h, radius, pattern)
+	return drawRoundRectPatternPrepared(x, y, w, h, radius, patternStyle(pattern))
 end
 
 function roundRaw.drawInnerGlow(x, y, w, h, radius, enabled, gr, gg, gb, ga, glowWidth, glowStrength, glowFalloff)
 	if not enabled or ga <= 0 or glowStrength <= 0 then return false end
 	if not shadersActive() or not matOK(materials.roundrect_innerglow) then return end
 
-	local setupTrace = traceStart("round.innerGlow.setup")
 	local mat = materials.roundrect_innerglow
 	setupParamMatrixRaw(mat,
 		gr, gg, gb, ga,
@@ -663,10 +654,7 @@ function roundRaw.drawInnerGlow(x, y, w, h, radius, enabled, gr, gg, gb, ga, glo
 	)
 	surface_SetMaterial(mat)
 	surface_SetDrawColor(255, 255, 255, 255)
-	traceEnd(setupTrace)
-	local drawTrace = traceStart("round.innerGlow.draw")
 	drawTexturedQuad(x, y, w, h, mat)
-	traceEnd(drawTrace)
 	return true
 end
 
@@ -694,14 +682,17 @@ function roundRaw.drawShadowOuter(
 	hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowExtent, shadowGrow, shadowStrength, shadowFalloff,
 	hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerExtent, outerGrow, outerStrength, outerFalloff
 )
+	local profiling = profiler and profiler.IsActive and profiler.IsActive()
 	hasShadow = hasShadow and sa > 0 and shadowStrength > 0
 	hasOuter = hasOuter and oa > 0 and outerStrength > 0
-	if not hasShadow and not hasOuter then return false end
-	if not shadersActive() or not matOK(materials.roundrect_shadow_outer) then return false end
+	if not hasShadow and not hasOuter then
+		return false
+	end
+	if not shadersActive() or not matOK(materials.roundrect_shadow_outer) then
+		return false
+	end
 
-	local profiling = profiler and profiler.IsActive and profiler.IsActive()
 	local setupProfile = profiling and profileStart() or nil
-	local setupTrace = traceStart("round.shadowOuter.setup")
 
 	shadowGrow = math_max(0, shadowGrow or 0)
 	outerGrow = math_max(0, outerGrow or 0)
@@ -785,27 +776,20 @@ function roundRaw.drawShadowOuter(
 		hasOuter and outerFalloff or 1,
 		0, 0, 0, 0
 	)
-	traceEnd(setupTrace)
 	if profiling then profileEnd("round.shadowOuter.setup", setupProfile) end
 
 	local bleedProfile = profiling and profileStart() or nil
-	local bleedTrace = traceStart("round.shadowOuter.bleedBegin")
 	local bleedToken = beginPanelEffectDraw(sx, sy, sw, sh)
-	traceEnd(bleedTrace)
 	if profiling then profileEnd("round.shadowOuter.bleedBegin", bleedProfile) end
 
 	surface_SetMaterial(mat)
 	surface_SetDrawColor(255, 255, 255, 255)
 	local drawProfile = profiling and profileStart() or nil
-	local drawTrace = traceStart("round.shadowOuter.draw")
 	drawTexturedQuad(sx, sy, sw, sh, mat)
-	traceEnd(drawTrace)
 	if profiling then profileEnd("round.shadowOuter.draw", drawProfile) end
 
 	bleedProfile = profiling and profileStart() or nil
-	bleedTrace = traceStart("round.shadowOuter.bleedEnd")
 	endPanelEffectBleed(bleedToken)
-	traceEnd(bleedTrace)
 	if profiling then profileEnd("round.shadowOuter.bleedEnd", bleedProfile) end
 	return true
 end
@@ -825,7 +809,6 @@ function roundRaw.drawFused(
 
 	local profiling = profiler and profiler.IsActive and profiler.IsActive()
 	local setupProfile = profiling and profileStart() or nil
-	local setupTrace = traceStart("round.fused.setup")
 
 	shadowX = shadowX or 0
 	shadowY = shadowY or 0
@@ -870,7 +853,6 @@ function roundRaw.drawFused(
 	local sw = ex - sx
 	local sh = ey - sy
 	if sw <= 0 or sh <= 0 then
-		traceEnd(setupTrace)
 		if profiling then profileEnd("round.fused.setup", setupProfile) end
 		return false
 	end
@@ -891,13 +873,10 @@ function roundRaw.drawFused(
 	)
 	surface_SetMaterial(mat)
 	surface_SetDrawColor(255, 255, 255, 255)
-	traceEnd(setupTrace)
 	if profiling then profileEnd("round.fused.setup", setupProfile) end
 
 	local bleedProfile = profiling and profileStart() or nil
-	local bleedTrace = traceStart("round.fused.bleedBegin")
 	local bleedToken = beginPanelEffectDraw(sx, sy, sw, sh)
-	traceEnd(bleedTrace)
 	if profiling then profileEnd("round.fused.bleedBegin", bleedProfile) end
 
 	local u0 = (sx - x) / w
@@ -905,15 +884,11 @@ function roundRaw.drawFused(
 	local u1 = (ex - x) / w
 	local v1 = (ey - y) / h
 	local drawProfile = profiling and profileStart() or nil
-	local drawTrace = traceStart("round.fused.draw")
 	drawTexturedQuadUV(sx, sy, sw, sh, u0, v0, u1, v1, mat)
-	traceEnd(drawTrace)
 	if profiling then profileEnd("round.fused.draw", drawProfile) end
 
 	bleedProfile = profiling and profileStart() or nil
-	bleedTrace = traceStart("round.fused.bleedEnd")
 	endPanelEffectBleed(bleedToken)
-	traceEnd(bleedTrace)
 	if profiling then profileEnd("round.fused.bleedEnd", bleedProfile) end
 	return true
 end
@@ -930,6 +905,7 @@ end
 local drawRoundRectFillPass
 
 local backdropTintScratch = Color(0, 0, 0, 0)
+local backdropFillScratch = {kind = FILL_SOLID, colorA = backdropTintScratch, colorB = backdropTintScratch, _mgfxFillVisible = false}
 
 local function backdropTintColor(spec)
 	if not spec or not spec.tint then return nil end
@@ -945,7 +921,6 @@ end
 
 local function drawRoundRectBackdrop(x, y, w, h, radius, spec)
 	if not spec then return nil end
-	local trace = traceStart("round.backdrop.pass")
 	local pad = math_max(0, tonumber(spec.padding) or 0)
 	local bx = x - pad
 	local by = y - pad
@@ -956,32 +931,24 @@ local function drawRoundRectBackdrop(x, y, w, h, radius, spec)
 	local blurred = false
 
 	if spec.blur > 0 and shadersActive() and matOK(materials.roundrect_blur) and drawBlurredQuad then
-		local blurTrace = traceStart("round.backdrop.blur")
 		drawBlurredQuad(materials.roundrect_blur, bx, by, bw, bh, roundRectRadiusScalar(br, bw, bh), spec.blur, tint)
-		traceEnd(blurTrace)
 		blurred = true
 	end
 
 	if tint and not blurred then
-		local tintTrace = traceStart("round.backdrop.tint")
-		drawRoundRectFillPass(bx, by, bw, bh, br, hotFillFromStyle(tint))
-		traceEnd(tintTrace)
+		backdropFillScratch._mgfxFillVisible = true
+		drawRoundRectFillPass(bx, by, bw, bh, br, backdropFillScratch)
 	end
 
-	traceEnd(trace)
 	return spec
 end
 
 drawRoundRectFillPass = function(x, y, w, h, radius, fill)
 	local mat = materials.roundrect
-	local setupTrace = traceStart("round.fillPass.setup")
 	setupRoundRectConstants(mat, w, h, fill, nil, 0, roundRectRadiusScalar(radius, w, h))
 	surface_SetMaterial(mat)
 	surface_SetDrawColor(255, 255, 255, 255)
-	traceEnd(setupTrace)
-	local drawTrace = traceStart("round.fillPass.draw")
 	drawTexturedQuad(x, y, w, h, mat)
-	traceEnd(drawTrace)
 end
 
 local function drawRoundRectStrokePass(x, y, w, h, radius, stroke, strokeWidth)
@@ -989,7 +956,6 @@ local function drawRoundRectStrokePass(x, y, w, h, radius, stroke, strokeWidth)
 	if shadersActive() and matOK(materials.roundrect_stroke) then
 		local mat = materials.roundrect_stroke
 		local r, g, b, a = color01(stroke)
-		local setupTrace = traceStart("round.strokePass.setup")
 		setupParamMatrix(mat,
 			r, g, b, a,
 			w, h, math_max(0, strokeWidthValue(strokeWidth, 0)), roundRectRadiusScalar(radius, w, h),
@@ -998,22 +964,15 @@ local function drawRoundRectStrokePass(x, y, w, h, radius, stroke, strokeWidth)
 		)
 		surface_SetMaterial(mat)
 		surface_SetDrawColor(255, 255, 255, 255)
-		traceEnd(setupTrace)
-		local drawTrace = traceStart("round.strokePass.draw")
 		drawTexturedQuad(x, y, w, h, mat)
-		traceEnd(drawTrace)
 		return
 	end
 
 	local mat = materials.roundrect
-	local setupTrace = traceStart("round.strokePass.setup")
 	setupRoundRectConstants(mat, w, h, transparentFill, stroke, strokeWidth, roundRectRadiusScalar(radius, w, h))
 	surface_SetMaterial(mat)
 	surface_SetDrawColor(255, 255, 255, 255)
-	traceEnd(setupTrace)
-	local drawTrace = traceStart("round.strokePass.draw")
 	drawTexturedQuad(x, y, w, h, mat)
-	traceEnd(drawTrace)
 end
 
 function roundRaw.drawFxPass(x, y, w, h, radius, fill, stroke, strokeWidth, innerEnabled, gr, gg, gb, ga, glowWidth, glowStrength, glowFalloff)
@@ -1021,7 +980,6 @@ function roundRaw.drawFxPass(x, y, w, h, radius, fill, stroke, strokeWidth, inne
 
 	local profiling = profiler and profiler.IsActive and profiler.IsActive()
 	local setupProfile = profiling and profileStart() or nil
-	local setupTrace = traceStart("round.base.fx.setup")
 	local mat = materials.roundrect_fx
 	if not innerEnabled then
 		gr, gg, gb, ga = 0, 0, 0, 0
@@ -1038,7 +996,6 @@ function roundRaw.drawFxPass(x, y, w, h, radius, fill, stroke, strokeWidth, inne
 		0, 0, 0, 0,
 		0, 0, 0, 0
 	) then
-		traceEnd(setupTrace)
 		if profiling then profileEnd("round.base.fx.setup", setupProfile) end
 		return false
 	end
@@ -1046,71 +1003,62 @@ function roundRaw.drawFxPass(x, y, w, h, radius, fill, stroke, strokeWidth, inne
 	setupRoundRectConstants(mat, w, h, fill, stroke, strokeWidth, roundRectRadiusScalar(radius, w, h))
 	surface_SetMaterial(mat)
 	surface_SetDrawColor(255, 255, 255, 255)
-	traceEnd(setupTrace)
 	if profiling then profileEnd("round.base.fx.setup", setupProfile) end
 	local drawProfile = profiling and profileStart() or nil
-	local drawTrace = traceStart("round.base.fx.draw")
 	drawTexturedQuad(x, y, w, h, mat)
-	traceEnd(drawTrace)
 	if profiling then profileEnd("round.base.fx.draw", drawProfile) end
 	return true
 end
 
-drawRoundRectRaw = function(x, y, w, h, radius, fillInput, stroke, strokeWidthInput, shadow, outerGlow, innerGlow, backdropInput, pattern)
-	-- Public APIs still accept friendly style tables. Internal callers use this
-	-- raw entry so composite widgets do not rebuild temporary style records.
-	local profiling = profiler and profiler.IsActive and profiler.IsActive()
-	local trace = traceStart("round.immediate")
-	local totalProfile = profiling and profileStart() or nil
-	local stageProfile = totalProfile
-	local initTrace = traceStart("round.init")
-	local shaderTrace = traceStart("round.init.shader")
-	local shaderReady = shadersActive()
-	traceEnd(shaderTrace)
-	local transformTrace = traceStart("round.init.transform")
-	local transformActive = hasTransform()
-	traceEnd(transformTrace)
-	local radiusTrace = traceStart("round.init.radius")
-	if radius == nil then radius = 0 end
-	traceEnd(radiusTrace)
-	local strokeTrace = traceStart("round.init.stroke")
-	local strokeWidth = 0
-	local hasStroke = false
-	if stroke then
-		strokeWidth = strokeWidthValue(strokeWidthInput, 0)
-		hasStroke = strokeWidth > 0 and (stroke.a == nil or stroke.a > 0)
+drawRoundRectPrepared = function(
+	x, y, w, h, radius,
+	fill, hasFill,
+	stroke, strokeWidth, hasStroke,
+	hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread,
+	hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
+	hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff,
+	backdropSpec, patternSpec,
+	profiling, totalProfile, stageProfile
+)
+	if profiling == nil then
+		profiling = profiler and profiler.IsActive and profiler.IsActive()
+		totalProfile = profiling and profileStart() or nil
+		stageProfile = totalProfile
 	end
-	traceEnd(strokeTrace)
-	traceEnd(initTrace)
 
-	if shadow == nil
-		and outerGlow == nil
-		and innerGlow == nil
-		and backdropInput == nil
-		and pattern == nil
+	local shaderReady = shadersActive()
+	local transformActive = hasTransform()
+	if radius == nil then radius = 0 end
+	fill = fill or transparentFill
+	hasFill = hasFill == true
+	hasStroke = hasStroke == true
+	hasShadow = hasShadow == true
+	hasOuter = hasOuter == true
+	hasInner = hasInner == true
+
+	local noEffects = not hasShadow
+		and not hasOuter
+		and not hasInner
+		and backdropSpec == nil
+		and patternSpec == nil
+
+	if noEffects
 		and not hasStroke
 		and not transformActive then
-		local fastPrepareTrace = traceStart("round.fast.prepare")
-		local fill = hotFillFromStyle(fillInput)
-		local hasFill = fillVisible(fill)
-		if fill.kind == FILL_SOLID and hasFill then
+		if hasFill and fill.kind == FILL_SOLID then
 			local radiusValue = roundRectRadiusScalar(radius, w, h)
-			traceEnd(fastPrepareTrace)
 			if profiling then
 				local now = SysTime()
 				profileRecord("round.prepare", (now - stageProfile) * 1000)
 				stageProfile = now
 			end
-			local cullTrace = traceStart("round.cull")
 			if isCulled(x, y, w, h) then
-				traceEnd(cullTrace)
 				if profiling then
 					profileRecord("round.cull", (SysTime() - stageProfile) * 1000)
 				end
-				finishImmediateTrace(trace, profiling, totalProfile)
+				finishImmediateProfile(profiling, totalProfile)
 				return
 			end
-			traceEnd(cullTrace)
 			if profiling then
 				local now = SysTime()
 				profileRecord("round.cull", (now - stageProfile) * 1000)
@@ -1118,74 +1066,45 @@ drawRoundRectRaw = function(x, y, w, h, radius, fillInput, stroke, strokeWidthIn
 			end
 			if radiusValue <= 0 then
 				local drawProfile = profiling and profileStart() or nil
-				local drawTrace = traceStart("round.fast.solidRect")
 				drawSolidRectFast(x, y, w, h, fill)
-				traceEnd(drawTrace)
 				if profiling then profileEnd("round.fast.solidRect", drawProfile) end
-				finishImmediateTrace(trace, profiling, totalProfile)
+				finishImmediateProfile(profiling, totalProfile)
 				return
 			end
 			local drawProfile = profiling and profileStart() or nil
-			local fastTrace = traceStart("round.fast.solidRound")
 			if shaderReady and drawSolidRoundFast(x, y, w, h, radiusValue, fill) then
-				traceEnd(fastTrace)
 				if profiling then
 					profileEnd("round.fast.solidRound", drawProfile)
 				end
-				finishImmediateTrace(trace, profiling, totalProfile)
+				finishImmediateProfile(profiling, totalProfile)
 				return
 			end
-			traceEnd(fastTrace)
 			if profiling then profileEnd("round.fast.solidRound.miss", drawProfile) end
-		else
-			traceEnd(fastPrepareTrace)
 		end
 	end
 
-	local effectTrace = traceStart("round.normalizeEffects")
-	local shadowTrace = traceStart("style.shadow")
-	local hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpreadUnused, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread = roundRaw.shadow(shadow)
-	traceEnd(shadowTrace)
-	local outerTrace = traceStart("style.outerGlow")
-	local hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpreadUnused, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread = roundRaw.outerGlow(outerGlow)
-	traceEnd(outerTrace)
-	local backdropTrace = traceStart("style.backdrop")
-	local backdropSpec = backdropInput ~= nil and backdropInput ~= false and backdropStyle(backdropInput) or nil
-	traceEnd(backdropTrace)
-	traceEnd(effectTrace)
 	if profiling then
 		local now = SysTime()
 		profileRecord("round.prepare", (now - stageProfile) * 1000)
 		stageProfile = now
 	end
-	local cullSpreadTrace = traceStart("round.cullSpread")
 	local cullSpread = 0
 	if shaderReady then
 		if hasShadow then
-			local shadowCullTrace = traceStart("round.cullSpread.shadow")
-			cullSpread = math_max(cullSpread, shadowCullSpread)
-			traceEnd(shadowCullTrace)
+			cullSpread = math_max(cullSpread, shadowCullSpread or 0)
 		end
 		if hasOuter then
-			local outerCullTrace = traceStart("round.cullSpread.outer")
-			cullSpread = math_max(cullSpread, outerCullSpread)
-			traceEnd(outerCullTrace)
+			cullSpread = math_max(cullSpread, outerCullSpread or 0)
 		end
 		if backdropSpec then
-			local backdropCullTrace = traceStart("round.cullSpread.backdrop")
 			cullSpread = math_max(cullSpread, math_max(0, tonumber(backdropSpec.padding) or 0))
-			traceEnd(backdropCullTrace)
 		end
 	end
-	traceEnd(cullSpreadTrace)
-	local cullTrace = traceStart("round.cull")
 	if not transformActive and isCulled(x - cullSpread, y - cullSpread, w + cullSpread * 2, h + cullSpread * 2) then
-		traceEnd(cullTrace)
 		if profiling then profileRecord("round.cull", (SysTime() - stageProfile) * 1000) end
-		finishImmediateTrace(trace, profiling, totalProfile)
+		finishImmediateProfile(profiling, totalProfile)
 		return
 	end
-	traceEnd(cullTrace)
 	if profiling then
 		local now = SysTime()
 		profileRecord("round.cull", (now - stageProfile) * 1000)
@@ -1194,29 +1113,16 @@ drawRoundRectRaw = function(x, y, w, h, radius, fillInput, stroke, strokeWidthIn
 
 	if not shaderReady then
 		local profile = profiling and profileStart() or nil
-		local fallbackTrace = traceStart("round.fallback")
-		drawRoundRectFallbackRaw(x, y, w, h, radius, fillInput, stroke, strokeWidthInput)
-		drawRoundRectInnerGlow(x, y, w, h, radius, innerGlow)
-		traceEnd(fallbackTrace)
+		drawRoundRectFallbackPrepared(x, y, w, h, radius, fill, hasFill, stroke, strokeWidth, hasStroke)
+		roundRaw.drawInnerGlow(x, y, w, h, radius, hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff)
 		if profiling then
 			profileEnd("round.fallback", profile)
 		end
-		finishImmediateTrace(trace, profiling, totalProfile)
+		finishImmediateProfile(profiling, totalProfile)
 		return
 	end
 
 	if profiling then stageProfile = SysTime() end
-	local fillPrepareTrace = traceStart("round.fillPrepare")
-	local fillTrace = traceStart("style.fill")
-	local fill = hotFillFromStyle(fillInput)
-	traceEnd(fillTrace)
-	local fillVisibleTrace = traceStart("round.fillPrepare.visible")
-	local hasFill = fillVisible(fill)
-	traceEnd(fillVisibleTrace)
-	local innerTrace = traceStart("style.innerGlow")
-	local hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff = roundRaw.innerGlow(innerGlow)
-	traceEnd(innerTrace)
-	traceEnd(fillPrepareTrace)
 	if profiling then
 		local now = SysTime()
 		profileRecord("round.fillPrepare", (now - stageProfile) * 1000)
@@ -1224,47 +1130,41 @@ drawRoundRectRaw = function(x, y, w, h, radius, fillInput, stroke, strokeWidthIn
 	end
 
 	local profile
-	if backdropSpec == nil
-		and pattern == nil
+	local canTryFused = backdropSpec == nil
+		and patternSpec == nil
 		and not hasInner
 		and not transformActive
 		and (hasFill or hasStroke)
-		and (hasShadow or hasOuter) then
+		and (hasShadow or hasOuter)
+	if canTryFused then
 		profile = profiling and profileStart() or nil
-		local fusedTrace = traceStart("round.fused")
 		local radiusValue = roundRectRadiusScalar(radius, w, h)
 		if roundRaw.drawFused(
-			x, y, w, h, radius, fill, stroke, strokeWidth, radiusValue,
+			x, y, w, h, radius, hasFill and fill or transparentFill, stroke, strokeWidth, radiusValue,
 			hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowExtent, shadowGrow, shadowStrength, shadowFalloff,
 			hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerExtent, outerGrow, outerStrength, outerFalloff
 		) then
-			traceEnd(fusedTrace)
 			if profiling then profileEnd("round.fused", profile) end
-			finishImmediateTrace(trace, profiling, totalProfile)
+			finishImmediateProfile(profiling, totalProfile)
 			return
 		end
-		traceEnd(fusedTrace)
 		if profiling then profileEnd("round.fused.miss", profile) end
 	end
 
 	if hasShadow or hasOuter then
 		local shadowOuterProfile = profiling and profileStart() or nil
-		local shadowOuterTrace = traceStart("round.shadowOuter")
 		roundRaw.drawShadowOuter(
 			x, y, w, h, radius,
 			hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowExtent, shadowGrow, shadowStrength, shadowFalloff,
 			hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerExtent, outerGrow, outerStrength, outerFalloff
 		)
-		traceEnd(shadowOuterTrace)
 		if profiling then profileEnd("round.shadowOuter", shadowOuterProfile) end
 	end
 
 	local backdrop
 	if backdropSpec then
 		profile = profiling and profileStart() or nil
-		local backdropPassTrace = traceStart("round.backdrop")
 		backdrop = drawRoundRectBackdrop(x, y, w, h, radius, backdropSpec)
-		traceEnd(backdropPassTrace)
 		if profiling then profileEnd("round.backdrop", profile) end
 	end
 
@@ -1274,42 +1174,38 @@ drawRoundRectRaw = function(x, y, w, h, radius, fillInput, stroke, strokeWidthIn
 
 	local effectOnly = not backdrop
 		and not hasStroke
-		and pattern == nil
+		and patternSpec == nil
 		and not hasInner
 		and (hasShadow or hasOuter)
 	if effectOnly and not hasFill then
-		finishImmediateTrace(trace, profiling, totalProfile)
+		finishImmediateProfile(profiling, totalProfile)
 		return
 	end
 
-	if not backdrop and not hasFill and not hasStroke and pattern == nil and not hasInner then
-		finishImmediateTrace(trace, profiling, totalProfile)
+	if not backdrop and not hasFill and not hasStroke and patternSpec == nil and not hasInner then
+		finishImmediateProfile(profiling, totalProfile)
 		return
 	end
 
+	local drawFill = hasFill and fill or transparentFill
 	local mat = materials.roundrect
-	local useLayered = pattern ~= nil
+	local useLayered = patternSpec ~= nil
 	local innerGlowDrawn = false
 	if useLayered then
 		profile = profiling and profileStart() or nil
-		local layeredTrace = traceStart("round.layered")
 		if hasFill then
 			drawRoundRectFillPass(x, y, w, h, radius, fill)
 		end
-		drawRoundRectPattern(x, y, w, h, radius, pattern)
+		drawRoundRectPatternPrepared(x, y, w, h, radius, patternSpec)
 		if hasStroke then
 			drawRoundRectStrokePass(x, y, w, h, radius, stroke, strokeWidth)
 		end
-		traceEnd(layeredTrace)
 		if profiling then profileEnd("round.layered", profile) end
 	else
 		profile = profiling and profileStart() or nil
-		local baseTrace = traceStart("round.base")
-		local radiusTrace = traceStart("round.base.radius")
 		local radiusValue = roundRectRadiusScalar(radius, w, h)
-		traceEnd(radiusTrace)
 		local baseKind
-		if fill.kind == FILL_LINEAR then
+		if drawFill.kind == FILL_LINEAR then
 			baseKind = "round.base.gradient"
 		elseif hasStroke then
 			baseKind = "round.base.stroke"
@@ -1318,56 +1214,93 @@ drawRoundRectRaw = function(x, y, w, h, radius, fillInput, stroke, strokeWidthIn
 		else
 			baseKind = "round.base.solidRound"
 		end
-		if hasInner and roundRaw.drawFxPass(x, y, w, h, radius, fill, stroke, strokeWidth, true, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff) then
+		if hasInner and roundRaw.drawFxPass(x, y, w, h, radius, drawFill, stroke, strokeWidth, true, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff) then
 			baseKind = "round.base.fx"
 			innerGlowDrawn = true
 		elseif baseKind == "round.base.solidRect"
+			and hasFill
 			and fill.kind == FILL_SOLID
-			and shadow == nil
-			and outerGlow == nil
-			and innerGlow == nil
-			and backdrop == nil
-			and not hasTransform() then
+			and not transformActive then
 			local drawProfile = profiling and profileStart() or nil
-			local drawTrace = traceStart("round.base.draw")
 			drawSolidRectFast(x, y, w, h, fill)
-			traceEnd(drawTrace)
 			if profiling then profileEnd("round.base.draw", drawProfile) end
 			baseKind = "round.base.solidRectFast"
 		elseif baseKind == "round.base.solidRound"
+			and hasFill
 			and fill.kind == FILL_SOLID
-			and shadow == nil
-			and outerGlow == nil
-			and innerGlow == nil
-			and backdrop == nil
 			and drawSolidRoundFast(x, y, w, h, radiusValue, fill) then
 			baseKind = "round.base.solidRoundFast"
 		else
 			local setupProfile = profiling and profileStart() or nil
-			local setupTrace = traceStart("round.base.setup")
-			setupRoundRectConstants(mat, w, h, fill, stroke, strokeWidth, radiusValue)
+			setupRoundRectConstants(mat, w, h, drawFill, stroke, strokeWidth, radiusValue)
 			surface_SetMaterial(mat)
 			surface_SetDrawColor(255, 255, 255, 255)
-			traceEnd(setupTrace)
 			if profiling then profileEnd("round.base.setup", setupProfile) end
 			local drawProfile = profiling and profileStart() or nil
-			local drawTrace = traceStart("round.base.draw")
 			drawTexturedQuad(x, y, w, h, mat)
-			traceEnd(drawTrace)
 			if profiling then profileEnd("round.base.draw", drawProfile) end
 		end
-		traceEnd(baseTrace)
 		if profiling then profileEndBase(baseKind, profile) end
 	end
 
 	if hasInner and not innerGlowDrawn then
 		profile = profiling and profileStart() or nil
-		local innerTrace = traceStart("round.innerGlow")
 		roundRaw.drawInnerGlow(x, y, w, h, radius, true, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff)
-		traceEnd(innerTrace)
 		if profiling then profileEnd("round.innerGlow", profile) end
 	end
-	finishImmediateTrace(trace, profiling, totalProfile)
+	finishImmediateProfile(profiling, totalProfile)
+end
+
+drawRoundRectRaw = function(x, y, w, h, radius, fillInput, stroke, strokeWidthInput, shadow, outerGlow, innerGlow, backdropInput, pattern)
+	-- Parse friendly public style tables once at the boundary. The hot draw
+	-- core below only receives scalar effect parameters and already-normalized
+	-- fill/stroke state.
+	local profiling = profiler and profiler.IsActive and profiler.IsActive()
+	local totalProfile = profiling and profileStart() or nil
+	local fill = hotFillFromStyle(fillInput)
+	local hasFill = hotFillVisible(fill)
+	local strokeWidth = 0
+	local hasStroke = false
+	if stroke then
+		strokeWidth = strokeWidthValue(strokeWidthInput, 0)
+		hasStroke = strokeWidth > 0 and (stroke.a == nil or stroke.a > 0)
+	end
+
+	local hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread = false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0
+	if shadow ~= nil and shadow ~= false then
+		hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread = roundRaw.shadow(shadow)
+	end
+
+	local hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread = false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0
+	if outerGlow ~= nil and outerGlow ~= false then
+		hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread = roundRaw.outerGlow(outerGlow)
+	end
+
+	local hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff = false, 0, 0, 0, 0, 0, 0, 1
+	if innerGlow ~= nil and innerGlow ~= false then
+		hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff = roundRaw.innerGlow(innerGlow)
+	end
+
+	local backdropSpec = nil
+	if backdropInput ~= nil and backdropInput ~= false then
+		backdropSpec = backdropStyle(backdropInput)
+	end
+
+	local patternSpec = nil
+	if pattern ~= nil and pattern ~= false then
+		patternSpec = patternStyle(pattern)
+	end
+
+	return drawRoundRectPrepared(
+		x, y, w, h, radius,
+		fill, hasFill,
+		stroke, strokeWidth, hasStroke,
+		hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread,
+		hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
+		hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff,
+		backdropSpec, patternSpec,
+		profiling, totalProfile, totalProfile
+	)
 end
 
 drawRoundRectImmediate = function(x, y, w, h, style)
@@ -1380,36 +1313,23 @@ drawRoundRectImmediate = function(x, y, w, h, style)
 end
 
 function M.RoundedBoxEx(x, y, w, h, style)
-	local trace = traceStart("api.RoundedBoxEx")
-	local styleTrace = traceStart("api.RoundedBoxEx.resolveDrawStyle")
 	style = resolveDrawStyle(style, M.TARGET.ROUNDED_BOX)
-	traceEnd(styleTrace)
 	local transform
-	local transformTrace = traceStart("api.RoundedBoxEx.splitStyleTransform")
 	transform, style = splitStyleTransform(style)
-	traceEnd(transformTrace)
-	local recordTrace = traceStart("api.RoundedBoxEx.record")
 	recordDirectImmediate("DrawRoundedBox", "round")
-	traceEnd(recordTrace)
 	if not transform then
 		local result = drawRoundRectImmediate(x, y, w, h, style)
-		traceEnd(trace)
 		return result
 	end
-	local withTransformTrace = traceStart("api.RoundedBoxEx.withTransform")
 	local result = withTransform(transform, x, y, w, h, function()
 		return drawRoundRectImmediate(x, y, w, h, style)
 	end)
-	traceEnd(withTransformTrace)
-	traceEnd(trace)
 	return result
 end
 
 function M.RoundedBox(x, y, w, h, radius, fill, stroke, strokeWidth)
-	local trace = traceStart("api.RoundedBox")
 	recordDirectImmediate("DrawRoundedBox", "round")
 	local result = drawRoundRectRaw(x, y, w, h, radius, fill, stroke, strokeWidth, nil, nil, nil, nil, nil)
-	traceEnd(trace)
 	return result
 end
 
@@ -1462,6 +1382,7 @@ end
 		drawRoundRectFillPass = drawRoundRectFillPass,
 		drawRoundRectStrokePass = drawRoundRectStrokePass,
 		drawRoundRectRaw = drawRoundRectRaw,
+		drawRoundRectPrepared = drawRoundRectPrepared,
 		drawRoundRectImmediate = drawRoundRectImmediate,
 		roundRaw = roundRaw,
 		glowBiasPads = glowBiasPads,

@@ -9,6 +9,12 @@ enum ProgressFillView repr existing(kind = "kind") {
   Linear(kind = style.FILL_LINEAR, x1: number, y1: number, x2: number, y2: number)
 }
 
+local progressTickFill = solidFillInto({}, progressTickColor)
+local progressGlowFill = solidFillInto({}, progressGlowColor)
+local progressMarkerFill = solidFillInto({}, progressMarkerColor)
+local segmentItemFillScratch = {}
+local segmentContainerFillScratch = {}
+
 fn progressFxBits(fxInput) {
   local fx = typeOf(fxInput) == "table" and fxInput or nil
   if fx == nil {
@@ -196,7 +202,7 @@ fn drawSegmentBarShaderRaw(x, y, w, h, value, count, gap, fill, track, radius, b
 
   local trackColor = style.asColor(track, defaultSegmentTrack)
   local fillA, fillB = segmentFillEndpoints(fill)
-  local hasFill = style.fillVisible(fill)
+  local hasFill = preparedFillVisible(fill)
   local hasTrack = trackColor.a == nil or trackColor.a > 0
   if not hasFill and not hasTrack {
     return true
@@ -241,13 +247,72 @@ export client fn progressBarRaw(x, y, w, h, value, radiusInput = nil, trackInput
   }
 
   local glow, sheen, marker, ticks = fxFlagsFromInput(fxInput)
+  local hasShadow = false
+  local sr = 0
+  local sg = 0
+  local sb = 0
+  local sa = 0
+  local shadowX = 0
+  local shadowY = 0
+  local shadowWidth = 1
+  local shadowSpread = 1
+  local shadowGrow = 0
+  local shadowStrength = 0
+  local shadowFalloff = 1
+  local shadowExtent = 0
+  local shadowCullSpread = 0
+  if shadow ~= nil and shadow ~= false {
+    hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread = roundrect.shadowRaw(shadow)
+  }
+
+  local hasOuter = false
+  local orr = 0
+  local og = 0
+  local ob = 0
+  local oa = 0
+  local outerX = 0
+  local outerY = 0
+  local outerWidth = 1
+  local outerSpread = 1
+  local outerGrow = 0
+  local outerStrength = 0
+  local outerFalloff = 1
+  local outerExtent = 0
+  local outerCullSpread = 0
+  if outerGlow ~= nil and outerGlow ~= false {
+    hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread = roundrect.outerGlowRaw(outerGlow)
+  }
+
+  local hasInner = false
+  local igr = 0
+  local igg = 0
+  local igb = 0
+  local iga = 0
+  local innerWidth = 0
+  local innerStrength = 0
+  local innerFalloff = 1
+  if innerGlow ~= nil and innerGlow ~= false {
+    hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff = roundrect.innerGlowRaw(innerGlow)
+  }
+
+  local backdropSpec = backdrop ~= nil and backdrop ~= false then style.backdropStyle(backdrop) else nil
+  local patternSpec = pattern ~= nil and pattern ~= false then roundrect.patternStyle(pattern) else nil
+  local fillPatternSpec = fillPattern ~= nil and fillPattern ~= false then roundrect.patternStyle(fillPattern) else patternSpec
+  local trackPatternSpec = trackPattern ~= nil and trackPattern ~= false then roundrect.patternStyle(trackPattern) else nil
 
   progressTrackDarkColor.r = mathFloor((track.r ?? 0) * 0.65)
   progressTrackDarkColor.g = mathFloor((track.g ?? 0) * 0.65)
   progressTrackDarkColor.b = mathFloor((track.b ?? 0) * 0.65)
   progressTrackDarkColor.a = track.a ?? 190
   local trackFill = setGradientColors(progressTrackGradient, progressTrackDarkColor, track)
-  roundrect.drawRoundRectRaw(x, y, w, h, radius, trackFill, stroke, strokeWidth, shadow, outerGlow, innerGlow, backdrop, trackPattern)
+  drawPreparedRoundRectEffects(
+    x, y, w, h, radius,
+    trackFill, stroke, strokeWidth,
+    hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread,
+    hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
+    hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff,
+    backdropSpec, trackPatternSpec
+  )
 
   local innerH = h - inset * 2
   local innerW = (w - inset * 2) * frac
@@ -258,7 +323,7 @@ export client fn progressBarRaw(x, y, w, h, value, radiusInput = nil, trackInput
   if ticks > 1 {
     for index = 1, ticks - 1 {
       local tx = x + mathFloor(w * index / ticks)
-      roundrect.drawRoundRectRaw(tx, y + 3, 1, mathMax(1, h - 6), 0, progressTickColor)
+      drawPreparedRoundRectPlain(tx, y + 3, 1, mathMax(1, h - 6), 0, progressTickFill)
     }
   }
 
@@ -268,20 +333,20 @@ export client fn progressBarRaw(x, y, w, h, value, radiusInput = nil, trackInput
 
   if glow and innerW > 4 {
     local glowRadius = mathMin(radius + 2, (innerH + 4) * 0.5, (innerW + 4) * 0.5)
-    roundrect.drawRoundRectRaw(x + inset - 2, y + inset - 2, innerW + 4, innerH + 4, glowRadius, progressGlowColor)
+    drawPreparedRoundRectPlain(x + inset - 2, y + inset - 2, innerW + 4, innerH + 4, glowRadius, progressGlowFill)
   }
 
   local fillRadius = mathMin(mathMax(0, radius - inset), innerH * 0.5, innerW * 0.5)
-  roundrect.drawRoundRectRaw(x + inset, y + inset, innerW, innerH, fillRadius, fill, nil, nil, nil, nil, nil, nil, fillPattern ?? pattern)
+  drawPreparedRoundRectPlain(x + inset, y + inset, innerW, innerH, fillRadius, fillObj, nil, 0, fillPatternSpec)
 
   if sheen and innerW > 8 {
     local sheenRadius = mathMin(radius, innerH * 0.25)
-    roundrect.drawRoundRectRaw(x + inset + 1, y + inset + 1, mathMax(1, innerW - 2), mathMax(1, innerH * 0.38), sheenRadius, progressSheenGradient)
+    drawPreparedRoundRectPlain(x + inset + 1, y + inset + 1, mathMax(1, innerW - 2), mathMax(1, innerH * 0.38), sheenRadius, progressSheenGradient)
   }
 
   if marker and innerW > 5 {
     local mx = x + inset + innerW - 2
-    roundrect.drawRoundRectRaw(mx, y + 2, 2, h - 4, 1, progressMarkerColor)
+    drawPreparedRoundRectPlain(mx, y + 2, 2, h - 4, 1, progressMarkerFill)
   }
 }
 
@@ -306,7 +371,8 @@ export client fn segmentBarRaw(x, y, w, h, value, segments = nil, fillInput = ni
   local active = mathFloor(frac * count + 0.0001)
   local fill = style.fillFromStyle(fillInput ?? colorInput ?? defaultSegmentFill)
   local track = trackInput ?? defaultSegmentTrack
-  if drawSegmentBarShaderRaw(x, y, w, h, frac, count, gap, fill, track, radius, background, stroke, strokeWidth, shadow, backdrop, outerGlow, innerGlow, pattern, fillPattern, trackPattern) {
+  local strokeWidthValue = style.strokeWidth(strokeWidth, 0)
+  if drawSegmentBarShaderRaw(x, y, w, h, frac, count, gap, fill, track, radius, background, stroke, strokeWidthValue, shadow, backdrop, outerGlow, innerGlow, pattern, fillPattern, trackPattern) {
     return
   }
   local totalGap = gap * (count - 1)
@@ -317,18 +383,80 @@ export client fn segmentBarRaw(x, y, w, h, value, segments = nil, fillInput = ni
 
   local containerRadius = backgroundRadius ?? radius ?? mathMin(3, h * 0.5)
   if shadow ~= nil or outerGlow ~= nil or innerGlow ~= nil or backdrop ~= nil or background ~= nil {
-    roundrect.drawRoundRectRaw(x, y, w, h, containerRadius, background ?? transparentColor, nil, nil, shadow, outerGlow, innerGlow, backdrop)
+    local hasShadow = false
+    local sr = 0
+    local sg = 0
+    local sb = 0
+    local sa = 0
+    local shadowX = 0
+    local shadowY = 0
+    local shadowWidth = 1
+    local shadowSpread = 1
+    local shadowGrow = 0
+    local shadowStrength = 0
+    local shadowFalloff = 1
+    local shadowExtent = 0
+    local shadowCullSpread = 0
+    if shadow ~= nil and shadow ~= false {
+      hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread = roundrect.shadowRaw(shadow)
+    }
+
+    local hasOuter = false
+    local orr = 0
+    local og = 0
+    local ob = 0
+    local oa = 0
+    local outerX = 0
+    local outerY = 0
+    local outerWidth = 1
+    local outerSpread = 1
+    local outerGrow = 0
+    local outerStrength = 0
+    local outerFalloff = 1
+    local outerExtent = 0
+    local outerCullSpread = 0
+    if outerGlow ~= nil and outerGlow ~= false {
+      hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread = roundrect.outerGlowRaw(outerGlow)
+    }
+
+    local hasInner = false
+    local igr = 0
+    local igg = 0
+    local igb = 0
+    local iga = 0
+    local innerWidth = 0
+    local innerStrength = 0
+    local innerFalloff = 1
+    if innerGlow ~= nil and innerGlow ~= false {
+      hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff = roundrect.innerGlowRaw(innerGlow)
+    }
+
+    local backdropSpec = backdrop ~= nil and backdrop ~= false then style.backdropStyle(backdrop) else nil
+    local backgroundFill = background ~= nil then style.fillFromStyle(background) else solidFillInto(segmentContainerFillScratch, transparentColor)
+    drawPreparedRoundRectEffects(
+      x, y, w, h, containerRadius,
+      backgroundFill, nil, 0,
+      hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread,
+      hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
+      hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff,
+      backdropSpec, nil
+    )
   }
 
   local itemRadius = radius == nil then mathMin(2, h * 0.35) else radius
+  local trackFill = style.fillFromStyle(track)
+  local patternSpec = pattern ~= nil and pattern ~= false then roundrect.patternStyle(pattern) else nil
+  local fillPatternSpec = fillPattern ~= nil and fillPattern ~= false then roundrect.patternStyle(fillPattern) else patternSpec
+  local trackPatternSpec = trackPattern ~= nil and trackPattern ~= false then roundrect.patternStyle(trackPattern) else nil
   for index = 1, count {
     local t = count == 1 then 1 else (index - 1) / (count - 1)
     local sx = x + (index - 1) * (segmentW + gap)
     local filled = index <= active
     local color = filled then colorAt(fill, t) else track
-    local itemPattern = filled then (fillPattern ?? pattern) else trackPattern
-    if color ~= nil or itemPattern ~= nil {
-      roundrect.drawRoundRectRaw(sx, y, segmentW, h, itemRadius, color ?? transparentColor, stroke, strokeWidth ?? 0, nil, nil, nil, nil, itemPattern)
+    local itemFill = filled then solidFillInto(segmentItemFillScratch, color) else trackFill
+    local itemPattern = filled then fillPatternSpec else trackPatternSpec
+    if preparedFillVisible(itemFill) or itemPattern ~= nil {
+      drawPreparedRoundRectPlain(sx, y, segmentW, h, itemRadius, itemFill, stroke, strokeWidthValue, itemPattern)
     }
   }
 }

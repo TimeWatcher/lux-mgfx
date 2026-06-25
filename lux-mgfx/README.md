@@ -44,6 +44,9 @@ consume it through `luxc install`; plain GLua projects should use the sibling
 - **Focused effect fusion**: compatible shadow and outer-glow layers share one
   shader pass for rounded boxes, chamfers, rings, and image masks without
   changing the API fields.
+- **Prepared hot paths**: public style tables are flattened at the API boundary
+  and renderer internals pass scalar/fill/effect parameters instead of
+  forwarding style tables through multiple layers.
 - **Lux-native delivery**: imports, client realm ownership, package
   dependencies, generated loaders, and client file delivery are handled by
   `luxc gmod build`.
@@ -208,12 +211,12 @@ maps, and GMod loader generation.
 `@lux/mgfx` is the normal entry point and exports the unified `mgfx.api` facade.
 Subpackages remain importable for maintainers, narrow tooling, and generated
 runtime integration, but ordinary UI code should not need to decide whether a
-call lives in an internal shape, paint, text, or runtime package.
+call lives in an internal shape, widget, text, style, or runtime package.
 
 | Area | Packages |
 | --- | --- |
 | Public API | `@lux/mgfx`, `@lux/mgfx/api` |
-| Internal renderer packages | `@lux/mgfx/roundrect`, `@lux/mgfx/primitives`, `@lux/mgfx/widgets`, `@lux/mgfx/paint` |
+| Internal renderer packages | `@lux/mgfx/roundrect`, `@lux/mgfx/primitives`, `@lux/mgfx/widgets` |
 | Frame and commands | `@lux/mgfx/frame`, `@lux/mgfx/commands` |
 | Styling | `@lux/mgfx/style`, `@lux/mgfx/capabilities` |
 | Runtime support | `@lux/mgfx/geometry`, `@lux/mgfx/materials`, `@lux/mgfx/profiler`, `@lux/mgfx/shaderpack` |
@@ -249,6 +252,9 @@ mgfx_force_fallback 0/1
 
 Disable diagnostics for real FPS checks. The counters and debug text add their
 own overhead.
+
+Recent complex shop UI testing with diagnostics disabled holds 130+ FPS with a
+full item list and 160+ FPS in lighter categories.
 
 ## Shader Tooling
 

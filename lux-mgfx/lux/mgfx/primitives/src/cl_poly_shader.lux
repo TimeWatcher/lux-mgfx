@@ -66,8 +66,7 @@ fn polyBackdropTintColor(spec) {
   polyBackdropTintScratch
 }
 
-fn drawPolyBackdrop(poly, backdrop) {
-  local spec = style.backdropStyle(backdrop)
+fn drawPolyBackdrop(poly, spec) {
   stopif spec == nil, nil
   local pad = mathMax(0, toNumber(spec.padding) ?? 0)
   local backdropPoly = pad > 0 then growConvexPoly(poly, pad) else poly
@@ -80,7 +79,9 @@ fn drawPolyBackdrop(poly, backdrop) {
   if tint ~= nil {
     local material = primitiveMaterials[polyMaterialKey(backdropPoly)]
     if materialOK(material) {
-      setupPrimitiveFillConstants(material, backdropPoly.w, backdropPoly.h, style.solid(tint), nil, 0, 0)
+      polyBackdropFill.colorA = tint
+      polyBackdropFill.colorB = tint
+      setupPrimitiveFillConstants(material, backdropPoly.w, backdropPoly.h, polyBackdropFill, nil, 0, 0)
       drawMaterialPoly(backdropPoly, material)
     }
   }
@@ -228,8 +229,7 @@ fn drawPolyOuterGlow(poly, bounds, r, g, b, a) {
   true
 }
 
-fn drawPolyPattern(poly, pattern) {
-  local spec = roundrect.patternStyle(pattern)
+fn drawPolyPatternPrepared(poly, spec) {
   stopif spec == nil or not shadersActive() or not materialOK(primitiveMaterials.poly_pattern), false
 
   local color = spec.color ?? spec.tint
@@ -272,6 +272,9 @@ fn drawPolyPattern(poly, pattern) {
   drawTransformedPoly(polyDrawVerts(poly))
   true
 }
+
+fn drawPolyPattern(poly, pattern) =
+  drawPolyPatternPrepared(poly, roundrect.patternStyle(pattern))
 
 fn setupPolyStrokeConstants(material, poly, color, strokeWidth) {
   local drawRect = polyDrawRect(poly, mathMax(2, style.strokeWidthValue(strokeWidth, 0) + 2))
@@ -348,12 +351,7 @@ fn drawPolyStroke(poly, color, strokeWidth) {
   }
 }
 
-fn drawPolyFallbackRaw(points, fillInput, stroke, strokeWidthInput) {
-  local fill = style.fillFromStyle(fillInput)
-  local hasFill = style.fillVisible(fill)
-  local strokeWidth = style.strokeWidthValue(strokeWidthInput, 0)
-  local hasStroke = style.strokeVisible(stroke, strokeWidth)
-
+fn drawPolyFallbackPrepared(points, fill, hasFill, stroke, strokeWidth, hasStroke) {
   if hasFill {
     style.setDrawColor(fillColor(fill))
     drawTransformedPoly(points)
@@ -368,12 +366,49 @@ fn drawPolyFallbackRaw(points, fillInput, stroke, strokeWidthInput) {
   }
 }
 
+fn drawPolyFallbackRaw(points, fillInput, stroke, strokeWidthInput) {
+  local fill = style.fillFromStyle(fillInput)
+  local strokeWidth = style.strokeWidthValue(strokeWidthInput, 0)
+  local hasStroke = style.strokeVisible(stroke, strokeWidth)
+  drawPolyFallbackPrepared(points, fill, hotFillVisible(fill), stroke, strokeWidth, hasStroke)
+}
+
 fn drawPolyRawNormalized(points, poly, fillInput = nil, stroke = nil, strokeWidthInput = nil, shadow = nil, outerGlow = nil, backdropInput = nil, pattern = nil) {
-  local hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpreadUnused, shadowGrow, shadowStrength, shadowFalloff, shadowExtent = roundrect.shadowRaw(shadow)
+  local hasShadow = false
+  local sr = 0
+  local sg = 0
+  local sb = 0
+  local sa = 0
+  local shadowX = 0
+  local shadowY = 0
+  local shadowWidth = 1
+  local shadowGrow = 0
+  local shadowStrength = 0
+  local shadowFalloff = 1
+  local shadowExtent = 0
+  if shadow ~= nil and shadow ~= false {
+    hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, _, shadowGrow, shadowStrength, shadowFalloff, shadowExtent = roundrect.shadowRaw(shadow)
+  }
   local shadowBounds = polyEffectBounds(poly, hasShadow, sa, shadowX, shadowY, shadowWidth, shadowExtent, shadowGrow, shadowStrength, shadowFalloff)
-  local hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpreadUnused, outerGrow, outerStrength, outerFalloff, outerExtent = roundrect.outerGlowRaw(outerGlow)
+
+  local hasOuter = false
+  local orr = 0
+  local og = 0
+  local ob = 0
+  local oa = 0
+  local outerX = 0
+  local outerY = 0
+  local outerWidth = 1
+  local outerGrow = 0
+  local outerStrength = 0
+  local outerFalloff = 1
+  local outerExtent = 0
+  if outerGlow ~= nil and outerGlow ~= false {
+    hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, _, outerGrow, outerStrength, outerFalloff, outerExtent = roundrect.outerGlowRaw(outerGlow)
+  }
   local outerBounds = polyEffectBounds(poly, hasOuter, oa, outerX, outerY, outerWidth, outerExtent, outerGrow, outerStrength, outerFalloff, true)
-  local backdrop = style.backdropStyle(backdropInput)
+  local backdrop = backdropInput ~= nil and backdropInput ~= false then style.backdropStyle(backdropInput) else nil
+  local patternSpec = pattern ~= nil and pattern ~= false then roundrect.patternStyle(pattern) else nil
   local cullX = poly.x
   local cullY = poly.y
   local cullW = poly.w
@@ -395,29 +430,30 @@ fn drawPolyRawNormalized(points, poly, fillInput = nil, stroke = nil, strokeWidt
     return
   }
 
+  local fill = style.fillFromStyle(fillInput)
+  local hasFill = hotFillVisible(fill)
+  local strokeWidth = style.strokeWidthValue(strokeWidthInput, 0)
+  local hasStroke = style.strokeVisible(stroke, strokeWidth)
+
   if not shadersActive() {
-    return drawPolyFallbackRaw(points, fillInput, stroke, strokeWidthInput)
+    return drawPolyFallbackPrepared(points, fill, hasFill, stroke, strokeWidth, hasStroke)
   }
 
   drawPolyShadow(poly, shadowBounds, sr, sg, sb, sa)
   drawPolyOuterGlow(poly, outerBounds, orr, og, ob, oa)
-  drawPolyBackdrop(poly, backdropInput)
+  drawPolyBackdrop(poly, backdrop)
 
   local material = primitiveMaterials[polyMaterialKey(poly)]
-  local fill = style.fillFromStyle(fillInput)
-  local hasFill = style.fillVisible(fill)
-  local strokeWidth = style.strokeWidthValue(strokeWidthInput, 0)
-  local hasStroke = style.strokeVisible(stroke, strokeWidth)
 
   if hasFill and materialOK(material) {
     local drawRect = setupPolyFillConstants(material, poly, fill)
     surfaceSetMaterial(material)
     drawTexturedQuadUV(drawRect.x, drawRect.y, drawRect.w, drawRect.h, drawRect.u0, drawRect.v0, drawRect.u1, drawRect.v1, material)
   } else if hasFill {
-    drawPolyFallbackRaw(points, fill, nil, 0)
+    drawPolyFallbackPrepared(points, fill, true, nil, 0, false)
   }
 
-  drawPolyPattern(poly, pattern)
+  drawPolyPatternPrepared(poly, patternSpec)
 
   if hasStroke {
     drawPolyStroke(poly, stroke, strokeWidth)

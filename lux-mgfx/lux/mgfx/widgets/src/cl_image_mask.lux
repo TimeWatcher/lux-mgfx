@@ -305,8 +305,7 @@ fn setupImageMaskBackdropConstants(material, drawW, drawH, shapeW, shapeH, mask,
   )
 }
 
-fn drawImageMaskBackdrop(x, y, w, h, mask, kind, maskTexture, backdrop) {
-  local spec = style.backdropStyle(backdrop)
+fn drawImageMaskBackdrop(x, y, w, h, mask, kind, maskTexture, spec) {
   stopif spec == nil or typeOf(mask) ~= "table" or kind == nil, nil
   stopif imageMaskUsesTexture(kind) and maskTexture == nil, nil
   local pad = mathMax(0, toNumber(spec.padding) ?? 0)
@@ -340,7 +339,7 @@ fn drawImageMaskBackdrop(x, y, w, h, mask, kind, maskTexture, backdrop) {
   spec
 }
 
-fn drawImageMaskShader(x, y, w, h, texture, u0, v0, u1, v1, drawStyle, mask, kind = nil) {
+fn drawImageMaskShader(x, y, w, h, texture, u0, v0, u1, v1, tint, background, stroke, strokeWidth, mask, kind = nil) {
   stopif typeOf(mask) ~= "table", false
 
   kind = kind ?? imageMaskKindValue(mask)
@@ -356,7 +355,6 @@ fn drawImageMaskShader(x, y, w, h, texture, u0, v0, u1, v1, drawStyle, mask, kin
     stopif maskTexture == nil, true
   }
 
-  local background = drawStyle.fill ?? drawStyle.background
   if background ~= nil and background.r ~= nil and (background.a == nil or background.a > 0) {
     local white = imageWhiteTextureSource()
     if white ~= nil {
@@ -364,5 +362,5 @@ fn drawImageMaskShader(x, y, w, h, texture, u0, v0, u1, v1, drawStyle, mask, kin
     }
   }
 
-  drawImageMaskPass(x, y, w, h, texture, u0, v0, u1, v1, geometry.imageTint(drawStyle), drawStyle.stroke, drawStyle.strokeWidth, mask, kind, maskTexture, mask.sourceAlpha == true)
+  drawImageMaskPass(x, y, w, h, texture, u0, v0, u1, v1, tint, stroke, strokeWidth, mask, kind, maskTexture, mask.sourceAlpha == true)
 }

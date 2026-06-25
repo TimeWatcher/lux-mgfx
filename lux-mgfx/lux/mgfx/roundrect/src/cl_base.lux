@@ -221,22 +221,7 @@ fn roundRectProfileRecord(name, elapsed) {
   }
 }
 
-fn roundRectTraceStart(name) {
-  if roundRectProfiler ~= nil and roundRectProfiler._TraceActive and roundRectProfiler.TraceStart ~= nil {
-    return roundRectProfiler.TraceStart(name)
-  }
-
-  nil
-}
-
-fn roundRectTraceEnd(token) {
-  if token ~= nil and roundRectProfiler ~= nil and roundRectProfiler.TraceEnd ~= nil {
-    roundRectProfiler.TraceEnd(token)
-  }
-}
-
-fn finishImmediateTrace(trace, profiling, totalProfile) {
-  roundRectTraceEnd(trace)
+fn finishImmediateProfile(profiling, totalProfile) {
   if profiling {
     roundRectProfileEnd("round.immediate", totalProfile)
   }
@@ -324,25 +309,23 @@ fn drawFallbackStroke(points, color, width) {
   }
 }
 
-fn drawRoundRectFallbackRaw(x, y, w, h, radius = 0, fillInput = nil, stroke = nil, strokeWidthInput = nil) {
+fn drawRoundRectFallbackPrepared(x, y, w, h, radius = 0, fill, hasFill, stroke = nil, strokeWidth = 0, hasStroke = false) {
   recordFallbacks()
-  local fill = hotFillFromStyle(fillInput)
 
   if hasTransform() {
     local points = fallbackRoundRectPoints(x, y, w, h, radius)
-    if style.fillVisible(fill) {
+    if hasFill {
       setColor(fillColor(fill))
       drawTransformedPoly(points)
     }
 
-    local strokeWidth = style.strokeWidth(strokeWidthInput, 1)
-    if style.strokeVisible(stroke, strokeWidth) {
+    if hasStroke {
       drawFallbackStroke(points, stroke, mathMax(1, mathFloor(strokeWidth)))
     }
     return
   }
 
-  if style.fillVisible(fill) {
+  if hasFill {
     local radiusValue = roundRectRadiusScalar(radius, w, h)
     if radiusValue <= 0.25 {
       setColor(fillColor(fill))
@@ -354,10 +337,21 @@ fn drawRoundRectFallbackRaw(x, y, w, h, radius = 0, fillInput = nil, stroke = ni
     }
   }
 
-  if style.strokeVisible(stroke, strokeWidthInput) {
+  if hasStroke {
     setColor(stroke)
-    surfaceDrawOutlinedRect(x, y, w, h, mathMax(1, mathFloor(style.strokeWidth(strokeWidthInput, 1))))
+    surfaceDrawOutlinedRect(x, y, w, h, mathMax(1, mathFloor(strokeWidth)))
     recordDraws()
   }
 }
 
+fn drawRoundRectFallbackRaw(x, y, w, h, radius = 0, fillInput = nil, stroke = nil, strokeWidthInput = nil) {
+  local fill = hotFillFromStyle(fillInput)
+  local strokeWidth = 0
+  local hasStroke = false
+  if stroke ~= nil {
+    strokeWidth = style.strokeWidth(strokeWidthInput, 0)
+    hasStroke = strokeWidth > 0 and (stroke.a == nil or stroke.a > 0)
+  }
+
+  drawRoundRectFallbackPrepared(x, y, w, h, radius, fill, hotFillVisible(fill), stroke, strokeWidth, hasStroke)
+}

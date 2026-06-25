@@ -117,32 +117,19 @@ return function(__lux_import)
   local textBatchEx
   local prewarmText
   do
-    local __lux_import_1 = __lux_import("lux/mgfx/capabilities#client")
-    local capabilities = __lux_import_1
-    local __lux_import_2 = __lux_import("lux/mgfx/commands#client")
-    local commands = __lux_import_2
-    local __lux_import_3 = __lux_import("lux/mgfx/console#client")
-    local console = __lux_import_3
-    local __lux_import_4 = __lux_import("lux/mgfx/frame#client")
-    local frame = __lux_import_4
-    local __lux_import_5 = __lux_import("lux/mgfx/geometry#client")
-    local geometry = __lux_import_5
-    local __lux_import_6 = __lux_import("lux/mgfx/materials#client")
-    local materials = __lux_import_6
-    local __lux_import_7 = __lux_import("lux/mgfx/primitives#client")
-    local primitives = __lux_import_7
-    local __lux_import_8 = __lux_import("lux/mgfx/profiler#client")
-    local profiler = __lux_import_8
-    local __lux_import_9 = __lux_import("lux/mgfx/roundrect#client")
-    local roundrect = __lux_import_9
-    local __lux_import_10 = __lux_import("lux/mgfx/shaderpack#client")
-    local shaderpack = __lux_import_10
-    local __lux_import_11 = __lux_import("lux/mgfx/style#client")
-    local style = __lux_import_11
-    local __lux_import_12 = __lux_import("lux/mgfx/text#client")
-    local textModule = __lux_import_12
-    local __lux_import_13 = __lux_import("lux/mgfx/widgets#client")
-    local widgets = __lux_import_13
+    local capabilities = __lux_import("lux/mgfx/capabilities#client")
+    local commands = __lux_import("lux/mgfx/commands#client")
+    local console = __lux_import("lux/mgfx/console#client")
+    local frame = __lux_import("lux/mgfx/frame#client")
+    local geometry = __lux_import("lux/mgfx/geometry#client")
+    local materials = __lux_import("lux/mgfx/materials#client")
+    local primitives = __lux_import("lux/mgfx/primitives#client")
+    local profiler = __lux_import("lux/mgfx/profiler#client")
+    local roundrect = __lux_import("lux/mgfx/roundrect#client")
+    local shaderpack = __lux_import("lux/mgfx/shaderpack#client")
+    local style = __lux_import("lux/mgfx/style#client")
+    local textModule = __lux_import("lux/mgfx/text#client")
+    local widgets = __lux_import("lux/mgfx/widgets#client")
     tableEmpty = table.Empty
     typeOf = type
     makeColor = Color
@@ -154,32 +141,32 @@ return function(__lux_import)
     end
     clearFrameStatTables = function(stats)
       do
-        local __lux_tmp_14 = stats.drawCommandCounts
-        if __lux_tmp_14 == nil then
-          __lux_tmp_14 = {}
+        local __lux_tmp_drawCommandCounts_1 = stats.drawCommandCounts
+        if __lux_tmp_drawCommandCounts_1 == nil then
+          __lux_tmp_drawCommandCounts_1 = {}
         end
-        stats.drawCommandCounts = __lux_tmp_14
+        stats.drawCommandCounts = __lux_tmp_drawCommandCounts_1
       end
       do
-        local __lux_tmp_15 = stats.drawImmediateCounts
-        if __lux_tmp_15 == nil then
-          __lux_tmp_15 = {}
+        local __lux_tmp_drawImmediateCounts_2 = stats.drawImmediateCounts
+        if __lux_tmp_drawImmediateCounts_2 == nil then
+          __lux_tmp_drawImmediateCounts_2 = {}
         end
-        stats.drawImmediateCounts = __lux_tmp_15
+        stats.drawImmediateCounts = __lux_tmp_drawImmediateCounts_2
       end
       do
-        local __lux_tmp_16 = stats.profileTimes
-        if __lux_tmp_16 == nil then
-          __lux_tmp_16 = {}
+        local __lux_tmp_profileTimes_3 = stats.profileTimes
+        if __lux_tmp_profileTimes_3 == nil then
+          __lux_tmp_profileTimes_3 = {}
         end
-        stats.profileTimes = __lux_tmp_16
+        stats.profileTimes = __lux_tmp_profileTimes_3
       end
       do
-        local __lux_tmp_17 = stats.profileCounts
-        if __lux_tmp_17 == nil then
-          __lux_tmp_17 = {}
+        local __lux_tmp_profileCounts_4 = stats.profileCounts
+        if __lux_tmp_profileCounts_4 == nil then
+          __lux_tmp_profileCounts_4 = {}
         end
-        stats.profileCounts = __lux_tmp_17
+        stats.profileCounts = __lux_tmp_profileCounts_4
       end
       tableEmpty(stats.drawCommandCounts)
       tableEmpty(stats.drawImmediateCounts)
@@ -188,11 +175,11 @@ return function(__lux_import)
     end
     resetFrameStats = function(owner)
       do
-        local __lux_tmp_18 = owner.stats
-        if __lux_tmp_18 == nil then
-          __lux_tmp_18 = {}
+        local __lux_tmp_stats_5 = owner.stats
+        if __lux_tmp_stats_5 == nil then
+          __lux_tmp_stats_5 = {}
         end
-        owner.stats = __lux_tmp_18
+        owner.stats = __lux_tmp_stats_5
       end
       local stats = owner.stats
       stats.draws = 0
@@ -259,79 +246,58 @@ return function(__lux_import)
       else
         fillKind = nil
       end
-      local __lux_tmp_19 = fillKind ~= style.PATTERN_STRIPE
-      if __lux_tmp_19 then
-        __lux_tmp_19 = fillKind ~= style.PATTERN_SMOKE
-      end
-      if __lux_tmp_19 then
+      if fillKind ~= style.PATTERN_STRIPE and fillKind ~= style.PATTERN_SMOKE then
         return drawStyle
       end
-      local __lux_tmp_20 = target == capabilities.TARGET.PROGRESS_BAR
-      if not __lux_tmp_20 then
-        __lux_tmp_20 = target == capabilities.TARGET.SEGMENT_BAR
-      end
-      if __lux_tmp_20 then
+      if target == capabilities.TARGET.PROGRESS_BAR or target == capabilities.TARGET.SEGMENT_BAR then
         local out
         do
-          local __lux_table_21 = {}
-          local __lux_spread_22 = drawStyle
-          if __lux_spread_22 ~= nil then
-            for __lux_k_23, __lux_v_24 in pairs(__lux_spread_22) do
-              __lux_table_21[__lux_k_23] = __lux_v_24
+          local __lux_table_6 = {}
+          local __lux_spread_7 = drawStyle
+          if __lux_spread_7 ~= nil then
+            for __lux_k_8, __lux_v_9 in pairs(__lux_spread_7) do
+              __lux_table_6[__lux_k_8] = __lux_v_9
             end
           end
-          out = __lux_table_21
+          out = __lux_table_6
         end
         if out.fillPattern == nil then
           out.fillPattern = fill
         end
         do
-          local __lux_tmp_25 = drawStyle.fillBase
-          if __lux_tmp_25 == nil then
-            __lux_tmp_25 = drawStyle.baseFill
+          local __lux_tmp_fillBase_10 = drawStyle.fillBase
+          if __lux_tmp_fillBase_10 == nil then
+            __lux_tmp_fillBase_10 = drawStyle.baseFill
           end
-          out.fill = __lux_tmp_25
+          out.fill = __lux_tmp_fillBase_10
         end
         return out
       end
       local cap = capabilities.get(target)
-      local __lux_tmp_26 = cap == nil
-      if not __lux_tmp_26 then
-        __lux_tmp_26 = cap.keys == nil
-      end
-      local __lux_tmp_27 = __lux_tmp_26
-      if not __lux_tmp_27 then
-        __lux_tmp_27 = cap.keys.pattern ~= true
-      end
-      local __lux_tmp_28 = __lux_tmp_27
-      if not __lux_tmp_28 then
-        __lux_tmp_28 = drawStyle.pattern ~= nil
-      end
-      if __lux_tmp_28 then
+      if cap == nil or cap.keys == nil or cap.keys.pattern ~= true or drawStyle.pattern ~= nil then
         return drawStyle
       end
       local out
       do
-        local __lux_table_29 = {}
-        local __lux_spread_30 = drawStyle
-        if __lux_spread_30 ~= nil then
-          for __lux_k_31, __lux_v_32 in pairs(__lux_spread_30) do
-            __lux_table_29[__lux_k_31] = __lux_v_32
+        local __lux_table_11 = {}
+        local __lux_spread_12 = drawStyle
+        if __lux_spread_12 ~= nil then
+          for __lux_k_13, __lux_v_14 in pairs(__lux_spread_12) do
+            __lux_table_11[__lux_k_13] = __lux_v_14
           end
         end
-        out = __lux_table_29
+        out = __lux_table_11
       end
       out.pattern = fill
       do
-        local __lux_tmp_33 = drawStyle.patternBase
-        if __lux_tmp_33 == nil then
-          local __lux_tmp_34 = drawStyle.baseFill
-          if __lux_tmp_34 == nil then
-            __lux_tmp_34 = transparentFillColor
-          end
-          __lux_tmp_33 = __lux_tmp_34
+        local __lux_tmp_patternBase_15 = drawStyle.patternBase
+        if __lux_tmp_patternBase_15 == nil then
+          __lux_tmp_patternBase_15 = drawStyle.baseFill
         end
-        out.fill = __lux_tmp_33
+        if __lux_tmp_patternBase_15 == nil then
+          __lux_tmp_patternBase_15 = transparentFillColor
+        end
+        out.fill = __lux_tmp_patternBase_15
       end
       return out
     end
@@ -458,11 +424,7 @@ return function(__lux_import)
     end
     installProfileWrappers = function(owner)
       local api = owner.Profiler
-      local __lux_tmp_35 = api == nil
-      if not __lux_tmp_35 then
-        __lux_tmp_35 = api.InstallApiWrappers == nil
-      end
-      if __lux_tmp_35 then
+      if api == nil or api.InstallApiWrappers == nil then
         return owner
       end
       api.InstallApiWrappers(
@@ -548,23 +510,15 @@ return function(__lux_import)
           "PrewarmText",
         },
         function()
-          local __lux_tmp_36 = owner._FrameState ~= nil
-          if __lux_tmp_36 then
-            __lux_tmp_36 = owner._FrameState.replaying == true
-          end
-          return __lux_tmp_36
+          return owner._FrameState ~= nil and owner._FrameState.replaying == true
         end
       )
       return owner
     end
     install = function(owner)
-      local out
-      do
-        local __lux_tmp_37 = owner
-        if __lux_tmp_37 == nil then
-          __lux_tmp_37 = {}
-        end
-        out = __lux_tmp_37
+      local out = owner
+      if out == nil then
+        out = {}
       end
       out.Reload = function()
         return install(out)
@@ -594,13 +548,9 @@ return function(__lux_import)
       if name == nil then
         name = "MGFX"
       end
-      local out
-      do
-        local __lux_tmp_38 = _G[name]
-        if __lux_tmp_38 == nil then
-          __lux_tmp_38 = {}
-        end
-        out = __lux_tmp_38
+      local out = _G[name]
+      if out == nil then
+        out = {}
       end
       _G[name] = install(out)
       return _G[name]
@@ -610,8 +560,7 @@ return function(__lux_import)
     end
   end
   do
-    local __lux_import_39 = __lux_import("lux/mgfx/capabilities#client")
-    local capabilities = __lux_import_39
+    local capabilities = __lux_import("lux/mgfx/capabilities#client")
     defaultRuntime = install({})
     TARGET_ROUNDED_BOX = 1
     TARGET_CHAMFER_BOX = 2

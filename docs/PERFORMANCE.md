@@ -5,11 +5,26 @@ MGFX optimizes the immediate drawing model instead of hiding it behind a large s
 ## Design Goals
 
 - Keep shape and HUD-meter rendering on immediate shader/fallback paths.
+- Flatten public style records at the API boundary; internal draw layers should receive prepared scalar, fill, and effect parameters.
 - Upload hot-path parameters through the shared matrix parameter page when possible.
 - Use focused fused effect shaders when they remove repeated Lua setup without changing the source-over result.
 - Treat patterns as shader paint fields instead of geometry recipes.
 - Avoid per-frame allocations in common drawing calls.
 - Keep text routing explicit: native text for normal labels, composer text only for shader effects.
+
+## Current Baseline
+
+The current representative stress case is a complex shop UI using many rounded
+boxes, gradients, strokes, shadows, glows, and image/text rows. With diagnostics
+disabled, recent in-game testing showed:
+
+```text
+Full item list      stable 130+ FPS
+Lighter categories  stable 160+ FPS
+```
+
+This result came from reducing Lua-side preparation and redundant passes. It
+was not achieved by reintroducing a general batch scheduler.
 
 ## Hot Path Rules
 
@@ -20,6 +35,37 @@ MGFX optimizes the immediate drawing model instead of hiding it behind a large s
 | Reuse style tables for stable HUD elements. | Lua table churn is visible in frequently painted panels. |
 | Use paint records for gradients and patterns. | The renderer can keep the effect inside the shape shader. |
 | Do not emulate patterns with many primitives. | Many small line/box calls add Lua and draw overhead without improving quality. |
+
+## Prepared Draw Layers
+
+Public API calls may use style tables because that is the ergonomic interface
+for GLua and Lux callers. Renderer internals should not keep passing those
+tables through multiple layers.
+
+The hot path should follow this shape:
+
+```text
+public API style table
+  -> one boundary parse
+  -> prepared fill/stroke/effect scalar parameters
+  -> shader/fallback draw
+```
+
+Avoid this shape in new renderer code:
+
+```text
+style table
+  -> helper table/spec
+  -> forwarded style table
+  -> second normalization
+  -> shader/fallback draw
+```
+
+Rounded boxes, chamfers, progress/segment widgets, image round/chamfer paths,
+line-backed rectangles, and polygon/chamfer fallback helpers now use prepared
+parameters internally. This keeps the public API readable while removing
+repeated `shadowRaw`, `outerGlowRaw`, `innerGlowRaw`, `backdropStyle`,
+`patternStyle`, `fillFromStyle`, and `fillVisible` work from inner loops.
 
 ## Parameter Upload
 

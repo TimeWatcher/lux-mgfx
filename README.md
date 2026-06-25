@@ -54,6 +54,16 @@ The API fields stay separate, but the renderer may fuse compatible `shadow` and 
 
 `innerGlow` remains clipped inside the shape and does not use offset.
 
+## Performance Status
+
+The current hot path is optimized around direct immediate drawing, not a
+general batching scheduler. Public `NameEx(..., style)` calls still accept style
+tables, but renderer internals now flatten those records at the API boundary and
+pass prepared scalar/fill/effect parameters through the actual draw layers.
+
+Recent in-game testing on a complex shop UI showed stable 130+ FPS with a full
+item list and 160+ FPS in lighter categories with diagnostics disabled.
+
 ## Documentation
 
 The documentation is shared by both implementations:
@@ -77,13 +87,14 @@ The generated site is written to `docs-site/`.
 
 ## Changelog
 
-### Last 7 Days: 2026-06-19 to 2026-06-25
+### Recent Development: 2026-06-19 to 2026-06-26
 
 #### Rendering Fixes
 
-- 2026-06-25 (pending) Replaced the old internal effect style/spec table pipeline with direct raw parameters across the hot drawing layers. Public `NameEx(..., style)` calls still accept style tables, but rounded boxes, chamfers, progress/segment widgets, line-backed rectangles, and round/chamfer image effect paths now expand style fields at the boundary and pass scalar effect parameters internally.
-- 2026-06-25 (pending) Removed internal shadow/outerGlow/innerGlow spec caches from the shader path. The measured cost was not GPU work; it was Lua-side table normalization, cache-key checking, repeated field lookups, and unnecessary pass forwarding.
-- 2026-06-25 (pending) Added raw `roundrect` and `chamfer` draw entries for composite widgets so internal callers no longer construct temporary style tables just to call another MGFX shape renderer.
+- 2026-06-26 Replaced the old internal effect style/spec table pipeline with direct prepared parameters across the hot drawing layers. Public `NameEx(..., style)` calls still accept style tables, but rounded boxes, chamfers, progress/segment widgets, line-backed rectangles, and round/chamfer image effect paths now expand style fields at the boundary and pass scalar effect parameters internally.
+- 2026-06-26 Removed internal shadow/outerGlow/innerGlow spec caches from the shader path. The measured cost was not GPU work; it was Lua-side table normalization, cache-key checking, repeated field lookups, and unnecessary pass forwarding.
+- 2026-06-26 Added prepared `roundrect`, `progress`, `segment`, `image`, `line`, `poly`, and `chamfer` paths for composite widgets and primitive helpers so internal callers no longer construct temporary style tables just to call another MGFX shape renderer.
+- 2026-06-26 Verified the optimized shop path in-game: full item lists hold 130+ FPS, and lighter categories hold 160+ FPS with diagnostics disabled.
 - 2026-06-25 (`7096062`) Merged compatible `shadow` and `outerGlow` rendering for rounded boxes, chamfers, rings, and image masks into focused shader passes. The effects remain separate style fields, but matching draw bounds now share one material setup and one draw.
 - 2026-06-25 (`7096062`) Moved hot-path auxiliary shader parameters from repeated `$c0..$c3` float uploads to the `$invviewprojmat` / `c15` matrix page where possible. `$viewprojmat` / `c11` remains the main 16-float page.
 - 2026-06-25 (`7096062`) Added real profiler-driven round-rect chain tracing and cleaned the performance demo so hot sections can measure API resolve, setup, effect preparation, pass execution, and draw cost directly.

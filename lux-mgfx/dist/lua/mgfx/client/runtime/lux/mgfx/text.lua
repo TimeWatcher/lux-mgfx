@@ -2,32 +2,31 @@ return function(__lux_import)
   local __lux_exports = {}
   local __lux_module_1 = {}
   do
-    local __lux_import_2 = __lux_import("lux/mgfx/style#client")
-    local styleImport = __lux_import_2
+    local styleImport = __lux_import("lux/mgfx/style#client")
     __lux_module_1.style = styleImport
     do
-      local __lux_obj_3 = bit
-      local __lux_val_4 = nil
-      if __lux_obj_3 ~= nil then
-        __lux_val_4 = __lux_obj_3.bor
+      local __lux_obj_bit_2 = bit
+      local __lux_val_bor_3 = nil
+      if __lux_obj_bit_2 ~= nil then
+        __lux_val_bor_3 = __lux_obj_bit_2.bor
       end
-      __lux_module_1.bitBor = __lux_val_4
+      __lux_module_1.bitBor = __lux_val_bor_3
     end
     do
-      local __lux_obj_5 = cam
-      local __lux_val_6 = nil
-      if __lux_obj_5 ~= nil then
-        __lux_val_6 = __lux_obj_5.Start2D
+      local __lux_obj_cam_4 = cam
+      local __lux_val_Start2D_5 = nil
+      if __lux_obj_cam_4 ~= nil then
+        __lux_val_Start2D_5 = __lux_obj_cam_4.Start2D
       end
-      __lux_module_1.camStart2D = __lux_val_6
+      __lux_module_1.camStart2D = __lux_val_Start2D_5
     end
     do
-      local __lux_obj_7 = cam
-      local __lux_val_8 = nil
-      if __lux_obj_7 ~= nil then
-        __lux_val_8 = __lux_obj_7.End2D
+      local __lux_obj_cam_6 = cam
+      local __lux_val_End2D_7 = nil
+      if __lux_obj_cam_6 ~= nil then
+        __lux_val_End2D_7 = __lux_obj_cam_6.End2D
       end
-      __lux_module_1.camEnd2D = __lux_val_8
+      __lux_module_1.camEnd2D = __lux_val_End2D_7
     end
     __lux_module_1.createMaterial = CreateMaterial
     __lux_module_1.getConVar = GetConVar
@@ -39,175 +38,175 @@ return function(__lux_import)
     __lux_module_1.errorFn = error
     __lux_module_1.errorNoHaltWithStack = ErrorNoHaltWithStack
     do
-      local __lux_obj_9 = mesh
-      local __lux_val_10 = nil
-      if __lux_obj_9 ~= nil then
-        __lux_val_10 = __lux_obj_9.Begin
+      local __lux_obj_mesh_8 = mesh
+      local __lux_val_Begin_9 = nil
+      if __lux_obj_mesh_8 ~= nil then
+        __lux_val_Begin_9 = __lux_obj_mesh_8.Begin
       end
-      __lux_module_1.meshBegin = __lux_val_10
+      __lux_module_1.meshBegin = __lux_val_Begin_9
     end
     do
-      local __lux_obj_11 = mesh
-      local __lux_val_12 = nil
-      if __lux_obj_11 ~= nil then
-        __lux_val_12 = __lux_obj_11.Color
+      local __lux_obj_mesh_10 = mesh
+      local __lux_val_Color_11 = nil
+      if __lux_obj_mesh_10 ~= nil then
+        __lux_val_Color_11 = __lux_obj_mesh_10.Color
       end
-      __lux_module_1.meshColor = __lux_val_12
+      __lux_module_1.meshColor = __lux_val_Color_11
     end
     do
-      local __lux_obj_13 = mesh
-      local __lux_val_14 = nil
-      if __lux_obj_13 ~= nil then
-        __lux_val_14 = __lux_obj_13.End
+      local __lux_obj_mesh_12 = mesh
+      local __lux_val_End_13 = nil
+      if __lux_obj_mesh_12 ~= nil then
+        __lux_val_End_13 = __lux_obj_mesh_12.End
       end
-      __lux_module_1.meshEnd = __lux_val_14
+      __lux_module_1.meshEnd = __lux_val_End_13
     end
     do
-      local __lux_obj_15 = mesh
-      local __lux_val_16 = nil
-      if __lux_obj_15 ~= nil then
-        __lux_val_16 = __lux_obj_15.Position
+      local __lux_obj_mesh_14 = mesh
+      local __lux_val_Position_15 = nil
+      if __lux_obj_mesh_14 ~= nil then
+        __lux_val_Position_15 = __lux_obj_mesh_14.Position
       end
-      __lux_module_1.meshPosition = __lux_val_16
+      __lux_module_1.meshPosition = __lux_val_Position_15
     end
     do
-      local __lux_obj_17 = mesh
-      local __lux_val_18 = nil
-      if __lux_obj_17 ~= nil then
-        __lux_val_18 = __lux_obj_17.TexCoord
+      local __lux_obj_mesh_16 = mesh
+      local __lux_val_TexCoord_17 = nil
+      if __lux_obj_mesh_16 ~= nil then
+        __lux_val_TexCoord_17 = __lux_obj_mesh_16.TexCoord
       end
-      __lux_module_1.meshTexCoord = __lux_val_18
+      __lux_module_1.meshTexCoord = __lux_val_TexCoord_17
     end
     do
-      local __lux_obj_19 = mesh
-      local __lux_val_20 = nil
-      if __lux_obj_19 ~= nil then
-        __lux_val_20 = __lux_obj_19.AdvanceVertex
+      local __lux_obj_mesh_18 = mesh
+      local __lux_val_AdvanceVertex_19 = nil
+      if __lux_obj_mesh_18 ~= nil then
+        __lux_val_AdvanceVertex_19 = __lux_obj_mesh_18.AdvanceVertex
       end
-      __lux_module_1.meshAdvanceVertex = __lux_val_20
+      __lux_module_1.meshAdvanceVertex = __lux_val_AdvanceVertex_19
     end
     do
-      local __lux_obj_21 = render
-      local __lux_val_22 = nil
-      if __lux_obj_21 ~= nil then
-        __lux_val_22 = __lux_obj_21.Clear
+      local __lux_obj_render_20 = render
+      local __lux_val_Clear_21 = nil
+      if __lux_obj_render_20 ~= nil then
+        __lux_val_Clear_21 = __lux_obj_render_20.Clear
       end
-      __lux_module_1.renderClear = __lux_val_22
+      __lux_module_1.renderClear = __lux_val_Clear_21
     end
     do
-      local __lux_obj_23 = render
-      local __lux_val_24 = nil
-      if __lux_obj_23 ~= nil then
-        __lux_val_24 = __lux_obj_23.GetBlend
+      local __lux_obj_render_22 = render
+      local __lux_val_GetBlend_23 = nil
+      if __lux_obj_render_22 ~= nil then
+        __lux_val_GetBlend_23 = __lux_obj_render_22.GetBlend
       end
-      __lux_module_1.renderGetBlend = __lux_val_24
+      __lux_module_1.renderGetBlend = __lux_val_GetBlend_23
     end
     do
-      local __lux_obj_25 = render
-      local __lux_val_26 = nil
-      if __lux_obj_25 ~= nil then
-        __lux_val_26 = __lux_obj_25.GetColorModulation
+      local __lux_obj_render_24 = render
+      local __lux_val_GetColorModulation_25 = nil
+      if __lux_obj_render_24 ~= nil then
+        __lux_val_GetColorModulation_25 = __lux_obj_render_24.GetColorModulation
       end
-      __lux_module_1.renderGetColorModulation = __lux_val_26
+      __lux_module_1.renderGetColorModulation = __lux_val_GetColorModulation_25
     end
     do
-      local __lux_obj_27 = render
-      local __lux_val_28 = nil
-      if __lux_obj_27 ~= nil then
-        __lux_val_28 = __lux_obj_27.OverrideAlphaWriteEnable
+      local __lux_obj_render_26 = render
+      local __lux_val_OverrideAlphaWriteEnable_27 = nil
+      if __lux_obj_render_26 ~= nil then
+        __lux_val_OverrideAlphaWriteEnable_27 = __lux_obj_render_26.OverrideAlphaWriteEnable
       end
-      __lux_module_1.renderOverrideAlphaWriteEnable = __lux_val_28
+      __lux_module_1.renderOverrideAlphaWriteEnable = __lux_val_OverrideAlphaWriteEnable_27
     end
     do
-      local __lux_obj_29 = render
-      local __lux_val_30 = nil
-      if __lux_obj_29 ~= nil then
-        __lux_val_30 = __lux_obj_29.OverrideBlend
+      local __lux_obj_render_28 = render
+      local __lux_val_OverrideBlend_29 = nil
+      if __lux_obj_render_28 ~= nil then
+        __lux_val_OverrideBlend_29 = __lux_obj_render_28.OverrideBlend
       end
-      __lux_module_1.renderOverrideBlend = __lux_val_30
+      __lux_module_1.renderOverrideBlend = __lux_val_OverrideBlend_29
     end
     do
-      local __lux_obj_31 = render
-      local __lux_val_32 = nil
-      if __lux_obj_31 ~= nil then
-        __lux_val_32 = __lux_obj_31.PopRenderTarget
+      local __lux_obj_render_30 = render
+      local __lux_val_PopRenderTarget_31 = nil
+      if __lux_obj_render_30 ~= nil then
+        __lux_val_PopRenderTarget_31 = __lux_obj_render_30.PopRenderTarget
       end
-      __lux_module_1.renderPopRenderTarget = __lux_val_32
+      __lux_module_1.renderPopRenderTarget = __lux_val_PopRenderTarget_31
     end
     do
-      local __lux_obj_33 = render
-      local __lux_val_34 = nil
-      if __lux_obj_33 ~= nil then
-        __lux_val_34 = __lux_obj_33.PushRenderTarget
+      local __lux_obj_render_32 = render
+      local __lux_val_PushRenderTarget_33 = nil
+      if __lux_obj_render_32 ~= nil then
+        __lux_val_PushRenderTarget_33 = __lux_obj_render_32.PushRenderTarget
       end
-      __lux_module_1.renderPushRenderTarget = __lux_val_34
+      __lux_module_1.renderPushRenderTarget = __lux_val_PushRenderTarget_33
     end
     do
-      local __lux_obj_35 = render
-      local __lux_val_36 = nil
-      if __lux_obj_35 ~= nil then
-        __lux_val_36 = __lux_obj_35.SetBlend
+      local __lux_obj_render_34 = render
+      local __lux_val_SetBlend_35 = nil
+      if __lux_obj_render_34 ~= nil then
+        __lux_val_SetBlend_35 = __lux_obj_render_34.SetBlend
       end
-      __lux_module_1.renderSetBlend = __lux_val_36
+      __lux_module_1.renderSetBlend = __lux_val_SetBlend_35
     end
     do
-      local __lux_obj_37 = render
-      local __lux_val_38 = nil
-      if __lux_obj_37 ~= nil then
-        __lux_val_38 = __lux_obj_37.SetColorModulation
+      local __lux_obj_render_36 = render
+      local __lux_val_SetColorModulation_37 = nil
+      if __lux_obj_render_36 ~= nil then
+        __lux_val_SetColorModulation_37 = __lux_obj_render_36.SetColorModulation
       end
-      __lux_module_1.renderSetColorModulation = __lux_val_38
+      __lux_module_1.renderSetColorModulation = __lux_val_SetColorModulation_37
     end
     do
-      local __lux_obj_39 = render
-      local __lux_val_40 = nil
-      if __lux_obj_39 ~= nil then
-        __lux_val_40 = __lux_obj_39.SetMaterial
+      local __lux_obj_render_38 = render
+      local __lux_val_SetMaterial_39 = nil
+      if __lux_obj_render_38 ~= nil then
+        __lux_val_SetMaterial_39 = __lux_obj_render_38.SetMaterial
       end
-      __lux_module_1.renderSetMaterial = __lux_val_40
+      __lux_module_1.renderSetMaterial = __lux_val_SetMaterial_39
     end
     do
-      local __lux_obj_41 = render
-      local __lux_val_42 = nil
-      if __lux_obj_41 ~= nil then
-        __lux_val_42 = __lux_obj_41.SetScissorRect
+      local __lux_obj_render_40 = render
+      local __lux_val_SetScissorRect_41 = nil
+      if __lux_obj_render_40 ~= nil then
+        __lux_val_SetScissorRect_41 = __lux_obj_render_40.SetScissorRect
       end
-      __lux_module_1.renderSetScissorRect = __lux_val_42
+      __lux_module_1.renderSetScissorRect = __lux_val_SetScissorRect_41
     end
     __lux_module_1.surfaceCreateFont = surface.CreateFont
     do
-      local __lux_obj_43 = surface
-      local __lux_val_44 = nil
-      if __lux_obj_43 ~= nil then
-        __lux_val_44 = __lux_obj_43.DrawOutlinedRect
+      local __lux_obj_surface_42 = surface
+      local __lux_val_DrawOutlinedRect_43 = nil
+      if __lux_obj_surface_42 ~= nil then
+        __lux_val_DrawOutlinedRect_43 = __lux_obj_surface_42.DrawOutlinedRect
       end
-      __lux_module_1.surfaceDrawOutlinedRect = __lux_val_44
+      __lux_module_1.surfaceDrawOutlinedRect = __lux_val_DrawOutlinedRect_43
     end
     __lux_module_1.surfaceDrawRect = surface.DrawRect
     __lux_module_1.surfaceDrawText = surface.DrawText
     do
-      local __lux_obj_45 = surface
-      local __lux_val_46 = nil
-      if __lux_obj_45 ~= nil then
-        __lux_val_46 = __lux_obj_45.DrawTexturedRectUV
+      local __lux_obj_surface_44 = surface
+      local __lux_val_DrawTexturedRectUV_45 = nil
+      if __lux_obj_surface_44 ~= nil then
+        __lux_val_DrawTexturedRectUV_45 = __lux_obj_surface_44.DrawTexturedRectUV
       end
-      __lux_module_1.surfaceDrawTexturedRectUV = __lux_val_46
+      __lux_module_1.surfaceDrawTexturedRectUV = __lux_val_DrawTexturedRectUV_45
     end
     do
-      local __lux_obj_47 = surface
-      local __lux_val_48 = nil
-      if __lux_obj_47 ~= nil then
-        __lux_val_48 = __lux_obj_47.DrawTexturedRect
+      local __lux_obj_surface_46 = surface
+      local __lux_val_DrawTexturedRect_47 = nil
+      if __lux_obj_surface_46 ~= nil then
+        __lux_val_DrawTexturedRect_47 = __lux_obj_surface_46.DrawTexturedRect
       end
-      __lux_module_1.surfaceDrawTexturedRect = __lux_val_48
+      __lux_module_1.surfaceDrawTexturedRect = __lux_val_DrawTexturedRect_47
     end
     do
-      local __lux_obj_49 = surface
-      local __lux_val_50 = nil
-      if __lux_obj_49 ~= nil then
-        __lux_val_50 = __lux_obj_49.GetAlphaMultiplier
+      local __lux_obj_surface_48 = surface
+      local __lux_val_GetAlphaMultiplier_49 = nil
+      if __lux_obj_surface_48 ~= nil then
+        __lux_val_GetAlphaMultiplier_49 = __lux_obj_surface_48.GetAlphaMultiplier
       end
-      __lux_module_1.surfaceGetAlphaMultiplier = __lux_val_50
+      __lux_module_1.surfaceGetAlphaMultiplier = __lux_val_GetAlphaMultiplier_49
     end
     __lux_module_1.surfaceSetDrawColor = surface.SetDrawColor
     __lux_module_1.surfaceSetFont = surface.SetFont
@@ -215,22 +214,22 @@ return function(__lux_import)
     __lux_module_1.surfaceSetTextColor = surface.SetTextColor
     __lux_module_1.surfaceSetTextPos = surface.SetTextPos
     do
-      local __lux_obj_51 = surface
-      local __lux_val_52 = nil
-      if __lux_obj_51 ~= nil then
-        __lux_val_52 = __lux_obj_51.SetAlphaMultiplier
+      local __lux_obj_surface_50 = surface
+      local __lux_val_SetAlphaMultiplier_51 = nil
+      if __lux_obj_surface_50 ~= nil then
+        __lux_val_SetAlphaMultiplier_51 = __lux_obj_surface_50.SetAlphaMultiplier
       end
-      __lux_module_1.surfaceSetAlphaMultiplier = __lux_val_52
+      __lux_module_1.surfaceSetAlphaMultiplier = __lux_val_SetAlphaMultiplier_51
     end
     __lux_module_1.surfaceGetTextSize = surface.GetTextSize
     __lux_module_1.sysTime = SysTime
     do
-      local __lux_obj_53 = util
-      local __lux_val_54 = nil
-      if __lux_obj_53 ~= nil then
-        __lux_val_54 = __lux_obj_53.CRC
+      local __lux_obj_util_52 = util
+      local __lux_val_CRC_53 = nil
+      if __lux_obj_util_52 ~= nil then
+        __lux_val_CRC_53 = __lux_obj_util_52.CRC
       end
-      __lux_module_1.utilCRC = __lux_val_54
+      __lux_module_1.utilCRC = __lux_val_CRC_53
     end
     __lux_module_1.vectorCtor = Vector
     __lux_module_1.mathAbs = math.abs
@@ -282,34 +281,26 @@ return function(__lux_import)
       return nil
     end
     __lux_module_1.materialOK = function(material)
-      local __lux_tmp_55 = material ~= nil
-      if __lux_tmp_55 then
-        __lux_tmp_55 = material.IsError ~= nil
-      end
-      local __lux_tmp_56 = __lux_tmp_55
-      if __lux_tmp_56 then
-        __lux_tmp_56 = not material:IsError()
-      end
-      return __lux_tmp_56
+      return material ~= nil and material.IsError ~= nil and not material:IsError()
     end
     __lux_module_1.defaultTextRenderer = nil
     __lux_module_1.atlasNamespace = nil
     do
-      local __lux_tmp_57
+      local __lux_tmp_54
       if __lux_module_1.matrixCtor ~= nil then
-        __lux_tmp_57 = __lux_module_1.matrixCtor()
+        __lux_tmp_54 = __lux_module_1.matrixCtor()
       else
-        __lux_tmp_57 = nil
+        __lux_tmp_54 = nil
       end
-      __lux_module_1.textParamMatrixProbe = __lux_tmp_57
+      __lux_module_1.textParamMatrixProbe = __lux_tmp_54
     end
     do
-      local __lux_obj_58 = __lux_module_1.textParamMatrixProbe
-      local __lux_val_59 = nil
-      if __lux_obj_58 ~= nil then
-        __lux_val_59 = __lux_obj_58.SetUnpacked
+      local __lux_obj_textParamMatrixProbe_55 = __lux_module_1.textParamMatrixProbe
+      local __lux_val_SetUnpacked_56 = nil
+      if __lux_obj_textParamMatrixProbe_55 ~= nil then
+        __lux_val_SetUnpacked_56 = __lux_obj_textParamMatrixProbe_55.SetUnpacked
       end
-      __lux_module_1.textParamMatrixSetUnpacked = __lux_val_59
+      __lux_module_1.textParamMatrixSetUnpacked = __lux_val_SetUnpacked_56
     end
     __lux_module_1.textParamMatrices = {}
     __lux_module_1.textAuxParamMatrices = {}
@@ -324,64 +315,40 @@ return function(__lux_import)
     __lux_module_1.DEFAULT_CJK_FACE = "Noto Sans SC"
     __lux_module_1.RESOLVED_STYLE_MARK = "__mgfxTextResolved"
     do
-      local __lux_tmp_60 = color_white
-      if __lux_tmp_60 == nil then
-        __lux_tmp_60 = __lux_module_1.makeColor(255, 255, 255, 255)
+      local __lux_tmp_color_white_57 = color_white
+      if __lux_tmp_color_white_57 == nil then
+        __lux_tmp_color_white_57 = __lux_module_1.makeColor(255, 255, 255, 255)
       end
-      __lux_module_1.white = __lux_tmp_60
+      __lux_module_1.white = __lux_tmp_color_white_57
     end
     do
-      local __lux_tmp_61
+      local __lux_tmp_58
       if __lux_module_1.vectorCtor ~= nil then
-        __lux_tmp_61 = __lux_module_1.vectorCtor()
+        __lux_tmp_58 = __lux_module_1.vectorCtor()
       else
-        __lux_tmp_61 = nil
+        __lux_tmp_58 = nil
       end
-      __lux_module_1.textBatchVertex = __lux_tmp_61
+      __lux_module_1.textBatchVertex = __lux_tmp_58
     end
     __lux_module_1.profile = { active = false, draws = 0, measures = 0, times = {}, counts = {} }
     __lux_module_1.nextAtlasNamespace = function()
       local root = _G
       local serial
       do
-        local __lux_tmp_62 = __lux_module_1.toNumber(root.__MGFXTextAtlasSerial)
-        if __lux_tmp_62 == nil then
-          __lux_tmp_62 = 0
+        local __lux_tmp_MGFXTextAtlasSerial_59 = __lux_module_1.toNumber(root.__MGFXTextAtlasSerial)
+        if __lux_tmp_MGFXTextAtlasSerial_59 == nil then
+          __lux_tmp_MGFXTextAtlasSerial_59 = 0
         end
-        serial = __lux_tmp_62 + 1
+        serial = __lux_tmp_MGFXTextAtlasSerial_59 + 1
       end
       root.__MGFXTextAtlasSerial = serial
       return "MGFXTextComposeAtlas_" .. __lux_module_1.toString(serial)
     end
     __lux_module_1.textComposerCapable = function()
-      local __lux_tmp_63 = __lux_module_1.renderClear ~= nil
-      if __lux_tmp_63 then
-        __lux_tmp_63 = __lux_module_1.renderPushRenderTarget ~= nil
-      end
-      local __lux_tmp_64 = __lux_tmp_63
-      if __lux_tmp_64 then
-        __lux_tmp_64 = __lux_module_1.renderPopRenderTarget ~= nil
-      end
-      local __lux_tmp_65 = __lux_tmp_64
-      if __lux_tmp_65 then
-        __lux_tmp_65 = __lux_module_1.camStart2D ~= nil
-      end
-      local __lux_tmp_66 = __lux_tmp_65
-      if __lux_tmp_66 then
-        __lux_tmp_66 = __lux_module_1.camEnd2D ~= nil
-      end
-      return __lux_tmp_66
+      return __lux_module_1.renderClear ~= nil and __lux_module_1.renderPushRenderTarget ~= nil and __lux_module_1.renderPopRenderTarget ~= nil and __lux_module_1.camStart2D ~= nil and __lux_module_1.camEnd2D ~= nil
     end
     __lux_module_1.setupTextParamMatrix = function(material, a0, a1, a2, a3, b0, b1, b2, b3, c0, c1, c2, c3, d0, d1, d2, d3)
-      local __lux_tmp_67 = material == nil
-      if not __lux_tmp_67 then
-        __lux_tmp_67 = __lux_module_1.matrixCtor == nil
-      end
-      local __lux_tmp_68 = __lux_tmp_67
-      if not __lux_tmp_68 then
-        __lux_tmp_68 = __lux_module_1.textParamMatrixSetUnpacked == nil
-      end
-      if __lux_tmp_68 then
+      if material == nil or __lux_module_1.matrixCtor == nil or __lux_module_1.textParamMatrixSetUnpacked == nil then
         __lux_module_1.errorFn("MGFX text compose atlas rect matrix unavailable", 2)
       end
       local matrix = __lux_module_1.textParamMatrices[material]
@@ -390,103 +357,95 @@ return function(__lux_import)
         __lux_module_1.textParamMatrices[material] = matrix
       end
       do
-        local __lux_tmp_69 = a0
-        if __lux_tmp_69 == nil then
-          __lux_tmp_69 = 0
+        local __lux_tmp_a0_60 = a0
+        if __lux_tmp_a0_60 == nil then
+          __lux_tmp_a0_60 = 0
         end
-        local __lux_tmp_70 = b0
-        if __lux_tmp_70 == nil then
-          __lux_tmp_70 = 0
+        local __lux_tmp_b0_61 = b0
+        if __lux_tmp_b0_61 == nil then
+          __lux_tmp_b0_61 = 0
         end
-        local __lux_tmp_71 = c0
-        if __lux_tmp_71 == nil then
-          __lux_tmp_71 = 0
+        local __lux_tmp_c0_62 = c0
+        if __lux_tmp_c0_62 == nil then
+          __lux_tmp_c0_62 = 0
         end
-        local __lux_tmp_72 = d0
-        if __lux_tmp_72 == nil then
-          __lux_tmp_72 = 0
+        local __lux_tmp_d0_63 = d0
+        if __lux_tmp_d0_63 == nil then
+          __lux_tmp_d0_63 = 0
         end
-        local __lux_tmp_73 = a1
-        if __lux_tmp_73 == nil then
-          __lux_tmp_73 = 0
+        local __lux_tmp_a1_64 = a1
+        if __lux_tmp_a1_64 == nil then
+          __lux_tmp_a1_64 = 0
         end
-        local __lux_tmp_74 = b1
-        if __lux_tmp_74 == nil then
-          __lux_tmp_74 = 0
+        local __lux_tmp_b1_65 = b1
+        if __lux_tmp_b1_65 == nil then
+          __lux_tmp_b1_65 = 0
         end
-        local __lux_tmp_75 = c1
-        if __lux_tmp_75 == nil then
-          __lux_tmp_75 = 0
+        local __lux_tmp_c1_66 = c1
+        if __lux_tmp_c1_66 == nil then
+          __lux_tmp_c1_66 = 0
         end
-        local __lux_tmp_76 = d1
-        if __lux_tmp_76 == nil then
-          __lux_tmp_76 = 0
+        local __lux_tmp_d1_67 = d1
+        if __lux_tmp_d1_67 == nil then
+          __lux_tmp_d1_67 = 0
         end
-        local __lux_tmp_77 = a2
-        if __lux_tmp_77 == nil then
-          __lux_tmp_77 = 0
+        local __lux_tmp_a2_68 = a2
+        if __lux_tmp_a2_68 == nil then
+          __lux_tmp_a2_68 = 0
         end
-        local __lux_tmp_78 = b2
-        if __lux_tmp_78 == nil then
-          __lux_tmp_78 = 0
+        local __lux_tmp_b2_69 = b2
+        if __lux_tmp_b2_69 == nil then
+          __lux_tmp_b2_69 = 0
         end
-        local __lux_tmp_79 = c2
-        if __lux_tmp_79 == nil then
-          __lux_tmp_79 = 0
+        local __lux_tmp_c2_70 = c2
+        if __lux_tmp_c2_70 == nil then
+          __lux_tmp_c2_70 = 0
         end
-        local __lux_tmp_80 = d2
-        if __lux_tmp_80 == nil then
-          __lux_tmp_80 = 0
+        local __lux_tmp_d2_71 = d2
+        if __lux_tmp_d2_71 == nil then
+          __lux_tmp_d2_71 = 0
         end
-        local __lux_tmp_81 = a3
-        if __lux_tmp_81 == nil then
-          __lux_tmp_81 = 0
+        local __lux_tmp_a3_72 = a3
+        if __lux_tmp_a3_72 == nil then
+          __lux_tmp_a3_72 = 0
         end
-        local __lux_tmp_82 = b3
-        if __lux_tmp_82 == nil then
-          __lux_tmp_82 = 0
+        local __lux_tmp_b3_73 = b3
+        if __lux_tmp_b3_73 == nil then
+          __lux_tmp_b3_73 = 0
         end
-        local __lux_tmp_83 = c3
-        if __lux_tmp_83 == nil then
-          __lux_tmp_83 = 0
+        local __lux_tmp_c3_74 = c3
+        if __lux_tmp_c3_74 == nil then
+          __lux_tmp_c3_74 = 0
         end
-        local __lux_tmp_84 = d3
-        if __lux_tmp_84 == nil then
-          __lux_tmp_84 = 0
+        local __lux_tmp_d3_75 = d3
+        if __lux_tmp_d3_75 == nil then
+          __lux_tmp_d3_75 = 0
         end
         __lux_module_1.textParamMatrixSetUnpacked(
           matrix,
-          __lux_tmp_69,
-          __lux_tmp_70,
-          __lux_tmp_71,
-          __lux_tmp_72,
-          __lux_tmp_73,
-          __lux_tmp_74,
-          __lux_tmp_75,
-          __lux_tmp_76,
-          __lux_tmp_77,
-          __lux_tmp_78,
-          __lux_tmp_79,
-          __lux_tmp_80,
-          __lux_tmp_81,
-          __lux_tmp_82,
-          __lux_tmp_83,
-          __lux_tmp_84
+          __lux_tmp_a0_60,
+          __lux_tmp_b0_61,
+          __lux_tmp_c0_62,
+          __lux_tmp_d0_63,
+          __lux_tmp_a1_64,
+          __lux_tmp_b1_65,
+          __lux_tmp_c1_66,
+          __lux_tmp_d1_67,
+          __lux_tmp_a2_68,
+          __lux_tmp_b2_69,
+          __lux_tmp_c2_70,
+          __lux_tmp_d2_71,
+          __lux_tmp_a3_72,
+          __lux_tmp_b3_73,
+          __lux_tmp_c3_74,
+          __lux_tmp_d3_75
         )
       end
       material:SetMatrix("$viewprojmat", matrix)
       return true
     end
     __lux_module_1.setupTextAuxParamMatrix = function(material, a0, a1, a2, a3, b0, b1, b2, b3, c0, c1, c2, c3, d0, d1, d2, d3)
-      local __lux_tmp_85 = material == nil
-      if not __lux_tmp_85 then
-        __lux_tmp_85 = __lux_module_1.matrixCtor == nil
-      end
-      local __lux_tmp_86 = __lux_tmp_85
-      if not __lux_tmp_86 then
-        __lux_tmp_86 = __lux_module_1.textParamMatrixSetUnpacked == nil
-      end
-      if __lux_tmp_86 then
+      if material == nil or __lux_module_1.matrixCtor == nil or __lux_module_1.textParamMatrixSetUnpacked == nil then
         __lux_module_1.errorFn("MGFX text compose auxiliary matrix unavailable", 2)
       end
       local matrix = __lux_module_1.textAuxParamMatrices[material]
@@ -495,181 +454,168 @@ return function(__lux_import)
         __lux_module_1.textAuxParamMatrices[material] = matrix
       end
       do
-        local __lux_tmp_87 = a0
-        if __lux_tmp_87 == nil then
-          __lux_tmp_87 = 0
+        local __lux_tmp_a0_76 = a0
+        if __lux_tmp_a0_76 == nil then
+          __lux_tmp_a0_76 = 0
         end
-        local __lux_tmp_88 = b0
-        if __lux_tmp_88 == nil then
-          __lux_tmp_88 = 0
+        local __lux_tmp_b0_77 = b0
+        if __lux_tmp_b0_77 == nil then
+          __lux_tmp_b0_77 = 0
         end
-        local __lux_tmp_89 = c0
-        if __lux_tmp_89 == nil then
-          __lux_tmp_89 = 0
+        local __lux_tmp_c0_78 = c0
+        if __lux_tmp_c0_78 == nil then
+          __lux_tmp_c0_78 = 0
         end
-        local __lux_tmp_90 = d0
-        if __lux_tmp_90 == nil then
-          __lux_tmp_90 = 0
+        local __lux_tmp_d0_79 = d0
+        if __lux_tmp_d0_79 == nil then
+          __lux_tmp_d0_79 = 0
         end
-        local __lux_tmp_91 = a1
-        if __lux_tmp_91 == nil then
-          __lux_tmp_91 = 0
+        local __lux_tmp_a1_80 = a1
+        if __lux_tmp_a1_80 == nil then
+          __lux_tmp_a1_80 = 0
         end
-        local __lux_tmp_92 = b1
-        if __lux_tmp_92 == nil then
-          __lux_tmp_92 = 0
+        local __lux_tmp_b1_81 = b1
+        if __lux_tmp_b1_81 == nil then
+          __lux_tmp_b1_81 = 0
         end
-        local __lux_tmp_93 = c1
-        if __lux_tmp_93 == nil then
-          __lux_tmp_93 = 0
+        local __lux_tmp_c1_82 = c1
+        if __lux_tmp_c1_82 == nil then
+          __lux_tmp_c1_82 = 0
         end
-        local __lux_tmp_94 = d1
-        if __lux_tmp_94 == nil then
-          __lux_tmp_94 = 0
+        local __lux_tmp_d1_83 = d1
+        if __lux_tmp_d1_83 == nil then
+          __lux_tmp_d1_83 = 0
         end
-        local __lux_tmp_95 = a2
-        if __lux_tmp_95 == nil then
-          __lux_tmp_95 = 0
+        local __lux_tmp_a2_84 = a2
+        if __lux_tmp_a2_84 == nil then
+          __lux_tmp_a2_84 = 0
         end
-        local __lux_tmp_96 = b2
-        if __lux_tmp_96 == nil then
-          __lux_tmp_96 = 0
+        local __lux_tmp_b2_85 = b2
+        if __lux_tmp_b2_85 == nil then
+          __lux_tmp_b2_85 = 0
         end
-        local __lux_tmp_97 = c2
-        if __lux_tmp_97 == nil then
-          __lux_tmp_97 = 0
+        local __lux_tmp_c2_86 = c2
+        if __lux_tmp_c2_86 == nil then
+          __lux_tmp_c2_86 = 0
         end
-        local __lux_tmp_98 = d2
-        if __lux_tmp_98 == nil then
-          __lux_tmp_98 = 0
+        local __lux_tmp_d2_87 = d2
+        if __lux_tmp_d2_87 == nil then
+          __lux_tmp_d2_87 = 0
         end
-        local __lux_tmp_99 = a3
-        if __lux_tmp_99 == nil then
-          __lux_tmp_99 = 0
+        local __lux_tmp_a3_88 = a3
+        if __lux_tmp_a3_88 == nil then
+          __lux_tmp_a3_88 = 0
         end
-        local __lux_tmp_100 = b3
-        if __lux_tmp_100 == nil then
-          __lux_tmp_100 = 0
+        local __lux_tmp_b3_89 = b3
+        if __lux_tmp_b3_89 == nil then
+          __lux_tmp_b3_89 = 0
         end
-        local __lux_tmp_101 = c3
-        if __lux_tmp_101 == nil then
-          __lux_tmp_101 = 0
+        local __lux_tmp_c3_90 = c3
+        if __lux_tmp_c3_90 == nil then
+          __lux_tmp_c3_90 = 0
         end
-        local __lux_tmp_102 = d3
-        if __lux_tmp_102 == nil then
-          __lux_tmp_102 = 0
+        local __lux_tmp_d3_91 = d3
+        if __lux_tmp_d3_91 == nil then
+          __lux_tmp_d3_91 = 0
         end
         __lux_module_1.textParamMatrixSetUnpacked(
           matrix,
-          __lux_tmp_87,
-          __lux_tmp_88,
-          __lux_tmp_89,
-          __lux_tmp_90,
-          __lux_tmp_91,
-          __lux_tmp_92,
-          __lux_tmp_93,
-          __lux_tmp_94,
-          __lux_tmp_95,
-          __lux_tmp_96,
-          __lux_tmp_97,
-          __lux_tmp_98,
-          __lux_tmp_99,
-          __lux_tmp_100,
-          __lux_tmp_101,
-          __lux_tmp_102
+          __lux_tmp_a0_76,
+          __lux_tmp_b0_77,
+          __lux_tmp_c0_78,
+          __lux_tmp_d0_79,
+          __lux_tmp_a1_80,
+          __lux_tmp_b1_81,
+          __lux_tmp_c1_82,
+          __lux_tmp_d1_83,
+          __lux_tmp_a2_84,
+          __lux_tmp_b2_85,
+          __lux_tmp_c2_86,
+          __lux_tmp_d2_87,
+          __lux_tmp_a3_88,
+          __lux_tmp_b3_89,
+          __lux_tmp_c3_90,
+          __lux_tmp_d3_91
         )
       end
       material:SetMatrix("$invviewprojmat", matrix)
       return true
     end
     __lux_module_1.configureTextRenderer = function(deps)
-      do
-        local __lux_tmp_103 = deps
-        if __lux_tmp_103 == nil then
-          __lux_tmp_103 = {}
-        end
-        deps = __lux_tmp_103
+      if deps == nil then
+        deps = {}
       end
       do
-        local __lux_tmp_104 = deps.materials
-        if __lux_tmp_104 == nil then
-          local __lux_tmp_105 = deps.Materials
-          if __lux_tmp_105 == nil then
-            local __lux_tmp_106 = __lux_module_1.materials
-            if __lux_tmp_106 == nil then
-              __lux_tmp_106 = {}
-            end
-            __lux_tmp_105 = __lux_tmp_106
-          end
-          __lux_tmp_104 = __lux_tmp_105
+        local __lux_tmp_materials_92 = deps.materials
+        if __lux_tmp_materials_92 == nil then
+          __lux_tmp_materials_92 = deps.Materials
         end
-        __lux_module_1.materials = __lux_tmp_104
+        if __lux_tmp_materials_92 == nil then
+          __lux_tmp_materials_92 = __lux_module_1.materials
+        end
+        if __lux_tmp_materials_92 == nil then
+          __lux_tmp_materials_92 = {}
+        end
+        __lux_module_1.materials = __lux_tmp_materials_92
       end
       do
-        local __lux_tmp_107 = deps.createPageTextMaterials
-        if __lux_tmp_107 == nil then
-          local __lux_tmp_108 = deps.CreatePageTextMaterials
-          if __lux_tmp_108 == nil then
-            __lux_tmp_108 = __lux_module_1.createPageTextMaterials
-          end
-          __lux_tmp_107 = __lux_tmp_108
+        local __lux_tmp_createPageTextMaterials_93 = deps.createPageTextMaterials
+        if __lux_tmp_createPageTextMaterials_93 == nil then
+          __lux_tmp_createPageTextMaterials_93 = deps.CreatePageTextMaterials
         end
-        __lux_module_1.createPageTextMaterials = __lux_tmp_107
+        if __lux_tmp_createPageTextMaterials_93 == nil then
+          __lux_tmp_createPageTextMaterials_93 = __lux_module_1.createPageTextMaterials
+        end
+        __lux_module_1.createPageTextMaterials = __lux_tmp_createPageTextMaterials_93
       end
       do
-        local __lux_tmp_109 = deps.profiler
-        if __lux_tmp_109 == nil then
-          local __lux_tmp_110 = deps.Profiler
-          if __lux_tmp_110 == nil then
-            __lux_tmp_110 = __lux_module_1.profiler
-          end
-          __lux_tmp_109 = __lux_tmp_110
+        local __lux_tmp_profiler_94 = deps.profiler
+        if __lux_tmp_profiler_94 == nil then
+          __lux_tmp_profiler_94 = deps.Profiler
         end
-        __lux_module_1.profiler = __lux_tmp_109
+        if __lux_tmp_profiler_94 == nil then
+          __lux_tmp_profiler_94 = __lux_module_1.profiler
+        end
+        __lux_module_1.profiler = __lux_tmp_profiler_94
       end
       do
-        local __lux_tmp_111 = deps.restoreScissor
-        if __lux_tmp_111 == nil then
-          local __lux_tmp_112 = deps.RestoreScissor
-          if __lux_tmp_112 == nil then
-            local __lux_tmp_113 = __lux_module_1.restoreScissor
-            if __lux_tmp_113 == nil then
-              __lux_tmp_113 = function()
+        local __lux_tmp_restoreScissor_95 = deps.restoreScissor
+        if __lux_tmp_restoreScissor_95 == nil then
+          __lux_tmp_restoreScissor_95 = deps.RestoreScissor
         end
-            end
-            __lux_tmp_112 = __lux_tmp_113
-          end
-          __lux_tmp_111 = __lux_tmp_112
+        if __lux_tmp_restoreScissor_95 == nil then
+          __lux_tmp_restoreScissor_95 = __lux_module_1.restoreScissor
         end
-        __lux_module_1.restoreScissor = __lux_tmp_111
+        if __lux_tmp_restoreScissor_95 == nil then
+          __lux_tmp_restoreScissor_95 = function()
+        end
+        end
+        __lux_module_1.restoreScissor = __lux_tmp_restoreScissor_95
       end
       do
-        local __lux_tmp_114 = deps.gradientLutForFill
-        if __lux_tmp_114 == nil then
-          local __lux_tmp_115 = deps.GradientLutForFill
-          if __lux_tmp_115 == nil then
-            local __lux_tmp_116 = __lux_module_1.gradientLutForFill
-            if __lux_tmp_116 == nil then
-              __lux_tmp_116 = function()
+        local __lux_tmp_gradientLutForFill_96 = deps.gradientLutForFill
+        if __lux_tmp_gradientLutForFill_96 == nil then
+          __lux_tmp_gradientLutForFill_96 = deps.GradientLutForFill
+        end
+        if __lux_tmp_gradientLutForFill_96 == nil then
+          __lux_tmp_gradientLutForFill_96 = __lux_module_1.gradientLutForFill
+        end
+        if __lux_tmp_gradientLutForFill_96 == nil then
+          __lux_tmp_gradientLutForFill_96 = function()
           return nil
         end
-            end
-            __lux_tmp_115 = __lux_tmp_116
-          end
-          __lux_tmp_114 = __lux_tmp_115
         end
-        __lux_module_1.gradientLutForFill = __lux_tmp_114
+        __lux_module_1.gradientLutForFill = __lux_tmp_gradientLutForFill_96
       end
       do
-        local __lux_tmp_117 = deps.matOK
-        if __lux_tmp_117 == nil then
-          local __lux_tmp_118 = deps.MaterialOK
-          if __lux_tmp_118 == nil then
-            __lux_tmp_118 = __lux_module_1.materialOK
-          end
-          __lux_tmp_117 = __lux_tmp_118
+        local __lux_tmp_matOK_97 = deps.matOK
+        if __lux_tmp_matOK_97 == nil then
+          __lux_tmp_matOK_97 = deps.MaterialOK
         end
-        __lux_module_1.materialOK = __lux_tmp_117
+        if __lux_tmp_matOK_97 == nil then
+          __lux_tmp_matOK_97 = __lux_module_1.materialOK
+        end
+        __lux_module_1.materialOK = __lux_tmp_matOK_97
       end
       return true
     end
@@ -679,12 +625,12 @@ return function(__lux_import)
       end
       local factory
       do
-        local __lux_obj_119 = _G.MGFX
-        local __lux_val_120 = nil
-        if __lux_obj_119 ~= nil then
-          __lux_val_120 = __lux_obj_119._CreateTextRenderer
+        local __lux_obj_MGFX_98 = _G.MGFX
+        local __lux_val_CreateTextRenderer_99 = nil
+        if __lux_obj_MGFX_98 ~= nil then
+          __lux_val_CreateTextRenderer_99 = __lux_obj_MGFX_98._CreateTextRenderer
         end
-        factory = __lux_val_120
+        factory = __lux_val_CreateTextRenderer_99
       end
       if factory ~= nil then
         __lux_module_1.defaultTextRenderer = factory(
@@ -701,21 +647,17 @@ return function(__lux_import)
       return __lux_module_1.defaultTextRenderer
     end
     __lux_module_1.isMaterialOK = function(material)
-      local __lux_tmp_121 = __lux_module_1.materialOK ~= nil
-      if __lux_tmp_121 then
-        __lux_tmp_121 = __lux_module_1.materialOK(material)
-      end
-      return __lux_tmp_121
+      return __lux_module_1.materialOK ~= nil and __lux_module_1.materialOK(material)
     end
     __lux_module_1.textChars = function(text)
       local out = {}
       local value
       do
-        local __lux_tmp_122 = text
-        if __lux_tmp_122 == nil then
-          __lux_tmp_122 = ""
+        local __lux_tmp_text_100 = text
+        if __lux_tmp_text_100 == nil then
+          __lux_tmp_text_100 = ""
         end
-        value = __lux_module_1.toString(__lux_tmp_122)
+        value = __lux_module_1.toString(__lux_tmp_text_100)
       end
       local matcher = __lux_module_1.stringGmatch
       if matcher == nil then
@@ -727,11 +669,7 @@ return function(__lux_import)
       for ch in matcher(value, "[%z1-127194-244][128-191]*") do
         out[#out + 1] = ch
       end
-      local __lux_tmp_123 = #out == 0
-      if __lux_tmp_123 then
-        __lux_tmp_123 = value ~= ""
-      end
-      if __lux_tmp_123 then
+      if #out == 0 and value ~= "" then
         for index = 1, #value do
           out[#out + 1] = __lux_module_1.stringSub(value, index, index)
         end
@@ -742,11 +680,11 @@ return function(__lux_import)
   do
     __lux_module_1.clearTable = function(t)
       do
-        local __lux_tmp_124 = t
-        if __lux_tmp_124 == nil then
-          __lux_tmp_124 = {}
+        local __lux_tmp_t_101 = t
+        if __lux_tmp_t_101 == nil then
+          __lux_tmp_t_101 = {}
         end
-        for key, _ in pairs(__lux_tmp_124) do
+        for key, _ in pairs(__lux_tmp_t_101) do
           t[key] = nil
         end
       end
@@ -767,19 +705,7 @@ return function(__lux_import)
         return out
       end
       for key, value in pairs(input) do
-        local __lux_tmp_125 = key ~= "extends"
-        if __lux_tmp_125 then
-          __lux_tmp_125 = key ~= "base"
-        end
-        local __lux_tmp_126 = __lux_tmp_125
-        if __lux_tmp_126 then
-          local __lux_tmp_127 = __lux_module_1.typeOf(key) == "string"
-          if __lux_tmp_127 then
-            __lux_tmp_127 = __lux_module_1.stringSub(key, 1, 6) == "__mgfx"
-          end
-          __lux_tmp_126 = not __lux_tmp_127
-        end
-        if __lux_tmp_126 then
+        if key ~= "extends" and key ~= "base" and not (__lux_module_1.typeOf(key) == "string" and __lux_module_1.stringSub(key, 1, 6) == "__mgfx") then
           out[key] = __lux_module_1.copyValue(value)
         end
       end
@@ -791,48 +717,36 @@ return function(__lux_import)
       end
       local weight = __lux_module_1.toNumber(value)
       if weight == nil then
-        local __lux_tmp_128 = fallback
-        if __lux_tmp_128 == nil then
-          __lux_tmp_128 = 500
+        local __lux_tmp_fallback_102 = fallback
+        if __lux_tmp_fallback_102 == nil then
+          __lux_tmp_fallback_102 = 500
         end
-        return __lux_tmp_128
+        return __lux_tmp_fallback_102
       end
-      local __lux_tmp_129 = weight > 0
-      if __lux_tmp_129 then
-        __lux_tmp_129 = weight <= 10
-      end
-      if __lux_tmp_129 then
+      if weight > 0 and weight <= 10 then
         do
-          local __lux_tmp_130
+          local __lux_tmp_103
           if weight <= 1 then
-            __lux_tmp_130 = 850
+            __lux_tmp_103 = 850
           else
-            __lux_tmp_130 = weight * 100
+            __lux_tmp_103 = weight * 100
           end
-          weight = __lux_tmp_130
+          weight = __lux_tmp_103
         end
       end
       return __lux_module_1.mathClamp(__lux_module_1.mathFloor(weight + 0.5), 100, 1000)
     end
     __lux_module_1.normalizeOversample = function(value)
-      local nextValue
-      do
-        local __lux_tmp_131 = __lux_module_1.toNumber(value)
-        if __lux_tmp_131 == nil then
-          __lux_tmp_131 = 1
-        end
-        nextValue = __lux_tmp_131
+      local nextValue = __lux_module_1.toNumber(value)
+      if nextValue == nil then
+        nextValue = 1
       end
       return __lux_module_1.mathClamp(nextValue, 1, 4)
     end
     __lux_module_1.oversampleForSize = function(size)
-      local nextSize
-      do
-        local __lux_tmp_132 = __lux_module_1.toNumber(size)
-        if __lux_tmp_132 == nil then
-          __lux_tmp_132 = 16
-        end
-        nextSize = __lux_tmp_132
+      local nextSize = __lux_module_1.toNumber(size)
+      if nextSize == nil then
+        nextSize = 16
       end
       if nextSize >= 28 then
         return 3
@@ -840,30 +754,30 @@ return function(__lux_import)
       return 2
     end
     __lux_module_1.fontKey = function(face, size, weight, italic)
-      local __lux_tmp_133 = face
-      if __lux_tmp_133 == nil then
-        __lux_tmp_133 = ""
+      local __lux_tmp_face_104 = face
+      if __lux_tmp_face_104 == nil then
+        __lux_tmp_face_104 = ""
       end
-      local __lux_tmp_134 = size
-      if __lux_tmp_134 == nil then
-        __lux_tmp_134 = ""
+      local __lux_tmp_size_105 = size
+      if __lux_tmp_size_105 == nil then
+        __lux_tmp_size_105 = ""
       end
-      local __lux_tmp_135 = weight
-      if __lux_tmp_135 == nil then
-        __lux_tmp_135 = ""
+      local __lux_tmp_weight_106 = weight
+      if __lux_tmp_weight_106 == nil then
+        __lux_tmp_weight_106 = ""
       end
-      local __lux_tmp_136
+      local __lux_tmp_107
       if italic == true then
-        __lux_tmp_136 = "i"
+        __lux_tmp_107 = "i"
       else
-        __lux_tmp_136 = "n"
+        __lux_tmp_107 = "n"
       end
       return __lux_module_1.tableConcat(
         {
-          __lux_module_1.toString(__lux_tmp_133),
-          __lux_module_1.toString(__lux_tmp_134),
-          __lux_module_1.toString(__lux_tmp_135),
-          __lux_tmp_136,
+          __lux_module_1.toString(__lux_tmp_face_104),
+          __lux_module_1.toString(__lux_tmp_size_105),
+          __lux_module_1.toString(__lux_tmp_weight_106),
+          __lux_tmp_107,
         },
         "31"
       )
@@ -887,19 +801,19 @@ return function(__lux_import)
       __lux_module_1.nativeFonts[key] = name
       if __lux_module_1.surfaceCreateFont ~= nil then
         do
-          local __lux_tmp_137 = face
-          if __lux_tmp_137 == nil then
-            __lux_tmp_137 = "DermaDefault"
+          local __lux_tmp_face_108 = face
+          if __lux_tmp_face_108 == nil then
+            __lux_tmp_face_108 = "DermaDefault"
           end
-          local __lux_tmp_138 = size
-          if __lux_tmp_138 == nil then
-            __lux_tmp_138 = 16
+          local __lux_tmp_size_109 = size
+          if __lux_tmp_size_109 == nil then
+            __lux_tmp_size_109 = 16
           end
           __lux_module_1.surfaceCreateFont(
             name,
             {
-              font = __lux_tmp_137,
-              size = __lux_module_1.mathFloor(__lux_tmp_138),
+              font = __lux_tmp_face_108,
+              size = __lux_module_1.mathFloor(__lux_tmp_size_109),
               weight = __lux_module_1.normalizeFontWeight(weight, 500),
               antialias = true,
               extended = true,
@@ -915,107 +829,83 @@ return function(__lux_import)
         return false
       end
       local name = __lux_module_1.toString(fontName)
-      local input
-      do
-        local __lux_tmp_139 = spec
-        if __lux_tmp_139 == nil then
-          __lux_tmp_139 = {}
-        end
-        input = __lux_tmp_139
+      local input = spec
+      if input == nil then
+        input = {}
       end
-      local face
-      do
-        local __lux_tmp_140 = input.face
-        if __lux_tmp_140 == nil then
-          __lux_tmp_140 = input.font
-        end
-        face = __lux_tmp_140
+      local face = input.face
+      if face == nil then
+        face = input.font
       end
       local size = __lux_module_1.toNumber(input.size)
       local weight = __lux_module_1.toNumber(input.weight)
-      local sourceFont
-      do
-        local __lux_tmp_141 = input.sourceFont
-        if __lux_tmp_141 == nil then
-          __lux_tmp_141 = input.nativeFont
-        end
-        sourceFont = __lux_tmp_141
+      local sourceFont = input.sourceFont
+      if sourceFont == nil then
+        sourceFont = input.nativeFont
       end
       local oversample = 1
       if face ~= nil then
-        do
-          local __lux_tmp_142 = size
-          if __lux_tmp_142 == nil then
-            __lux_tmp_142 = 16
-          end
-          size = __lux_tmp_142
+        if size == nil then
+          size = 16
         end
         do
-          local __lux_tmp_143 = input.oversample
-          if __lux_tmp_143 == nil then
-            __lux_tmp_143 = __lux_module_1.oversampleForSize(size)
+          local __lux_tmp_oversample_110 = input.oversample
+          if __lux_tmp_oversample_110 == nil then
+            __lux_tmp_oversample_110 = __lux_module_1.oversampleForSize(size)
           end
-          oversample = __lux_module_1.normalizeOversample(__lux_tmp_143)
+          oversample = __lux_module_1.normalizeOversample(__lux_tmp_oversample_110)
         end
         do
-          local __lux_tmp_144
+          local __lux_tmp_111
           if face == __lux_module_1.DEFAULT_CJK_FACE then
-            __lux_tmp_144 = 400
+            __lux_tmp_111 = 400
           else
-            __lux_tmp_144 = 500
+            __lux_tmp_111 = 500
           end
-          weight = __lux_module_1.normalizeFontWeight(weight, __lux_tmp_144)
+          weight = __lux_module_1.normalizeFontWeight(weight, __lux_tmp_111)
         end
         sourceFont = __lux_module_1.ensureNativeFont(face, size * oversample, weight, input.italic == true)
       else
-        do
-          local __lux_tmp_145 = sourceFont
-          if __lux_tmp_145 == nil then
-            __lux_tmp_145 = name
-          end
-          sourceFont = __lux_tmp_145
+        if sourceFont == nil then
+          sourceFont = name
         end
       end
       do
-        local __lux_tmp_146
+        local __lux_tmp_112
         if face ~= nil then
-          __lux_tmp_146 = "alias"
+          __lux_tmp_112 = "alias"
         else
-          __lux_tmp_146 = "native"
+          __lux_tmp_112 = "native"
         end
-        local __lux_tmp_147 = input.syntheticWeight == true
-        if not __lux_tmp_147 then
-          __lux_tmp_147 = input.allowSyntheticWeight == true
+        local __lux_tmp_lineHeight_113 = input.lineHeight
+        if __lux_tmp_lineHeight_113 == nil then
+          __lux_tmp_lineHeight_113 = input.lineheight
         end
-        local __lux_tmp_148 = input.lineHeight
-        if __lux_tmp_148 == nil then
-          __lux_tmp_148 = input.lineheight
+        local __lux_tmp_tracking_114 = input.tracking
+        if __lux_tmp_tracking_114 == nil then
+          __lux_tmp_tracking_114 = input.letterSpacing
         end
-        local __lux_tmp_149 = input.tracking
-        if __lux_tmp_149 == nil then
-          __lux_tmp_149 = input.letterSpacing
+        local __lux_tmp_tracking_115 = __lux_module_1.toNumber(__lux_tmp_tracking_114)
+        if __lux_tmp_tracking_115 == nil then
+          __lux_tmp_tracking_115 = 0
         end
-        local __lux_tmp_150 = __lux_module_1.toNumber(__lux_tmp_149)
-        if __lux_tmp_150 == nil then
-          __lux_tmp_150 = 0
-        end
-        local __lux_tmp_151
+        local __lux_tmp_116
         if face ~= nil then
-          __lux_tmp_151 = "__composed"
+          __lux_tmp_116 = "__composed"
         else
-          __lux_tmp_151 = "__native"
+          __lux_tmp_116 = "__native"
         end
         __lux_module_1.fonts[name] = {
-          mode = __lux_tmp_146,
+          mode = __lux_tmp_112,
           sourceFont = sourceFont,
           face = face,
           size = size,
           weight = weight,
           oversample = oversample,
-          syntheticWeight = __lux_tmp_147,
-          lineHeight = __lux_module_1.toNumber(__lux_tmp_148),
-          tracking = __lux_tmp_150,
-          atlas = __lux_tmp_151,
+          syntheticWeight = input.syntheticWeight == true or input.allowSyntheticWeight == true,
+          lineHeight = __lux_module_1.toNumber(__lux_tmp_lineHeight_113),
+          tracking = __lux_tmp_tracking_115,
+          atlas = __lux_tmp_116,
         }
       end
       return true
@@ -1023,23 +913,23 @@ return function(__lux_import)
     __lux_module_1.aliasFor = function(font)
       local key
       do
-        local __lux_tmp_152 = font
-        if __lux_tmp_152 == nil then
-          __lux_tmp_152 = ""
+        local __lux_tmp_font_117 = font
+        if __lux_tmp_font_117 == nil then
+          __lux_tmp_font_117 = ""
         end
-        key = __lux_module_1.toString(__lux_tmp_152)
+        key = __lux_module_1.toString(__lux_tmp_font_117)
       end
       local alias = __lux_module_1.fonts[key]
       if alias ~= nil then
         return alias
       end
-      local __lux_tmp_153 = font
-      if __lux_tmp_153 == nil then
-        __lux_tmp_153 = "DermaDefault"
+      local __lux_tmp_font_118 = font
+      if __lux_tmp_font_118 == nil then
+        __lux_tmp_font_118 = "DermaDefault"
       end
       return {
         mode = "native",
-        sourceFont = __lux_tmp_153,
+        sourceFont = __lux_tmp_font_118,
         oversample = 1,
         tracking = 0,
         atlas = "__native",
@@ -1055,94 +945,89 @@ return function(__lux_import)
       local alias = __lux_module_1.aliasFor(font)
       local oversample
       do
-        local __lux_tmp_154 = noOversample
-        if not __lux_tmp_154 then
-          local __lux_obj_155 = textStyle
-          local __lux_val_156 = nil
-          if __lux_obj_155 ~= nil then
-            __lux_val_156 = __lux_obj_155.__mgfxNoOversample
+        local __lux_tmp_123 = noOversample
+        if not __lux_tmp_123 then
+          local __lux_obj_textStyle_121 = textStyle
+          local __lux_val_mgfxNoOversample_122 = nil
+          if __lux_obj_textStyle_121 ~= nil then
+            __lux_val_mgfxNoOversample_122 = __lux_obj_textStyle_121.__mgfxNoOversample
           end
-          __lux_tmp_154 = __lux_val_156
+          __lux_tmp_123 = __lux_val_mgfxNoOversample_122
         end
-        if __lux_tmp_154 then
+        if __lux_tmp_123 then
           oversample = 1
         else
           oversample = __lux_module_1.normalizeOversample(alias.oversample)
         end
       end
       if alias.face ~= nil then
-        local weight
-        do
-          local __lux_tmp_157 = alias.weight
-          if __lux_tmp_157 == nil then
-            __lux_tmp_157 = 500
-          end
-          weight = __lux_tmp_157
+        local weight = alias.weight
+        if weight == nil then
+          weight = 500
         end
-        local __lux_obj_158 = textStyle
-        local __lux_val_159 = nil
-        if __lux_obj_158 ~= nil then
-          __lux_val_159 = __lux_obj_158.syntheticNativeWeight
+        local __lux_obj_textStyle_124 = textStyle
+        local __lux_val_syntheticNativeWeight_125 = nil
+        if __lux_obj_textStyle_124 ~= nil then
+          __lux_val_syntheticNativeWeight_125 = __lux_obj_textStyle_124.syntheticNativeWeight
         end
-        if __lux_val_159 == true then
-          local __lux_tmp_160 = plainFace ~= true
-          if __lux_tmp_160 then
-            local __lux_obj_161 = textStyle
-            local __lux_val_162 = nil
-            if __lux_obj_161 ~= nil then
-              __lux_val_162 = __lux_obj_161.bold
+        if __lux_val_syntheticNativeWeight_125 == true then
+          local __lux_tmp_130 = plainFace ~= true
+          if __lux_tmp_130 then
+            local __lux_obj_textStyle_128 = textStyle
+            local __lux_val_bold_129 = nil
+            if __lux_obj_textStyle_128 ~= nil then
+              __lux_val_bold_129 = __lux_obj_textStyle_128.bold
             end
-            __lux_tmp_160 = __lux_val_162 == true
+            __lux_tmp_130 = __lux_val_bold_129 == true
           end
-          if __lux_tmp_160 then
+          if __lux_tmp_130 then
             weight = weight + 220
           end
-          local __lux_tmp_163 = plainFace ~= true
-          if __lux_tmp_163 then
-            local __lux_obj_164 = textStyle
-            local __lux_val_165 = nil
-            if __lux_obj_164 ~= nil then
-              __lux_val_165 = __lux_obj_164.thin
+          local __lux_tmp_135 = plainFace ~= true
+          if __lux_tmp_135 then
+            local __lux_obj_textStyle_133 = textStyle
+            local __lux_val_thin_134 = nil
+            if __lux_obj_textStyle_133 ~= nil then
+              __lux_val_thin_134 = __lux_obj_textStyle_133.thin
             end
-            __lux_tmp_163 = __lux_val_165 == true
+            __lux_tmp_135 = __lux_val_thin_134 == true
           end
-          if __lux_tmp_163 then
+          if __lux_tmp_135 then
             weight = __lux_module_1.mathMin(weight, 350)
           end
-          local __lux_obj_166 = textStyle
-          local __lux_val_167 = nil
-          if __lux_obj_166 ~= nil then
-            __lux_val_167 = __lux_obj_166.weight
+          local __lux_obj_textStyle_136 = textStyle
+          local __lux_val_weight_137 = nil
+          if __lux_obj_textStyle_136 ~= nil then
+            __lux_val_weight_137 = __lux_obj_textStyle_136.weight
           end
-          if __lux_module_1.toNumber(__lux_val_167) ~= nil then
+          if __lux_module_1.toNumber(__lux_val_weight_137) ~= nil then
             weight = __lux_module_1.normalizeFontWeight(textStyle.weight, weight)
           end
         end
-        local __lux_tmp_168 = alias.size
-        if __lux_tmp_168 == nil then
-          __lux_tmp_168 = 16
+        local __lux_tmp_size_138 = alias.size
+        if __lux_tmp_size_138 == nil then
+          __lux_tmp_size_138 = 16
         end
-        local __lux_obj_169 = textStyle
-        local __lux_val_170 = nil
-        if __lux_obj_169 ~= nil then
-          __lux_val_170 = __lux_obj_169.italic
+        local __lux_obj_textStyle_139 = textStyle
+        local __lux_val_italic_140 = nil
+        if __lux_obj_textStyle_139 ~= nil then
+          __lux_val_italic_140 = __lux_obj_textStyle_139.italic
         end
         return __lux_module_1.ensureNativeFont(
           alias.face,
-          __lux_tmp_168 * oversample,
+          __lux_tmp_size_138 * oversample,
           weight,
-          __lux_val_170 == true
+          __lux_val_italic_140 == true
         ), alias, oversample
       end
-      local __lux_tmp_171 = alias.sourceFont
-      if __lux_tmp_171 == nil then
-        local __lux_tmp_172 = font
-        if __lux_tmp_172 == nil then
-          __lux_tmp_172 = "DermaDefault"
-        end
-        __lux_tmp_171 = __lux_tmp_172
+      local __lux_tmp_sourceFont_141 = alias.sourceFont
+      if __lux_tmp_sourceFont_141 == nil then
+        __lux_tmp_sourceFont_141 = font
       end
-      return __lux_tmp_171, alias, 1
+      if __lux_tmp_sourceFont_141 == nil then
+        __lux_tmp_sourceFont_141 = "DermaDefault"
+      end
+      return __lux_tmp_sourceFont_141, alias, 1
     end
     __lux_module_1.copyStyleInto = function(out, input)
       local resolved = __lux_module_1.resolveStyle(input)
@@ -1156,28 +1041,28 @@ return function(__lux_import)
         return nil
       end
       do
-        local __lux_tmp_173 = textStyle
-        if __lux_tmp_173 == nil then
-          __lux_tmp_173 = {}
+        local __lux_tmp_textStyle_142 = textStyle
+        if __lux_tmp_textStyle_142 == nil then
+          __lux_tmp_textStyle_142 = {}
         end
-        __lux_module_1.styles[__lux_module_1.toString(name)] = __lux_module_1.resolveStyle(__lux_tmp_173)
+        __lux_module_1.styles[__lux_module_1.toString(name)] = __lux_module_1.resolveStyle(__lux_tmp_textStyle_142)
       end
       return __lux_module_1.styles[__lux_module_1.toString(name)]
     end
     __lux_module_1.getStyle = function(name)
-      local __lux_tmp_174 = name
-      if __lux_tmp_174 == nil then
-        __lux_tmp_174 = ""
+      local __lux_tmp_name_143 = name
+      if __lux_tmp_name_143 == nil then
+        __lux_tmp_name_143 = ""
       end
-      return __lux_module_1.styles[__lux_module_1.toString(__lux_tmp_174)]
+      return __lux_module_1.styles[__lux_module_1.toString(__lux_tmp_name_143)]
     end
     __lux_module_1.resolveStyle = function(textStyle)
       if __lux_module_1.typeOf(textStyle) == "string" then
-        local __lux_tmp_175 = __lux_module_1.styles[__lux_module_1.toString(textStyle)]
-        if __lux_tmp_175 == nil then
-          __lux_tmp_175 = {}
+        local __lux_tmp_textStyle_144 = __lux_module_1.styles[__lux_module_1.toString(textStyle)]
+        if __lux_tmp_textStyle_144 == nil then
+          __lux_tmp_textStyle_144 = {}
         end
-        return __lux_module_1.copyValue(__lux_tmp_175)
+        return __lux_module_1.copyValue(__lux_tmp_textStyle_144)
       end
       if __lux_module_1.typeOf(textStyle) ~= "table" then
         return {}
@@ -1186,24 +1071,12 @@ return function(__lux_import)
         return __lux_module_1.copyValue(textStyle)
       end
       local out = {}
-      local base
-      do
-        local __lux_tmp_176 = textStyle.extends
-        if __lux_tmp_176 == nil then
-          __lux_tmp_176 = textStyle.base
-        end
-        base = __lux_tmp_176
+      local base = textStyle.extends
+      if base == nil then
+        base = textStyle.base
       end
       if base ~= nil then
-        local __lux_tmp_177 = __lux_module_1.typeOf(base) == "table"
-        if __lux_tmp_177 then
-          __lux_tmp_177 = base[1] ~= nil
-        end
-        local __lux_tmp_178 = __lux_tmp_177
-        if __lux_tmp_178 then
-          __lux_tmp_178 = not __lux_module_1.style.isColor(base)
-        end
-        if __lux_tmp_178 then
+        if __lux_module_1.typeOf(base) == "table" and base[1] ~= nil and not __lux_module_1.style.isColor(base) then
           for _, item in ipairs(base) do
             __lux_module_1.copyRawStyleInto(out, __lux_module_1.resolveStyle(item))
           end
@@ -1253,19 +1126,11 @@ return function(__lux_import)
     end
     __lux_module_1.setFontSafe = function(font)
       if __lux_module_1.surfaceSetFont ~= nil then
-        local target
-        do
-          local __lux_tmp_179 = font
-          if __lux_tmp_179 == nil then
-            __lux_tmp_179 = "DermaDefault"
-          end
-          target = __lux_tmp_179
+        local target = font
+        if target == nil then
+          target = "DermaDefault"
         end
-        local __lux_tmp_180 = __lux_module_1.protectedCall == nil
-        if not __lux_tmp_180 then
-          __lux_tmp_180 = __lux_module_1.protectedCall(__lux_module_1.surfaceSetFont, target)
-        end
-        if __lux_tmp_180 then
+        if __lux_module_1.protectedCall == nil or __lux_module_1.protectedCall(__lux_module_1.surfaceSetFont, target) then
           return target
         end
         __lux_module_1.surfaceSetFont("DermaDefault")
@@ -1278,43 +1143,42 @@ return function(__lux_import)
       end
       local declared
       do
-        local __lux_obj_181 = textStyle
-        local __lux_val_182 = nil
-        if __lux_obj_181 ~= nil then
-          __lux_val_182 = __lux_obj_181.lineHeight
+        local __lux_obj_textStyle_145 = textStyle
+        local __lux_val_lineHeight_146 = nil
+        if __lux_obj_textStyle_145 ~= nil then
+          __lux_val_lineHeight_146 = __lux_obj_textStyle_145.lineHeight
         end
-        local __lux_tmp_183 = __lux_val_182
-        if __lux_tmp_183 == nil then
-          local __lux_obj_184 = textStyle
-          local __lux_val_185 = nil
-          if __lux_obj_184 ~= nil then
-            __lux_val_185 = __lux_obj_184.lineheight
+        local __lux_tmp_lineHeight_147 = __lux_val_lineHeight_146
+        if __lux_tmp_lineHeight_147 == nil then
+          local __lux_obj_textStyle_148 = textStyle
+          local __lux_val_lineheight_149 = nil
+          if __lux_obj_textStyle_148 ~= nil then
+            __lux_val_lineheight_149 = __lux_obj_textStyle_148.lineheight
           end
-          local __lux_tmp_186 = __lux_val_185
-          if __lux_tmp_186 == nil then
-            local __lux_obj_187 = alias
-            local __lux_val_188 = nil
-            if __lux_obj_187 ~= nil then
-              __lux_val_188 = __lux_obj_187.lineHeight
-            end
-            __lux_tmp_186 = __lux_val_188
-          end
-          __lux_tmp_183 = __lux_tmp_186
+          __lux_tmp_lineHeight_147 = __lux_val_lineheight_149
         end
-        declared = __lux_module_1.toNumber(__lux_tmp_183)
+        if __lux_tmp_lineHeight_147 == nil then
+          local __lux_obj_alias_150 = alias
+          local __lux_val_lineHeight_151 = nil
+          if __lux_obj_alias_150 ~= nil then
+            __lux_val_lineHeight_151 = __lux_obj_alias_150.lineHeight
+          end
+          __lux_tmp_lineHeight_147 = __lux_val_lineHeight_151
+        end
+        declared = __lux_module_1.toNumber(__lux_tmp_lineHeight_147)
       end
       if declared ~= nil then
         return declared
       end
       __lux_module_1.setFontSafe(nativeFont)
       local _, h = __lux_module_1.surfaceGetTextSize("Mg")
-      local __lux_tmp_189 = h
-      if __lux_tmp_189 == nil then
-        __lux_tmp_189 = 16
+      local __lux_tmp_h_152 = h
+      if __lux_tmp_h_152 == nil then
+        __lux_tmp_h_152 = 16
       end
       return __lux_module_1.mathMax(
         1,
-        __lux_tmp_189 / __lux_module_1.normalizeOversample(oversample)
+        __lux_tmp_h_152 / __lux_module_1.normalizeOversample(oversample)
       )
     end
     __lux_module_1.measureLine = function(nativeFont, text, tracking, oversample)
@@ -1327,26 +1191,18 @@ return function(__lux_import)
       __lux_module_1.setFontSafe(nativeFont)
       local raw
       do
-        local __lux_tmp_190 = text
-        if __lux_tmp_190 == nil then
-          __lux_tmp_190 = ""
+        local __lux_tmp_text_153 = text
+        if __lux_tmp_text_153 == nil then
+          __lux_tmp_text_153 = ""
         end
-        raw = __lux_module_1.toString(__lux_tmp_190)
+        raw = __lux_module_1.toString(__lux_tmp_text_153)
       end
       local w, h = __lux_module_1.surfaceGetTextSize(raw)
-      local extra
-      do
-        local __lux_tmp_191 = __lux_module_1.toNumber(tracking)
-        if __lux_tmp_191 == nil then
-          __lux_tmp_191 = 0
-        end
-        extra = __lux_tmp_191
+      local extra = __lux_module_1.toNumber(tracking)
+      if extra == nil then
+        extra = 0
       end
-      local __lux_tmp_192 = extra ~= 0
-      if __lux_tmp_192 then
-        __lux_tmp_192 = #raw > 1
-      end
-      if __lux_tmp_192 then
+      if extra ~= 0 and #raw > 1 then
         local chars = __lux_module_1.textChars(raw)
         if #chars > 1 then
           w = w + (#chars - 1) * extra * __lux_module_1.normalizeOversample(oversample)
@@ -1366,37 +1222,35 @@ return function(__lux_import)
       end
       local resolved
       do
-        local __lux_tmp_193 = textStyle
-        if __lux_tmp_193 == nil then
-          __lux_tmp_193 = {}
+        local __lux_tmp_textStyle_154 = textStyle
+        if __lux_tmp_textStyle_154 == nil then
+          __lux_tmp_textStyle_154 = {}
         end
-        resolved = __lux_module_1.resolveStyle(__lux_tmp_193)
+        resolved = __lux_module_1.resolveStyle(__lux_tmp_textStyle_154)
       end
       local nativeFont, alias, oversample = __lux_module_1.nativeFor(font, resolved, noOversample, plainFace)
       local tracking
       do
-        local __lux_tmp_194 = resolved.tracking
-        if __lux_tmp_194 == nil then
-          __lux_tmp_194 = resolved.letterSpacing
+        local __lux_tmp_tracking_155 = resolved.tracking
+        if __lux_tmp_tracking_155 == nil then
+          __lux_tmp_tracking_155 = resolved.letterSpacing
         end
-        local __lux_tmp_195 = __lux_module_1.toNumber(__lux_tmp_194)
-        if __lux_tmp_195 == nil then
-          local __lux_tmp_196 = alias.tracking
-          if __lux_tmp_196 == nil then
-            __lux_tmp_196 = 0
+        tracking = __lux_module_1.toNumber(__lux_tmp_tracking_155)
+        if tracking == nil then
+          tracking = alias.tracking
+          if tracking == nil then
+            tracking = 0
           end
-          __lux_tmp_195 = __lux_tmp_196
         end
-        tracking = __lux_tmp_195
       end
       local lineHeight = __lux_module_1.lineHeightFor(nativeFont, alias, resolved, oversample)
       local lines
       do
-        local __lux_tmp_197 = value
-        if __lux_tmp_197 == nil then
-          __lux_tmp_197 = ""
+        local __lux_tmp_value_156 = value
+        if __lux_tmp_value_156 == nil then
+          __lux_tmp_value_156 = ""
         end
-        lines = __lux_module_1.stringExplode("\n", __lux_module_1.toString(__lux_tmp_197), false)
+        lines = __lux_module_1.stringExplode("\n", __lux_module_1.toString(__lux_tmp_value_156), false)
       end
       local maxW = 0
       for index = 1, #lines do
@@ -1421,31 +1275,27 @@ return function(__lux_import)
         font = "DermaDefault"
       end
       local nativeFont, alias, oversample = __lux_module_1.nativeFor(font)
-      local tracking
-      do
-        local __lux_tmp_198 = alias.tracking
-        if __lux_tmp_198 == nil then
-          __lux_tmp_198 = 0
-        end
-        tracking = __lux_tmp_198
+      local tracking = alias.tracking
+      if tracking == nil then
+        tracking = 0
       end
       local key
       do
-        local __lux_tmp_199 = font
-        if __lux_tmp_199 == nil then
-          __lux_tmp_199 = ""
+        local __lux_tmp_font_157 = font
+        if __lux_tmp_font_157 == nil then
+          __lux_tmp_font_157 = ""
         end
-        local __lux_tmp_200 = value
-        if __lux_tmp_200 == nil then
-          __lux_tmp_200 = ""
+        local __lux_tmp_value_158 = value
+        if __lux_tmp_value_158 == nil then
+          __lux_tmp_value_158 = ""
         end
         key = __lux_module_1.tableConcat(
           {
-            __lux_module_1.toString(__lux_tmp_199),
+            __lux_module_1.toString(__lux_tmp_font_157),
             nativeFont,
             __lux_module_1.toString(tracking),
             __lux_module_1.toString(oversample),
-            __lux_module_1.toString(__lux_tmp_200),
+            __lux_module_1.toString(__lux_tmp_value_158),
           },
           "31"
         )
@@ -1464,11 +1314,11 @@ return function(__lux_import)
     __lux_module_1.ellipsize = function(value, font, maxW)
       local text
       do
-        local __lux_tmp_201 = value
-        if __lux_tmp_201 == nil then
-          __lux_tmp_201 = ""
+        local __lux_tmp_value_159 = value
+        if __lux_tmp_value_159 == nil then
+          __lux_tmp_value_159 = ""
         end
-        text = __lux_module_1.toString(__lux_tmp_201)
+        text = __lux_module_1.toString(__lux_tmp_value_159)
       end
       if maxW <= 0 then
         return text
@@ -1496,28 +1346,20 @@ return function(__lux_import)
     __lux_module_1.wrapText = function(value, font, maxW, overflow)
       local text
       do
-        local __lux_tmp_202 = value
-        if __lux_tmp_202 == nil then
-          __lux_tmp_202 = ""
+        local __lux_tmp_value_160 = value
+        if __lux_tmp_value_160 == nil then
+          __lux_tmp_value_160 = ""
         end
-        text = __lux_module_1.toString(__lux_tmp_202)
+        text = __lux_module_1.toString(__lux_tmp_value_160)
       end
-      local width
-      do
-        local __lux_tmp_203 = __lux_module_1.toNumber(maxW)
-        if __lux_tmp_203 == nil then
-          __lux_tmp_203 = 0
-        end
-        width = __lux_tmp_203
+      local width = __lux_module_1.toNumber(maxW)
+      if width == nil then
+        width = 0
       end
       if width <= 0 then
         return __lux_module_1.stringExplode("\n", text, false)
       end
-      local __lux_tmp_204 = overflow == "ellipsis"
-      if not __lux_tmp_204 then
-        __lux_tmp_204 = overflow == "truncate"
-      end
-      if __lux_tmp_204 then
+      if overflow == "ellipsis" or overflow == "truncate" then
         return { __lux_module_1.ellipsize(text, font, width) }
       end
       local out = {}
@@ -1534,11 +1376,7 @@ return function(__lux_import)
             nextLine = line .. " " .. word
           end
           local nextW = __lux_module_1.measure(nextLine, font)
-          local __lux_tmp_205 = nextW > width
-          if __lux_tmp_205 then
-            __lux_tmp_205 = line ~= ""
-          end
-          if __lux_tmp_205 then
+          if nextW > width and line ~= "" then
             out[#out + 1] = line
             line = word
           else
@@ -1552,55 +1390,52 @@ return function(__lux_import)
     __lux_module_1.measureBox = function(value, font, w, textStyle)
       local resolved
       do
-        local __lux_tmp_206 = textStyle
-        if __lux_tmp_206 == nil then
-          __lux_tmp_206 = {}
+        local __lux_tmp_textStyle_161 = textStyle
+        if __lux_tmp_textStyle_161 == nil then
+          __lux_tmp_textStyle_161 = {}
         end
-        resolved = __lux_module_1.resolveStyle(__lux_tmp_206)
+        resolved = __lux_module_1.resolveStyle(__lux_tmp_textStyle_161)
       end
       local lines
       do
-        local __lux_tmp_207 = font
-        if __lux_tmp_207 == nil then
-          local __lux_tmp_208 = resolved.font
-          if __lux_tmp_208 == nil then
-            __lux_tmp_208 = "DermaDefault"
-          end
-          __lux_tmp_207 = __lux_tmp_208
+        local __lux_tmp_font_162 = font
+        if __lux_tmp_font_162 == nil then
+          __lux_tmp_font_162 = resolved.font
         end
-        local __lux_tmp_209 = __lux_module_1.toNumber(w)
-        if __lux_tmp_209 == nil then
-          __lux_tmp_209 = 0
+        if __lux_tmp_font_162 == nil then
+          __lux_tmp_font_162 = "DermaDefault"
         end
-        lines = __lux_module_1.wrapText(value, __lux_tmp_207, __lux_tmp_209, resolved.overflow)
+        local __lux_tmp_w_163 = __lux_module_1.toNumber(w)
+        if __lux_tmp_w_163 == nil then
+          __lux_tmp_w_163 = 0
+        end
+        lines = __lux_module_1.wrapText(value, __lux_tmp_font_162, __lux_tmp_w_163, resolved.overflow)
       end
       local maxW = 0
       for index = 1, #lines do
         local lw
         do
-          local __lux_tmp_210 = font
-          if __lux_tmp_210 == nil then
-            local __lux_tmp_211 = resolved.font
-            if __lux_tmp_211 == nil then
-              __lux_tmp_211 = "DermaDefault"
-            end
-            __lux_tmp_210 = __lux_tmp_211
+          local __lux_tmp_font_164 = font
+          if __lux_tmp_font_164 == nil then
+            __lux_tmp_font_164 = resolved.font
           end
-          lw = __lux_module_1.measure(lines[index], __lux_tmp_210)
+          if __lux_tmp_font_164 == nil then
+            __lux_tmp_font_164 = "DermaDefault"
+          end
+          lw = __lux_module_1.measure(lines[index], __lux_tmp_font_164)
         end
         maxW = __lux_module_1.mathMax(maxW, lw)
       end
       local nativeFont, alias, oversample
       do
-        local __lux_tmp_212 = font
-        if __lux_tmp_212 == nil then
-          local __lux_tmp_213 = resolved.font
-          if __lux_tmp_213 == nil then
-            __lux_tmp_213 = "DermaDefault"
-          end
-          __lux_tmp_212 = __lux_tmp_213
+        local __lux_tmp_font_165 = font
+        if __lux_tmp_font_165 == nil then
+          __lux_tmp_font_165 = resolved.font
         end
-        nativeFont, alias, oversample = __lux_module_1.nativeFor(__lux_tmp_212, resolved)
+        if __lux_tmp_font_165 == nil then
+          __lux_tmp_font_165 = "DermaDefault"
+        end
+        nativeFont, alias, oversample = __lux_module_1.nativeFor(__lux_tmp_font_165, resolved)
       end
       local lineHeight = __lux_module_1.lineHeightFor(nativeFont, alias, resolved, oversample)
       return maxW, #lines * lineHeight, lines
@@ -1618,33 +1453,19 @@ return function(__lux_import)
       if vertical == nil then
         vertical = false
       end
-      local __lux_match_214 = value
-      if __lux_match_214 == "center" or __lux_match_214 == "middle" then
+      local __lux_match_166 = value
+      if __lux_match_166 == "center" or __lux_match_166 == "middle" then
         return 0.5
-      elseif __lux_match_214 == "right" or __lux_match_214 == "bottom" then
+      elseif __lux_match_166 == "right" or __lux_match_166 == "bottom" then
         return 1
       else
-        local __lux_tmp_215 = value == TEXT_ALIGN_CENTER
-        if not __lux_tmp_215 then
-          local __lux_tmp_216 = vertical
-          if __lux_tmp_216 then
-            __lux_tmp_216 = value == TEXT_ALIGN_CENTER
-          end
-          __lux_tmp_215 = __lux_tmp_216
-        end
-        if __lux_tmp_215 then
+        if value == TEXT_ALIGN_CENTER or vertical and value == TEXT_ALIGN_CENTER then
           return 0.5
         end
-        do
-          local __lux_tmp_217 = value == TEXT_ALIGN_RIGHT
-          if not __lux_tmp_217 then
-            __lux_tmp_217 = value == TEXT_ALIGN_BOTTOM
-          end
-          if __lux_tmp_217 then
-            return 1
-          else
-            return 0
-          end
+        if value == TEXT_ALIGN_RIGHT or value == TEXT_ALIGN_BOTTOM then
+          return 1
+        else
+          return 0
         end
       end
     end
@@ -1661,41 +1482,40 @@ return function(__lux_import)
       if __lux_module_1.style.colorAtFill ~= nil then
         return __lux_module_1.style.colorAtFill(fill, t)
       end
-      local __lux_tmp_218 = fill.colorA
-      if __lux_tmp_218 == nil then
-        local __lux_tmp_219 = fill.color
-        if __lux_tmp_219 == nil then
-          __lux_tmp_219 = fill.fill
-        end
-        __lux_tmp_218 = __lux_tmp_219
+      local __lux_tmp_colorA_167 = fill.colorA
+      if __lux_tmp_colorA_167 == nil then
+        __lux_tmp_colorA_167 = fill.color
       end
-      return __lux_module_1.style.colorOr(__lux_tmp_218, __lux_module_1.white)
+      if __lux_tmp_colorA_167 == nil then
+        __lux_tmp_colorA_167 = fill.fill
+      end
+      return __lux_module_1.style.colorOr(__lux_tmp_colorA_167, __lux_module_1.white)
     end
     __lux_module_1.setTextColor = function(color)
       local c = __lux_module_1.style.colorOr(color, __lux_module_1.white)
       if __lux_module_1.surfaceSetTextColor ~= nil then
         do
-          local __lux_tmp_220 = c.r
-          if __lux_tmp_220 == nil then
-            __lux_tmp_220 = 255
+          local __lux_tmp_r_168 = c.r
+          if __lux_tmp_r_168 == nil then
+            __lux_tmp_r_168 = 255
           end
-          local __lux_tmp_221 = c.g
-          if __lux_tmp_221 == nil then
-            __lux_tmp_221 = 255
+          local __lux_tmp_g_169 = c.g
+          if __lux_tmp_g_169 == nil then
+            __lux_tmp_g_169 = 255
           end
-          local __lux_tmp_222 = c.b
-          if __lux_tmp_222 == nil then
-            __lux_tmp_222 = 255
+          local __lux_tmp_b_170 = c.b
+          if __lux_tmp_b_170 == nil then
+            __lux_tmp_b_170 = 255
           end
-          local __lux_tmp_223 = c.a
-          if __lux_tmp_223 == nil then
-            __lux_tmp_223 = 255
+          local __lux_tmp_a_171 = c.a
+          if __lux_tmp_a_171 == nil then
+            __lux_tmp_a_171 = 255
           end
           __lux_module_1.surfaceSetTextColor(
-            __lux_tmp_220,
-            __lux_tmp_221,
-            __lux_tmp_222,
-            __lux_tmp_223
+            __lux_tmp_r_168,
+            __lux_tmp_g_169,
+            __lux_tmp_b_170,
+            __lux_tmp_a_171
           )
         end
       end
@@ -1711,19 +1531,15 @@ return function(__lux_import)
       __lux_module_1.setTextColor(color)
       local raw
       do
-        local __lux_tmp_224 = text
-        if __lux_tmp_224 == nil then
-          __lux_tmp_224 = ""
+        local __lux_tmp_text_172 = text
+        if __lux_tmp_text_172 == nil then
+          __lux_tmp_text_172 = ""
         end
-        raw = __lux_module_1.toString(__lux_tmp_224)
+        raw = __lux_module_1.toString(__lux_tmp_text_172)
       end
-      local extra
-      do
-        local __lux_tmp_225 = __lux_module_1.toNumber(tracking)
-        if __lux_tmp_225 == nil then
-          __lux_tmp_225 = 0
-        end
-        extra = __lux_tmp_225
+      local extra = __lux_module_1.toNumber(tracking)
+      if extra == nil then
+        extra = 0
       end
       if extra == 0 then
         __lux_module_1.surfaceSetTextPos(x, y)
@@ -1738,11 +1554,11 @@ return function(__lux_import)
         __lux_module_1.surfaceDrawText(ch)
         local cw = __lux_module_1.surfaceGetTextSize(ch)
         do
-          local __lux_tmp_226 = cw
-          if __lux_tmp_226 == nil then
-            __lux_tmp_226 = 0
+          local __lux_tmp_cw_173 = cw
+          if __lux_tmp_cw_173 == nil then
+            __lux_tmp_cw_173 = 0
           end
-          cursor = cursor + __lux_tmp_226 + extra * __lux_module_1.normalizeOversample(oversample)
+          cursor = cursor + __lux_tmp_cw_173 + extra * __lux_module_1.normalizeOversample(oversample)
         end
       end
     end
@@ -1760,16 +1576,16 @@ return function(__lux_import)
           t = (index - 1) / (#layout.lines - 1)
         end
         do
-          local __lux_tmp_227 = fill
-          if __lux_tmp_227 == nil then
-            __lux_tmp_227 = fallbackColor
+          local __lux_tmp_fill_174 = fill
+          if __lux_tmp_fill_174 == nil then
+            __lux_tmp_fill_174 = fallbackColor
           end
           __lux_module_1.drawLineText(
             layout.font,
             line.text,
             x,
             y + line.y * oversample,
-            __lux_module_1.colorAtFill(__lux_tmp_227, t),
+            __lux_module_1.colorAtFill(__lux_tmp_fill_174, t),
             layout.tracking,
             oversample
           )
@@ -1777,11 +1593,7 @@ return function(__lux_import)
       end
     end
     __lux_module_1.normalizeShadow = function(value)
-      local __lux_tmp_228 = value == nil
-      if not __lux_tmp_228 then
-        __lux_tmp_228 = value == false
-      end
-      if __lux_tmp_228 then
+      if value == nil or value == false then
         return nil
       end
       if value == true then
@@ -1789,75 +1601,71 @@ return function(__lux_import)
       end
       if __lux_module_1.typeOf(value) ~= "table" then
         do
-          local __lux_tmp_229 = __lux_module_1.toNumber(value)
-          if __lux_tmp_229 == nil then
-            __lux_tmp_229 = 0
+          local __lux_tmp_value_175 = __lux_module_1.toNumber(value)
+          if __lux_tmp_value_175 == nil then
+            __lux_tmp_value_175 = 0
           end
-          value = { blur = __lux_tmp_229 }
+          value = { blur = __lux_tmp_value_175 }
         end
       end
-      local __lux_tmp_230 = value.x
-      if __lux_tmp_230 == nil then
-        local __lux_tmp_231 = value.offsetX
-        if __lux_tmp_231 == nil then
-          __lux_tmp_231 = value[1]
-        end
-        __lux_tmp_230 = __lux_tmp_231
+      local __lux_tmp_x_176 = value.x
+      if __lux_tmp_x_176 == nil then
+        __lux_tmp_x_176 = value.offsetX
       end
-      local __lux_tmp_232 = __lux_module_1.toNumber(__lux_tmp_230)
-      if __lux_tmp_232 == nil then
-        __lux_tmp_232 = 1
+      if __lux_tmp_x_176 == nil then
+        __lux_tmp_x_176 = value[1]
       end
-      local __lux_tmp_233 = value.y
-      if __lux_tmp_233 == nil then
-        local __lux_tmp_234 = value.offsetY
-        if __lux_tmp_234 == nil then
-          __lux_tmp_234 = value[2]
-        end
-        __lux_tmp_233 = __lux_tmp_234
+      local __lux_tmp_x_177 = __lux_module_1.toNumber(__lux_tmp_x_176)
+      if __lux_tmp_x_177 == nil then
+        __lux_tmp_x_177 = 1
       end
-      local __lux_tmp_235 = __lux_module_1.toNumber(__lux_tmp_233)
-      if __lux_tmp_235 == nil then
-        __lux_tmp_235 = 1
+      local __lux_tmp_y_178 = value.y
+      if __lux_tmp_y_178 == nil then
+        __lux_tmp_y_178 = value.offsetY
       end
-      local __lux_tmp_236 = value.blur
-      if __lux_tmp_236 == nil then
-        local __lux_tmp_237 = value.radius
-        if __lux_tmp_237 == nil then
-          __lux_tmp_237 = value[3]
-        end
-        __lux_tmp_236 = __lux_tmp_237
+      if __lux_tmp_y_178 == nil then
+        __lux_tmp_y_178 = value[2]
       end
-      local __lux_tmp_238 = __lux_module_1.toNumber(__lux_tmp_236)
-      if __lux_tmp_238 == nil then
-        __lux_tmp_238 = 0
+      local __lux_tmp_y_179 = __lux_module_1.toNumber(__lux_tmp_y_178)
+      if __lux_tmp_y_179 == nil then
+        __lux_tmp_y_179 = 1
       end
-      local __lux_tmp_239 = value.strength
-      if __lux_tmp_239 == nil then
-        __lux_tmp_239 = value.opacity
+      local __lux_tmp_blur_180 = value.blur
+      if __lux_tmp_blur_180 == nil then
+        __lux_tmp_blur_180 = value.radius
       end
-      local __lux_tmp_240 = __lux_module_1.toNumber(__lux_tmp_239)
-      if __lux_tmp_240 == nil then
-        __lux_tmp_240 = 1
+      if __lux_tmp_blur_180 == nil then
+        __lux_tmp_blur_180 = value[3]
       end
-      local __lux_tmp_241 = value.color
-      if __lux_tmp_241 == nil then
-        __lux_tmp_241 = value.tint
+      local __lux_tmp_blur_181 = __lux_module_1.toNumber(__lux_tmp_blur_180)
+      if __lux_tmp_blur_181 == nil then
+        __lux_tmp_blur_181 = 0
+      end
+      local __lux_tmp_strength_182 = value.strength
+      if __lux_tmp_strength_182 == nil then
+        __lux_tmp_strength_182 = value.opacity
+      end
+      local __lux_tmp_strength_183 = __lux_module_1.toNumber(__lux_tmp_strength_182)
+      if __lux_tmp_strength_183 == nil then
+        __lux_tmp_strength_183 = 1
+      end
+      local __lux_tmp_color_184 = value.color
+      if __lux_tmp_color_184 == nil then
+        __lux_tmp_color_184 = value.tint
       end
       return {
-        x = __lux_tmp_232,
-        y = __lux_tmp_235,
-        blur = __lux_tmp_238,
-        strength = __lux_tmp_240,
-        color = __lux_module_1.style.colorOr(__lux_tmp_241, __lux_module_1.makeColor(0, 0, 0, 180)),
+        x = __lux_tmp_x_177,
+        y = __lux_tmp_y_179,
+        blur = __lux_tmp_blur_181,
+        strength = __lux_tmp_strength_183,
+        color = __lux_module_1.style.colorOr(
+          __lux_tmp_color_184,
+          __lux_module_1.makeColor(0, 0, 0, 180)
+        ),
       }
     end
     __lux_module_1.normalizeStroke = function(value)
-      local __lux_tmp_242 = value == nil
-      if not __lux_tmp_242 then
-        __lux_tmp_242 = value == false
-      end
-      if __lux_tmp_242 then
+      if value == nil or value == false then
         return nil
       end
       if value == true then
@@ -1865,53 +1673,51 @@ return function(__lux_import)
       end
       if __lux_module_1.typeOf(value) ~= "table" then
         do
-          local __lux_tmp_243 = __lux_module_1.toNumber(value)
-          if __lux_tmp_243 == nil then
-            __lux_tmp_243 = 1
+          local __lux_tmp_value_185 = __lux_module_1.toNumber(value)
+          if __lux_tmp_value_185 == nil then
+            __lux_tmp_value_185 = 1
           end
-          value = { width = __lux_tmp_243 }
+          value = { width = __lux_tmp_value_185 }
         end
       end
       local width
       do
-        local __lux_tmp_244 = value.width
-        if __lux_tmp_244 == nil then
-          local __lux_tmp_245 = value.size
-          if __lux_tmp_245 == nil then
-            __lux_tmp_245 = value[1]
-          end
-          __lux_tmp_244 = __lux_tmp_245
+        local __lux_tmp_width_186 = value.width
+        if __lux_tmp_width_186 == nil then
+          __lux_tmp_width_186 = value.size
         end
-        local __lux_tmp_246 = __lux_module_1.toNumber(__lux_tmp_244)
-        if __lux_tmp_246 == nil then
-          __lux_tmp_246 = 1
+        if __lux_tmp_width_186 == nil then
+          __lux_tmp_width_186 = value[1]
         end
-        width = __lux_module_1.mathMax(0, __lux_tmp_246)
+        local __lux_tmp_width_187 = __lux_module_1.toNumber(__lux_tmp_width_186)
+        if __lux_tmp_width_187 == nil then
+          __lux_tmp_width_187 = 1
+        end
+        width = __lux_module_1.mathMax(0, __lux_tmp_width_187)
       end
       if width <= 0 then
         return nil
       end
-      local __lux_tmp_247 = __lux_module_1.toNumber(value.softness)
-      if __lux_tmp_247 == nil then
-        __lux_tmp_247 = 0
+      local __lux_tmp_softness_188 = __lux_module_1.toNumber(value.softness)
+      if __lux_tmp_softness_188 == nil then
+        __lux_tmp_softness_188 = 0
       end
-      local __lux_tmp_248 = value.color
-      if __lux_tmp_248 == nil then
-        __lux_tmp_248 = value.tint
+      local __lux_tmp_color_189 = value.color
+      if __lux_tmp_color_189 == nil then
+        __lux_tmp_color_189 = value.tint
       end
       return {
         width = width,
         samples = __lux_module_1.mathClamp(__lux_module_1.mathCeil(width * 6), 8, 32),
-        softness = __lux_tmp_247,
-        color = __lux_module_1.style.colorOr(__lux_tmp_248, __lux_module_1.makeColor(0, 0, 0, 220)),
+        softness = __lux_tmp_softness_188,
+        color = __lux_module_1.style.colorOr(
+          __lux_tmp_color_189,
+          __lux_module_1.makeColor(0, 0, 0, 220)
+        ),
       }
     end
     __lux_module_1.normalizeGlow = function(value)
-      local __lux_tmp_249 = value == nil
-      if not __lux_tmp_249 then
-        __lux_tmp_249 = value == false
-      end
-      if __lux_tmp_249 then
+      if value == nil or value == false then
         return nil
       end
       if value == true then
@@ -1919,166 +1725,154 @@ return function(__lux_import)
       end
       if __lux_module_1.typeOf(value) ~= "table" then
         do
-          local __lux_tmp_250 = __lux_module_1.toNumber(value)
-          if __lux_tmp_250 == nil then
-            __lux_tmp_250 = 6
+          local __lux_tmp_value_190 = __lux_module_1.toNumber(value)
+          if __lux_tmp_value_190 == nil then
+            __lux_tmp_value_190 = 6
           end
-          value = { width = __lux_tmp_250 }
+          value = { width = __lux_tmp_value_190 }
         end
       end
       local width
       do
-        local __lux_tmp_251 = value.width
-        if __lux_tmp_251 == nil then
-          local __lux_tmp_252 = value.size
-          if __lux_tmp_252 == nil then
-            local __lux_tmp_253 = value.radius
-            if __lux_tmp_253 == nil then
-              __lux_tmp_253 = value[1]
-            end
-            __lux_tmp_252 = __lux_tmp_253
-          end
-          __lux_tmp_251 = __lux_tmp_252
+        local __lux_tmp_width_191 = value.width
+        if __lux_tmp_width_191 == nil then
+          __lux_tmp_width_191 = value.size
         end
-        local __lux_tmp_254 = __lux_module_1.toNumber(__lux_tmp_251)
-        if __lux_tmp_254 == nil then
-          __lux_tmp_254 = 6
+        if __lux_tmp_width_191 == nil then
+          __lux_tmp_width_191 = value.radius
         end
-        width = __lux_module_1.mathMax(0, __lux_tmp_254)
+        if __lux_tmp_width_191 == nil then
+          __lux_tmp_width_191 = value[1]
+        end
+        local __lux_tmp_width_192 = __lux_module_1.toNumber(__lux_tmp_width_191)
+        if __lux_tmp_width_192 == nil then
+          __lux_tmp_width_192 = 6
+        end
+        width = __lux_module_1.mathMax(0, __lux_tmp_width_192)
       end
       if width <= 0 then
         return nil
       end
-      local __lux_tmp_255 = value.strength
-      if __lux_tmp_255 == nil then
-        __lux_tmp_255 = value.opacity
+      local __lux_tmp_strength_193 = value.strength
+      if __lux_tmp_strength_193 == nil then
+        __lux_tmp_strength_193 = value.opacity
       end
-      local __lux_tmp_256 = __lux_module_1.toNumber(__lux_tmp_255)
-      if __lux_tmp_256 == nil then
-        __lux_tmp_256 = 0.45
+      local __lux_tmp_strength_194 = __lux_module_1.toNumber(__lux_tmp_strength_193)
+      if __lux_tmp_strength_194 == nil then
+        __lux_tmp_strength_194 = 0.45
       end
-      local __lux_tmp_257 = __lux_module_1.toNumber(value.falloff)
-      if __lux_tmp_257 == nil then
-        __lux_tmp_257 = __lux_module_1.style.glowSoftnessToFalloff(value.softness, 0.58)
+      local __lux_tmp_falloff_195 = __lux_module_1.toNumber(value.falloff)
+      if __lux_tmp_falloff_195 == nil then
+        __lux_tmp_falloff_195 = __lux_module_1.style.glowSoftnessToFalloff(value.softness, 0.58)
       end
-      local __lux_tmp_258 = value.color
-      if __lux_tmp_258 == nil then
-        __lux_tmp_258 = value.tint
+      local __lux_tmp_color_196 = value.color
+      if __lux_tmp_color_196 == nil then
+        __lux_tmp_color_196 = value.tint
       end
       return {
         width = width,
         samples = __lux_module_1.mathClamp(__lux_module_1.mathCeil(width * 2), 8, 36),
-        strength = __lux_tmp_256,
-        falloff = __lux_tmp_257,
+        strength = __lux_tmp_strength_194,
+        falloff = __lux_tmp_falloff_195,
         color = __lux_module_1.style.colorOr(
-          __lux_tmp_258,
+          __lux_tmp_color_196,
           __lux_module_1.makeColor(255, 255, 255, 120)
         ),
       }
     end
     __lux_module_1.scaledColor = function(input, scale)
       local color = __lux_module_1.style.colorOr(input, __lux_module_1.white)
-      local __lux_tmp_259 = color.r
-      if __lux_tmp_259 == nil then
-        __lux_tmp_259 = 255
+      local __lux_tmp_r_197 = color.r
+      if __lux_tmp_r_197 == nil then
+        __lux_tmp_r_197 = 255
       end
-      local __lux_tmp_260 = color.g
-      if __lux_tmp_260 == nil then
-        __lux_tmp_260 = 255
+      local __lux_tmp_g_198 = color.g
+      if __lux_tmp_g_198 == nil then
+        __lux_tmp_g_198 = 255
       end
-      local __lux_tmp_261 = color.b
-      if __lux_tmp_261 == nil then
-        __lux_tmp_261 = 255
+      local __lux_tmp_b_199 = color.b
+      if __lux_tmp_b_199 == nil then
+        __lux_tmp_b_199 = 255
       end
-      local __lux_tmp_262 = color.a
-      if __lux_tmp_262 == nil then
-        __lux_tmp_262 = 255
+      local __lux_tmp_a_200 = color.a
+      if __lux_tmp_a_200 == nil then
+        __lux_tmp_a_200 = 255
       end
-      local __lux_tmp_263 = scale
-      if __lux_tmp_263 == nil then
-        __lux_tmp_263 = 1
+      local __lux_tmp_scale_201 = scale
+      if __lux_tmp_scale_201 == nil then
+        __lux_tmp_scale_201 = 1
       end
       return __lux_module_1.makeColor(
-        __lux_tmp_259,
-        __lux_tmp_260,
-        __lux_tmp_261,
+        __lux_tmp_r_197,
+        __lux_tmp_g_198,
+        __lux_tmp_b_199,
         __lux_module_1.mathClamp(
-          __lux_module_1.mathFloor(__lux_tmp_262 * __lux_tmp_263),
+          __lux_module_1.mathFloor(__lux_tmp_a_200 * __lux_tmp_scale_201),
           0,
           255
         )
       )
     end
     __lux_module_1.snapTextPos = function(x, y, textStyle)
-      local __lux_obj_264 = textStyle
-      local __lux_val_265 = nil
-      if __lux_obj_264 ~= nil then
-        __lux_val_265 = __lux_obj_264.pixelSnap
+      local __lux_obj_textStyle_202 = textStyle
+      local __lux_val_pixelSnap_203 = nil
+      if __lux_obj_textStyle_202 ~= nil then
+        __lux_val_pixelSnap_203 = __lux_obj_textStyle_202.pixelSnap
       end
-      if __lux_val_265 == false then
+      if __lux_val_pixelSnap_203 == false then
         return x, y
       end
-      local __lux_tmp_266 = x
-      if __lux_tmp_266 == nil then
-        __lux_tmp_266 = 0
+      local __lux_tmp_x_204 = x
+      if __lux_tmp_x_204 == nil then
+        __lux_tmp_x_204 = 0
       end
-      local __lux_tmp_267 = y
-      if __lux_tmp_267 == nil then
-        __lux_tmp_267 = 0
+      local __lux_tmp_y_205 = y
+      if __lux_tmp_y_205 == nil then
+        __lux_tmp_y_205 = 0
       end
-      return __lux_module_1.mathFloor(__lux_tmp_266 + 0.5), __lux_module_1.mathFloor(__lux_tmp_267 + 0.5)
+      return __lux_module_1.mathFloor(__lux_tmp_x_204 + 0.5), __lux_module_1.mathFloor(__lux_tmp_y_205 + 0.5)
     end
     __lux_module_1.drawNativeFallbackRecord = function(record)
-      local textStyle
-      do
-        local __lux_tmp_268 = record.style
-        if __lux_tmp_268 == nil then
-          __lux_tmp_268 = {}
-        end
-        textStyle = __lux_tmp_268
+      local textStyle = record.style
+      if textStyle == nil then
+        textStyle = {}
       end
       local layout = __lux_module_1.layoutFor(record.text, record.font, textStyle, true)
       local x
       do
-        local __lux_tmp_269 = record.x
-        if __lux_tmp_269 == nil then
-          __lux_tmp_269 = 0
+        local __lux_tmp_x_206 = record.x
+        if __lux_tmp_x_206 == nil then
+          __lux_tmp_x_206 = 0
         end
-        x = __lux_tmp_269 - layout.w * __lux_module_1.alignFactor(record.alignX)
+        x = __lux_tmp_x_206 - layout.w * __lux_module_1.alignFactor(record.alignX)
       end
       local y
       do
-        local __lux_tmp_270 = record.y
-        if __lux_tmp_270 == nil then
-          __lux_tmp_270 = 0
+        local __lux_tmp_y_207 = record.y
+        if __lux_tmp_y_207 == nil then
+          __lux_tmp_y_207 = 0
         end
-        y = __lux_tmp_270 - layout.h * __lux_module_1.alignFactor(record.alignY, true)
+        y = __lux_tmp_y_207 - layout.h * __lux_module_1.alignFactor(record.alignY, true)
       end
       x, y = __lux_module_1.snapTextPos(x, y, textStyle)
-      local fill
-      do
-        local __lux_tmp_271 = textStyle.fill
-        if __lux_tmp_271 == nil then
-          local __lux_tmp_272 = textStyle.color
-          if __lux_tmp_272 == nil then
-            local __lux_tmp_273 = record.color
-            if __lux_tmp_273 == nil then
-              __lux_tmp_273 = __lux_module_1.white
-            end
-            __lux_tmp_272 = __lux_tmp_273
+      local fill = textStyle.fill
+      if fill == nil then
+        fill = textStyle.color
+        if fill == nil then
+          fill = record.color
+          if fill == nil then
+            fill = __lux_module_1.white
           end
-          __lux_tmp_271 = __lux_tmp_272
         end
-        fill = __lux_tmp_271
       end
       local shadow = __lux_module_1.normalizeShadow(textStyle.shadow)
       local stroke
       do
-        local __lux_tmp_274 = textStyle.stroke
-        if __lux_tmp_274 == nil then
-          __lux_tmp_274 = textStyle.outline
+        local __lux_tmp_stroke_208 = textStyle.stroke
+        if __lux_tmp_stroke_208 == nil then
+          __lux_tmp_stroke_208 = textStyle.outline
         end
-        stroke = __lux_module_1.normalizeStroke(__lux_tmp_274)
+        stroke = __lux_module_1.normalizeStroke(__lux_tmp_stroke_208)
       end
       local glow = __lux_module_1.normalizeGlow(textStyle.glow)
       __lux_module_1.profile.draws = __lux_module_1.profile.draws + 1
@@ -2117,127 +1911,95 @@ return function(__lux_import)
         end
       end
       do
-        local __lux_tmp_275 = record.color
-        if __lux_tmp_275 == nil then
-          __lux_tmp_275 = __lux_module_1.white
+        local __lux_tmp_color_209 = record.color
+        if __lux_tmp_color_209 == nil then
+          __lux_tmp_color_209 = __lux_module_1.white
         end
-        __lux_module_1.drawLayout(layout, x, y, fill, __lux_tmp_275)
+        __lux_module_1.drawLayout(layout, x, y, fill, __lux_tmp_color_209)
       end
       return record
     end
     __lux_module_1.drawNativePlainRecord = function(record)
-      local textStyle
-      do
-        local __lux_tmp_276 = record.style
-        if __lux_tmp_276 == nil then
-          __lux_tmp_276 = {}
-        end
-        textStyle = __lux_tmp_276
+      local textStyle = record.style
+      if textStyle == nil then
+        textStyle = {}
       end
-      local fill
-      do
-        local __lux_tmp_277 = textStyle.fill
-        if __lux_tmp_277 == nil then
-          local __lux_tmp_278 = textStyle.color
-          if __lux_tmp_278 == nil then
-            local __lux_tmp_279 = record.color
-            if __lux_tmp_279 == nil then
-              __lux_tmp_279 = __lux_module_1.white
-            end
-            __lux_tmp_278 = __lux_tmp_279
+      local fill = textStyle.fill
+      if fill == nil then
+        fill = textStyle.color
+        if fill == nil then
+          fill = record.color
+          if fill == nil then
+            fill = __lux_module_1.white
           end
-          __lux_tmp_277 = __lux_tmp_278
         end
-        fill = __lux_tmp_277
       end
       if __lux_module_1.fillNeedsShader(fill) then
         do
-          local __lux_tmp_280 = record.color
-          if __lux_tmp_280 == nil then
-            __lux_tmp_280 = __lux_module_1.white
+          local __lux_tmp_color_210 = record.color
+          if __lux_tmp_color_210 == nil then
+            __lux_tmp_color_210 = __lux_module_1.white
           end
-          fill = __lux_tmp_280
+          fill = __lux_tmp_color_210
         end
       end
       local nativeFont, alias = __lux_module_1.nativeFor(record.font, textStyle, true, true)
       local tracking
       do
-        local __lux_tmp_281 = textStyle.tracking
-        if __lux_tmp_281 == nil then
-          __lux_tmp_281 = textStyle.letterSpacing
+        local __lux_tmp_tracking_211 = textStyle.tracking
+        if __lux_tmp_tracking_211 == nil then
+          __lux_tmp_tracking_211 = textStyle.letterSpacing
         end
-        local __lux_tmp_282 = __lux_module_1.toNumber(__lux_tmp_281)
-        if __lux_tmp_282 == nil then
-          local __lux_tmp_283 = alias.tracking
-          if __lux_tmp_283 == nil then
-            __lux_tmp_283 = 0
+        tracking = __lux_module_1.toNumber(__lux_tmp_tracking_211)
+        if tracking == nil then
+          tracking = alias.tracking
+          if tracking == nil then
+            tracking = 0
           end
-          __lux_tmp_282 = __lux_tmp_283
         end
-        tracking = __lux_tmp_282
       end
       local raw
       do
-        local __lux_tmp_284 = record.text
-        if __lux_tmp_284 == nil then
-          __lux_tmp_284 = ""
+        local __lux_tmp_text_212 = record.text
+        if __lux_tmp_text_212 == nil then
+          __lux_tmp_text_212 = ""
         end
-        raw = __lux_module_1.toString(__lux_tmp_284)
+        raw = __lux_module_1.toString(__lux_tmp_text_212)
       end
-      local __lux_tmp_285 = tracking == 0
-      if __lux_tmp_285 then
-        __lux_tmp_285 = __lux_module_1.stringFind(raw, "\n", 1, true) == nil
-      end
-      local __lux_tmp_286 = __lux_tmp_285
-      if __lux_tmp_286 then
-        __lux_tmp_286 = textStyle.lineHeight == nil
-      end
-      local __lux_tmp_287 = __lux_tmp_286
-      if __lux_tmp_287 then
-        __lux_tmp_287 = alias.lineHeight == nil
-      end
-      local __lux_tmp_288 = __lux_tmp_287
-      if __lux_tmp_288 then
-        __lux_tmp_288 = not __lux_module_1.fillNeedsShader(fill)
-      end
-      local __lux_tmp_289 = __lux_tmp_288
-      if __lux_tmp_289 then
-        __lux_tmp_289 = __lux_module_1.drawSimpleText ~= nil
-      end
-      if __lux_tmp_289 then
+      if tracking == 0 and __lux_module_1.stringFind(raw, "\n", 1, true) == nil and textStyle.lineHeight == nil and alias.lineHeight == nil and not __lux_module_1.fillNeedsShader(fill) and __lux_module_1.drawSimpleText ~= nil then
         local x, y
         do
-          local __lux_tmp_290 = record.x
-          if __lux_tmp_290 == nil then
-            __lux_tmp_290 = 0
+          local __lux_tmp_x_213 = record.x
+          if __lux_tmp_x_213 == nil then
+            __lux_tmp_x_213 = 0
           end
-          local __lux_tmp_291 = record.y
-          if __lux_tmp_291 == nil then
-            __lux_tmp_291 = 0
+          local __lux_tmp_y_214 = record.y
+          if __lux_tmp_y_214 == nil then
+            __lux_tmp_y_214 = 0
           end
-          x, y = __lux_module_1.snapTextPos(__lux_tmp_290, __lux_tmp_291, textStyle)
+          x, y = __lux_module_1.snapTextPos(__lux_tmp_x_213, __lux_tmp_y_214, textStyle)
         end
         do
-          local __lux_tmp_292 = record.color
-          if __lux_tmp_292 == nil then
-            __lux_tmp_292 = __lux_module_1.white
+          local __lux_tmp_color_215 = record.color
+          if __lux_tmp_color_215 == nil then
+            __lux_tmp_color_215 = __lux_module_1.white
           end
-          local __lux_tmp_293 = record.alignX
-          if __lux_tmp_293 == nil then
-            __lux_tmp_293 = TEXT_ALIGN_LEFT
+          local __lux_tmp_alignX_216 = record.alignX
+          if __lux_tmp_alignX_216 == nil then
+            __lux_tmp_alignX_216 = TEXT_ALIGN_LEFT
           end
-          local __lux_tmp_294 = record.alignY
-          if __lux_tmp_294 == nil then
-            __lux_tmp_294 = TEXT_ALIGN_TOP
+          local __lux_tmp_alignY_217 = record.alignY
+          if __lux_tmp_alignY_217 == nil then
+            __lux_tmp_alignY_217 = TEXT_ALIGN_TOP
           end
           __lux_module_1.drawSimpleText(
             raw,
             __lux_module_1.setFontSafe(nativeFont),
             x,
             y,
-            __lux_module_1.style.colorOr(fill, __lux_tmp_292),
-            __lux_tmp_293,
-            __lux_tmp_294
+            __lux_module_1.style.colorOr(fill, __lux_tmp_color_215),
+            __lux_tmp_alignX_216,
+            __lux_tmp_alignY_217
           )
         end
         return record
@@ -2245,27 +2007,27 @@ return function(__lux_import)
       local layout = __lux_module_1.layoutFor(raw, record.font, textStyle, true, true)
       local x
       do
-        local __lux_tmp_295 = record.x
-        if __lux_tmp_295 == nil then
-          __lux_tmp_295 = 0
+        local __lux_tmp_x_218 = record.x
+        if __lux_tmp_x_218 == nil then
+          __lux_tmp_x_218 = 0
         end
-        x = __lux_tmp_295 - layout.w * __lux_module_1.alignFactor(record.alignX)
+        x = __lux_tmp_x_218 - layout.w * __lux_module_1.alignFactor(record.alignX)
       end
       local y
       do
-        local __lux_tmp_296 = record.y
-        if __lux_tmp_296 == nil then
-          __lux_tmp_296 = 0
+        local __lux_tmp_y_219 = record.y
+        if __lux_tmp_y_219 == nil then
+          __lux_tmp_y_219 = 0
         end
-        y = __lux_tmp_296 - layout.h * __lux_module_1.alignFactor(record.alignY, true)
+        y = __lux_tmp_y_219 - layout.h * __lux_module_1.alignFactor(record.alignY, true)
       end
       x, y = __lux_module_1.snapTextPos(x, y, textStyle)
       do
-        local __lux_tmp_297 = record.color
-        if __lux_tmp_297 == nil then
-          __lux_tmp_297 = __lux_module_1.white
+        local __lux_tmp_color_220 = record.color
+        if __lux_tmp_color_220 == nil then
+          __lux_tmp_color_220 = __lux_module_1.white
         end
-        __lux_module_1.drawLayout(layout, x, y, fill, __lux_tmp_297)
+        __lux_module_1.drawLayout(layout, x, y, fill, __lux_tmp_color_220)
       end
       return record
     end
@@ -2286,84 +2048,78 @@ return function(__lux_import)
         ay = 0
       end
       local renderer = __lux_module_1.sharedTextRenderer()
-      local __lux_obj_298 = renderer
-      local __lux_val_299 = nil
-      if __lux_obj_298 ~= nil then
-        __lux_val_299 = __lux_obj_298.DrawTextImmediate
+      local __lux_obj_renderer_221 = renderer
+      local __lux_val_DrawTextImmediate_222 = nil
+      if __lux_obj_renderer_221 ~= nil then
+        __lux_val_DrawTextImmediate_222 = __lux_obj_renderer_221.DrawTextImmediate
       end
-      if __lux_val_299 ~= nil then
+      if __lux_val_DrawTextImmediate_222 ~= nil then
         return renderer.DrawTextImmediate(value, font, x, y, color, ax, ay, textStyle)
       end
       local resolved
       do
-        local __lux_tmp_300 = textStyle
-        if __lux_tmp_300 == nil then
-          __lux_tmp_300 = {}
+        local __lux_tmp_textStyle_223 = textStyle
+        if __lux_tmp_textStyle_223 == nil then
+          __lux_tmp_textStyle_223 = {}
         end
-        resolved = __lux_module_1.resolveStyle(__lux_tmp_300)
+        resolved = __lux_module_1.resolveStyle(__lux_tmp_textStyle_223)
       end
       local record
       do
-        local __lux_tmp_301 = value
-        if __lux_tmp_301 == nil then
-          __lux_tmp_301 = ""
+        local __lux_tmp_value_224 = value
+        if __lux_tmp_value_224 == nil then
+          __lux_tmp_value_224 = ""
         end
-        local __lux_tmp_302 = resolved.font
-        if __lux_tmp_302 == nil then
-          local __lux_tmp_303 = font
-          if __lux_tmp_303 == nil then
-            __lux_tmp_303 = "DermaDefault"
-          end
-          __lux_tmp_302 = __lux_tmp_303
+        local __lux_tmp_font_225 = resolved.font
+        if __lux_tmp_font_225 == nil then
+          __lux_tmp_font_225 = font
         end
-        local __lux_tmp_304 = __lux_module_1.toNumber(x)
-        if __lux_tmp_304 == nil then
-          __lux_tmp_304 = 0
+        if __lux_tmp_font_225 == nil then
+          __lux_tmp_font_225 = "DermaDefault"
         end
-        local __lux_tmp_305 = __lux_module_1.toNumber(y)
-        if __lux_tmp_305 == nil then
-          __lux_tmp_305 = 0
+        local __lux_tmp_x_226 = __lux_module_1.toNumber(x)
+        if __lux_tmp_x_226 == nil then
+          __lux_tmp_x_226 = 0
         end
-        local __lux_tmp_306 = color
-        if __lux_tmp_306 == nil then
-          local __lux_tmp_307 = resolved.color
-          if __lux_tmp_307 == nil then
-            __lux_tmp_307 = resolved.fill
-          end
-          __lux_tmp_306 = __lux_tmp_307
+        local __lux_tmp_y_227 = __lux_module_1.toNumber(y)
+        if __lux_tmp_y_227 == nil then
+          __lux_tmp_y_227 = 0
         end
-        local __lux_tmp_308 = resolved.alignX
-        if __lux_tmp_308 == nil then
-          local __lux_tmp_309 = resolved.align
-          if __lux_tmp_309 == nil then
-            local __lux_tmp_310 = ax
-            if __lux_tmp_310 == nil then
-              __lux_tmp_310 = TEXT_ALIGN_LEFT
-            end
-            __lux_tmp_309 = __lux_tmp_310
-          end
-          __lux_tmp_308 = __lux_tmp_309
+        local __lux_tmp_color_228 = color
+        if __lux_tmp_color_228 == nil then
+          __lux_tmp_color_228 = resolved.color
         end
-        local __lux_tmp_311 = resolved.alignY
-        if __lux_tmp_311 == nil then
-          local __lux_tmp_312 = resolved.valign
-          if __lux_tmp_312 == nil then
-            local __lux_tmp_313 = ay
-            if __lux_tmp_313 == nil then
-              __lux_tmp_313 = TEXT_ALIGN_TOP
-            end
-            __lux_tmp_312 = __lux_tmp_313
-          end
-          __lux_tmp_311 = __lux_tmp_312
+        if __lux_tmp_color_228 == nil then
+          __lux_tmp_color_228 = resolved.fill
+        end
+        local __lux_tmp_alignX_229 = resolved.alignX
+        if __lux_tmp_alignX_229 == nil then
+          __lux_tmp_alignX_229 = resolved.align
+        end
+        if __lux_tmp_alignX_229 == nil then
+          __lux_tmp_alignX_229 = ax
+        end
+        if __lux_tmp_alignX_229 == nil then
+          __lux_tmp_alignX_229 = TEXT_ALIGN_LEFT
+        end
+        local __lux_tmp_alignY_230 = resolved.alignY
+        if __lux_tmp_alignY_230 == nil then
+          __lux_tmp_alignY_230 = resolved.valign
+        end
+        if __lux_tmp_alignY_230 == nil then
+          __lux_tmp_alignY_230 = ay
+        end
+        if __lux_tmp_alignY_230 == nil then
+          __lux_tmp_alignY_230 = TEXT_ALIGN_TOP
         end
         record = {
-          text = __lux_module_1.toString(__lux_tmp_301),
-          font = __lux_tmp_302,
-          x = __lux_tmp_304,
-          y = __lux_tmp_305,
-          color = __lux_module_1.style.colorOr(__lux_tmp_306, __lux_module_1.white),
-          alignX = __lux_tmp_308,
-          alignY = __lux_tmp_311,
+          text = __lux_module_1.toString(__lux_tmp_value_224),
+          font = __lux_tmp_font_225,
+          x = __lux_tmp_x_226,
+          y = __lux_tmp_y_227,
+          color = __lux_module_1.style.colorOr(__lux_tmp_color_228, __lux_module_1.white),
+          alignX = __lux_tmp_alignX_229,
+          alignY = __lux_tmp_alignY_230,
           style = resolved,
         }
       end
@@ -2387,12 +2143,12 @@ return function(__lux_import)
       end
       local renderer = __lux_module_1.sharedTextRenderer()
       local textStyle = { color = color, alignX = alignX, alignY = alignY }
-      local __lux_obj_314 = renderer
-      local __lux_val_315 = nil
-      if __lux_obj_314 ~= nil then
-        __lux_val_315 = __lux_obj_314.DrawTextBoxImmediate
+      local __lux_obj_renderer_231 = renderer
+      local __lux_val_DrawTextBoxImmediate_232 = nil
+      if __lux_obj_renderer_231 ~= nil then
+        __lux_val_DrawTextBoxImmediate_232 = __lux_obj_renderer_231.DrawTextBoxImmediate
       end
-      if __lux_val_315 ~= nil then
+      if __lux_val_DrawTextBoxImmediate_232 ~= nil then
         return renderer.DrawTextBoxImmediate(value, font, x, y, w, h, textStyle)
       end
       return __lux_module_1.boxEx(value, font, x, y, w, h, textStyle)
@@ -2400,11 +2156,11 @@ return function(__lux_import)
     __lux_module_1.textBoxLineStyle = function(textStyle)
       local out
       do
-        local __lux_tmp_316 = textStyle
-        if __lux_tmp_316 == nil then
-          __lux_tmp_316 = {}
+        local __lux_tmp_textStyle_233 = textStyle
+        if __lux_tmp_textStyle_233 == nil then
+          __lux_tmp_textStyle_233 = {}
         end
-        out = __lux_module_1.copyValue(__lux_tmp_316)
+        out = __lux_module_1.copyValue(__lux_tmp_textStyle_233)
       end
       out.alignY = TEXT_ALIGN_TOP
       out.valign = TEXT_ALIGN_TOP
@@ -2412,102 +2168,91 @@ return function(__lux_import)
     end
     __lux_module_1.boxEx = function(value, font, x, y, w, h, textStyle)
       local renderer = __lux_module_1.sharedTextRenderer()
-      local __lux_obj_317 = renderer
-      local __lux_val_318 = nil
-      if __lux_obj_317 ~= nil then
-        __lux_val_318 = __lux_obj_317.DrawTextBoxImmediate
+      local __lux_obj_renderer_234 = renderer
+      local __lux_val_DrawTextBoxImmediate_235 = nil
+      if __lux_obj_renderer_234 ~= nil then
+        __lux_val_DrawTextBoxImmediate_235 = __lux_obj_renderer_234.DrawTextBoxImmediate
       end
-      if __lux_val_318 ~= nil then
+      if __lux_val_DrawTextBoxImmediate_235 ~= nil then
         return renderer.DrawTextBoxImmediate(value, font, x, y, w, h, textStyle)
       end
       local resolved
       do
-        local __lux_tmp_319 = textStyle
-        if __lux_tmp_319 == nil then
-          __lux_tmp_319 = {}
+        local __lux_tmp_textStyle_236 = textStyle
+        if __lux_tmp_textStyle_236 == nil then
+          __lux_tmp_textStyle_236 = {}
         end
-        resolved = __lux_module_1.resolveStyle(__lux_tmp_319)
+        resolved = __lux_module_1.resolveStyle(__lux_tmp_textStyle_236)
       end
-      local resolvedFont
-      do
-        local __lux_tmp_320 = resolved.font
-        if __lux_tmp_320 == nil then
-          local __lux_tmp_321 = font
-          if __lux_tmp_321 == nil then
-            __lux_tmp_321 = "DermaDefault"
-          end
-          __lux_tmp_320 = __lux_tmp_321
+      local resolvedFont = resolved.font
+      if resolvedFont == nil then
+        resolvedFont = font
+        if resolvedFont == nil then
+          resolvedFont = "DermaDefault"
         end
-        resolvedFont = __lux_tmp_320
       end
       local lines
       do
-        local __lux_tmp_322 = __lux_module_1.toNumber(w)
-        if __lux_tmp_322 == nil then
-          __lux_tmp_322 = 0
+        local __lux_tmp_w_237 = __lux_module_1.toNumber(w)
+        if __lux_tmp_w_237 == nil then
+          __lux_tmp_w_237 = 0
         end
-        lines = __lux_module_1.wrapText(value, resolvedFont, __lux_tmp_322, resolved.overflow)
+        lines = __lux_module_1.wrapText(value, resolvedFont, __lux_tmp_w_237, resolved.overflow)
       end
       local nativeFont, alias, oversample = __lux_module_1.nativeFor(resolvedFont, resolved)
       local lineHeight = __lux_module_1.lineHeightFor(nativeFont, alias, resolved, oversample)
       local totalH = #lines * lineHeight
       local startY
       do
-        local __lux_tmp_323 = __lux_module_1.toNumber(y)
-        if __lux_tmp_323 == nil then
-          __lux_tmp_323 = 0
+        local __lux_tmp_y_238 = __lux_module_1.toNumber(y)
+        if __lux_tmp_y_238 == nil then
+          __lux_tmp_y_238 = 0
         end
-        local __lux_tmp_324 = __lux_module_1.toNumber(h)
-        if __lux_tmp_324 == nil then
-          __lux_tmp_324 = totalH
+        local __lux_tmp_h_239 = __lux_module_1.toNumber(h)
+        if __lux_tmp_h_239 == nil then
+          __lux_tmp_h_239 = totalH
         end
-        local __lux_tmp_325 = resolved.alignY
-        if __lux_tmp_325 == nil then
-          local __lux_tmp_326 = resolved.valign
-          if __lux_tmp_326 == nil then
-            __lux_tmp_326 = TEXT_ALIGN_TOP
-          end
-          __lux_tmp_325 = __lux_tmp_326
+        local __lux_tmp_alignY_240 = resolved.alignY
+        if __lux_tmp_alignY_240 == nil then
+          __lux_tmp_alignY_240 = resolved.valign
         end
-        startY = __lux_tmp_323 + (__lux_tmp_324 - totalH) * __lux_module_1.alignFactor(__lux_tmp_325, true)
+        if __lux_tmp_alignY_240 == nil then
+          __lux_tmp_alignY_240 = TEXT_ALIGN_TOP
+        end
+        startY = __lux_tmp_y_238 + (__lux_tmp_h_239 - totalH) * __lux_module_1.alignFactor(__lux_tmp_alignY_240, true)
       end
-      local ax
-      do
-        local __lux_tmp_327 = resolved.alignX
-        if __lux_tmp_327 == nil then
-          local __lux_tmp_328 = resolved.align
-          if __lux_tmp_328 == nil then
-            __lux_tmp_328 = TEXT_ALIGN_LEFT
-          end
-          __lux_tmp_327 = __lux_tmp_328
+      local ax = resolved.alignX
+      if ax == nil then
+        ax = resolved.align
+        if ax == nil then
+          ax = TEXT_ALIGN_LEFT
         end
-        ax = __lux_tmp_327
       end
       local tx
       do
-        local __lux_tmp_329 = __lux_module_1.toNumber(x)
-        if __lux_tmp_329 == nil then
-          __lux_tmp_329 = 0
+        local __lux_tmp_x_241 = __lux_module_1.toNumber(x)
+        if __lux_tmp_x_241 == nil then
+          __lux_tmp_x_241 = 0
         end
-        local __lux_tmp_330 = __lux_module_1.toNumber(w)
-        if __lux_tmp_330 == nil then
-          __lux_tmp_330 = 0
+        local __lux_tmp_w_242 = __lux_module_1.toNumber(w)
+        if __lux_tmp_w_242 == nil then
+          __lux_tmp_w_242 = 0
         end
-        tx = __lux_tmp_329 + __lux_tmp_330 * __lux_module_1.alignFactor(ax)
+        tx = __lux_tmp_x_241 + __lux_tmp_w_242 * __lux_module_1.alignFactor(ax)
       end
       local lineStyle = __lux_module_1.textBoxLineStyle(resolved)
       for index = 1, #lines do
         do
-          local __lux_tmp_331 = lineStyle.color
-          if __lux_tmp_331 == nil then
-            __lux_tmp_331 = lineStyle.fill
+          local __lux_tmp_color_243 = lineStyle.color
+          if __lux_tmp_color_243 == nil then
+            __lux_tmp_color_243 = lineStyle.fill
           end
           __lux_module_1.drawEx(
             lines[index],
             resolvedFont,
             tx,
             startY + (index - 1) * lineHeight,
-            __lux_tmp_331,
+            __lux_tmp_color_243,
             ax,
             TEXT_ALIGN_TOP,
             lineStyle
@@ -2517,51 +2262,47 @@ return function(__lux_import)
     end
     __lux_module_1.batch = function(records)
       local renderer = __lux_module_1.sharedTextRenderer()
-      local __lux_obj_332 = renderer
-      local __lux_val_333 = nil
-      if __lux_obj_332 ~= nil then
-        __lux_val_333 = __lux_obj_332.Flush
+      local __lux_obj_renderer_244 = renderer
+      local __lux_val_Flush_245 = nil
+      if __lux_obj_renderer_244 ~= nil then
+        __lux_val_Flush_245 = __lux_obj_renderer_244.Flush
       end
-      local __lux_tmp_334 = __lux_val_333 ~= nil
-      if __lux_tmp_334 then
-        __lux_tmp_334 = renderer.MakeRecord ~= nil
-      end
-      if __lux_tmp_334 then
+      if __lux_val_Flush_245 ~= nil and renderer.MakeRecord ~= nil then
         local normalized = {}
         do
-          local __lux_tmp_335 = records
-          if __lux_tmp_335 == nil then
-            __lux_tmp_335 = {}
+          local __lux_tmp_records_246 = records
+          if __lux_tmp_records_246 == nil then
+            __lux_tmp_records_246 = {}
           end
-          for index = 1, #__lux_tmp_335 do
+          for index = 1, #__lux_tmp_records_246 do
             local record = records[index]
             if record ~= nil then
               do
-                local __lux_tmp_336 = record.text
-                if __lux_tmp_336 == nil then
-                  __lux_tmp_336 = record.value
+                local __lux_tmp_text_247 = record.text
+                if __lux_tmp_text_247 == nil then
+                  __lux_tmp_text_247 = record.value
                 end
-                local __lux_tmp_337 = record.alignX
-                if __lux_tmp_337 == nil then
-                  __lux_tmp_337 = record.ax
+                local __lux_tmp_alignX_248 = record.alignX
+                if __lux_tmp_alignX_248 == nil then
+                  __lux_tmp_alignX_248 = record.ax
                 end
-                local __lux_tmp_338 = record.alignY
-                if __lux_tmp_338 == nil then
-                  __lux_tmp_338 = record.ay
+                local __lux_tmp_alignY_249 = record.alignY
+                if __lux_tmp_alignY_249 == nil then
+                  __lux_tmp_alignY_249 = record.ay
                 end
-                local __lux_tmp_339 = record.style
-                if __lux_tmp_339 == nil then
-                  __lux_tmp_339 = {}
+                local __lux_tmp_style_250 = record.style
+                if __lux_tmp_style_250 == nil then
+                  __lux_tmp_style_250 = {}
                 end
                 normalized[#normalized + 1] = renderer.MakeRecord(
-                  __lux_tmp_336,
+                  __lux_tmp_text_247,
                   record.font,
                   record.x,
                   record.y,
                   record.color,
-                  __lux_tmp_337,
-                  __lux_tmp_338,
-                  __lux_tmp_339
+                  __lux_tmp_alignX_248,
+                  __lux_tmp_alignY_249,
+                  __lux_tmp_style_250
                 )
               end
             end
@@ -2570,24 +2311,24 @@ return function(__lux_import)
         return renderer.Flush(normalized, "batch")
       end
       do
-        local __lux_tmp_340 = records
-        if __lux_tmp_340 == nil then
-          __lux_tmp_340 = {}
+        local __lux_tmp_records_251 = records
+        if __lux_tmp_records_251 == nil then
+          __lux_tmp_records_251 = {}
         end
-        for index = 1, #__lux_tmp_340 do
+        for index = 1, #__lux_tmp_records_251 do
           local record = records[index]
           do
-            local __lux_tmp_341 = record.alignX
-            if __lux_tmp_341 == nil then
-              __lux_tmp_341 = record.ax
+            local __lux_tmp_alignX_252 = record.alignX
+            if __lux_tmp_alignX_252 == nil then
+              __lux_tmp_alignX_252 = record.ax
             end
-            local __lux_tmp_342 = record.alignY
-            if __lux_tmp_342 == nil then
-              __lux_tmp_342 = record.ay
+            local __lux_tmp_alignY_253 = record.alignY
+            if __lux_tmp_alignY_253 == nil then
+              __lux_tmp_alignY_253 = record.ay
             end
-            local __lux_tmp_343 = record.style
-            if __lux_tmp_343 == nil then
-              __lux_tmp_343 = {}
+            local __lux_tmp_style_254 = record.style
+            if __lux_tmp_style_254 == nil then
+              __lux_tmp_style_254 = {}
             end
             __lux_module_1.drawNativeFallbackRecord(
               {
@@ -2596,9 +2337,9 @@ return function(__lux_import)
                 x = record.x,
                 y = record.y,
                 color = record.color,
-                alignX = __lux_tmp_341,
-                alignY = __lux_tmp_342,
-                style = __lux_module_1.resolveStyle(__lux_tmp_343),
+                alignX = __lux_tmp_alignX_252,
+                alignY = __lux_tmp_alignY_253,
+                style = __lux_module_1.resolveStyle(__lux_tmp_style_254),
               }
             )
           end
@@ -2608,33 +2349,32 @@ return function(__lux_import)
     end
     __lux_module_1.prewarm = function(value, font, textStyle)
       local renderer = __lux_module_1.sharedTextRenderer()
-      local __lux_obj_344 = renderer
-      local __lux_val_345 = nil
-      if __lux_obj_344 ~= nil then
-        __lux_val_345 = __lux_obj_344.PrewarmText
+      local __lux_obj_renderer_255 = renderer
+      local __lux_val_PrewarmText_256 = nil
+      if __lux_obj_renderer_255 ~= nil then
+        __lux_val_PrewarmText_256 = __lux_obj_renderer_255.PrewarmText
       end
-      if __lux_val_345 ~= nil then
+      if __lux_val_PrewarmText_256 ~= nil then
         return renderer.PrewarmText(value, font, textStyle)
       end
       local resolved
       do
-        local __lux_tmp_346 = textStyle
-        if __lux_tmp_346 == nil then
-          __lux_tmp_346 = {}
+        local __lux_tmp_textStyle_257 = textStyle
+        if __lux_tmp_textStyle_257 == nil then
+          __lux_tmp_textStyle_257 = {}
         end
-        resolved = __lux_module_1.resolveStyle(__lux_tmp_346)
+        resolved = __lux_module_1.resolveStyle(__lux_tmp_textStyle_257)
       end
       local layout
       do
-        local __lux_tmp_347 = font
-        if __lux_tmp_347 == nil then
-          local __lux_tmp_348 = resolved.font
-          if __lux_tmp_348 == nil then
-            __lux_tmp_348 = "DermaDefault"
-          end
-          __lux_tmp_347 = __lux_tmp_348
+        local __lux_tmp_font_258 = font
+        if __lux_tmp_font_258 == nil then
+          __lux_tmp_font_258 = resolved.font
         end
-        layout = __lux_module_1.layoutFor(value, __lux_tmp_347, resolved)
+        if __lux_tmp_font_258 == nil then
+          __lux_tmp_font_258 = "DermaDefault"
+        end
+        layout = __lux_module_1.layoutFor(value, __lux_tmp_font_258, resolved)
       end
       return layout ~= nil
     end
@@ -2656,20 +2396,20 @@ return function(__lux_import)
       end
       local out
       do
-        local __lux_tmp_349 = __lux_module_1.profile.times
-        if __lux_tmp_349 == nil then
-          __lux_tmp_349 = {}
+        local __lux_tmp_times_259 = __lux_module_1.profile.times
+        if __lux_tmp_times_259 == nil then
+          __lux_tmp_times_259 = {}
         end
-        local __lux_tmp_350 = __lux_module_1.profile.counts
-        if __lux_tmp_350 == nil then
-          __lux_tmp_350 = {}
+        local __lux_tmp_counts_260 = __lux_module_1.profile.counts
+        if __lux_tmp_counts_260 == nil then
+          __lux_tmp_counts_260 = {}
         end
         out = {
           active = __lux_module_1.profile.active,
           draws = __lux_module_1.profile.draws,
           measures = __lux_module_1.profile.measures,
-          times = __lux_module_1.tableCopy(__lux_tmp_349),
-          counts = __lux_module_1.tableCopy(__lux_tmp_350),
+          times = __lux_module_1.tableCopy(__lux_tmp_times_259),
+          counts = __lux_module_1.tableCopy(__lux_tmp_counts_260),
         }
       end
       if reset then
@@ -2711,64 +2451,64 @@ return function(__lux_import)
       stats.textComposedPrewarmFails = 0
       stats.textComposedPrewarmRestarts = 0
       do
-        local __lux_tmp_351 = stats.textComposedEntries
-        if __lux_tmp_351 == nil then
-          __lux_tmp_351 = 0
+        local __lux_tmp_textComposedEntries_261 = stats.textComposedEntries
+        if __lux_tmp_textComposedEntries_261 == nil then
+          __lux_tmp_textComposedEntries_261 = 0
         end
-        stats.textComposedEntries = __lux_tmp_351
+        stats.textComposedEntries = __lux_tmp_textComposedEntries_261
       end
       do
-        local __lux_tmp_352 = stats.textComposedEvicts
-        if __lux_tmp_352 == nil then
-          __lux_tmp_352 = 0
+        local __lux_tmp_textComposedEvicts_262 = stats.textComposedEvicts
+        if __lux_tmp_textComposedEvicts_262 == nil then
+          __lux_tmp_textComposedEvicts_262 = 0
         end
-        stats.textComposedEvicts = __lux_tmp_352
+        stats.textComposedEvicts = __lux_tmp_textComposedEvicts_262
       end
       do
-        local __lux_tmp_353 = stats.textMeasureHits
-        if __lux_tmp_353 == nil then
-          __lux_tmp_353 = 0
+        local __lux_tmp_textMeasureHits_263 = stats.textMeasureHits
+        if __lux_tmp_textMeasureHits_263 == nil then
+          __lux_tmp_textMeasureHits_263 = 0
         end
-        stats.textMeasureHits = __lux_tmp_353
+        stats.textMeasureHits = __lux_tmp_textMeasureHits_263
       end
       do
-        local __lux_tmp_354 = stats.textMeasureMisses
-        if __lux_tmp_354 == nil then
-          __lux_tmp_354 = 0
+        local __lux_tmp_textMeasureMisses_264 = stats.textMeasureMisses
+        if __lux_tmp_textMeasureMisses_264 == nil then
+          __lux_tmp_textMeasureMisses_264 = 0
         end
-        stats.textMeasureMisses = __lux_tmp_354
+        stats.textMeasureMisses = __lux_tmp_textMeasureMisses_264
       end
       do
-        local __lux_tmp_355 = stats.textEntryCacheHits
-        if __lux_tmp_355 == nil then
-          __lux_tmp_355 = 0
+        local __lux_tmp_textEntryCacheHits_265 = stats.textEntryCacheHits
+        if __lux_tmp_textEntryCacheHits_265 == nil then
+          __lux_tmp_textEntryCacheHits_265 = 0
         end
-        stats.textEntryCacheHits = __lux_tmp_355
+        stats.textEntryCacheHits = __lux_tmp_textEntryCacheHits_265
       end
       do
-        local __lux_tmp_356 = stats.textEntryCacheMisses
-        if __lux_tmp_356 == nil then
-          __lux_tmp_356 = 0
+        local __lux_tmp_textEntryCacheMisses_266 = stats.textEntryCacheMisses
+        if __lux_tmp_textEntryCacheMisses_266 == nil then
+          __lux_tmp_textEntryCacheMisses_266 = 0
         end
-        stats.textEntryCacheMisses = __lux_tmp_356
+        stats.textEntryCacheMisses = __lux_tmp_textEntryCacheMisses_266
       end
       do
-        local __lux_tmp_357 = stats.textFallbacks
-        if __lux_tmp_357 == nil then
-          __lux_tmp_357 = 0
+        local __lux_tmp_textFallbacks_267 = stats.textFallbacks
+        if __lux_tmp_textFallbacks_267 == nil then
+          __lux_tmp_textFallbacks_267 = 0
         end
-        stats.textFallbacks = __lux_tmp_357
+        stats.textFallbacks = __lux_tmp_textFallbacks_267
       end
       stats.textDataDraws = 0
       stats.textDataBatches = 0
       stats.textAtlasUploads = 0
       stats.textAtlasGlyphs = 0
       do
-        local __lux_tmp_358 = stats.textAtlasResets
-        if __lux_tmp_358 == nil then
-          __lux_tmp_358 = 0
+        local __lux_tmp_textAtlasResets_268 = stats.textAtlasResets
+        if __lux_tmp_textAtlasResets_268 == nil then
+          __lux_tmp_textAtlasResets_268 = 0
         end
-        stats.textAtlasResets = __lux_tmp_358
+        stats.textAtlasResets = __lux_tmp_textAtlasResets_268
       end
       stats.textCacheSize = __lux_module_1.measureOrderCount
       return stats
@@ -2778,65 +2518,45 @@ return function(__lux_import)
         amount = 1
       end
       do
-        local __lux_tmp_359 = stats[key]
-        if __lux_tmp_359 == nil then
-          __lux_tmp_359 = 0
+        local __lux_tmp_key_269 = stats[key]
+        if __lux_tmp_key_269 == nil then
+          __lux_tmp_key_269 = 0
         end
-        stats[key] = __lux_tmp_359 + amount
+        stats[key] = __lux_tmp_key_269 + amount
       end
       return stats[key]
     end
   end
   do
     __lux_module_1.textComposedEnabled = function()
-      local __lux_tmp_360 = not __lux_module_1.textComposerCapable()
-      if not __lux_tmp_360 then
-        __lux_tmp_360 = __lux_module_1.atlasFailed
-      end
-      if __lux_tmp_360 then
+      if not __lux_module_1.textComposerCapable() or __lux_module_1.atlasFailed then
         return false
       end
-      local __lux_tmp_361 = __lux_module_1.composedCvar == nil
-      if __lux_tmp_361 then
-        __lux_tmp_361 = __lux_module_1.getConVar ~= nil
-      end
-      if __lux_tmp_361 then
+      if __lux_module_1.composedCvar == nil and __lux_module_1.getConVar ~= nil then
         do
-          local __lux_tmp_362 = __lux_module_1.getConVar("mgfx_text_composed")
-          if __lux_tmp_362 == nil then
-            __lux_tmp_362 = false
+          local __lux_tmp_getConVar_270 = __lux_module_1.getConVar("mgfx_text_composed")
+          if __lux_tmp_getConVar_270 == nil then
+            __lux_tmp_getConVar_270 = false
           end
-          __lux_module_1.composedCvar = __lux_tmp_362
+          __lux_module_1.composedCvar = __lux_tmp_getConVar_270
         end
       end
-      local __lux_tmp_363 = __lux_module_1.composedCvar == false
-      if not __lux_tmp_363 then
-        __lux_tmp_363 = __lux_module_1.composedCvar == nil
-      end
-      if __lux_tmp_363 then
+      if __lux_module_1.composedCvar == false or __lux_module_1.composedCvar == nil then
         return true
       end
       return __lux_module_1.composedCvar:GetBool()
     end
     __lux_module_1.textComposeBudget = function()
-      local __lux_tmp_364 = __lux_module_1.budgetCvar == nil
-      if __lux_tmp_364 then
-        __lux_tmp_364 = __lux_module_1.getConVar ~= nil
-      end
-      if __lux_tmp_364 then
+      if __lux_module_1.budgetCvar == nil and __lux_module_1.getConVar ~= nil then
         do
-          local __lux_tmp_365 = __lux_module_1.getConVar("mgfx_text_composed_budget")
-          if __lux_tmp_365 == nil then
-            __lux_tmp_365 = false
+          local __lux_tmp_getConVar_271 = __lux_module_1.getConVar("mgfx_text_composed_budget")
+          if __lux_tmp_getConVar_271 == nil then
+            __lux_tmp_getConVar_271 = false
           end
-          __lux_module_1.budgetCvar = __lux_tmp_365
+          __lux_module_1.budgetCvar = __lux_tmp_getConVar_271
         end
       end
-      local __lux_tmp_366 = __lux_module_1.budgetCvar == false
-      if not __lux_tmp_366 then
-        __lux_tmp_366 = __lux_module_1.budgetCvar == nil
-      end
-      if __lux_tmp_366 then
+      if __lux_module_1.budgetCvar == false or __lux_module_1.budgetCvar == nil then
         return __lux_module_1.DEFAULT_BUDGET
       end
       return __lux_module_1.mathMax(0, __lux_module_1.budgetCvar:GetInt())
@@ -2848,19 +2568,7 @@ return function(__lux_import)
       if h == nil then
         h = __lux_module_1.ATLAS_H
       end
-      local __lux_tmp_367 = rt == nil
-      if not __lux_tmp_367 then
-        __lux_tmp_367 = __lux_module_1.renderPushRenderTarget == nil
-      end
-      local __lux_tmp_368 = __lux_tmp_367
-      if not __lux_tmp_368 then
-        __lux_tmp_368 = __lux_module_1.renderClear == nil
-      end
-      local __lux_tmp_369 = __lux_tmp_368
-      if not __lux_tmp_369 then
-        __lux_tmp_369 = __lux_module_1.renderPopRenderTarget == nil
-      end
-      if __lux_tmp_369 then
+      if rt == nil or __lux_module_1.renderPushRenderTarget == nil or __lux_module_1.renderClear == nil or __lux_module_1.renderPopRenderTarget == nil then
         return false
       end
       __lux_module_1.renderPushRenderTarget(rt, 0, 0, w, h)
@@ -2931,73 +2639,57 @@ return function(__lux_import)
       end
       if __lux_module_1.surfaceSetAlphaMultiplier ~= nil then
         do
-          local __lux_tmp_370 = alpha
-          if __lux_tmp_370 == nil then
-            __lux_tmp_370 = 1
+          local __lux_tmp_alpha_272 = alpha
+          if __lux_tmp_alpha_272 == nil then
+            __lux_tmp_alpha_272 = 1
           end
-          __lux_module_1.surfaceSetAlphaMultiplier(__lux_tmp_370)
+          __lux_module_1.surfaceSetAlphaMultiplier(__lux_tmp_alpha_272)
         end
       end
-      local __lux_tmp_371 = __lux_module_1.renderSetColorModulation ~= nil
-      if __lux_tmp_371 then
-        __lux_tmp_371 = cr ~= nil
-      end
-      if __lux_tmp_371 then
+      if __lux_module_1.renderSetColorModulation ~= nil and cr ~= nil then
         __lux_module_1.renderSetColorModulation(cr, cg, cb)
       end
-      local __lux_tmp_372 = __lux_module_1.renderSetBlend ~= nil
-      if __lux_tmp_372 then
-        __lux_tmp_372 = blend ~= nil
-      end
-      if __lux_tmp_372 then
+      if __lux_module_1.renderSetBlend ~= nil and blend ~= nil then
         __lux_module_1.renderSetBlend(blend)
       end
     end
     __lux_module_1.clearAtlasSlot = function(x, y, w, h)
-      local __lux_tmp_373 = __lux_module_1.surfaceDrawRect == nil
-      if not __lux_tmp_373 then
-        __lux_tmp_373 = __lux_module_1.surfaceSetDrawColor == nil
-      end
-      if __lux_tmp_373 then
+      if __lux_module_1.surfaceDrawRect == nil or __lux_module_1.surfaceSetDrawColor == nil then
         return false
       end
       do
-        local __lux_tmp_374 = x
-        if __lux_tmp_374 == nil then
-          __lux_tmp_374 = 0
+        local __lux_tmp_x_273 = x
+        if __lux_tmp_x_273 == nil then
+          __lux_tmp_x_273 = 0
         end
-        x = __lux_module_1.mathFloor(__lux_module_1.mathMax(0, __lux_tmp_374))
+        x = __lux_module_1.mathFloor(__lux_module_1.mathMax(0, __lux_tmp_x_273))
       end
       do
-        local __lux_tmp_375 = y
-        if __lux_tmp_375 == nil then
-          __lux_tmp_375 = 0
+        local __lux_tmp_y_274 = y
+        if __lux_tmp_y_274 == nil then
+          __lux_tmp_y_274 = 0
         end
-        y = __lux_module_1.mathFloor(__lux_module_1.mathMax(0, __lux_tmp_375))
+        y = __lux_module_1.mathFloor(__lux_module_1.mathMax(0, __lux_tmp_y_274))
       end
       do
-        local __lux_tmp_376 = w
-        if __lux_tmp_376 == nil then
-          __lux_tmp_376 = 0
+        local __lux_tmp_w_275 = w
+        if __lux_tmp_w_275 == nil then
+          __lux_tmp_w_275 = 0
         end
         w = __lux_module_1.mathCeil(
-          __lux_module_1.mathMin(__lux_module_1.ATLAS_W - x, __lux_tmp_376)
+          __lux_module_1.mathMin(__lux_module_1.ATLAS_W - x, __lux_tmp_w_275)
         )
       end
       do
-        local __lux_tmp_377 = h
-        if __lux_tmp_377 == nil then
-          __lux_tmp_377 = 0
+        local __lux_tmp_h_276 = h
+        if __lux_tmp_h_276 == nil then
+          __lux_tmp_h_276 = 0
         end
         h = __lux_module_1.mathCeil(
-          __lux_module_1.mathMin(__lux_module_1.ATLAS_H - y, __lux_tmp_377)
+          __lux_module_1.mathMin(__lux_module_1.ATLAS_H - y, __lux_tmp_h_276)
         )
       end
-      local __lux_tmp_378 = w <= 0
-      if not __lux_tmp_378 then
-        __lux_tmp_378 = h <= 0
-      end
-      if __lux_tmp_378 then
+      if w <= 0 or h <= 0 then
         return false
       end
       local cr = nil
@@ -3052,32 +2744,16 @@ return function(__lux_import)
       if __lux_module_1.surfaceSetAlphaMultiplier ~= nil then
         __lux_module_1.surfaceSetAlphaMultiplier(alpha)
       end
-      local __lux_tmp_379 = __lux_module_1.renderSetColorModulation ~= nil
-      if __lux_tmp_379 then
-        __lux_tmp_379 = cr ~= nil
-      end
-      if __lux_tmp_379 then
+      if __lux_module_1.renderSetColorModulation ~= nil and cr ~= nil then
         __lux_module_1.renderSetColorModulation(cr, cg, cb)
       end
-      local __lux_tmp_380 = __lux_module_1.renderSetBlend ~= nil
-      if __lux_tmp_380 then
-        __lux_tmp_380 = blend ~= nil
-      end
-      if __lux_tmp_380 then
+      if __lux_module_1.renderSetBlend ~= nil and blend ~= nil then
         __lux_module_1.renderSetBlend(blend)
       end
       return true
     end
     __lux_module_1.createAtlasMaterial = function(name, rt)
-      local __lux_tmp_381 = __lux_module_1.createMaterial == nil
-      if not __lux_tmp_381 then
-        __lux_tmp_381 = rt == nil
-      end
-      local __lux_tmp_382 = __lux_tmp_381
-      if not __lux_tmp_382 then
-        __lux_tmp_382 = rt.GetName == nil
-      end
-      if __lux_tmp_382 then
+      if __lux_module_1.createMaterial == nil or rt == nil or rt.GetName == nil then
         return nil
       end
       return __lux_module_1.createMaterial(
@@ -3095,11 +2771,7 @@ return function(__lux_import)
       )
     end
     __lux_module_1.createAtlasPage = function(index)
-      local __lux_tmp_383 = __lux_module_1.getRenderTargetEx == nil
-      if not __lux_tmp_383 then
-        __lux_tmp_383 = __lux_module_1.bitBor == nil
-      end
-      if __lux_tmp_383 then
+      if __lux_module_1.getRenderTargetEx == nil or __lux_module_1.bitBor == nil then
         return nil
       end
       local stamp
@@ -3110,11 +2782,11 @@ return function(__lux_import)
       end
       local baseName
       do
-        local __lux_tmp_384 = __lux_module_1.atlasNamespace
-        if __lux_tmp_384 == nil then
-          __lux_tmp_384 = __lux_module_1.nextAtlasNamespace()
+        local __lux_tmp_atlasNamespace_277 = __lux_module_1.atlasNamespace
+        if __lux_tmp_atlasNamespace_277 == nil then
+          __lux_tmp_atlasNamespace_277 = __lux_module_1.nextAtlasNamespace()
         end
-        baseName = __lux_tmp_384 ..
+        baseName = __lux_tmp_atlasNamespace_277 ..
           "_" .. __lux_module_1.toString(index) .. "_" .. __lux_module_1.toString(stamp)
       end
       local flags = __lux_module_1.bitBor(256, 4, 8)
@@ -3146,36 +2818,28 @@ return function(__lux_import)
       if __lux_module_1.createPageTextMaterials ~= nil then
         local mats = __lux_module_1.createPageTextMaterials(rt)
         do
-          local __lux_obj_385 = mats
-          local __lux_val_386 = nil
-          if __lux_obj_385 ~= nil then
-            __lux_val_386 = __lux_obj_385.compose
+          local __lux_obj_mats_278 = mats
+          local __lux_val_compose_279 = nil
+          if __lux_obj_mats_278 ~= nil then
+            __lux_val_compose_279 = __lux_obj_mats_278.compose
           end
-          page.composeMat = __lux_val_386
+          page.composeMat = __lux_val_compose_279
         end
         do
-          local __lux_obj_387 = mats
-          local __lux_val_388 = nil
-          if __lux_obj_387 ~= nil then
-            __lux_val_388 = __lux_obj_387.face
+          local __lux_obj_mats_280 = mats
+          local __lux_val_face_281 = nil
+          if __lux_obj_mats_280 ~= nil then
+            __lux_val_face_281 = __lux_obj_mats_280.face
           end
-          page.faceMat = __lux_val_388
+          page.faceMat = __lux_val_face_281
         end
       end
       __lux_module_1.atlasPages[index] = page
-      do
-        local __lux_tmp_389 = __lux_module_1.atlas
-        if __lux_tmp_389 == nil then
-          __lux_tmp_389 = page
-        end
-        __lux_module_1.atlas = __lux_tmp_389
+      if __lux_module_1.atlas == nil then
+        __lux_module_1.atlas = page
       end
-      do
-        local __lux_tmp_390 = __lux_module_1.atlasMat
-        if __lux_tmp_390 == nil then
-          __lux_tmp_390 = pageMaterial
-        end
-        __lux_module_1.atlasMat = __lux_tmp_390
+      if __lux_module_1.atlasMat == nil then
+        __lux_module_1.atlasMat = pageMaterial
       end
       __lux_module_1.clearRenderTargetAlpha(
         rt,
@@ -3198,23 +2862,23 @@ return function(__lux_import)
       page.y = 0
       page.rowH = 0
       do
-        local __lux_tmp_391 = page.generation
-        if __lux_tmp_391 == nil then
-          __lux_tmp_391 = 0
+        local __lux_tmp_generation_282 = page.generation
+        if __lux_tmp_generation_282 == nil then
+          __lux_tmp_generation_282 = 0
         end
-        page.generation = __lux_tmp_391 + 1
+        page.generation = __lux_tmp_generation_282 + 1
       end
       if page.rt ~= nil then
         do
-          local __lux_tmp_392 = page.w
-          if __lux_tmp_392 == nil then
-            __lux_tmp_392 = __lux_module_1.ATLAS_W
+          local __lux_tmp_w_283 = page.w
+          if __lux_tmp_w_283 == nil then
+            __lux_tmp_w_283 = __lux_module_1.ATLAS_W
           end
-          local __lux_tmp_393 = page.h
-          if __lux_tmp_393 == nil then
-            __lux_tmp_393 = __lux_module_1.ATLAS_H
+          local __lux_tmp_h_284 = page.h
+          if __lux_tmp_h_284 == nil then
+            __lux_tmp_h_284 = __lux_module_1.ATLAS_H
           end
-          __lux_module_1.clearRenderTargetAlpha(page.rt, __lux_tmp_392, __lux_tmp_393)
+          __lux_module_1.clearRenderTargetAlpha(page.rt, __lux_tmp_w_283, __lux_tmp_h_284)
         end
       end
       return page
@@ -3226,16 +2890,15 @@ return function(__lux_import)
       end
       __lux_module_1.atlas = __lux_module_1.atlasPages[1]
       do
-        local __lux_obj_394 = __lux_module_1.atlas
-        local __lux_val_395 = nil
-        if __lux_obj_394 ~= nil then
-          __lux_val_395 = __lux_obj_394.material
+        local __lux_obj_atlas_285 = __lux_module_1.atlas
+        local __lux_tmp_material_286 = nil
+        if __lux_obj_atlas_285 ~= nil then
+          __lux_tmp_material_286 = __lux_obj_atlas_285.material
         end
-        local __lux_tmp_396 = __lux_val_395
-        if __lux_tmp_396 == nil then
-          __lux_tmp_396 = __lux_module_1.atlasMat
+        if __lux_tmp_material_286 == nil then
+          __lux_tmp_material_286 = __lux_module_1.atlasMat
         end
-        __lux_module_1.atlasMat = __lux_tmp_396
+        __lux_module_1.atlasMat = __lux_tmp_material_286
       end
     end
     __lux_module_1.tryAllocOnPage = function(page, w, h, gutter)
@@ -3244,11 +2907,7 @@ return function(__lux_import)
       end
       local cellW = w + gutter * 2
       local cellH = h + gutter * 2
-      local __lux_tmp_397 = cellW > page.w
-      if not __lux_tmp_397 then
-        __lux_tmp_397 = cellH > page.h
-      end
-      if __lux_tmp_397 then
+      if cellW > page.w or cellH > page.h then
         return nil
       end
       if page.x + cellW > page.w then
@@ -3281,11 +2940,11 @@ return function(__lux_import)
       w = __lux_module_1.mathCeil(w)
       h = __lux_module_1.mathCeil(h)
       do
-        local __lux_tmp_398 = __lux_module_1.toNumber(gutter)
-        if __lux_tmp_398 == nil then
-          __lux_tmp_398 = 0
+        local __lux_tmp_gutter_287 = __lux_module_1.toNumber(gutter)
+        if __lux_tmp_gutter_287 == nil then
+          __lux_tmp_gutter_287 = 0
         end
-        gutter = __lux_module_1.mathCeil(__lux_module_1.mathMax(0, __lux_tmp_398))
+        gutter = __lux_module_1.mathCeil(__lux_module_1.mathMax(0, __lux_tmp_gutter_287))
       end
       for index = 1, __lux_module_1.MAX_ATLAS_PAGES do
         local page = __lux_module_1.ensureAtlasPage(index)
@@ -3329,19 +2988,19 @@ return function(__lux_import)
       local usedH = 0
       for _, page in ipairs(__lux_module_1.atlasPages) do
         do
-          local __lux_tmp_399 = page.h
-          if __lux_tmp_399 == nil then
-            __lux_tmp_399 = __lux_module_1.ATLAS_H
+          local __lux_tmp_h_288 = page.h
+          if __lux_tmp_h_288 == nil then
+            __lux_tmp_h_288 = __lux_module_1.ATLAS_H
           end
-          local __lux_tmp_400 = page.y
-          if __lux_tmp_400 == nil then
-            __lux_tmp_400 = 0
+          local __lux_tmp_y_289 = page.y
+          if __lux_tmp_y_289 == nil then
+            __lux_tmp_y_289 = 0
           end
-          local __lux_tmp_401 = page.rowH
-          if __lux_tmp_401 == nil then
-            __lux_tmp_401 = 0
+          local __lux_tmp_rowH_290 = page.rowH
+          if __lux_tmp_rowH_290 == nil then
+            __lux_tmp_rowH_290 = 0
           end
-          usedH = usedH + __lux_module_1.mathMin(__lux_tmp_399, __lux_tmp_400 + __lux_tmp_401)
+          usedH = usedH + __lux_module_1.mathMin(__lux_tmp_h_288, __lux_tmp_y_289 + __lux_tmp_rowH_290)
         end
       end
       if #__lux_module_1.atlasPages > 0 then
@@ -3359,84 +3018,65 @@ return function(__lux_import)
       else
         c = __lux_module_1.style.colorOr(color, __lux_module_1.white)
       end
-      local __lux_tmp_402 = c.r
-      if __lux_tmp_402 == nil then
-        __lux_tmp_402 = 0
+      local __lux_tmp_r_291 = c.r
+      if __lux_tmp_r_291 == nil then
+        __lux_tmp_r_291 = 0
       end
-      local __lux_tmp_403 = c.g
-      if __lux_tmp_403 == nil then
-        __lux_tmp_403 = 0
+      local __lux_tmp_g_292 = c.g
+      if __lux_tmp_g_292 == nil then
+        __lux_tmp_g_292 = 0
       end
-      local __lux_tmp_404 = c.b
-      if __lux_tmp_404 == nil then
-        __lux_tmp_404 = 0
+      local __lux_tmp_b_293 = c.b
+      if __lux_tmp_b_293 == nil then
+        __lux_tmp_b_293 = 0
       end
-      local __lux_tmp_405 = c.a
-      if __lux_tmp_405 == nil then
-        __lux_tmp_405 = 255
+      local __lux_tmp_a_294 = c.a
+      if __lux_tmp_a_294 == nil then
+        __lux_tmp_a_294 = 255
       end
       return __lux_module_1.tableConcat(
-        { __lux_tmp_402, __lux_tmp_403, __lux_tmp_404, __lux_tmp_405 },
+        { __lux_tmp_r_291, __lux_tmp_g_292, __lux_tmp_b_293, __lux_tmp_a_294 },
         ","
       )
     end
     __lux_module_1.isColorValue = function(value)
-      local __lux_tmp_406 = __lux_module_1.style.isColor ~= nil
-      if __lux_tmp_406 then
-        __lux_tmp_406 = __lux_module_1.style.isColor(value)
-      end
-      return __lux_tmp_406
+      return __lux_module_1.style.isColor ~= nil and __lux_module_1.style.isColor(value)
     end
     __lux_module_1.fillForRecord = function(record)
       local textStyle
       do
-        local __lux_obj_407 = record
-        local __lux_val_408 = nil
-        if __lux_obj_407 ~= nil then
-          __lux_val_408 = __lux_obj_407.style
+        local __lux_obj_record_295 = record
+        local __lux_val_style_296 = nil
+        if __lux_obj_record_295 ~= nil then
+          __lux_val_style_296 = __lux_obj_record_295.style
         end
-        local __lux_tmp_409 = __lux_val_408
-        if __lux_tmp_409 == nil then
-          __lux_tmp_409 = {}
+        textStyle = __lux_val_style_296
+        if textStyle == nil then
+          textStyle = {}
         end
-        textStyle = __lux_tmp_409
       end
-      local __lux_tmp_410 = textStyle.fill
-      if __lux_tmp_410 == nil then
-        local __lux_tmp_411 = textStyle.color
-        if __lux_tmp_411 == nil then
-          local __lux_obj_412 = record
-          local __lux_val_413 = nil
-          if __lux_obj_412 ~= nil then
-            __lux_val_413 = __lux_obj_412.color
-          end
-          local __lux_tmp_414 = __lux_val_413
-          if __lux_tmp_414 == nil then
-            __lux_tmp_414 = __lux_module_1.white
-          end
-          __lux_tmp_411 = __lux_tmp_414
-        end
-        __lux_tmp_410 = __lux_tmp_411
+      local __lux_tmp_fill_297 = textStyle.fill
+      if __lux_tmp_fill_297 == nil then
+        __lux_tmp_fill_297 = textStyle.color
       end
-      return __lux_tmp_410
+      if __lux_tmp_fill_297 == nil then
+        local __lux_obj_record_298 = record
+        local __lux_val_color_299 = nil
+        if __lux_obj_record_298 ~= nil then
+          __lux_val_color_299 = __lux_obj_record_298.color
+        end
+        __lux_tmp_fill_297 = __lux_val_color_299
+      end
+      if __lux_tmp_fill_297 == nil then
+        __lux_tmp_fill_297 = __lux_module_1.white
+      end
+      return __lux_tmp_fill_297
     end
     __lux_module_1.fillNeedsShader = function(fill)
-      local __lux_tmp_415 = __lux_module_1.typeOf(fill) == "table"
-      if __lux_tmp_415 then
-        __lux_tmp_415 = not __lux_module_1.isColorValue(fill)
-      end
-      local __lux_tmp_416 = __lux_tmp_415
-      if __lux_tmp_416 then
-        __lux_tmp_416 = fill.kind ~= nil
-      end
-      return __lux_tmp_416
+      return __lux_module_1.typeOf(fill) == "table" and not __lux_module_1.isColorValue(fill) and fill.kind ~= nil
     end
     __lux_module_1.normalizeSurface = function(value)
-      local __lux_tmp_417 = value == nil
-      if not __lux_tmp_417 then
-        __lux_tmp_417 = value == false
-      end
-      if __lux_tmp_417 then
+      if value == nil or value == false then
         return nil
       end
       if value == true then
@@ -3450,15 +3090,15 @@ return function(__lux_import)
       end
       local strength
       do
-        local __lux_tmp_418 = value.strength
-        if __lux_tmp_418 == nil then
-          __lux_tmp_418 = value[1]
+        local __lux_tmp_strength_300 = value.strength
+        if __lux_tmp_strength_300 == nil then
+          __lux_tmp_strength_300 = value[1]
         end
-        local __lux_tmp_419 = __lux_module_1.toNumber(__lux_tmp_418)
-        if __lux_tmp_419 == nil then
-          __lux_tmp_419 = 0.18
+        local __lux_tmp_strength_301 = __lux_module_1.toNumber(__lux_tmp_strength_300)
+        if __lux_tmp_strength_301 == nil then
+          __lux_tmp_strength_301 = 0.18
         end
-        strength = __lux_module_1.mathClamp(__lux_tmp_419, 0, 1)
+        strength = __lux_module_1.mathClamp(__lux_tmp_strength_301, 0, 1)
       end
       if strength <= 0 then
         return nil
@@ -3466,12 +3106,8 @@ return function(__lux_import)
       return { strength = strength }
     end
     __lux_module_1.normalizeWeightAdjust = function(textStyle)
-      do
-        local __lux_tmp_420 = textStyle
-        if __lux_tmp_420 == nil then
-          __lux_tmp_420 = {}
-        end
-        textStyle = __lux_tmp_420
+      if textStyle == nil then
+        textStyle = {}
       end
       if __lux_module_1.toNumber(textStyle.weightAdjust) ~= nil then
         return __lux_module_1.mathClamp(__lux_module_1.toNumber(textStyle.weightAdjust), -2, 2)
@@ -3488,11 +3124,11 @@ return function(__lux_import)
       local shadow = __lux_module_1.normalizeShadow(textStyle.shadow)
       local stroke
       do
-        local __lux_tmp_421 = textStyle.stroke
-        if __lux_tmp_421 == nil then
-          __lux_tmp_421 = textStyle.outline
+        local __lux_tmp_stroke_302 = textStyle.stroke
+        if __lux_tmp_stroke_302 == nil then
+          __lux_tmp_stroke_302 = textStyle.outline
         end
-        stroke = __lux_module_1.normalizeStroke(__lux_tmp_421)
+        stroke = __lux_module_1.normalizeStroke(__lux_tmp_stroke_302)
       end
       local glow = __lux_module_1.normalizeGlow(textStyle.glow)
       local face = __lux_module_1.normalizeSurface(textStyle.surface)
@@ -3520,72 +3156,65 @@ return function(__lux_import)
       return pad, pad, shadow, stroke, glow, face, weightAdjust
     end
     __lux_module_1.effectRouteKey = function(stroke, glow, shadow, face, weightAdjust)
-      local __lux_tmp_422
+      local __lux_tmp_303
       if stroke ~= nil then
-        __lux_tmp_422 = stroke.width ..
+        __lux_tmp_303 = stroke.width ..
           ":" ..
             stroke.samples .. ":" .. stroke.softness .. ":" .. __lux_module_1.colorKey(stroke.color)
       else
-        __lux_tmp_422 = ""
+        __lux_tmp_303 = ""
       end
-      local __lux_tmp_423
+      local __lux_tmp_304
       if glow ~= nil then
         do
-          local __lux_tmp_424 = glow.falloff
-          if __lux_tmp_424 == nil then
-            __lux_tmp_424 = ""
+          local __lux_tmp_falloff_305 = glow.falloff
+          if __lux_tmp_falloff_305 == nil then
+            __lux_tmp_falloff_305 = ""
           end
-          __lux_tmp_423 = glow.width ..
+          __lux_tmp_304 = glow.width ..
             ":" ..
-              glow.strength .. ":" .. __lux_tmp_424 .. ":" .. __lux_module_1.colorKey(glow.color)
+              glow.strength ..
+                ":" .. __lux_tmp_falloff_305 .. ":" .. __lux_module_1.colorKey(glow.color)
         end
       else
-        __lux_tmp_423 = ""
+        __lux_tmp_304 = ""
       end
-      local __lux_tmp_425
+      local __lux_tmp_306
       if shadow ~= nil then
-        __lux_tmp_425 = shadow.x ..
+        __lux_tmp_306 = shadow.x ..
           ":" ..
             shadow.y ..
               ":" ..
                 shadow.blur .. ":" .. shadow.strength .. ":" .. __lux_module_1.colorKey(shadow.color)
       else
-        __lux_tmp_425 = ""
+        __lux_tmp_306 = ""
       end
-      local __lux_tmp_426
+      local __lux_tmp_307
       if face ~= nil then
-        __lux_tmp_426 = __lux_module_1.toString(face.strength)
+        __lux_tmp_307 = __lux_module_1.toString(face.strength)
       else
-        __lux_tmp_426 = ""
+        __lux_tmp_307 = ""
       end
-      local __lux_tmp_427 = weightAdjust
-      if __lux_tmp_427 == nil then
-        __lux_tmp_427 = 0
+      local __lux_tmp_weightAdjust_308 = weightAdjust
+      if __lux_tmp_weightAdjust_308 == nil then
+        __lux_tmp_weightAdjust_308 = 0
       end
       return __lux_module_1.tableConcat(
         {
-          __lux_tmp_422,
-          __lux_tmp_423,
-          __lux_tmp_425,
-          __lux_tmp_426,
-          __lux_module_1.toString(__lux_tmp_427),
+          __lux_tmp_303,
+          __lux_tmp_304,
+          __lux_tmp_306,
+          __lux_tmp_307,
+          __lux_module_1.toString(__lux_tmp_weightAdjust_308),
         },
         "31"
       )
     end
     __lux_module_1.effectInfo = function(textStyle)
-      do
-        local __lux_tmp_428 = textStyle
-        if __lux_tmp_428 == nil then
-          __lux_tmp_428 = {}
-        end
-        textStyle = __lux_tmp_428
+      if textStyle == nil then
+        textStyle = {}
       end
-      local __lux_tmp_429 = __lux_module_1.typeOf(textStyle) == "table"
-      if __lux_tmp_429 then
-        __lux_tmp_429 = textStyle.__mgfxTextEffectInfo ~= nil
-      end
-      if __lux_tmp_429 then
+      if __lux_module_1.typeOf(textStyle) == "table" and textStyle.__mgfxTextEffectInfo ~= nil then
         return textStyle.__mgfxTextEffectInfo
       end
       local pad, gutter, shadow, stroke, glow, face, weightAdjust = __lux_module_1.effectPad(textStyle)
@@ -3599,11 +3228,7 @@ return function(__lux_import)
         weightAdjust = weightAdjust,
         routeKey = __lux_module_1.effectRouteKey(stroke, glow, shadow, face, weightAdjust),
       }
-      local __lux_tmp_430 = __lux_module_1.typeOf(textStyle) == "table"
-      if __lux_tmp_430 then
-        __lux_tmp_430 = textStyle[__lux_module_1.RESOLVED_STYLE_MARK] == true
-      end
-      if __lux_tmp_430 then
+      if __lux_module_1.typeOf(textStyle) == "table" and textStyle[__lux_module_1.RESOLVED_STYLE_MARK] == true then
         textStyle.__mgfxTextEffectInfo = info
       end
       return info
@@ -3612,59 +3237,57 @@ return function(__lux_import)
       local nativeFont, alias, oversample = __lux_module_1.nativeFor(record.font, textStyle)
       local tracking
       do
-        local __lux_tmp_431 = textStyle.tracking
-        if __lux_tmp_431 == nil then
-          __lux_tmp_431 = textStyle.letterSpacing
+        local __lux_tmp_tracking_309 = textStyle.tracking
+        if __lux_tmp_tracking_309 == nil then
+          __lux_tmp_tracking_309 = textStyle.letterSpacing
         end
-        local __lux_tmp_432 = __lux_module_1.toNumber(__lux_tmp_431)
-        if __lux_tmp_432 == nil then
-          local __lux_tmp_433 = alias.tracking
-          if __lux_tmp_433 == nil then
-            __lux_tmp_433 = 0
+        tracking = __lux_module_1.toNumber(__lux_tmp_tracking_309)
+        if tracking == nil then
+          tracking = alias.tracking
+          if tracking == nil then
+            tracking = 0
           end
-          __lux_tmp_432 = __lux_tmp_433
         end
-        tracking = __lux_tmp_432
       end
       local lineHeight = __lux_module_1.lineHeightFor(nativeFont, alias, textStyle, oversample)
-      local __lux_tmp_434 = record.text
-      if __lux_tmp_434 == nil then
-        __lux_tmp_434 = ""
+      local __lux_tmp_text_310 = record.text
+      if __lux_tmp_text_310 == nil then
+        __lux_tmp_text_310 = ""
       end
-      local __lux_tmp_435 = record.font
-      if __lux_tmp_435 == nil then
-        __lux_tmp_435 = ""
+      local __lux_tmp_font_311 = record.font
+      if __lux_tmp_font_311 == nil then
+        __lux_tmp_font_311 = ""
       end
-      local __lux_tmp_436 = nativeFont
-      if __lux_tmp_436 == nil then
-        __lux_tmp_436 = ""
+      local __lux_tmp_nativeFont_312 = nativeFont
+      if __lux_tmp_nativeFont_312 == nil then
+        __lux_tmp_nativeFont_312 = ""
       end
-      local __lux_tmp_437 = oversample
-      if __lux_tmp_437 == nil then
-        __lux_tmp_437 = 1
+      local __lux_tmp_oversample_313 = oversample
+      if __lux_tmp_oversample_313 == nil then
+        __lux_tmp_oversample_313 = 1
       end
-      local __lux_obj_438 = info
-      local __lux_val_439 = nil
-      if __lux_obj_438 ~= nil then
-        __lux_val_439 = __lux_obj_438.routeKey
+      local __lux_obj_info_314 = info
+      local __lux_tmp_routeKey_315 = nil
+      if __lux_obj_info_314 ~= nil then
+        __lux_tmp_routeKey_315 = __lux_obj_info_314.routeKey
       end
-      local __lux_tmp_440 = __lux_val_439
-      if __lux_tmp_440 == nil then
-        __lux_tmp_440 = ""
+      if __lux_tmp_routeKey_315 == nil then
+        __lux_tmp_routeKey_315 = ""
       end
       return __lux_module_1.CACHE_VERSION ..
         "30" ..
-          __lux_module_1.toString(__lux_tmp_434) ..
+          __lux_module_1.toString(__lux_tmp_text_310) ..
             "30" ..
-              __lux_module_1.toString(__lux_tmp_435) ..
+              __lux_module_1.toString(__lux_tmp_font_311) ..
                 "30" ..
-                  __lux_module_1.toString(__lux_tmp_436) ..
+                  __lux_module_1.toString(__lux_tmp_nativeFont_312) ..
                     "30" ..
-                      __lux_module_1.toString(__lux_tmp_437) ..
+                      __lux_module_1.toString(__lux_tmp_oversample_313) ..
                         "30" ..
                           __lux_module_1.toString(tracking) ..
                             "30" ..
-                              __lux_module_1.toString(lineHeight) .. "30" .. __lux_module_1.toString(__lux_tmp_440)
+                              __lux_module_1.toString(lineHeight) ..
+                                "30" .. __lux_module_1.toString(__lux_tmp_routeKey_315)
     end
     __lux_module_1.drawUV = function(material, x, y, w, h, u0, v0, u1, v1, color, pageW, pageH)
       if pageW == nil then
@@ -3673,19 +3296,7 @@ return function(__lux_import)
       if pageH == nil then
         pageH = __lux_module_1.ATLAS_H
       end
-      local __lux_tmp_441 = material == nil
-      if not __lux_tmp_441 then
-        __lux_tmp_441 = __lux_module_1.surfaceSetMaterial == nil
-      end
-      local __lux_tmp_442 = __lux_tmp_441
-      if not __lux_tmp_442 then
-        __lux_tmp_442 = __lux_module_1.surfaceSetDrawColor == nil
-      end
-      local __lux_tmp_443 = __lux_tmp_442
-      if not __lux_tmp_443 then
-        __lux_tmp_443 = __lux_module_1.surfaceDrawTexturedRectUV == nil
-      end
-      if __lux_tmp_443 then
+      if material == nil or __lux_module_1.surfaceSetMaterial == nil or __lux_module_1.surfaceSetDrawColor == nil or __lux_module_1.surfaceDrawTexturedRectUV == nil then
         return false
       end
       local du = 0.5 / __lux_module_1.mathMax(1, pageW)
@@ -3700,27 +3311,27 @@ return function(__lux_import)
         c = __lux_module_1.style.colorOr(color, __lux_module_1.white)
       end
       do
-        local __lux_tmp_444 = c.r
-        if __lux_tmp_444 == nil then
-          __lux_tmp_444 = 255
+        local __lux_tmp_r_316 = c.r
+        if __lux_tmp_r_316 == nil then
+          __lux_tmp_r_316 = 255
         end
-        local __lux_tmp_445 = c.g
-        if __lux_tmp_445 == nil then
-          __lux_tmp_445 = 255
+        local __lux_tmp_g_317 = c.g
+        if __lux_tmp_g_317 == nil then
+          __lux_tmp_g_317 = 255
         end
-        local __lux_tmp_446 = c.b
-        if __lux_tmp_446 == nil then
-          __lux_tmp_446 = 255
+        local __lux_tmp_b_318 = c.b
+        if __lux_tmp_b_318 == nil then
+          __lux_tmp_b_318 = 255
         end
-        local __lux_tmp_447 = c.a
-        if __lux_tmp_447 == nil then
-          __lux_tmp_447 = 255
+        local __lux_tmp_a_319 = c.a
+        if __lux_tmp_a_319 == nil then
+          __lux_tmp_a_319 = 255
         end
         __lux_module_1.surfaceSetDrawColor(
-          __lux_tmp_444,
-          __lux_tmp_445,
-          __lux_tmp_446,
-          __lux_tmp_447
+          __lux_tmp_r_316,
+          __lux_tmp_g_317,
+          __lux_tmp_b_318,
+          __lux_tmp_a_319
         )
       end
       __lux_module_1.surfaceDrawTexturedRectUV(
@@ -3739,28 +3350,12 @@ return function(__lux_import)
       local oversample = __lux_module_1.normalizeOversample(layout.oversample)
       local atlasW = __lux_module_1.mathCeil((layout.w + pad * 2) * oversample)
       local atlasH = __lux_module_1.mathCeil((layout.h + pad * 2) * oversample)
-      local __lux_tmp_448 = atlasW <= 0
-      if not __lux_tmp_448 then
-        __lux_tmp_448 = atlasH <= 0
-      end
-      local __lux_tmp_449 = __lux_tmp_448
-      if not __lux_tmp_449 then
-        __lux_tmp_449 = atlasW > __lux_module_1.ATLAS_W
-      end
-      local __lux_tmp_450 = __lux_tmp_449
-      if not __lux_tmp_450 then
-        __lux_tmp_450 = atlasH > __lux_module_1.ATLAS_H
-      end
-      if __lux_tmp_450 then
+      if atlasW <= 0 or atlasH <= 0 or atlasW > __lux_module_1.ATLAS_W or atlasH > __lux_module_1.ATLAS_H then
         return nil
       end
       local allocGutter = gutter * oversample
       local page, slotX, slotY = __lux_module_1.allocAtlasSlot(atlasW, atlasH, allocGutter)
-      local __lux_tmp_451 = page == nil
-      if not __lux_tmp_451 then
-        __lux_tmp_451 = slotX == nil
-      end
-      if __lux_tmp_451 then
+      if page == nil or slotX == nil then
         return nil
       end
       __lux_module_1.renderPushRenderTarget(page.rt, 0, 0, page.w, page.h)
@@ -3790,46 +3385,32 @@ return function(__lux_import)
       local shaderCapableFace = not __lux_module_1.fillNeedsShader(fill)
       local shaderFace
       do
-        local __lux_tmp_452 = shaderCapableFace
-        if __lux_tmp_452 then
-          local __lux_tmp_453 = face ~= nil
-          if not __lux_tmp_453 then
-            local __lux_tmp_454 = weightAdjust
-            if __lux_tmp_454 == nil then
-              __lux_tmp_454 = 0
+        local __lux_tmp_323 = shaderCapableFace
+        if __lux_tmp_323 then
+          local __lux_tmp_322 = face ~= nil
+          if not __lux_tmp_322 then
+            local __lux_tmp_weightAdjust_320 = weightAdjust
+            if __lux_tmp_weightAdjust_320 == nil then
+              __lux_tmp_weightAdjust_320 = 0
             end
-            local __lux_cmp_455 = false
-            if __lux_module_1.mathAbs(__lux_tmp_454) ~= nil and 0.001 ~= nil then
-              __lux_cmp_455 = __lux_module_1.mathAbs(__lux_tmp_454) > 0.001
+            local __lux_cmp_321 = false
+            if __lux_module_1.mathAbs(__lux_tmp_weightAdjust_320) ~= nil then
+              __lux_cmp_321 = __lux_module_1.mathAbs(__lux_tmp_weightAdjust_320) > 0.001
             end
-            __lux_tmp_453 = __lux_cmp_455
+            __lux_tmp_322 = __lux_cmp_321
           end
-          __lux_tmp_452 = __lux_tmp_453
+          __lux_tmp_323 = __lux_tmp_322
         end
-        shaderFace = __lux_tmp_452
+        shaderFace = __lux_tmp_323
       end
-      local __lux_tmp_456 = not shaderFace
-      if __lux_tmp_456 then
-        __lux_tmp_456 = shaderCapableFace
-      end
-      if __lux_tmp_456 then
-        do
-          local __lux_tmp_457 = shadow ~= nil
-          if not __lux_tmp_457 then
-            __lux_tmp_457 = stroke ~= nil
-          end
-          local __lux_tmp_458 = __lux_tmp_457
-          if not __lux_tmp_458 then
-            __lux_tmp_458 = glow ~= nil
-          end
-          shaderFace = __lux_tmp_458
-        end
+      if not shaderFace and shaderCapableFace then
+        shaderFace = shadow ~= nil or stroke ~= nil or glow ~= nil
       end
       local entry
       do
-        local __lux_tmp_459 = weightAdjust
-        if __lux_tmp_459 == nil then
-          __lux_tmp_459 = 0
+        local __lux_tmp_weightAdjust_324 = weightAdjust
+        if __lux_tmp_weightAdjust_324 == nil then
+          __lux_tmp_weightAdjust_324 = 0
         end
         entry = {
           page = page,
@@ -3848,7 +3429,7 @@ return function(__lux_import)
           stroke = stroke,
           glow = glow,
           face = face,
-          weightAdjust = __lux_tmp_459,
+          weightAdjust = __lux_tmp_weightAdjust_324,
           shaderFace = shaderFace,
           generation = page.generation,
         }
@@ -3856,11 +3437,11 @@ return function(__lux_import)
       __lux_module_1.composedCache[key] = entry
       __lux_module_1.composedCacheCount = __lux_module_1.composedCacheCount + 1
       do
-        local __lux_tmp_460 = stats
-        if __lux_tmp_460 == nil then
-          __lux_tmp_460 = {}
+        local __lux_tmp_stats_325 = stats
+        if __lux_tmp_stats_325 == nil then
+          __lux_tmp_stats_325 = {}
         end
-        __lux_module_1.statAdd(__lux_tmp_460, "textComposedBakes")
+        __lux_module_1.statAdd(__lux_tmp_stats_325, "textComposedBakes")
       end
       if stats ~= nil then
         stats.textComposedEntries = __lux_module_1.composedCacheCount
@@ -3871,65 +3452,41 @@ return function(__lux_import)
       if prewarm == nil then
         prewarm = false
       end
-      local __lux_tmp_461 = not __lux_module_1.textComposedEnabled()
-      if not __lux_tmp_461 then
-        __lux_tmp_461 = not __lux_module_1.ensureTargets()
-      end
-      if __lux_tmp_461 then
+      if not __lux_module_1.textComposedEnabled() or not __lux_module_1.ensureTargets() then
         return nil
       end
-      local textStyle
-      do
-        local __lux_tmp_462 = record.style
-        if __lux_tmp_462 == nil then
-          __lux_tmp_462 = {}
-        end
-        textStyle = __lux_tmp_462
+      local textStyle = record.style
+      if textStyle == nil then
+        textStyle = {}
       end
-      local __lux_tmp_463 = textStyle.noComposed
-      if not __lux_tmp_463 then
-        __lux_tmp_463 = textStyle.native == true
-      end
-      if __lux_tmp_463 then
+      if textStyle.noComposed or textStyle.native == true then
         return nil
       end
       local info = __lux_module_1.effectInfo(textStyle)
-      local key
-      do
-        local __lux_tmp_464 = record.__mgfxTextEntryKey
-        if __lux_tmp_464 == nil then
-          __lux_tmp_464 = __lux_module_1.fastEntryKey(record, textStyle, info)
-        end
-        key = __lux_tmp_464
+      local key = record.__mgfxTextEntryKey
+      if key == nil then
+        key = __lux_module_1.fastEntryKey(record, textStyle, info)
       end
       record.__mgfxTextEntryKey = key
       __lux_module_1.composedTick = __lux_module_1.composedTick + 1
       local cached = __lux_module_1.composedCache[key]
-      local __lux_tmp_465 = cached ~= nil
-      if __lux_tmp_465 then
-        __lux_tmp_465 = cached.page ~= nil
-      end
-      local __lux_tmp_466 = __lux_tmp_465
-      if __lux_tmp_466 then
-        __lux_tmp_466 = cached.generation == cached.page.generation
-      end
-      if __lux_tmp_466 then
+      if cached ~= nil and cached.page ~= nil and cached.generation == cached.page.generation then
         cached.tick = __lux_module_1.composedTick
         do
-          local __lux_tmp_467 = stats
-          if __lux_tmp_467 == nil then
-            __lux_tmp_467 = {}
+          local __lux_tmp_stats_326 = stats
+          if __lux_tmp_stats_326 == nil then
+            __lux_tmp_stats_326 = {}
           end
-          __lux_module_1.statAdd(__lux_tmp_467, "textEntryCacheHits")
+          __lux_module_1.statAdd(__lux_tmp_stats_326, "textEntryCacheHits")
         end
         return cached
       end
       do
-        local __lux_tmp_468 = stats
-        if __lux_tmp_468 == nil then
-          __lux_tmp_468 = {}
+        local __lux_tmp_stats_327 = stats
+        if __lux_tmp_stats_327 == nil then
+          __lux_tmp_stats_327 = {}
         end
-        __lux_module_1.statAdd(__lux_tmp_468, "textEntryCacheMisses")
+        __lux_module_1.statAdd(__lux_tmp_stats_327, "textEntryCacheMisses")
       end
       local layout = __lux_module_1.layoutFor(record.text, record.font, textStyle)
       __lux_module_1.bakesThisFrame = __lux_module_1.bakesThisFrame + 1
@@ -3959,59 +3516,35 @@ return function(__lux_import)
       return entry
     end
     __lux_module_1.recordHasShaderWork = function(record)
-      local textStyle
-      do
-        local __lux_tmp_469 = record.style
-        if __lux_tmp_469 == nil then
-          __lux_tmp_469 = {}
-        end
-        textStyle = __lux_tmp_469
+      local textStyle = record.style
+      if textStyle == nil then
+        textStyle = {}
       end
       local info = __lux_module_1.effectInfo(textStyle)
-      local __lux_tmp_470 = info.shadow ~= nil
-      if not __lux_tmp_470 then
-        __lux_tmp_470 = info.stroke ~= nil
-      end
-      local __lux_tmp_471 = __lux_tmp_470
-      if not __lux_tmp_471 then
-        __lux_tmp_471 = info.glow ~= nil
-      end
-      local __lux_tmp_472 = __lux_tmp_471
-      if not __lux_tmp_472 then
-        __lux_tmp_472 = info.face ~= nil
-      end
-      local __lux_tmp_473 = __lux_tmp_472
-      if not __lux_tmp_473 then
-        local __lux_tmp_474 = info.weightAdjust
-        if __lux_tmp_474 == nil then
-          __lux_tmp_474 = 0
+      local __lux_tmp_330 = info.shadow ~= nil or info.stroke ~= nil or info.glow ~= nil or info.face ~= nil
+      if not __lux_tmp_330 then
+        local __lux_tmp_weightAdjust_328 = info.weightAdjust
+        if __lux_tmp_weightAdjust_328 == nil then
+          __lux_tmp_weightAdjust_328 = 0
         end
-        local __lux_cmp_475 = false
-        if __lux_module_1.mathAbs(__lux_tmp_474) ~= nil and 0.001 ~= nil then
-          __lux_cmp_475 = __lux_module_1.mathAbs(__lux_tmp_474) > 0.001
+        local __lux_cmp_329 = false
+        if __lux_module_1.mathAbs(__lux_tmp_weightAdjust_328) ~= nil then
+          __lux_cmp_329 = __lux_module_1.mathAbs(__lux_tmp_weightAdjust_328) > 0.001
         end
-        __lux_tmp_473 = __lux_cmp_475
+        __lux_tmp_330 = __lux_cmp_329
       end
-      local __lux_tmp_476 = __lux_tmp_473
-      if not __lux_tmp_476 then
-        __lux_tmp_476 = __lux_module_1.fillNeedsShader(__lux_module_1.fillForRecord(record))
+      local __lux_tmp_331 = __lux_tmp_330
+      if not __lux_tmp_331 then
+        __lux_tmp_331 = __lux_module_1.fillNeedsShader(__lux_module_1.fillForRecord(record))
       end
-      return __lux_tmp_476
+      return __lux_tmp_331
     end
     __lux_module_1.recordNeedsComposedEntry = function(record)
-      local textStyle
-      do
-        local __lux_tmp_477 = record.style
-        if __lux_tmp_477 == nil then
-          __lux_tmp_477 = {}
-        end
-        textStyle = __lux_tmp_477
+      local textStyle = record.style
+      if textStyle == nil then
+        textStyle = {}
       end
-      local __lux_tmp_478 = textStyle.noComposed
-      if not __lux_tmp_478 then
-        __lux_tmp_478 = textStyle.native == true
-      end
-      if __lux_tmp_478 then
+      if textStyle.noComposed or textStyle.native == true then
         return false
       end
       return __lux_module_1.recordHasShaderWork(record)
@@ -4019,11 +3552,11 @@ return function(__lux_import)
     __lux_module_1.prepareTextRoutes = function(records)
       local composeCount = 0
       do
-        local __lux_tmp_479 = records
-        if __lux_tmp_479 == nil then
-          __lux_tmp_479 = {}
+        local __lux_tmp_records_332 = records
+        if __lux_tmp_records_332 == nil then
+          __lux_tmp_records_332 = {}
         end
-        for _, record in ipairs(__lux_tmp_479) do
+        for _, record in ipairs(__lux_tmp_records_332) do
           if __lux_module_1.recordNeedsComposedEntry(record) then
             record.__mgfxTextRoute = "compose"
             composeCount = composeCount + 1
@@ -4035,24 +3568,16 @@ return function(__lux_import)
       return composeCount
     end
     __lux_module_1.prewarmFlushRecords = function(records, stats)
-      local __lux_tmp_480 = records == nil
-      if not __lux_tmp_480 then
-        __lux_tmp_480 = #records <= 1
-      end
-      if __lux_tmp_480 then
+      if records == nil or #records <= 1 then
         return true
       end
-      local __lux_tmp_481 = not __lux_module_1.textComposedEnabled()
-      if not __lux_tmp_481 then
-        __lux_tmp_481 = not __lux_module_1.ensureTargets()
-      end
-      if __lux_tmp_481 then
+      if not __lux_module_1.textComposedEnabled() or not __lux_module_1.ensureTargets() then
         do
-          local __lux_tmp_482 = stats
-          if __lux_tmp_482 == nil then
-            __lux_tmp_482 = {}
+          local __lux_tmp_stats_333 = stats
+          if __lux_tmp_stats_333 == nil then
+            __lux_tmp_stats_333 = {}
           end
-          __lux_module_1.statAdd(__lux_tmp_482, "textComposedPrewarmFails")
+          __lux_module_1.statAdd(__lux_tmp_stats_333, "textComposedPrewarmFails")
         end
         return false
       end
@@ -4064,22 +3589,22 @@ return function(__lux_import)
             local entry = __lux_module_1.entryFor(record, stats, true)
             if entry == nil then
               do
-                local __lux_tmp_483 = stats
-                if __lux_tmp_483 == nil then
-                  __lux_tmp_483 = {}
+                local __lux_tmp_stats_334 = stats
+                if __lux_tmp_stats_334 == nil then
+                  __lux_tmp_stats_334 = {}
                 end
-                __lux_module_1.statAdd(__lux_tmp_483, "textComposedPrewarmFails")
+                __lux_module_1.statAdd(__lux_tmp_stats_334, "textComposedPrewarmFails")
               end
               return false
             end
             record.__mgfxTextEntry = entry
             if __lux_module_1.atlasEpoch ~= generation then
               do
-                local __lux_tmp_484 = stats
-                if __lux_tmp_484 == nil then
-                  __lux_tmp_484 = {}
+                local __lux_tmp_stats_335 = stats
+                if __lux_tmp_stats_335 == nil then
+                  __lux_tmp_stats_335 = {}
                 end
-                __lux_module_1.statAdd(__lux_tmp_484, "textComposedPrewarmRestarts")
+                __lux_module_1.statAdd(__lux_tmp_stats_335, "textComposedPrewarmRestarts")
               end
               restarted = true
               for _, stale in ipairs(records) do
@@ -4094,40 +3619,28 @@ return function(__lux_import)
         end
       end
       do
-        local __lux_tmp_485 = stats
-        if __lux_tmp_485 == nil then
-          __lux_tmp_485 = {}
+        local __lux_tmp_stats_336 = stats
+        if __lux_tmp_stats_336 == nil then
+          __lux_tmp_stats_336 = {}
         end
-        __lux_module_1.statAdd(__lux_tmp_485, "textComposedPrewarmFails")
+        __lux_module_1.statAdd(__lux_tmp_stats_336, "textComposedPrewarmFails")
       end
       return false
     end
     __lux_module_1.hasShaderFx = function(entry)
-      local __lux_tmp_486 = entry ~= nil
-      if __lux_tmp_486 then
-        local __lux_tmp_487 = entry.shadow ~= nil
-        if not __lux_tmp_487 then
-          __lux_tmp_487 = entry.stroke ~= nil
-        end
-        local __lux_tmp_488 = __lux_tmp_487
-        if not __lux_tmp_488 then
-          __lux_tmp_488 = entry.glow ~= nil
-        end
-        local __lux_tmp_489 = __lux_tmp_488
-        if not __lux_tmp_489 then
-          __lux_tmp_489 = entry.face ~= nil
-        end
-        local __lux_tmp_490 = __lux_tmp_489
-        if not __lux_tmp_490 then
-          local __lux_tmp_491 = entry.weightAdjust
-          if __lux_tmp_491 == nil then
-            __lux_tmp_491 = 0
+      local __lux_tmp_339 = entry ~= nil
+      if __lux_tmp_339 then
+        local __lux_tmp_338 = entry.shadow ~= nil or entry.stroke ~= nil or entry.glow ~= nil or entry.face ~= nil
+        if not __lux_tmp_338 then
+          local __lux_tmp_weightAdjust_337 = entry.weightAdjust
+          if __lux_tmp_weightAdjust_337 == nil then
+            __lux_tmp_weightAdjust_337 = 0
           end
-          __lux_tmp_490 = __lux_tmp_491 ~= 0
+          __lux_tmp_338 = __lux_tmp_weightAdjust_337 ~= 0
         end
-        __lux_tmp_486 = __lux_tmp_490
+        __lux_tmp_339 = __lux_tmp_338
       end
-      return __lux_tmp_486
+      return __lux_tmp_339
     end
     __lux_module_1.scaledColor01 = function(effect, scale)
       if scale == nil then
@@ -4138,43 +3651,42 @@ return function(__lux_import)
       end
       local r, g, b, a
       do
-        local __lux_tmp_492 = effect.color
-        if __lux_tmp_492 == nil then
-          __lux_tmp_492 = __lux_module_1.white
+        local __lux_tmp_color_340 = effect.color
+        if __lux_tmp_color_340 == nil then
+          __lux_tmp_color_340 = __lux_module_1.white
         end
-        r, g, b, a = __lux_module_1.style.color01(__lux_tmp_492)
+        r, g, b, a = __lux_module_1.style.color01(__lux_tmp_color_340)
       end
       return r, g, b, __lux_module_1.mathClamp(a * scale, 0, 1)
     end
     __lux_module_1.packShadowParams = function(x, y, stroke)
       do
-        local __lux_tmp_493 = __lux_module_1.toNumber(x)
-        if __lux_tmp_493 == nil then
-          __lux_tmp_493 = 0
+        local __lux_tmp_x_341 = __lux_module_1.toNumber(x)
+        if __lux_tmp_x_341 == nil then
+          __lux_tmp_x_341 = 0
         end
-        x = __lux_module_1.mathClamp(__lux_tmp_493, -64, 63.5)
+        x = __lux_module_1.mathClamp(__lux_tmp_x_341, -64, 63.5)
       end
       do
-        local __lux_tmp_494 = __lux_module_1.toNumber(y)
-        if __lux_tmp_494 == nil then
-          __lux_tmp_494 = 0
+        local __lux_tmp_y_342 = __lux_module_1.toNumber(y)
+        if __lux_tmp_y_342 == nil then
+          __lux_tmp_y_342 = 0
         end
-        y = __lux_module_1.mathClamp(__lux_tmp_494, -64, 63.5)
+        y = __lux_module_1.mathClamp(__lux_tmp_y_342, -64, 63.5)
       end
       local xb = __lux_module_1.mathClamp(__lux_module_1.mathFloor((x + 64) * 2 + 0.5), 0, 255)
       local yb = __lux_module_1.mathClamp(__lux_module_1.mathFloor((y + 64) * 2 + 0.5), 0, 255)
       local softness
       do
-        local __lux_obj_495 = stroke
-        local __lux_val_496 = nil
-        if __lux_obj_495 ~= nil then
-          __lux_val_496 = __lux_obj_495.softness
+        local __lux_obj_stroke_343 = stroke
+        local __lux_val_softness_344 = nil
+        if __lux_obj_stroke_343 ~= nil then
+          __lux_val_softness_344 = __lux_obj_stroke_343.softness
         end
-        local __lux_tmp_497 = __lux_val_496
-        if __lux_tmp_497 == nil then
-          __lux_tmp_497 = 0
+        softness = __lux_val_softness_344
+        if softness == nil then
+          softness = 0
         end
-        softness = __lux_tmp_497
       end
       local softByte = __lux_module_1.mathClamp(
         __lux_module_1.mathFloor(__lux_module_1.mathClamp(softness, 0, 1) * 255 + 0.5),
@@ -4186,50 +3698,47 @@ return function(__lux_import)
     __lux_module_1.packEffectParams = function(glow, shadow, face, weightAdjust, shaderFace)
       local blur
       do
-        local __lux_obj_498 = shadow
-        local __lux_val_499 = nil
-        if __lux_obj_498 ~= nil then
-          __lux_val_499 = __lux_obj_498.blur
+        local __lux_obj_shadow_345 = shadow
+        local __lux_val_blur_346 = nil
+        if __lux_obj_shadow_345 ~= nil then
+          __lux_val_blur_346 = __lux_obj_shadow_345.blur
         end
-        local __lux_tmp_500 = __lux_val_499
-        if __lux_tmp_500 == nil then
-          __lux_tmp_500 = 0
+        blur = __lux_val_blur_346
+        if blur == nil then
+          blur = 0
         end
-        blur = __lux_tmp_500
       end
       local falloff
       do
-        local __lux_obj_501 = glow
-        local __lux_val_502 = nil
-        if __lux_obj_501 ~= nil then
-          __lux_val_502 = __lux_obj_501.falloff
+        local __lux_obj_glow_347 = glow
+        local __lux_val_falloff_348 = nil
+        if __lux_obj_glow_347 ~= nil then
+          __lux_val_falloff_348 = __lux_obj_glow_347.falloff
         end
-        local __lux_tmp_503 = __lux_val_502
-        if __lux_tmp_503 == nil then
-          __lux_tmp_503 = 1.65
+        falloff = __lux_val_falloff_348
+        if falloff == nil then
+          falloff = 1.65
         end
-        falloff = __lux_tmp_503
       end
       local faceStrength
       do
-        local __lux_obj_504 = face
-        local __lux_val_505 = nil
-        if __lux_obj_504 ~= nil then
-          __lux_val_505 = __lux_obj_504.strength
+        local __lux_obj_face_349 = face
+        local __lux_val_strength_350 = nil
+        if __lux_obj_face_349 ~= nil then
+          __lux_val_strength_350 = __lux_obj_face_349.strength
         end
-        local __lux_tmp_506 = __lux_val_505
-        if __lux_tmp_506 == nil then
-          __lux_tmp_506 = 0
+        faceStrength = __lux_val_strength_350
+        if faceStrength == nil then
+          faceStrength = 0
         end
-        faceStrength = __lux_tmp_506
       end
       local weight
       do
-        local __lux_tmp_507 = __lux_module_1.toNumber(weightAdjust)
-        if __lux_tmp_507 == nil then
-          __lux_tmp_507 = 0
+        local __lux_tmp_weightAdjust_351 = __lux_module_1.toNumber(weightAdjust)
+        if __lux_tmp_weightAdjust_351 == nil then
+          __lux_tmp_weightAdjust_351 = 0
         end
-        weight = __lux_module_1.mathClamp(__lux_tmp_507, -2, 2)
+        weight = __lux_module_1.mathClamp(__lux_tmp_weightAdjust_351, -2, 2)
       end
       local blurByte = __lux_module_1.mathClamp(
         __lux_module_1.mathFloor(__lux_module_1.mathClamp(blur, 0, 63.5) * 2 + 0.5),
@@ -4296,54 +3805,51 @@ return function(__lux_import)
       local sr, sg, sb, sa = __lux_module_1.scaledColor01(stroke, 1)
       local gr, gg, gb, ga
       do
-        local __lux_obj_508 = glow
-        local __lux_val_509 = nil
-        if __lux_obj_508 ~= nil then
-          __lux_val_509 = __lux_obj_508.strength
+        local __lux_obj_glow_352 = glow
+        local __lux_tmp_strength_353 = nil
+        if __lux_obj_glow_352 ~= nil then
+          __lux_tmp_strength_353 = __lux_obj_glow_352.strength
         end
-        local __lux_tmp_510 = __lux_val_509
-        if __lux_tmp_510 == nil then
-          __lux_tmp_510 = 1
+        if __lux_tmp_strength_353 == nil then
+          __lux_tmp_strength_353 = 1
         end
-        gr, gg, gb, ga = __lux_module_1.scaledColor01(glow, __lux_tmp_510)
+        gr, gg, gb, ga = __lux_module_1.scaledColor01(glow, __lux_tmp_strength_353)
       end
       local shr, shg, shb, sha
       do
-        local __lux_obj_511 = shadow
-        local __lux_val_512 = nil
-        if __lux_obj_511 ~= nil then
-          __lux_val_512 = __lux_obj_511.strength
+        local __lux_obj_shadow_354 = shadow
+        local __lux_tmp_strength_355 = nil
+        if __lux_obj_shadow_354 ~= nil then
+          __lux_tmp_strength_355 = __lux_obj_shadow_354.strength
         end
-        local __lux_tmp_513 = __lux_val_512
-        if __lux_tmp_513 == nil then
-          __lux_tmp_513 = 1
+        if __lux_tmp_strength_355 == nil then
+          __lux_tmp_strength_355 = 1
         end
-        shr, shg, shb, sha = __lux_module_1.scaledColor01(shadow, __lux_tmp_513)
+        shr, shg, shb, sha = __lux_module_1.scaledColor01(shadow, __lux_tmp_strength_355)
       end
-      local __lux_obj_514 = scaledStroke
-      local __lux_val_515 = nil
-      if __lux_obj_514 ~= nil then
-        __lux_val_515 = __lux_obj_514.width
+      local __lux_obj_scaledStroke_356 = scaledStroke
+      local __lux_tmp_width_357 = nil
+      if __lux_obj_scaledStroke_356 ~= nil then
+        __lux_tmp_width_357 = __lux_obj_scaledStroke_356.width
       end
-      local __lux_tmp_516 = __lux_val_515
-      if __lux_tmp_516 == nil then
-        __lux_tmp_516 = 0
+      if __lux_tmp_width_357 == nil then
+        __lux_tmp_width_357 = 0
       end
-      local __lux_tmp_517
+      local __lux_tmp_358
       if glow ~= nil then
-        __lux_tmp_517 = glow.width * oversample
+        __lux_tmp_358 = glow.width * oversample
       else
-        __lux_tmp_517 = 0
+        __lux_tmp_358 = 0
       end
-      local __lux_tmp_518 = entry.weightAdjust
-      if __lux_tmp_518 == nil then
-        __lux_tmp_518 = 0
+      local __lux_tmp_weightAdjust_359 = entry.weightAdjust
+      if __lux_tmp_weightAdjust_359 == nil then
+        __lux_tmp_weightAdjust_359 = 0
       end
-      local __lux_tmp_519
+      local __lux_tmp_360
       if scaledShadow ~= nil then
-        __lux_tmp_519 = __lux_module_1.packShadowParams(scaledShadow.x, scaledShadow.y, scaledStroke)
+        __lux_tmp_360 = __lux_module_1.packShadowParams(scaledShadow.x, scaledShadow.y, scaledStroke)
       else
-        __lux_tmp_519 = __lux_module_1.packShadowParams(0, 0, scaledStroke)
+        __lux_tmp_360 = __lux_module_1.packShadowParams(0, 0, scaledStroke)
       end
       return __lux_module_1.setupTextAuxParamMatrix(
         material,
@@ -4359,96 +3865,84 @@ return function(__lux_import)
         shg,
         shb,
         sha,
-        __lux_tmp_516,
-        __lux_tmp_517,
+        __lux_tmp_width_357,
+        __lux_tmp_358,
         __lux_module_1.packEffectParams(
           glow,
           scaledShadow,
           face,
-          __lux_tmp_518 * oversample,
+          __lux_tmp_weightAdjust_359 * oversample,
           entry.shaderFace
         ),
-        __lux_tmp_519
+        __lux_tmp_360
       )
     end
     __lux_module_1.fillEndpointColors = function(fill, fallback)
       if __lux_module_1.isColorValue(fill) then
         return fill, fill
       end
-      local __lux_tmp_520 = __lux_module_1.typeOf(fill) == "table"
-      if __lux_tmp_520 then
-        __lux_tmp_520 = __lux_module_1.typeOf(fill.stops) == "table"
-      end
-      local __lux_tmp_521 = __lux_tmp_520
-      if __lux_tmp_521 then
-        __lux_tmp_521 = #fill.stops > 0
-      end
-      if __lux_tmp_521 then
+      if __lux_module_1.typeOf(fill) == "table" and __lux_module_1.typeOf(fill.stops) == "table" and #fill.stops > 0 then
         local first = fill.stops[1]
         local last = fill.stops[#fill.stops]
-        local __lux_tmp_522 = first.color
-        if __lux_tmp_522 == nil then
-          __lux_tmp_522 = first[2]
+        local __lux_tmp_color_361 = first.color
+        if __lux_tmp_color_361 == nil then
+          __lux_tmp_color_361 = first[2]
         end
-        local __lux_tmp_523 = fallback
-        if __lux_tmp_523 == nil then
-          __lux_tmp_523 = __lux_module_1.white
+        local __lux_tmp_fallback_362 = fallback
+        if __lux_tmp_fallback_362 == nil then
+          __lux_tmp_fallback_362 = __lux_module_1.white
         end
-        local __lux_tmp_524 = last.color
-        if __lux_tmp_524 == nil then
-          __lux_tmp_524 = last[2]
+        local __lux_tmp_color_363 = last.color
+        if __lux_tmp_color_363 == nil then
+          __lux_tmp_color_363 = last[2]
         end
-        local __lux_tmp_525 = fallback
-        if __lux_tmp_525 == nil then
-          __lux_tmp_525 = __lux_module_1.white
+        local __lux_tmp_fallback_364 = fallback
+        if __lux_tmp_fallback_364 == nil then
+          __lux_tmp_fallback_364 = __lux_module_1.white
         end
-        return __lux_module_1.style.asColor(__lux_tmp_522, __lux_tmp_523), __lux_module_1.style.asColor(__lux_tmp_524, __lux_tmp_525)
+        return __lux_module_1.style.asColor(__lux_tmp_color_361, __lux_tmp_fallback_362), __lux_module_1.style.asColor(__lux_tmp_color_363, __lux_tmp_fallback_364)
       end
       if __lux_module_1.typeOf(fill) == "table" then
         local a
         do
-          local __lux_tmp_526 = fill.colorA
-          if __lux_tmp_526 == nil then
-            __lux_tmp_526 = fill[1]
+          local __lux_tmp_colorA_365 = fill.colorA
+          if __lux_tmp_colorA_365 == nil then
+            __lux_tmp_colorA_365 = fill[1]
           end
-          local __lux_tmp_527 = fallback
-          if __lux_tmp_527 == nil then
-            __lux_tmp_527 = __lux_module_1.white
+          local __lux_tmp_fallback_366 = fallback
+          if __lux_tmp_fallback_366 == nil then
+            __lux_tmp_fallback_366 = __lux_module_1.white
           end
-          a = __lux_module_1.style.asColor(__lux_tmp_526, __lux_tmp_527)
+          a = __lux_module_1.style.asColor(__lux_tmp_colorA_365, __lux_tmp_fallback_366)
         end
-        local __lux_tmp_528 = fill.colorB
-        if __lux_tmp_528 == nil then
-          __lux_tmp_528 = fill[2]
+        local __lux_tmp_colorB_367 = fill.colorB
+        if __lux_tmp_colorB_367 == nil then
+          __lux_tmp_colorB_367 = fill[2]
         end
-        return a, __lux_module_1.style.asColor(__lux_tmp_528, a)
+        return a, __lux_module_1.style.asColor(__lux_tmp_colorB_367, a)
       end
       local c
       do
-        local __lux_tmp_529 = fallback
-        if __lux_tmp_529 == nil then
-          __lux_tmp_529 = __lux_module_1.white
+        local __lux_tmp_fallback_368 = fallback
+        if __lux_tmp_fallback_368 == nil then
+          __lux_tmp_fallback_368 = __lux_module_1.white
         end
-        c = __lux_module_1.style.asColor(fill, __lux_tmp_529)
+        c = __lux_module_1.style.asColor(fill, __lux_tmp_fallback_368)
       end
       return c, c
     end
     __lux_module_1.setupTextFaceMaterial = function(material, entry, record, u0, v0, u1, v1, fillOverride)
-      local fill
-      do
-        local __lux_tmp_530 = fillOverride
-        if __lux_tmp_530 == nil then
-          __lux_tmp_530 = __lux_module_1.fillForRecord(record)
-        end
-        fill = __lux_tmp_530
+      local fill = fillOverride
+      if fill == nil then
+        fill = __lux_module_1.fillForRecord(record)
       end
       local colorA, colorB
       do
-        local __lux_tmp_531 = record.color
-        if __lux_tmp_531 == nil then
-          __lux_tmp_531 = __lux_module_1.white
+        local __lux_tmp_color_369 = record.color
+        if __lux_tmp_color_369 == nil then
+          __lux_tmp_color_369 = __lux_module_1.white
         end
-        colorA, colorB = __lux_module_1.fillEndpointColors(fill, __lux_tmp_531)
+        colorA, colorB = __lux_module_1.fillEndpointColors(fill, __lux_tmp_color_369)
       end
       local r, g, b, a = __lux_module_1.style.color01(colorA)
       material:SetTexture("$basetexture", entry.page.rt)
@@ -4461,38 +3955,34 @@ return function(__lux_import)
       local y1 = 0
       local x2 = 1
       local y2 = 0
-      local __lux_tmp_532 = __lux_module_1.typeOf(fill) == "table"
-      if __lux_tmp_532 then
-        __lux_tmp_532 = fill.kind == 1
-      end
-      if __lux_tmp_532 then
+      if __lux_module_1.typeOf(fill) == "table" and fill.kind == 1 then
         do
-          local __lux_tmp_533 = __lux_module_1.toNumber(fill.x1)
-          if __lux_tmp_533 == nil then
-            __lux_tmp_533 = 0
+          local __lux_tmp_x1_370 = __lux_module_1.toNumber(fill.x1)
+          if __lux_tmp_x1_370 == nil then
+            __lux_tmp_x1_370 = 0
           end
-          x1 = __lux_tmp_533
+          x1 = __lux_tmp_x1_370
         end
         do
-          local __lux_tmp_534 = __lux_module_1.toNumber(fill.y1)
-          if __lux_tmp_534 == nil then
-            __lux_tmp_534 = 0
+          local __lux_tmp_y1_371 = __lux_module_1.toNumber(fill.y1)
+          if __lux_tmp_y1_371 == nil then
+            __lux_tmp_y1_371 = 0
           end
-          y1 = __lux_tmp_534
+          y1 = __lux_tmp_y1_371
         end
         do
-          local __lux_tmp_535 = __lux_module_1.toNumber(fill.x2)
-          if __lux_tmp_535 == nil then
-            __lux_tmp_535 = 1
+          local __lux_tmp_x2_372 = __lux_module_1.toNumber(fill.x2)
+          if __lux_tmp_x2_372 == nil then
+            __lux_tmp_x2_372 = 1
           end
-          x2 = __lux_tmp_535
+          x2 = __lux_tmp_x2_372
         end
         do
-          local __lux_tmp_536 = __lux_module_1.toNumber(fill.y2)
-          if __lux_tmp_536 == nil then
-            __lux_tmp_536 = 0
+          local __lux_tmp_y2_373 = __lux_module_1.toNumber(fill.y2)
+          if __lux_tmp_y2_373 == nil then
+            __lux_tmp_y2_373 = 0
           end
-          y2 = __lux_tmp_536
+          y2 = __lux_tmp_y2_373
         end
       end
       return __lux_module_1.setupTextAuxParamMatrix(
@@ -4518,22 +4008,17 @@ return function(__lux_import)
     __lux_module_1.drawEntryAt = function(entry, record, contentX, contentY, fillOverride, stats)
       local page
       do
-        local __lux_obj_537 = entry
-        local __lux_val_538 = nil
-        if __lux_obj_537 ~= nil then
-          __lux_val_538 = __lux_obj_537.page
+        local __lux_obj_entry_374 = entry
+        local __lux_val_page_375 = nil
+        if __lux_obj_entry_374 ~= nil then
+          __lux_val_page_375 = __lux_obj_entry_374.page
         end
-        local __lux_tmp_539 = __lux_val_538
-        if __lux_tmp_539 == nil then
-          __lux_tmp_539 = __lux_module_1.atlas
+        page = __lux_val_page_375
+        if page == nil then
+          page = __lux_module_1.atlas
         end
-        page = __lux_tmp_539
       end
-      local __lux_tmp_540 = page == nil
-      if not __lux_tmp_540 then
-        __lux_tmp_540 = entry.generation ~= page.generation
-      end
-      if __lux_tmp_540 then
+      if page == nil or entry.generation ~= page.generation then
         return nil
       end
       local x = contentX - entry.originX
@@ -4543,74 +4028,25 @@ return function(__lux_import)
       local v0 = entry.slotY / page.h
       local u1
       do
-        local __lux_tmp_541 = entry.atlasW
-        if __lux_tmp_541 == nil then
-          __lux_tmp_541 = entry.w
+        local __lux_tmp_atlasW_376 = entry.atlasW
+        if __lux_tmp_atlasW_376 == nil then
+          __lux_tmp_atlasW_376 = entry.w
         end
-        u1 = (entry.slotX + __lux_tmp_541) / page.w
+        u1 = (entry.slotX + __lux_tmp_atlasW_376) / page.w
       end
       local v1
       do
-        local __lux_tmp_542 = entry.atlasH
-        if __lux_tmp_542 == nil then
-          __lux_tmp_542 = entry.h
+        local __lux_tmp_atlasH_377 = entry.atlasH
+        if __lux_tmp_atlasH_377 == nil then
+          __lux_tmp_atlasH_377 = entry.h
         end
-        v1 = (entry.slotY + __lux_tmp_542) / page.h
+        v1 = (entry.slotY + __lux_tmp_atlasH_377) / page.h
       end
       local fx = __lux_module_1.hasShaderFx(entry)
-      local faceMat
-      do
-        local __lux_tmp_543 = __lux_module_1.isMaterialOK(page.faceMat)
-        if __lux_tmp_543 then
-          __lux_tmp_543 = page.faceMat
-        end
-        local __lux_tmp_544 = __lux_tmp_543
-        if not __lux_tmp_544 then
-          local __lux_tmp_545 = __lux_module_1.isMaterialOK(__lux_module_1.materials.text_face)
-          if __lux_tmp_545 then
-            __lux_tmp_545 = __lux_module_1.materials.text_face
-          end
-          __lux_tmp_544 = __lux_tmp_545
-        end
-        local __lux_tmp_546 = __lux_tmp_544
-        if not __lux_tmp_546 then
-          __lux_tmp_546 = page.material
-        end
-        local __lux_tmp_547 = __lux_tmp_546
-        if not __lux_tmp_547 then
-          __lux_tmp_547 = __lux_module_1.atlasMat
-        end
-        faceMat = __lux_tmp_547
-      end
-      local composeMat
-      do
-        local __lux_tmp_548 = __lux_module_1.isMaterialOK(page.composeMat)
-        if __lux_tmp_548 then
-          __lux_tmp_548 = page.composeMat
-        end
-        local __lux_tmp_549 = __lux_tmp_548
-        if not __lux_tmp_549 then
-          __lux_tmp_549 = __lux_module_1.materials.text_compose
-        end
-        composeMat = __lux_tmp_549
-      end
-      local material
-      do
-        local __lux_tmp_550 = fx
-        if __lux_tmp_550 then
-          __lux_tmp_550 = composeMat
-        end
-        local __lux_tmp_551 = __lux_tmp_550
-        if not __lux_tmp_551 then
-          __lux_tmp_551 = faceMat
-        end
-        material = __lux_tmp_551
-      end
-      local __lux_tmp_552 = fx
-      if __lux_tmp_552 then
-        __lux_tmp_552 = __lux_module_1.isMaterialOK(material)
-      end
-      if __lux_tmp_552 then
+      local faceMat = __lux_module_1.isMaterialOK(page.faceMat) and page.faceMat or __lux_module_1.isMaterialOK(__lux_module_1.materials.text_face) and __lux_module_1.materials.text_face or page.material or __lux_module_1.atlasMat
+      local composeMat = __lux_module_1.isMaterialOK(page.composeMat) and page.composeMat or __lux_module_1.materials.text_compose
+      local material = fx and composeMat or faceMat
+      if fx and __lux_module_1.isMaterialOK(material) then
         material:SetTexture("$basetexture", page.rt)
         __lux_module_1.setupTextComposeMaterial(material, entry, u0, v0, u1, v1)
       else
@@ -4633,21 +4069,17 @@ return function(__lux_import)
         end
       end
       local drawColor = __lux_module_1.white
-      local __lux_tmp_553 = fx
-      if __lux_tmp_553 then
-        __lux_tmp_553 = entry.shaderFace
-      end
-      if __lux_tmp_553 then
+      if fx and entry.shaderFace then
         do
-          local __lux_tmp_554 = fillOverride
-          if __lux_tmp_554 == nil then
-            __lux_tmp_554 = __lux_module_1.fillForRecord(record)
+          local __lux_tmp_fillOverride_378 = fillOverride
+          if __lux_tmp_fillOverride_378 == nil then
+            __lux_tmp_fillOverride_378 = __lux_module_1.fillForRecord(record)
           end
-          local __lux_tmp_555 = record.color
-          if __lux_tmp_555 == nil then
-            __lux_tmp_555 = __lux_module_1.white
+          local __lux_tmp_color_379 = record.color
+          if __lux_tmp_color_379 == nil then
+            __lux_tmp_color_379 = __lux_module_1.white
           end
-          drawColor = __lux_module_1.style.asColor(__lux_tmp_554, __lux_tmp_555)
+          drawColor = __lux_module_1.style.asColor(__lux_tmp_fillOverride_378, __lux_tmp_color_379)
         end
       end
       if not __lux_module_1.drawUV(
@@ -4667,15 +4099,7 @@ return function(__lux_import)
         return nil
       end
       local blits = 1
-      local __lux_tmp_556 = fx
-      if __lux_tmp_556 then
-        __lux_tmp_556 = not entry.shaderFace
-      end
-      local __lux_tmp_557 = __lux_tmp_556
-      if __lux_tmp_557 then
-        __lux_tmp_557 = faceMat ~= nil
-      end
-      if __lux_tmp_557 then
+      if fx and not entry.shaderFace and faceMat ~= nil then
         __lux_module_1.setupTextFaceMaterial(
           faceMat,
           entry,
@@ -4703,19 +4127,19 @@ return function(__lux_import)
         blits = blits + 1
       end
       do
-        local __lux_tmp_558 = stats
-        if __lux_tmp_558 == nil then
-          __lux_tmp_558 = {}
+        local __lux_tmp_stats_380 = stats
+        if __lux_tmp_stats_380 == nil then
+          __lux_tmp_stats_380 = {}
         end
-        __lux_module_1.statAdd(__lux_tmp_558, "textComposedBlits", blits)
+        __lux_module_1.statAdd(__lux_tmp_stats_380, "textComposedBlits", blits)
       end
       if fx then
         do
-          local __lux_tmp_559 = stats
-          if __lux_tmp_559 == nil then
-            __lux_tmp_559 = {}
+          local __lux_tmp_stats_381 = stats
+          if __lux_tmp_stats_381 == nil then
+            __lux_tmp_stats_381 = {}
           end
-          __lux_module_1.statAdd(__lux_tmp_559, "textShaderDraws")
+          __lux_module_1.statAdd(__lux_tmp_stats_381, "textShaderDraws")
         end
       end
       return fx
@@ -4723,19 +4147,19 @@ return function(__lux_import)
     __lux_module_1.blitEntry = function(entry, record, stats)
       local contentX
       do
-        local __lux_tmp_560 = record.x
-        if __lux_tmp_560 == nil then
-          __lux_tmp_560 = 0
+        local __lux_tmp_x_382 = record.x
+        if __lux_tmp_x_382 == nil then
+          __lux_tmp_x_382 = 0
         end
-        contentX = __lux_tmp_560 - entry.contentW * __lux_module_1.alignFactor(record.alignX)
+        contentX = __lux_tmp_x_382 - entry.contentW * __lux_module_1.alignFactor(record.alignX)
       end
       local contentY
       do
-        local __lux_tmp_561 = record.y
-        if __lux_tmp_561 == nil then
-          __lux_tmp_561 = 0
+        local __lux_tmp_y_383 = record.y
+        if __lux_tmp_y_383 == nil then
+          __lux_tmp_y_383 = 0
         end
-        contentY = __lux_tmp_561 - entry.contentH * __lux_module_1.alignFactor(record.alignY, true)
+        contentY = __lux_tmp_y_383 - entry.contentH * __lux_module_1.alignFactor(record.alignY, true)
       end
       local fx = __lux_module_1.drawEntryAt(entry, record, contentX, contentY, nil, stats)
       if fx == nil then
@@ -4749,27 +4173,27 @@ return function(__lux_import)
         end
       end
       do
-        local __lux_tmp_562 = stats
-        if __lux_tmp_562 == nil then
-          __lux_tmp_562 = {}
+        local __lux_tmp_stats_384 = stats
+        if __lux_tmp_stats_384 == nil then
+          __lux_tmp_stats_384 = {}
         end
-        __lux_module_1.statAdd(__lux_tmp_562, "textComposedDraws")
+        __lux_module_1.statAdd(__lux_tmp_stats_384, "textComposedDraws")
       end
       if fx then
         do
-          local __lux_tmp_563 = stats
-          if __lux_tmp_563 == nil then
-            __lux_tmp_563 = {}
+          local __lux_tmp_stats_385 = stats
+          if __lux_tmp_stats_385 == nil then
+            __lux_tmp_stats_385 = {}
           end
-          __lux_module_1.statAdd(__lux_tmp_563, "textComposedFxDraws")
+          __lux_module_1.statAdd(__lux_tmp_stats_385, "textComposedFxDraws")
         end
       else
         do
-          local __lux_tmp_564 = stats
-          if __lux_tmp_564 == nil then
-            __lux_tmp_564 = {}
+          local __lux_tmp_stats_386 = stats
+          if __lux_tmp_stats_386 == nil then
+            __lux_tmp_stats_386 = {}
           end
-          __lux_module_1.statAdd(__lux_tmp_564, "textComposedFaceDraws")
+          __lux_module_1.statAdd(__lux_tmp_stats_386, "textComposedFaceDraws")
         end
       end
       return fx
@@ -4777,12 +4201,12 @@ return function(__lux_import)
     __lux_module_1.textBatchKey = function(entry, record)
       local page
       do
-        local __lux_obj_565 = entry
-        local __lux_val_566 = nil
-        if __lux_obj_565 ~= nil then
-          __lux_val_566 = __lux_obj_565.page
+        local __lux_obj_entry_387 = entry
+        local __lux_val_page_388 = nil
+        if __lux_obj_entry_387 ~= nil then
+          __lux_val_page_388 = __lux_obj_entry_387.page
         end
-        page = __lux_val_566
+        page = __lux_val_page_388
       end
       if page == nil then
         return nil
@@ -4793,11 +4217,11 @@ return function(__lux_import)
         if __lux_module_1.fillNeedsShader(fill) then
           return nil
         end
-        local __lux_tmp_567 = page.index
-        if __lux_tmp_567 == nil then
-          __lux_tmp_567 = 0
+        local __lux_tmp_index_389 = page.index
+        if __lux_tmp_index_389 == nil then
+          __lux_tmp_index_389 = 0
         end
-        return "plain27" .. __lux_module_1.toString(__lux_tmp_567)
+        return "plain27" .. __lux_module_1.toString(__lux_tmp_index_389)
       end
       return nil
     end
@@ -4810,23 +4234,28 @@ return function(__lux_import)
       __lux_module_1.textBatchVertex.z = 0
       __lux_module_1.meshPosition(__lux_module_1.textBatchVertex)
       do
-        local __lux_tmp_568 = color.r
-        if __lux_tmp_568 == nil then
-          __lux_tmp_568 = 255
+        local __lux_tmp_r_390 = color.r
+        if __lux_tmp_r_390 == nil then
+          __lux_tmp_r_390 = 255
         end
-        local __lux_tmp_569 = color.g
-        if __lux_tmp_569 == nil then
-          __lux_tmp_569 = 255
+        local __lux_tmp_g_391 = color.g
+        if __lux_tmp_g_391 == nil then
+          __lux_tmp_g_391 = 255
         end
-        local __lux_tmp_570 = color.b
-        if __lux_tmp_570 == nil then
-          __lux_tmp_570 = 255
+        local __lux_tmp_b_392 = color.b
+        if __lux_tmp_b_392 == nil then
+          __lux_tmp_b_392 = 255
         end
-        local __lux_tmp_571 = color.a
-        if __lux_tmp_571 == nil then
-          __lux_tmp_571 = 255
+        local __lux_tmp_a_393 = color.a
+        if __lux_tmp_a_393 == nil then
+          __lux_tmp_a_393 = 255
         end
-        __lux_module_1.meshColor(__lux_tmp_568, __lux_tmp_569, __lux_tmp_570, __lux_tmp_571)
+        __lux_module_1.meshColor(
+          __lux_tmp_r_390,
+          __lux_tmp_g_391,
+          __lux_tmp_b_392,
+          __lux_tmp_a_393
+        )
       end
       __lux_module_1.meshTexCoord(0, u, v)
       return __lux_module_1.meshAdvanceVertex()
@@ -4842,27 +4271,23 @@ return function(__lux_import)
       local v0 = entry.slotY / page.h
       local u1
       do
-        local __lux_tmp_572 = entry.atlasW
-        if __lux_tmp_572 == nil then
-          __lux_tmp_572 = entry.w
+        local __lux_tmp_atlasW_394 = entry.atlasW
+        if __lux_tmp_atlasW_394 == nil then
+          __lux_tmp_atlasW_394 = entry.w
         end
-        u1 = (entry.slotX + __lux_tmp_572) / page.w
+        u1 = (entry.slotX + __lux_tmp_atlasW_394) / page.w
       end
       local v1
       do
-        local __lux_tmp_573 = entry.atlasH
-        if __lux_tmp_573 == nil then
-          __lux_tmp_573 = entry.h
+        local __lux_tmp_atlasH_395 = entry.atlasH
+        if __lux_tmp_atlasH_395 == nil then
+          __lux_tmp_atlasH_395 = entry.h
         end
-        v1 = (entry.slotY + __lux_tmp_573) / page.h
+        v1 = (entry.slotY + __lux_tmp_atlasH_395) / page.h
       end
-      local c
-      do
-        local __lux_tmp_574 = record.__mgfxBatchColor
-        if __lux_tmp_574 == nil then
-          __lux_tmp_574 = __lux_module_1.white
-        end
-        c = __lux_tmp_574
+      local c = record.__mgfxBatchColor
+      if c == nil then
+        c = __lux_module_1.white
       end
       __lux_module_1.meshVertex(x, y, u0, v0, c)
       __lux_module_1.meshVertex(x + w, y, u1, v0, c)
@@ -4872,11 +4297,7 @@ return function(__lux_import)
       return __lux_module_1.meshVertex(x, y + h, u0, v1, c)
     end
     __lux_module_1.flushTextComposeBatch = function(batch, stats)
-      local __lux_tmp_575 = batch == nil
-      if not __lux_tmp_575 then
-        __lux_tmp_575 = #batch == 0
-      end
-      if __lux_tmp_575 then
+      if batch == nil or #batch == 0 then
         return false
       end
       if #batch == 1 then
@@ -4907,18 +4328,18 @@ return function(__lux_import)
           end
         end
         do
-          local __lux_tmp_576 = stats
-          if __lux_tmp_576 == nil then
-            __lux_tmp_576 = {}
+          local __lux_tmp_stats_396 = stats
+          if __lux_tmp_stats_396 == nil then
+            __lux_tmp_stats_396 = {}
           end
-          __lux_module_1.statAdd(__lux_tmp_576, "textComposedDraws")
+          __lux_module_1.statAdd(__lux_tmp_stats_396, "textComposedDraws")
         end
         do
-          local __lux_tmp_577 = stats
-          if __lux_tmp_577 == nil then
-            __lux_tmp_577 = {}
+          local __lux_tmp_stats_397 = stats
+          if __lux_tmp_stats_397 == nil then
+            __lux_tmp_stats_397 = {}
           end
-          __lux_module_1.statAdd(__lux_tmp_577, "textComposedFxDraws")
+          __lux_module_1.statAdd(__lux_tmp_stats_397, "textComposedFxDraws")
         end
         return true
       end
@@ -4926,15 +4347,7 @@ return function(__lux_import)
       local firstEntry = first.__mgfxTextEntry
       for index = 1, #batch do
         local entry = batch[index].__mgfxTextEntry
-        local __lux_tmp_578 = entry == nil
-        if not __lux_tmp_578 then
-          __lux_tmp_578 = entry.page == nil
-        end
-        local __lux_tmp_579 = __lux_tmp_578
-        if not __lux_tmp_579 then
-          __lux_tmp_579 = entry.generation ~= entry.page.generation
-        end
-        if __lux_tmp_579 then
+        if entry == nil or entry.page == nil or entry.generation ~= entry.page.generation then
           for _, record in ipairs(batch) do
             local refreshed = __lux_module_1.entryFor(record, stats, false)
             if refreshed ~= nil then
@@ -4947,48 +4360,21 @@ return function(__lux_import)
       local fx = __lux_module_1.hasShaderFx(firstEntry)
       local material
       if fx then
-        do
-          local __lux_tmp_580 = __lux_module_1.isMaterialOK(firstEntry.page.composeMat)
-          if __lux_tmp_580 then
-            __lux_tmp_580 = firstEntry.page.composeMat
-          end
-          local __lux_tmp_581 = __lux_tmp_580
-          if not __lux_tmp_581 then
-            __lux_tmp_581 = __lux_module_1.materials.text_compose
-          end
-          material = __lux_tmp_581
-        end
+        material = __lux_module_1.isMaterialOK(firstEntry.page.composeMat) and firstEntry.page.composeMat or __lux_module_1.materials.text_compose
       else
         do
-          local __lux_obj_582 = firstEntry.page
-          local __lux_val_583 = nil
-          if __lux_obj_582 ~= nil then
-            __lux_val_583 = __lux_obj_582.material
+          local __lux_obj_page_398 = firstEntry.page
+          local __lux_val_material_399 = nil
+          if __lux_obj_page_398 ~= nil then
+            __lux_val_material_399 = __lux_obj_page_398.material
           end
-          local __lux_tmp_584 = __lux_val_583
-          if __lux_tmp_584 == nil then
-            __lux_tmp_584 = __lux_module_1.atlasMat
+          material = __lux_val_material_399
+          if material == nil then
+            material = __lux_module_1.atlasMat
           end
-          material = __lux_tmp_584
         end
       end
-      local __lux_tmp_585 = not __lux_module_1.isMaterialOK(material)
-      if not __lux_tmp_585 then
-        __lux_tmp_585 = __lux_module_1.renderSetMaterial == nil
-      end
-      local __lux_tmp_586 = __lux_tmp_585
-      if not __lux_tmp_586 then
-        __lux_tmp_586 = __lux_module_1.meshBegin == nil
-      end
-      local __lux_tmp_587 = __lux_tmp_586
-      if not __lux_tmp_587 then
-        __lux_tmp_587 = __lux_module_1.meshEnd == nil
-      end
-      local __lux_tmp_588 = __lux_tmp_587
-      if not __lux_tmp_588 then
-        __lux_tmp_588 = __lux_module_1.textBatchVertex == nil
-      end
-      if __lux_tmp_588 then
+      if not __lux_module_1.isMaterialOK(material) or __lux_module_1.renderSetMaterial == nil or __lux_module_1.meshBegin == nil or __lux_module_1.meshEnd == nil or __lux_module_1.textBatchVertex == nil then
         for _, record in ipairs(batch) do
           __lux_module_1.blitEntry(record.__mgfxTextEntry, record, stats)
         end
@@ -4997,21 +4383,21 @@ return function(__lux_import)
       if fx then
         material:SetTexture("$basetexture", firstEntry.page.rt)
         do
-          local __lux_tmp_589 = firstEntry.atlasW
-          if __lux_tmp_589 == nil then
-            __lux_tmp_589 = firstEntry.w
+          local __lux_tmp_atlasW_400 = firstEntry.atlasW
+          if __lux_tmp_atlasW_400 == nil then
+            __lux_tmp_atlasW_400 = firstEntry.w
           end
-          local __lux_tmp_590 = firstEntry.atlasH
-          if __lux_tmp_590 == nil then
-            __lux_tmp_590 = firstEntry.h
+          local __lux_tmp_atlasH_401 = firstEntry.atlasH
+          if __lux_tmp_atlasH_401 == nil then
+            __lux_tmp_atlasH_401 = firstEntry.h
           end
           __lux_module_1.setupTextComposeMaterial(
             material,
             firstEntry,
             firstEntry.slotX / firstEntry.page.w,
             firstEntry.slotY / firstEntry.page.h,
-            (firstEntry.slotX + __lux_tmp_589) / firstEntry.page.w,
-            (firstEntry.slotY + __lux_tmp_590) / firstEntry.page.h
+            (firstEntry.slotX + __lux_tmp_atlasW_400) / firstEntry.page.w,
+            (firstEntry.slotY + __lux_tmp_atlasH_401) / firstEntry.page.h
           )
         end
       end
@@ -5022,94 +4408,90 @@ return function(__lux_import)
       end
       __lux_module_1.meshEnd()
       do
-        local __lux_tmp_591 = stats
-        if __lux_tmp_591 == nil then
-          __lux_tmp_591 = {}
+        local __lux_tmp_stats_402 = stats
+        if __lux_tmp_stats_402 == nil then
+          __lux_tmp_stats_402 = {}
         end
-        __lux_module_1.statAdd(__lux_tmp_591, "textComposedBlits", #batch)
+        __lux_module_1.statAdd(__lux_tmp_stats_402, "textComposedBlits", #batch)
       end
       do
-        local __lux_tmp_592 = stats
-        if __lux_tmp_592 == nil then
-          __lux_tmp_592 = {}
+        local __lux_tmp_stats_403 = stats
+        if __lux_tmp_stats_403 == nil then
+          __lux_tmp_stats_403 = {}
         end
-        __lux_module_1.statAdd(__lux_tmp_592, "textComposedDraws", #batch)
+        __lux_module_1.statAdd(__lux_tmp_stats_403, "textComposedDraws", #batch)
       end
       if fx then
         do
-          local __lux_tmp_593 = stats
-          if __lux_tmp_593 == nil then
-            __lux_tmp_593 = {}
+          local __lux_tmp_stats_404 = stats
+          if __lux_tmp_stats_404 == nil then
+            __lux_tmp_stats_404 = {}
           end
-          __lux_module_1.statAdd(__lux_tmp_593, "textShaderDraws")
+          __lux_module_1.statAdd(__lux_tmp_stats_404, "textShaderDraws")
         end
         do
-          local __lux_tmp_594 = stats
-          if __lux_tmp_594 == nil then
-            __lux_tmp_594 = {}
+          local __lux_tmp_stats_405 = stats
+          if __lux_tmp_stats_405 == nil then
+            __lux_tmp_stats_405 = {}
           end
-          __lux_module_1.statAdd(__lux_tmp_594, "textComposedFxDraws", #batch)
+          __lux_module_1.statAdd(__lux_tmp_stats_405, "textComposedFxDraws", #batch)
         end
       else
         do
-          local __lux_tmp_595 = stats
-          if __lux_tmp_595 == nil then
-            __lux_tmp_595 = {}
+          local __lux_tmp_stats_406 = stats
+          if __lux_tmp_stats_406 == nil then
+            __lux_tmp_stats_406 = {}
           end
-          __lux_module_1.statAdd(__lux_tmp_595, "textComposedFaceDraws", #batch)
+          __lux_module_1.statAdd(__lux_tmp_stats_406, "textComposedFaceDraws", #batch)
         end
       end
       do
-        local __lux_tmp_596 = stats
-        if __lux_tmp_596 == nil then
-          __lux_tmp_596 = {}
+        local __lux_tmp_stats_407 = stats
+        if __lux_tmp_stats_407 == nil then
+          __lux_tmp_stats_407 = {}
         end
-        __lux_module_1.statAdd(__lux_tmp_596, "textComposedBatchDraws")
+        __lux_module_1.statAdd(__lux_tmp_stats_407, "textComposedBatchDraws")
       end
       do
-        local __lux_tmp_597 = stats
-        if __lux_tmp_597 == nil then
-          __lux_tmp_597 = {}
+        local __lux_tmp_stats_408 = stats
+        if __lux_tmp_stats_408 == nil then
+          __lux_tmp_stats_408 = {}
         end
-        __lux_module_1.statAdd(__lux_tmp_597, "textComposedBatchedRecords", #batch)
+        __lux_module_1.statAdd(__lux_tmp_stats_408, "textComposedBatchedRecords", #batch)
       end
       return true
     end
     __lux_module_1.queueTextComposeBatch = function(batches, order, entry, record)
       local key = __lux_module_1.textBatchKey(entry, record)
-      local __lux_tmp_598 = key == nil
-      if not __lux_tmp_598 then
-        __lux_tmp_598 = not __lux_module_1.isMaterialOK(__lux_module_1.materials.text_compose)
-      end
-      if __lux_tmp_598 then
+      if key == nil or not __lux_module_1.isMaterialOK(__lux_module_1.materials.text_compose) then
         return false
       end
       local contentX
       do
-        local __lux_tmp_599 = record.x
-        if __lux_tmp_599 == nil then
-          __lux_tmp_599 = 0
+        local __lux_tmp_x_409 = record.x
+        if __lux_tmp_x_409 == nil then
+          __lux_tmp_x_409 = 0
         end
-        contentX = __lux_tmp_599 - entry.contentW * __lux_module_1.alignFactor(record.alignX)
+        contentX = __lux_tmp_x_409 - entry.contentW * __lux_module_1.alignFactor(record.alignX)
       end
       local contentY
       do
-        local __lux_tmp_600 = record.y
-        if __lux_tmp_600 == nil then
-          __lux_tmp_600 = 0
+        local __lux_tmp_y_410 = record.y
+        if __lux_tmp_y_410 == nil then
+          __lux_tmp_y_410 = 0
         end
-        contentY = __lux_tmp_600 - entry.contentH * __lux_module_1.alignFactor(record.alignY, true)
+        contentY = __lux_tmp_y_410 - entry.contentH * __lux_module_1.alignFactor(record.alignY, true)
       end
       local x = contentX - entry.originX
       local y = contentY - entry.originY
       x, y = __lux_module_1.snapTextPos(x, y, record.style)
       local color
       do
-        local __lux_tmp_601 = record.color
-        if __lux_tmp_601 == nil then
-          __lux_tmp_601 = __lux_module_1.white
+        local __lux_tmp_color_411 = record.color
+        if __lux_tmp_color_411 == nil then
+          __lux_tmp_color_411 = __lux_module_1.white
         end
-        color = __lux_module_1.style.asColor(__lux_module_1.fillForRecord(record), __lux_tmp_601)
+        color = __lux_module_1.style.asColor(__lux_module_1.fillForRecord(record), __lux_tmp_color_411)
       end
       record.__mgfxTextEntry = entry
       record.__mgfxContentX = contentX
@@ -5127,11 +4509,7 @@ return function(__lux_import)
       return true
     end
     __lux_module_1.flushQueuedTextBatches = function(batches, order, stats)
-      local __lux_tmp_602 = order == nil
-      if not __lux_tmp_602 then
-        __lux_tmp_602 = #order == 0
-      end
-      if __lux_tmp_602 then
+      if order == nil or #order == 0 then
         return 0
       end
       for _, batch in ipairs(order) do
@@ -5146,19 +4524,19 @@ return function(__lux_import)
       if __lux_module_1.atlasNeedsReset then
         __lux_module_1.atlasNeedsReset = false
         do
-          local __lux_tmp_603 = stats
-          if __lux_tmp_603 == nil then
-            __lux_tmp_603 = {}
+          local __lux_tmp_stats_412 = stats
+          if __lux_tmp_stats_412 == nil then
+            __lux_tmp_stats_412 = {}
           end
-          __lux_module_1.statAdd(__lux_tmp_603, "textComposedEvicts")
+          __lux_module_1.statAdd(__lux_tmp_stats_412, "textComposedEvicts")
         end
         __lux_module_1.clearComposedCache()
         do
-          local __lux_tmp_604 = records
-          if __lux_tmp_604 == nil then
-            __lux_tmp_604 = {}
+          local __lux_tmp_records_413 = records
+          if __lux_tmp_records_413 == nil then
+            __lux_tmp_records_413 = {}
           end
-          for _, record in ipairs(__lux_tmp_604) do
+          for _, record in ipairs(__lux_tmp_records_413) do
             record.__mgfxTextEntry = nil
           end
         end
@@ -5166,85 +4544,66 @@ return function(__lux_import)
       __lux_module_1.bakesThisFrame = 0
       local composeRequested = __lux_module_1.prepareTextRoutes(records)
       do
-        local __lux_tmp_605 = stats
-        if __lux_tmp_605 == nil then
-          __lux_tmp_605 = {}
+        local __lux_tmp_stats_414 = stats
+        if __lux_tmp_stats_414 == nil then
+          __lux_tmp_stats_414 = {}
         end
-        __lux_module_1.statAdd(__lux_tmp_605, "textComposedRequests", composeRequested)
+        __lux_module_1.statAdd(__lux_tmp_stats_414, "textComposedRequests", composeRequested)
       end
       if composeRequested > 0 then
         do
-          local __lux_tmp_606 = stats
-          if __lux_tmp_606 == nil then
-            __lux_tmp_606 = {}
+          local __lux_tmp_stats_415 = stats
+          if __lux_tmp_stats_415 == nil then
+            __lux_tmp_stats_415 = {}
           end
-          __lux_module_1.statAdd(__lux_tmp_606, "textComposedBatches")
+          __lux_module_1.statAdd(__lux_tmp_stats_415, "textComposedBatches")
         end
       end
-      local composerReady
-      do
-        local __lux_tmp_607 = composeRequested <= 0
-        if not __lux_tmp_607 then
-          __lux_tmp_607 = __lux_module_1.prewarmFlushRecords(records, stats)
-        end
-        composerReady = __lux_tmp_607
-      end
+      local composerReady = composeRequested <= 0 or __lux_module_1.prewarmFlushRecords(records, stats)
       if composeRequested > 0 then
         if composerReady then
           do
-            local __lux_tmp_608 = stats
-            if __lux_tmp_608 == nil then
-              __lux_tmp_608 = {}
+            local __lux_tmp_stats_416 = stats
+            if __lux_tmp_stats_416 == nil then
+              __lux_tmp_stats_416 = {}
             end
-            __lux_module_1.statAdd(__lux_tmp_608, "textComposedReadyBatches")
+            __lux_module_1.statAdd(__lux_tmp_stats_416, "textComposedReadyBatches")
           end
         end
       end
       local batches = {}
       local order = {}
       do
-        local __lux_tmp_609 = records
-        if __lux_tmp_609 == nil then
-          __lux_tmp_609 = {}
+        local __lux_tmp_records_417 = records
+        if __lux_tmp_records_417 == nil then
+          __lux_tmp_records_417 = {}
         end
-        for _, record in ipairs(__lux_tmp_609) do
+        for _, record in ipairs(__lux_tmp_records_417) do
           do
-            local __lux_tmp_610 = stats
-            if __lux_tmp_610 == nil then
-              __lux_tmp_610 = {}
+            local __lux_tmp_stats_418 = stats
+            if __lux_tmp_stats_418 == nil then
+              __lux_tmp_stats_418 = {}
             end
-            __lux_module_1.statAdd(__lux_tmp_610, "textDraws")
+            __lux_module_1.statAdd(__lux_tmp_stats_418, "textDraws")
           end
           local route = record.__mgfxTextRoute
           if route == "native" then
             __lux_module_1.flushQueuedTextBatches(batches, order, stats)
             do
-              local __lux_tmp_611 = stats
-              if __lux_tmp_611 == nil then
-                __lux_tmp_611 = {}
+              local __lux_tmp_stats_419 = stats
+              if __lux_tmp_stats_419 == nil then
+                __lux_tmp_stats_419 = {}
               end
-              __lux_module_1.statAdd(__lux_tmp_611, "textNativeDraws")
+              __lux_module_1.statAdd(__lux_tmp_stats_419, "textNativeDraws")
             end
             __lux_module_1.drawNativePlainRecord(record)
           else
             local entry = record.__mgfxTextEntry
-            local __lux_tmp_612 = entry ~= nil
-            if __lux_tmp_612 then
-              __lux_tmp_612 = entry.page ~= nil
-            end
-            local __lux_tmp_613 = __lux_tmp_612
-            if __lux_tmp_613 then
-              __lux_tmp_613 = entry.generation == entry.page.generation
-            end
-            if not __lux_tmp_613 then
+            if not (entry ~= nil and entry.page ~= nil and entry.generation == entry.page.generation) then
               entry = __lux_module_1.entryFor(record, stats, false)
             end
             if entry ~= nil then
-              local __lux_tmp_614 = composerReady
-              if __lux_tmp_614 then
-                __lux_tmp_614 = __lux_module_1.queueTextComposeBatch(batches, order, entry, record)
-              end
-              if __lux_tmp_614 then
+              if composerReady and __lux_module_1.queueTextComposeBatch(batches, order, entry, record) then
               else
                 __lux_module_1.flushQueuedTextBatches(batches, order, stats)
                 __lux_module_1.blitEntry(entry, record, stats)
@@ -5263,38 +4622,24 @@ return function(__lux_import)
   end
   do
     __lux_module_1.createTextRenderer = function(deps)
-      do
-        local __lux_tmp_615 = deps
-        if __lux_tmp_615 == nil then
-          __lux_tmp_615 = {}
-        end
-        deps = __lux_tmp_615
+      if deps == nil then
+        deps = {}
       end
       __lux_module_1.configureTextRenderer(deps)
       __lux_module_1.atlasNamespace = __lux_module_1.nextAtlasNamespace()
-      local owner
-      do
-        local __lux_tmp_616 = deps.M
-        if __lux_tmp_616 == nil then
-          local __lux_tmp_617 = deps.owner
-          if __lux_tmp_617 == nil then
-            __lux_tmp_617 = {}
-          end
-          __lux_tmp_616 = __lux_tmp_617
+      local owner = deps.M
+      if owner == nil then
+        owner = deps.owner
+        if owner == nil then
+          owner = {}
         end
-        owner = __lux_tmp_616
       end
-      local stats
-      do
-        local __lux_tmp_618 = deps.stats
-        if __lux_tmp_618 == nil then
-          local __lux_tmp_619 = owner.stats
-          if __lux_tmp_619 == nil then
-            __lux_tmp_619 = {}
-          end
-          __lux_tmp_618 = __lux_tmp_619
+      local stats = deps.stats
+      if stats == nil then
+        stats = owner.stats
+        if stats == nil then
+          stats = {}
         end
-        stats = __lux_tmp_618
       end
       owner.stats = stats
       local renderer = {}
@@ -5302,39 +4647,39 @@ return function(__lux_import)
       local immediateRecordBatch = {}
       __lux_module_1.resetRendererFrameStats(stats)
       renderer.RegisterFont = function(fontName, spec)
-        local __lux_tmp_620 = spec
-        if __lux_tmp_620 == nil then
-          __lux_tmp_620 = {}
+        local __lux_tmp_spec_420 = spec
+        if __lux_tmp_spec_420 == nil then
+          __lux_tmp_spec_420 = {}
         end
-        return __lux_module_1.registerFont(fontName, __lux_tmp_620)
+        return __lux_module_1.registerFont(fontName, __lux_tmp_spec_420)
       end
       renderer.DefineStyle = function(name, textStyle)
         if name == nil then
           return nil
         end
-        local __lux_tmp_621 = textStyle
-        if __lux_tmp_621 == nil then
-          __lux_tmp_621 = {}
+        local __lux_tmp_textStyle_421 = textStyle
+        if __lux_tmp_textStyle_421 == nil then
+          __lux_tmp_textStyle_421 = {}
         end
         return __lux_module_1.defineStyle(
           __lux_module_1.toString(name),
-          renderer.ResolveStyle(__lux_tmp_621)
+          renderer.ResolveStyle(__lux_tmp_textStyle_421)
         )
       end
       renderer.GetStyle = function(name)
-        local __lux_tmp_622 = name
-        if __lux_tmp_622 == nil then
-          __lux_tmp_622 = ""
+        local __lux_tmp_name_422 = name
+        if __lux_tmp_name_422 == nil then
+          __lux_tmp_name_422 = ""
         end
-        return __lux_module_1.getStyle(__lux_module_1.toString(__lux_tmp_622))
+        return __lux_module_1.getStyle(__lux_module_1.toString(__lux_tmp_name_422))
       end
       renderer.PushStyle = function(textStyle)
         do
-          local __lux_tmp_623 = textStyle
-          if __lux_tmp_623 == nil then
-            __lux_tmp_623 = {}
+          local __lux_tmp_textStyle_423 = textStyle
+          if __lux_tmp_textStyle_423 == nil then
+            __lux_tmp_textStyle_423 = {}
           end
-          styleStack[#styleStack + 1] = renderer.ResolveStyle(__lux_tmp_623)
+          styleStack[#styleStack + 1] = renderer.ResolveStyle(__lux_tmp_textStyle_423)
         end
         return #styleStack
       end
@@ -5346,11 +4691,7 @@ return function(__lux_import)
         return true
       end
       renderer.ResolveStyle = function(textStyle)
-        local __lux_tmp_624 = __lux_module_1.typeOf(textStyle) == "table"
-        if __lux_tmp_624 then
-          __lux_tmp_624 = textStyle[__lux_module_1.RESOLVED_STYLE_MARK] == true
-        end
-        if __lux_tmp_624 then
+        if __lux_module_1.typeOf(textStyle) == "table" and textStyle[__lux_module_1.RESOLVED_STYLE_MARK] == true then
           return __lux_module_1.tableCopy(textStyle)
         end
         local resolved = {}
@@ -5358,11 +4699,11 @@ return function(__lux_import)
           __lux_module_1.copyStyleInto(resolved, styleStack[index])
         end
         do
-          local __lux_tmp_625 = textStyle
-          if __lux_tmp_625 == nil then
-            __lux_tmp_625 = {}
+          local __lux_tmp_textStyle_424 = textStyle
+          if __lux_tmp_textStyle_424 == nil then
+            __lux_tmp_textStyle_424 = {}
           end
-          __lux_module_1.copyStyleInto(resolved, __lux_tmp_625)
+          __lux_module_1.copyStyleInto(resolved, __lux_tmp_textStyle_424)
         end
         resolved[__lux_module_1.RESOLVED_STYLE_MARK] = true
         return resolved
@@ -5370,90 +4711,83 @@ return function(__lux_import)
       renderer.MakeRecord = function(value, font, x, y, color, ax, ay, textStyle)
         local resolved
         do
-          local __lux_tmp_626 = textStyle
-          if __lux_tmp_626 == nil then
-            __lux_tmp_626 = {}
+          local __lux_tmp_textStyle_425 = textStyle
+          if __lux_tmp_textStyle_425 == nil then
+            __lux_tmp_textStyle_425 = {}
           end
-          resolved = renderer.ResolveStyle(__lux_tmp_626)
+          resolved = renderer.ResolveStyle(__lux_tmp_textStyle_425)
         end
-        local __lux_tmp_627 = value
-        if __lux_tmp_627 == nil then
-          __lux_tmp_627 = ""
+        local __lux_tmp_value_426 = value
+        if __lux_tmp_value_426 == nil then
+          __lux_tmp_value_426 = ""
         end
-        local __lux_tmp_628 = resolved.font
-        if __lux_tmp_628 == nil then
-          local __lux_tmp_629 = font
-          if __lux_tmp_629 == nil then
-            __lux_tmp_629 = "DermaDefault"
-          end
-          __lux_tmp_628 = __lux_tmp_629
+        local __lux_tmp_font_427 = resolved.font
+        if __lux_tmp_font_427 == nil then
+          __lux_tmp_font_427 = font
         end
-        local __lux_tmp_630 = __lux_module_1.toNumber(x)
-        if __lux_tmp_630 == nil then
-          __lux_tmp_630 = 0
+        if __lux_tmp_font_427 == nil then
+          __lux_tmp_font_427 = "DermaDefault"
         end
-        local __lux_tmp_631 = __lux_module_1.toNumber(y)
-        if __lux_tmp_631 == nil then
-          __lux_tmp_631 = 0
+        local __lux_tmp_x_428 = __lux_module_1.toNumber(x)
+        if __lux_tmp_x_428 == nil then
+          __lux_tmp_x_428 = 0
         end
-        local __lux_tmp_632
+        local __lux_tmp_y_429 = __lux_module_1.toNumber(y)
+        if __lux_tmp_y_429 == nil then
+          __lux_tmp_y_429 = 0
+        end
+        local __lux_tmp_430
         if __lux_module_1.style.asColor ~= nil then
           do
-            local __lux_tmp_633 = color
-            if __lux_tmp_633 == nil then
-              local __lux_tmp_634 = resolved.color
-              if __lux_tmp_634 == nil then
-                __lux_tmp_634 = resolved.fill
-              end
-              __lux_tmp_633 = __lux_tmp_634
+            local __lux_tmp_color_431 = color
+            if __lux_tmp_color_431 == nil then
+              __lux_tmp_color_431 = resolved.color
             end
-            __lux_tmp_632 = __lux_module_1.style.asColor(__lux_tmp_633, __lux_module_1.white)
+            if __lux_tmp_color_431 == nil then
+              __lux_tmp_color_431 = resolved.fill
+            end
+            __lux_tmp_430 = __lux_module_1.style.asColor(__lux_tmp_color_431, __lux_module_1.white)
           end
         else
           do
-            local __lux_tmp_635 = color
-            if __lux_tmp_635 == nil then
-              local __lux_tmp_636 = resolved.color
-              if __lux_tmp_636 == nil then
-                __lux_tmp_636 = resolved.fill
-              end
-              __lux_tmp_635 = __lux_tmp_636
+            local __lux_tmp_color_432 = color
+            if __lux_tmp_color_432 == nil then
+              __lux_tmp_color_432 = resolved.color
             end
-            __lux_tmp_632 = __lux_module_1.style.colorOr(__lux_tmp_635, __lux_module_1.white)
+            if __lux_tmp_color_432 == nil then
+              __lux_tmp_color_432 = resolved.fill
+            end
+            __lux_tmp_430 = __lux_module_1.style.colorOr(__lux_tmp_color_432, __lux_module_1.white)
           end
         end
-        local __lux_tmp_637 = resolved.alignX
-        if __lux_tmp_637 == nil then
-          local __lux_tmp_638 = resolved.align
-          if __lux_tmp_638 == nil then
-            local __lux_tmp_639 = ax
-            if __lux_tmp_639 == nil then
-              __lux_tmp_639 = TEXT_ALIGN_LEFT
-            end
-            __lux_tmp_638 = __lux_tmp_639
-          end
-          __lux_tmp_637 = __lux_tmp_638
+        local __lux_tmp_alignX_433 = resolved.alignX
+        if __lux_tmp_alignX_433 == nil then
+          __lux_tmp_alignX_433 = resolved.align
         end
-        local __lux_tmp_640 = resolved.alignY
-        if __lux_tmp_640 == nil then
-          local __lux_tmp_641 = resolved.valign
-          if __lux_tmp_641 == nil then
-            local __lux_tmp_642 = ay
-            if __lux_tmp_642 == nil then
-              __lux_tmp_642 = TEXT_ALIGN_TOP
-            end
-            __lux_tmp_641 = __lux_tmp_642
-          end
-          __lux_tmp_640 = __lux_tmp_641
+        if __lux_tmp_alignX_433 == nil then
+          __lux_tmp_alignX_433 = ax
+        end
+        if __lux_tmp_alignX_433 == nil then
+          __lux_tmp_alignX_433 = TEXT_ALIGN_LEFT
+        end
+        local __lux_tmp_alignY_434 = resolved.alignY
+        if __lux_tmp_alignY_434 == nil then
+          __lux_tmp_alignY_434 = resolved.valign
+        end
+        if __lux_tmp_alignY_434 == nil then
+          __lux_tmp_alignY_434 = ay
+        end
+        if __lux_tmp_alignY_434 == nil then
+          __lux_tmp_alignY_434 = TEXT_ALIGN_TOP
         end
         return {
-          text = __lux_module_1.toString(__lux_tmp_627),
-          font = __lux_tmp_628,
-          x = __lux_tmp_630,
-          y = __lux_tmp_631,
-          color = __lux_tmp_632,
-          alignX = __lux_tmp_637,
-          alignY = __lux_tmp_640,
+          text = __lux_module_1.toString(__lux_tmp_value_426),
+          font = __lux_tmp_font_427,
+          x = __lux_tmp_x_428,
+          y = __lux_tmp_y_429,
+          color = __lux_tmp_430,
+          alignX = __lux_tmp_alignX_433,
+          alignY = __lux_tmp_alignY_434,
           style = resolved,
         }
       end
@@ -5463,127 +4797,113 @@ return function(__lux_import)
         end
         local resolved
         do
-          local __lux_tmp_643 = record.style
-          if __lux_tmp_643 == nil then
-            __lux_tmp_643 = {}
+          local __lux_tmp_style_435 = record.style
+          if __lux_tmp_style_435 == nil then
+            __lux_tmp_style_435 = {}
           end
-          resolved = renderer.ResolveStyle(__lux_tmp_643)
+          resolved = renderer.ResolveStyle(__lux_tmp_style_435)
         end
         do
-          local __lux_tmp_644 = record.text
-          if __lux_tmp_644 == nil then
-            local __lux_tmp_645 = record.value
-            if __lux_tmp_645 == nil then
-              __lux_tmp_645 = ""
-            end
-            __lux_tmp_644 = __lux_tmp_645
+          local __lux_tmp_text_436 = record.text
+          if __lux_tmp_text_436 == nil then
+            __lux_tmp_text_436 = record.value
           end
-          record.text = __lux_module_1.toString(__lux_tmp_644)
+          if __lux_tmp_text_436 == nil then
+            __lux_tmp_text_436 = ""
+          end
+          record.text = __lux_module_1.toString(__lux_tmp_text_436)
         end
         do
-          local __lux_tmp_646 = resolved.font
-          if __lux_tmp_646 == nil then
-            local __lux_tmp_647 = record.font
-            if __lux_tmp_647 == nil then
-              __lux_tmp_647 = "DermaDefault"
-            end
-            __lux_tmp_646 = __lux_tmp_647
+          local __lux_tmp_font_437 = resolved.font
+          if __lux_tmp_font_437 == nil then
+            __lux_tmp_font_437 = record.font
           end
-          record.font = __lux_tmp_646
+          if __lux_tmp_font_437 == nil then
+            __lux_tmp_font_437 = "DermaDefault"
+          end
+          record.font = __lux_tmp_font_437
         end
         do
-          local __lux_tmp_648 = __lux_module_1.toNumber(record.x)
-          if __lux_tmp_648 == nil then
-            __lux_tmp_648 = 0
+          local __lux_tmp_x_438 = __lux_module_1.toNumber(record.x)
+          if __lux_tmp_x_438 == nil then
+            __lux_tmp_x_438 = 0
           end
-          record.x = __lux_tmp_648
+          record.x = __lux_tmp_x_438
         end
         do
-          local __lux_tmp_649 = __lux_module_1.toNumber(record.y)
-          if __lux_tmp_649 == nil then
-            __lux_tmp_649 = 0
+          local __lux_tmp_y_439 = __lux_module_1.toNumber(record.y)
+          if __lux_tmp_y_439 == nil then
+            __lux_tmp_y_439 = 0
           end
-          record.y = __lux_tmp_649
+          record.y = __lux_tmp_y_439
         end
         do
-          local __lux_tmp_650
+          local __lux_tmp_440
           if __lux_module_1.style.asColor ~= nil then
             do
-              local __lux_tmp_651 = record.color
-              if __lux_tmp_651 == nil then
-                local __lux_tmp_652 = resolved.color
-                if __lux_tmp_652 == nil then
-                  __lux_tmp_652 = resolved.fill
-                end
-                __lux_tmp_651 = __lux_tmp_652
+              local __lux_tmp_color_441 = record.color
+              if __lux_tmp_color_441 == nil then
+                __lux_tmp_color_441 = resolved.color
               end
-              __lux_tmp_650 = __lux_module_1.style.asColor(__lux_tmp_651, __lux_module_1.white)
+              if __lux_tmp_color_441 == nil then
+                __lux_tmp_color_441 = resolved.fill
+              end
+              __lux_tmp_440 = __lux_module_1.style.asColor(__lux_tmp_color_441, __lux_module_1.white)
             end
           else
             do
-              local __lux_tmp_653 = record.color
-              if __lux_tmp_653 == nil then
-                local __lux_tmp_654 = resolved.color
-                if __lux_tmp_654 == nil then
-                  __lux_tmp_654 = resolved.fill
-                end
-                __lux_tmp_653 = __lux_tmp_654
+              local __lux_tmp_color_442 = record.color
+              if __lux_tmp_color_442 == nil then
+                __lux_tmp_color_442 = resolved.color
               end
-              __lux_tmp_650 = __lux_module_1.style.colorOr(__lux_tmp_653, __lux_module_1.white)
+              if __lux_tmp_color_442 == nil then
+                __lux_tmp_color_442 = resolved.fill
+              end
+              __lux_tmp_440 = __lux_module_1.style.colorOr(__lux_tmp_color_442, __lux_module_1.white)
             end
           end
-          record.color = __lux_tmp_650
+          record.color = __lux_tmp_440
         end
         do
-          local __lux_tmp_655 = resolved.alignX
-          if __lux_tmp_655 == nil then
-            local __lux_tmp_656 = resolved.align
-            if __lux_tmp_656 == nil then
-              local __lux_tmp_657 = record.alignX
-              if __lux_tmp_657 == nil then
-                local __lux_tmp_658 = record.ax
-                if __lux_tmp_658 == nil then
-                  __lux_tmp_658 = TEXT_ALIGN_LEFT
-                end
-                __lux_tmp_657 = __lux_tmp_658
-              end
-              __lux_tmp_656 = __lux_tmp_657
-            end
-            __lux_tmp_655 = __lux_tmp_656
+          local __lux_tmp_alignX_443 = resolved.alignX
+          if __lux_tmp_alignX_443 == nil then
+            __lux_tmp_alignX_443 = resolved.align
           end
-          record.alignX = __lux_tmp_655
+          if __lux_tmp_alignX_443 == nil then
+            __lux_tmp_alignX_443 = record.alignX
+          end
+          if __lux_tmp_alignX_443 == nil then
+            __lux_tmp_alignX_443 = record.ax
+          end
+          if __lux_tmp_alignX_443 == nil then
+            __lux_tmp_alignX_443 = TEXT_ALIGN_LEFT
+          end
+          record.alignX = __lux_tmp_alignX_443
         end
         do
-          local __lux_tmp_659 = resolved.alignY
-          if __lux_tmp_659 == nil then
-            local __lux_tmp_660 = resolved.valign
-            if __lux_tmp_660 == nil then
-              local __lux_tmp_661 = record.alignY
-              if __lux_tmp_661 == nil then
-                local __lux_tmp_662 = record.ay
-                if __lux_tmp_662 == nil then
-                  __lux_tmp_662 = TEXT_ALIGN_TOP
-                end
-                __lux_tmp_661 = __lux_tmp_662
-              end
-              __lux_tmp_660 = __lux_tmp_661
-            end
-            __lux_tmp_659 = __lux_tmp_660
+          local __lux_tmp_alignY_444 = resolved.alignY
+          if __lux_tmp_alignY_444 == nil then
+            __lux_tmp_alignY_444 = resolved.valign
           end
-          record.alignY = __lux_tmp_659
+          if __lux_tmp_alignY_444 == nil then
+            __lux_tmp_alignY_444 = record.alignY
+          end
+          if __lux_tmp_alignY_444 == nil then
+            __lux_tmp_alignY_444 = record.ay
+          end
+          if __lux_tmp_alignY_444 == nil then
+            __lux_tmp_alignY_444 = TEXT_ALIGN_TOP
+          end
+          record.alignY = __lux_tmp_alignY_444
         end
         record.style = resolved
         return record
       end
       renderer.Flush = function(records, reason)
         do
-          local normalized
-          do
-            local __lux_tmp_663 = records
-            if __lux_tmp_663 == nil then
-              __lux_tmp_663 = {}
-            end
-            normalized = __lux_tmp_663
+          local normalized = records
+          if normalized == nil then
+            normalized = {}
           end
           for index = 1, #normalized do
             renderer.NormalizeRecord(normalized[index])
@@ -5608,92 +4928,81 @@ return function(__lux_import)
       renderer.DrawTextBoxImmediate = function(value, font, x, y, w, h, textStyle)
         local resolved
         do
-          local __lux_tmp_664 = textStyle
-          if __lux_tmp_664 == nil then
-            __lux_tmp_664 = {}
+          local __lux_tmp_textStyle_445 = textStyle
+          if __lux_tmp_textStyle_445 == nil then
+            __lux_tmp_textStyle_445 = {}
           end
-          resolved = renderer.ResolveStyle(__lux_tmp_664)
+          resolved = renderer.ResolveStyle(__lux_tmp_textStyle_445)
         end
-        local resolvedFont
-        do
-          local __lux_tmp_665 = resolved.font
-          if __lux_tmp_665 == nil then
-            local __lux_tmp_666 = font
-            if __lux_tmp_666 == nil then
-              __lux_tmp_666 = "DermaDefault"
-            end
-            __lux_tmp_665 = __lux_tmp_666
+        local resolvedFont = resolved.font
+        if resolvedFont == nil then
+          resolvedFont = font
+          if resolvedFont == nil then
+            resolvedFont = "DermaDefault"
           end
-          resolvedFont = __lux_tmp_665
         end
         local lines
         do
-          local __lux_tmp_667 = __lux_module_1.toNumber(w)
-          if __lux_tmp_667 == nil then
-            __lux_tmp_667 = 0
+          local __lux_tmp_w_446 = __lux_module_1.toNumber(w)
+          if __lux_tmp_w_446 == nil then
+            __lux_tmp_w_446 = 0
           end
-          lines = __lux_module_1.wrapText(value, resolvedFont, __lux_tmp_667, resolved.overflow)
+          lines = __lux_module_1.wrapText(value, resolvedFont, __lux_tmp_w_446, resolved.overflow)
         end
         local nativeFont, alias, oversample = __lux_module_1.nativeFor(resolvedFont, resolved)
         local lineHeight = __lux_module_1.lineHeightFor(nativeFont, alias, resolved, oversample)
         local totalH = #lines * lineHeight
         local startY
         do
-          local __lux_tmp_668 = __lux_module_1.toNumber(y)
-          if __lux_tmp_668 == nil then
-            __lux_tmp_668 = 0
+          local __lux_tmp_y_447 = __lux_module_1.toNumber(y)
+          if __lux_tmp_y_447 == nil then
+            __lux_tmp_y_447 = 0
           end
-          local __lux_tmp_669 = __lux_module_1.toNumber(h)
-          if __lux_tmp_669 == nil then
-            __lux_tmp_669 = totalH
+          local __lux_tmp_h_448 = __lux_module_1.toNumber(h)
+          if __lux_tmp_h_448 == nil then
+            __lux_tmp_h_448 = totalH
           end
-          local __lux_tmp_670 = resolved.alignY
-          if __lux_tmp_670 == nil then
-            local __lux_tmp_671 = resolved.valign
-            if __lux_tmp_671 == nil then
-              __lux_tmp_671 = TEXT_ALIGN_TOP
-            end
-            __lux_tmp_670 = __lux_tmp_671
+          local __lux_tmp_alignY_449 = resolved.alignY
+          if __lux_tmp_alignY_449 == nil then
+            __lux_tmp_alignY_449 = resolved.valign
           end
-          startY = __lux_tmp_668 + (__lux_tmp_669 - totalH) * __lux_module_1.alignFactor(__lux_tmp_670, true)
+          if __lux_tmp_alignY_449 == nil then
+            __lux_tmp_alignY_449 = TEXT_ALIGN_TOP
+          end
+          startY = __lux_tmp_y_447 + (__lux_tmp_h_448 - totalH) * __lux_module_1.alignFactor(__lux_tmp_alignY_449, true)
         end
-        local ax
-        do
-          local __lux_tmp_672 = resolved.alignX
-          if __lux_tmp_672 == nil then
-            local __lux_tmp_673 = resolved.align
-            if __lux_tmp_673 == nil then
-              __lux_tmp_673 = TEXT_ALIGN_LEFT
-            end
-            __lux_tmp_672 = __lux_tmp_673
+        local ax = resolved.alignX
+        if ax == nil then
+          ax = resolved.align
+          if ax == nil then
+            ax = TEXT_ALIGN_LEFT
           end
-          ax = __lux_tmp_672
         end
         local tx
         do
-          local __lux_tmp_674 = __lux_module_1.toNumber(x)
-          if __lux_tmp_674 == nil then
-            __lux_tmp_674 = 0
+          local __lux_tmp_x_450 = __lux_module_1.toNumber(x)
+          if __lux_tmp_x_450 == nil then
+            __lux_tmp_x_450 = 0
           end
-          local __lux_tmp_675 = __lux_module_1.toNumber(w)
-          if __lux_tmp_675 == nil then
-            __lux_tmp_675 = 0
+          local __lux_tmp_w_451 = __lux_module_1.toNumber(w)
+          if __lux_tmp_w_451 == nil then
+            __lux_tmp_w_451 = 0
           end
-          tx = __lux_tmp_674 + __lux_tmp_675 * __lux_module_1.alignFactor(ax)
+          tx = __lux_tmp_x_450 + __lux_tmp_w_451 * __lux_module_1.alignFactor(ax)
         end
         local lineStyle = __lux_module_1.textBoxLineStyle(resolved)
         for index = 1, #lines do
           do
-            local __lux_tmp_676 = lineStyle.color
-            if __lux_tmp_676 == nil then
-              __lux_tmp_676 = lineStyle.fill
+            local __lux_tmp_color_452 = lineStyle.color
+            if __lux_tmp_color_452 == nil then
+              __lux_tmp_color_452 = lineStyle.fill
             end
             renderer.DrawTextImmediate(
               lines[index],
               resolvedFont,
               tx,
               startY + (index - 1) * lineHeight,
-              __lux_tmp_676,
+              __lux_tmp_color_452,
               ax,
               TEXT_ALIGN_TOP,
               lineStyle
@@ -5708,18 +5017,23 @@ return function(__lux_import)
         return __lux_module_1.measure(value, font)
       end
       renderer.MeasureTextBox = function(value, font, w, textStyle)
-        local __lux_tmp_677 = textStyle
-        if __lux_tmp_677 == nil then
-          __lux_tmp_677 = {}
+        local __lux_tmp_textStyle_453 = textStyle
+        if __lux_tmp_textStyle_453 == nil then
+          __lux_tmp_textStyle_453 = {}
         end
-        return __lux_module_1.measureBox(value, font, w, renderer.ResolveStyle(__lux_tmp_677))
+        return __lux_module_1.measureBox(
+          value,
+          font,
+          w,
+          renderer.ResolveStyle(__lux_tmp_textStyle_453)
+        )
       end
       renderer.PrewarmText = function(value, font, textStyle)
         local record
         do
-          local __lux_tmp_678 = textStyle
-          if __lux_tmp_678 == nil then
-            __lux_tmp_678 = {}
+          local __lux_tmp_textStyle_454 = textStyle
+          if __lux_tmp_textStyle_454 == nil then
+            __lux_tmp_textStyle_454 = {}
           end
           record = renderer.MakeRecord(
             value,
@@ -5729,7 +5043,7 @@ return function(__lux_import)
             nil,
             TEXT_ALIGN_LEFT,
             TEXT_ALIGN_TOP,
-            __lux_tmp_678
+            __lux_tmp_textStyle_454
           )
         end
         if not __lux_module_1.recordNeedsComposedEntry(record) then
@@ -5774,9 +5088,9 @@ return function(__lux_import)
         end
         local record
         do
-          local __lux_tmp_679 = textStyle
-          if __lux_tmp_679 == nil then
-            __lux_tmp_679 = {}
+          local __lux_tmp_textStyle_455 = textStyle
+          if __lux_tmp_textStyle_455 == nil then
+            __lux_tmp_textStyle_455 = {}
           end
           record = renderer.MakeRecord(
             value,
@@ -5786,49 +5100,49 @@ return function(__lux_import)
             nil,
             TEXT_ALIGN_LEFT,
             TEXT_ALIGN_TOP,
-            __lux_tmp_679
+            __lux_tmp_textStyle_455
           )
         end
         local nativeFont, alias, oversample = __lux_module_1.nativeFor(record.font, record.style)
         local layout = __lux_module_1.layoutFor(record.text, record.font, record.style)
         local needsComposed = __lux_module_1.recordNeedsComposedEntry(record)
-        local __lux_tmp_680
+        local __lux_tmp_456
         if needsComposed then
-          __lux_tmp_680 = "__composed"
+          __lux_tmp_456 = "__composed"
         else
-          __lux_tmp_680 = "__native"
+          __lux_tmp_456 = "__native"
         end
-        local __lux_tmp_681
+        local __lux_tmp_457
         if needsComposed then
-          __lux_tmp_681 = "composed"
+          __lux_tmp_457 = "composed"
         else
-          __lux_tmp_681 = "native"
+          __lux_tmp_457 = "native"
         end
-        local __lux_tmp_682
+        local __lux_tmp_458
         if needsComposed then
-          __lux_tmp_682 = "__composed"
+          __lux_tmp_458 = "__composed"
         else
-          __lux_tmp_682 = "__native"
+          __lux_tmp_458 = "__native"
         end
-        local __lux_tmp_683
+        local __lux_tmp_459
         if needsComposed then
-          __lux_tmp_683 = "compose"
+          __lux_tmp_459 = "compose"
         else
-          __lux_tmp_683 = "native"
+          __lux_tmp_459 = "native"
         end
-        local __lux_tmp_684 = alias.mode
-        if __lux_tmp_684 == nil then
-          __lux_tmp_684 = "native"
+        local __lux_tmp_mode_460 = alias.mode
+        if __lux_tmp_mode_460 == nil then
+          __lux_tmp_mode_460 = "native"
         end
         return {
           text = record.text,
           font = record.font,
           nativeFont = nativeFont,
-          atlasKey = __lux_tmp_680,
-          kind = __lux_tmp_681,
-          routeAtlas = __lux_tmp_682,
-          routeKind = __lux_tmp_683,
-          mode = __lux_tmp_684,
+          atlasKey = __lux_tmp_456,
+          kind = __lux_tmp_457,
+          routeAtlas = __lux_tmp_458,
+          routeKind = __lux_tmp_459,
+          mode = __lux_tmp_mode_460,
           missing = {},
           w = layout.w,
           h = layout.h,
@@ -5836,60 +5150,58 @@ return function(__lux_import)
         }
       end
       renderer.Status = function()
-        local __lux_obj_685 = __lux_module_1.atlas
-        local __lux_val_686 = nil
-        if __lux_obj_685 ~= nil then
-          __lux_val_686 = __lux_obj_685.rt
+        local __lux_obj_atlas_461 = __lux_module_1.atlas
+        local __lux_val_rt_462 = nil
+        if __lux_obj_atlas_461 ~= nil then
+          __lux_val_rt_462 = __lux_obj_atlas_461.rt
         end
-        local __lux_obj_687 = __lux_module_1.atlas
-        local __lux_val_688 = nil
-        if __lux_obj_687 ~= nil then
-          __lux_val_688 = __lux_obj_687.w
+        local __lux_obj_atlas_463 = __lux_module_1.atlas
+        local __lux_tmp_w_464 = nil
+        if __lux_obj_atlas_463 ~= nil then
+          __lux_tmp_w_464 = __lux_obj_atlas_463.w
         end
-        local __lux_tmp_689 = __lux_val_688
-        if __lux_tmp_689 == nil then
-          __lux_tmp_689 = 0
+        if __lux_tmp_w_464 == nil then
+          __lux_tmp_w_464 = 0
         end
-        local __lux_obj_690 = __lux_module_1.atlas
-        local __lux_val_691 = nil
-        if __lux_obj_690 ~= nil then
-          __lux_val_691 = __lux_obj_690.h
+        local __lux_obj_atlas_465 = __lux_module_1.atlas
+        local __lux_tmp_h_466 = nil
+        if __lux_obj_atlas_465 ~= nil then
+          __lux_tmp_h_466 = __lux_obj_atlas_465.h
         end
-        local __lux_tmp_692 = __lux_val_691
-        if __lux_tmp_692 == nil then
-          __lux_tmp_692 = 0
+        if __lux_tmp_h_466 == nil then
+          __lux_tmp_h_466 = 0
         end
-        local __lux_tmp_693 = stats.textDraws
-        if __lux_tmp_693 == nil then
-          __lux_tmp_693 = 0
+        local __lux_tmp_textDraws_467 = stats.textDraws
+        if __lux_tmp_textDraws_467 == nil then
+          __lux_tmp_textDraws_467 = 0
         end
-        local __lux_tmp_694 = stats.textNativeDraws
-        if __lux_tmp_694 == nil then
-          __lux_tmp_694 = 0
+        local __lux_tmp_textNativeDraws_468 = stats.textNativeDraws
+        if __lux_tmp_textNativeDraws_468 == nil then
+          __lux_tmp_textNativeDraws_468 = 0
         end
-        local __lux_tmp_695 = stats.textShaderDraws
-        if __lux_tmp_695 == nil then
-          __lux_tmp_695 = 0
+        local __lux_tmp_textShaderDraws_469 = stats.textShaderDraws
+        if __lux_tmp_textShaderDraws_469 == nil then
+          __lux_tmp_textShaderDraws_469 = 0
         end
-        local __lux_tmp_696 = stats.textComposedDraws
-        if __lux_tmp_696 == nil then
-          __lux_tmp_696 = 0
+        local __lux_tmp_textComposedDraws_470 = stats.textComposedDraws
+        if __lux_tmp_textComposedDraws_470 == nil then
+          __lux_tmp_textComposedDraws_470 = 0
         end
-        local __lux_tmp_697 = stats.textComposedBakes
-        if __lux_tmp_697 == nil then
-          __lux_tmp_697 = 0
+        local __lux_tmp_textComposedBakes_471 = stats.textComposedBakes
+        if __lux_tmp_textComposedBakes_471 == nil then
+          __lux_tmp_textComposedBakes_471 = 0
         end
-        local __lux_tmp_698 = stats.textComposedBlits
-        if __lux_tmp_698 == nil then
-          __lux_tmp_698 = 0
+        local __lux_tmp_textComposedBlits_472 = stats.textComposedBlits
+        if __lux_tmp_textComposedBlits_472 == nil then
+          __lux_tmp_textComposedBlits_472 = 0
         end
-        local __lux_tmp_699 = stats.textMeasureHits
-        if __lux_tmp_699 == nil then
-          __lux_tmp_699 = 0
+        local __lux_tmp_textMeasureHits_473 = stats.textMeasureHits
+        if __lux_tmp_textMeasureHits_473 == nil then
+          __lux_tmp_textMeasureHits_473 = 0
         end
-        local __lux_tmp_700 = stats.textMeasureMisses
-        if __lux_tmp_700 == nil then
-          __lux_tmp_700 = 0
+        local __lux_tmp_textMeasureMisses_474 = stats.textMeasureMisses
+        if __lux_tmp_textMeasureMisses_474 == nil then
+          __lux_tmp_textMeasureMisses_474 = 0
         end
         return {
           mode = "native+composer",
@@ -5898,22 +5210,22 @@ return function(__lux_import)
           styleStackDepth = #styleStack,
           cacheSize = __lux_module_1.measureOrderCount,
           composedEnabled = __lux_module_1.textComposedEnabled(),
-          composedAtlas = __lux_val_686,
-          composedAtlasW = __lux_tmp_689,
-          composedAtlasH = __lux_tmp_692,
+          composedAtlas = __lux_val_rt_462,
+          composedAtlasW = __lux_tmp_w_464,
+          composedAtlasH = __lux_tmp_h_466,
           composedAtlasPages = #__lux_module_1.atlasPages,
           composedAtlasMaxPages = __lux_module_1.MAX_ATLAS_PAGES,
           composedAtlasFill = __lux_module_1.atlasFillRatio(),
           composedEntries = __lux_module_1.composedCacheCount,
           composedFailed = __lux_module_1.atlasFailed,
-          draws = __lux_tmp_693,
-          nativeDraws = __lux_tmp_694,
-          shaderDraws = __lux_tmp_695,
-          composedDraws = __lux_tmp_696,
-          composedBakes = __lux_tmp_697,
-          composedBlits = __lux_tmp_698,
-          measureHits = __lux_tmp_699,
-          measureMisses = __lux_tmp_700,
+          draws = __lux_tmp_textDraws_467,
+          nativeDraws = __lux_tmp_textNativeDraws_468,
+          shaderDraws = __lux_tmp_textShaderDraws_469,
+          composedDraws = __lux_tmp_textComposedDraws_470,
+          composedBakes = __lux_tmp_textComposedBakes_471,
+          composedBlits = __lux_tmp_textComposedBlits_472,
+          measureHits = __lux_tmp_textMeasureHits_473,
+          measureMisses = __lux_tmp_textMeasureMisses_474,
           staticAtlasCount = 0,
           declaredAtlasCount = 0,
           atlasCount = 0,
@@ -5932,10 +5244,8 @@ return function(__lux_import)
           end
           return false
         end
-        do
-          local __lux_tmp_701 = __lux_module_1.debugViewMat
-          if __lux_tmp_701 == nil then
-            __lux_tmp_701 = __lux_module_1.createMaterial(
+        if __lux_module_1.debugViewMat == nil then
+          __lux_module_1.debugViewMat = __lux_module_1.createMaterial(
             "MGFXAtlasDebugView",
             "UnlitGeneric",
             {
@@ -5945,8 +5255,6 @@ return function(__lux_import)
               ["$ignorez"] = "1",
             }
           )
-          end
-          __lux_module_1.debugViewMat = __lux_tmp_701
         end
         local count = #__lux_module_1.atlasPages
         local cols = __lux_module_1.mathMin(count, 4)
@@ -5976,19 +5284,7 @@ return function(__lux_import)
           local row = __lux_module_1.mathFloor((index - 1) / cols)
           local px = x0 + col * (thumbW + pad)
           local py = y0 + row * (thumbH + 20)
-          local __lux_tmp_702 = page.rt ~= nil
-          if __lux_tmp_702 then
-            __lux_tmp_702 = __lux_module_1.debugViewMat ~= nil
-          end
-          local __lux_tmp_703 = __lux_tmp_702
-          if __lux_tmp_703 then
-            __lux_tmp_703 = __lux_module_1.surfaceSetMaterial ~= nil
-          end
-          local __lux_tmp_704 = __lux_tmp_703
-          if __lux_tmp_704 then
-            __lux_tmp_704 = __lux_module_1.surfaceDrawTexturedRect ~= nil
-          end
-          if __lux_tmp_704 then
+          if page.rt ~= nil and __lux_module_1.debugViewMat ~= nil and __lux_module_1.surfaceSetMaterial ~= nil and __lux_module_1.surfaceDrawTexturedRect ~= nil then
             __lux_module_1.debugViewMat:SetTexture("$basetexture", page.rt)
             __lux_module_1.surfaceSetMaterial(__lux_module_1.debugViewMat)
             __lux_module_1.surfaceSetDrawColor(255, 255, 255, 255)
@@ -6014,139 +5310,110 @@ return function(__lux_import)
     end
   end
   do
-    local __lux_import_705 = __lux_import("lux/mgfx/frame#client")
-    local frameImport = __lux_import_705
+    local frameImport = __lux_import("lux/mgfx/frame#client")
     __lux_module_1.frame = frameImport
     __lux_module_1.queuedTextBatch = function(owner, records)
       local state
       do
-        local __lux_obj_706 = owner
-        local __lux_val_707 = nil
-        if __lux_obj_706 ~= nil then
-          __lux_val_707 = __lux_obj_706._FrameState
+        local __lux_obj_owner_475 = owner
+        local __lux_val_FrameState_476 = nil
+        if __lux_obj_owner_475 ~= nil then
+          __lux_val_FrameState_476 = __lux_obj_owner_475._FrameState
         end
-        state = __lux_val_707
+        state = __lux_val_FrameState_476
       end
-      local __lux_tmp_708 = state == nil
-      if not __lux_tmp_708 then
-        __lux_tmp_708 = state.commandStack == nil
-      end
-      local __lux_tmp_709 = __lux_tmp_708
-      if not __lux_tmp_709 then
-        __lux_tmp_709 = state.replaying
-      end
-      if __lux_tmp_709 then
+      if state == nil or state.commandStack == nil or state.replaying then
         return false
       end
       state.commandStack[#state.commandStack + 1] = { op = "DrawTextBatch", records = records }
       do
-        local __lux_tmp_710 = owner.stats
-        if __lux_tmp_710 == nil then
-          __lux_tmp_710 = {}
+        local __lux_tmp_stats_477 = owner.stats
+        if __lux_tmp_stats_477 == nil then
+          __lux_tmp_stats_477 = {}
         end
-        owner.stats = __lux_tmp_710
+        owner.stats = __lux_tmp_stats_477
       end
       do
-        local __lux_tmp_711 = owner.stats.textQueuedBatches
-        if __lux_tmp_711 == nil then
-          __lux_tmp_711 = 0
+        local __lux_tmp_textQueuedBatches_478 = owner.stats.textQueuedBatches
+        if __lux_tmp_textQueuedBatches_478 == nil then
+          __lux_tmp_textQueuedBatches_478 = 0
         end
-        owner.stats.textQueuedBatches = __lux_tmp_711 + 1
+        owner.stats.textQueuedBatches = __lux_tmp_textQueuedBatches_478 + 1
       end
       do
-        local __lux_tmp_712 = owner.stats.textQueuedRecords
-        if __lux_tmp_712 == nil then
-          __lux_tmp_712 = 0
+        local __lux_tmp_textQueuedRecords_479 = owner.stats.textQueuedRecords
+        if __lux_tmp_textQueuedRecords_479 == nil then
+          __lux_tmp_textQueuedRecords_479 = 0
         end
-        local __lux_tmp_713 = records
-        if __lux_tmp_713 == nil then
-          __lux_tmp_713 = {}
+        local __lux_tmp_records_480 = records
+        if __lux_tmp_records_480 == nil then
+          __lux_tmp_records_480 = {}
         end
-        owner.stats.textQueuedRecords = __lux_tmp_712 + #__lux_tmp_713
+        owner.stats.textQueuedRecords = __lux_tmp_textQueuedRecords_479 + #__lux_tmp_records_480
       end
       return true
     end
     __lux_module_1.queuedTextRecord = function(owner, record)
       local state
       do
-        local __lux_obj_714 = owner
-        local __lux_val_715 = nil
-        if __lux_obj_714 ~= nil then
-          __lux_val_715 = __lux_obj_714._FrameState
+        local __lux_obj_owner_481 = owner
+        local __lux_val_FrameState_482 = nil
+        if __lux_obj_owner_481 ~= nil then
+          __lux_val_FrameState_482 = __lux_obj_owner_481._FrameState
         end
-        state = __lux_val_715
+        state = __lux_val_FrameState_482
       end
-      local __lux_tmp_716 = state == nil
-      if not __lux_tmp_716 then
-        __lux_tmp_716 = state.commandStack == nil
-      end
-      local __lux_tmp_717 = __lux_tmp_716
-      if not __lux_tmp_717 then
-        __lux_tmp_717 = state.replaying
-      end
-      if __lux_tmp_717 then
+      if state == nil or state.commandStack == nil or state.replaying then
         return false
       end
       local stack = state.commandStack
       local last = stack[#stack]
-      local __lux_tmp_718 = last ~= nil
-      if __lux_tmp_718 then
-        __lux_tmp_718 = last.op == "DrawTextBatch"
-      end
-      if __lux_tmp_718 then
+      if last ~= nil and last.op == "DrawTextBatch" then
         last.records[#last.records + 1] = record
       else
         stack[#stack + 1] = { op = "DrawTextBatch", records = { record } }
         do
-          local __lux_tmp_719 = owner.stats
-          if __lux_tmp_719 == nil then
-            __lux_tmp_719 = {}
+          local __lux_tmp_stats_483 = owner.stats
+          if __lux_tmp_stats_483 == nil then
+            __lux_tmp_stats_483 = {}
           end
-          owner.stats = __lux_tmp_719
+          owner.stats = __lux_tmp_stats_483
         end
         do
-          local __lux_tmp_720 = owner.stats.textQueuedBatches
-          if __lux_tmp_720 == nil then
-            __lux_tmp_720 = 0
+          local __lux_tmp_textQueuedBatches_484 = owner.stats.textQueuedBatches
+          if __lux_tmp_textQueuedBatches_484 == nil then
+            __lux_tmp_textQueuedBatches_484 = 0
           end
-          owner.stats.textQueuedBatches = __lux_tmp_720 + 1
+          owner.stats.textQueuedBatches = __lux_tmp_textQueuedBatches_484 + 1
         end
       end
       do
-        local __lux_tmp_721 = owner.stats
-        if __lux_tmp_721 == nil then
-          __lux_tmp_721 = {}
+        local __lux_tmp_stats_485 = owner.stats
+        if __lux_tmp_stats_485 == nil then
+          __lux_tmp_stats_485 = {}
         end
-        owner.stats = __lux_tmp_721
+        owner.stats = __lux_tmp_stats_485
       end
       do
-        local __lux_tmp_722 = owner.stats.textQueuedRecords
-        if __lux_tmp_722 == nil then
-          __lux_tmp_722 = 0
+        local __lux_tmp_textQueuedRecords_486 = owner.stats.textQueuedRecords
+        if __lux_tmp_textQueuedRecords_486 == nil then
+          __lux_tmp_textQueuedRecords_486 = 0
         end
-        owner.stats.textQueuedRecords = __lux_tmp_722 + 1
+        owner.stats.textQueuedRecords = __lux_tmp_textQueuedRecords_486 + 1
       end
       return true
     end
     __lux_module_1.queuedTextBox = function(owner, textValue, font, x, y, w, h, textStyle)
       local state
       do
-        local __lux_obj_723 = owner
-        local __lux_val_724 = nil
-        if __lux_obj_723 ~= nil then
-          __lux_val_724 = __lux_obj_723._FrameState
+        local __lux_obj_owner_487 = owner
+        local __lux_val_FrameState_488 = nil
+        if __lux_obj_owner_487 ~= nil then
+          __lux_val_FrameState_488 = __lux_obj_owner_487._FrameState
         end
-        state = __lux_val_724
+        state = __lux_val_FrameState_488
       end
-      local __lux_tmp_725 = state == nil
-      if not __lux_tmp_725 then
-        __lux_tmp_725 = state.commandStack == nil
-      end
-      local __lux_tmp_726 = __lux_tmp_725
-      if not __lux_tmp_726 then
-        __lux_tmp_726 = state.replaying
-      end
-      if __lux_tmp_726 then
+      if state == nil or state.commandStack == nil or state.replaying then
         return false
       end
       state.commandStack[#state.commandStack + 1] = {
@@ -6163,42 +5430,37 @@ return function(__lux_import)
     end
     __lux_module_1.install = function(owner)
       do
-        local __lux_tmp_727 = owner.stats
-        if __lux_tmp_727 == nil then
-          __lux_tmp_727 = {}
+        local __lux_tmp_stats_489 = owner.stats
+        if __lux_tmp_stats_489 == nil then
+          __lux_tmp_stats_489 = {}
         end
-        owner.stats = __lux_tmp_727
+        owner.stats = __lux_tmp_stats_489
       end
-      local materialState
-      do
-        local __lux_tmp_728 = owner._MaterialState
-        if __lux_tmp_728 == nil then
-          __lux_tmp_728 = {}
-        end
-        materialState = __lux_tmp_728
+      local materialState = owner._MaterialState
+      if materialState == nil then
+        materialState = {}
       end
       local renderer
       do
-        local __lux_tmp_729 = owner._Materials
-        if __lux_tmp_729 == nil then
-          local __lux_tmp_730 = materialState.materials
-          if __lux_tmp_730 == nil then
-            __lux_tmp_730 = {}
-          end
-          __lux_tmp_729 = __lux_tmp_730
+        local __lux_tmp_Materials_490 = owner._Materials
+        if __lux_tmp_Materials_490 == nil then
+          __lux_tmp_Materials_490 = materialState.materials
         end
-        local __lux_tmp_731 = owner.MaterialOK
-        if __lux_tmp_731 == nil then
-          __lux_tmp_731 = materialState.matOK
+        if __lux_tmp_Materials_490 == nil then
+          __lux_tmp_Materials_490 = {}
+        end
+        local __lux_tmp_MaterialOK_491 = owner.MaterialOK
+        if __lux_tmp_MaterialOK_491 == nil then
+          __lux_tmp_MaterialOK_491 = materialState.matOK
         end
         renderer = __lux_module_1.createTextRenderer(
           {
             M = owner,
             owner = owner,
             stats = owner.stats,
-            materials = __lux_tmp_729,
+            materials = __lux_tmp_Materials_490,
             createPageTextMaterials = materialState.CreatePageTextMaterials,
-            matOK = __lux_tmp_731,
+            matOK = __lux_tmp_MaterialOK_491,
             profiler = owner.Profiler,
             restoreScissor = __lux_module_1.frame.restoreScissor,
             gradientLutForFill = owner.GradientLutForFill,
@@ -6216,18 +5478,18 @@ return function(__lux_import)
       owner.MeasureTextBox = renderer.MeasureTextBox
       owner.PrewarmText = renderer.PrewarmText
       owner.TextBatchEx = function(records, reason)
-        local __lux_tmp_732 = records
-        if __lux_tmp_732 == nil then
-          __lux_tmp_732 = {}
+        local __lux_tmp_records_492 = records
+        if __lux_tmp_records_492 == nil then
+          __lux_tmp_records_492 = {}
         end
-        if __lux_module_1.queuedTextBatch(owner, __lux_tmp_732) then
+        if __lux_module_1.queuedTextBatch(owner, __lux_tmp_records_492) then
           return
         end
-        local __lux_tmp_733 = reason
-        if __lux_tmp_733 == nil then
-          __lux_tmp_733 = "batch"
+        local __lux_tmp_reason_493 = reason
+        if __lux_tmp_reason_493 == nil then
+          __lux_tmp_reason_493 = "batch"
         end
-        return renderer.Flush(records, __lux_tmp_733)
+        return renderer.Flush(records, __lux_tmp_reason_493)
       end
       owner.Text = function(value, font, x, y, color, ax, ay)
         return owner.TextEx(value, font, x, y, color, ax, ay, nil)
@@ -6235,11 +5497,11 @@ return function(__lux_import)
       owner.TextEx = function(value, font, x, y, color, ax, ay, textStyle)
         local record
         do
-          local __lux_tmp_734 = textStyle
-          if __lux_tmp_734 == nil then
-            __lux_tmp_734 = {}
+          local __lux_tmp_textStyle_494 = textStyle
+          if __lux_tmp_textStyle_494 == nil then
+            __lux_tmp_textStyle_494 = {}
           end
-          record = renderer.MakeRecord(value, font, x, y, color, ax, ay, __lux_tmp_734)
+          record = renderer.MakeRecord(value, font, x, y, color, ax, ay, __lux_tmp_textStyle_494)
         end
         if __lux_module_1.queuedTextRecord(owner, record) then
           return
@@ -6266,11 +5528,11 @@ return function(__lux_import)
       owner.TextBoxEx = function(value, font, x, y, w, h, textStyle)
         local resolved
         do
-          local __lux_tmp_735 = textStyle
-          if __lux_tmp_735 == nil then
-            __lux_tmp_735 = {}
+          local __lux_tmp_textStyle_495 = textStyle
+          if __lux_tmp_textStyle_495 == nil then
+            __lux_tmp_textStyle_495 = {}
           end
-          resolved = renderer.ResolveStyle(__lux_tmp_735)
+          resolved = renderer.ResolveStyle(__lux_tmp_textStyle_495)
         end
         if __lux_module_1.queuedTextBox(owner, value, font, x, y, w, h, resolved) then
           return

@@ -284,14 +284,10 @@ fn drawRoundRectFillPass(x, y, w, h, radius, fill) {
   local material = roundRectMaterials.roundrect
   stopif not materialOK(material), false
 
-  local setupTrace = roundRectTraceStart("round.fillPass.setup")
   setupRoundRectConstants(material, w, h, fill, nil, 0, roundRectRadiusScalar(radius, w, h))
   surfaceSetMaterial(material)
   surfaceSetDrawColor(255, 255, 255, 255)
-  roundRectTraceEnd(setupTrace)
-  local drawTrace = roundRectTraceStart("round.fillPass.draw")
   drawTexturedQuad(x, y, w, h, material)
-  roundRectTraceEnd(drawTrace)
   true
 }
 
@@ -309,7 +305,6 @@ fn drawSolidRoundFast(x, y, w, h, radiusValue, fill) {
 
   local profiling = roundRectProfileActive()
   local setupProfile = profiling then roundRectProfileStart() else nil
-  local setupTrace = roundRectTraceStart("round.fast.solidRound.setup")
   local color = fill.colorA ?? color_white
   setupParamMatrixRaw(material,
     (color.r ?? 0) * inv255,
@@ -322,38 +317,33 @@ fn drawSolidRoundFast(x, y, w, h, radiusValue, fill) {
   )
   surfaceSetMaterial(material)
   surfaceSetDrawColor(255, 255, 255, 255)
-  roundRectTraceEnd(setupTrace)
   if profiling {
     roundRectProfileEnd("round.fast.solidRound.setup", setupProfile)
   }
   local drawProfile = profiling then roundRectProfileStart() else nil
-  local drawTrace = roundRectTraceStart("round.fast.solidRound.draw")
   drawTexturedQuad(x, y, w, h, material)
-  roundRectTraceEnd(drawTrace)
   if profiling {
     roundRectProfileEnd("round.fast.solidRound.draw", drawProfile)
   }
   true
 }
 
-fn drawRoundRectPattern(x, y, w, h, radius, pattern) {
-  local spec = patternStyle(pattern)
+fn drawRoundRectPatternPrepared(x, y, w, h, radius, spec) {
   stopif spec == nil or not shadersActive() or not materialOK(roundRectMaterials.roundrect_pattern), false
 
   local color = spec.color ?? spec.tint
   stopif color ~= nil and (color.a ?? 255) <= 0, false
 
   local material = roundRectMaterials.roundrect_pattern
-  local setupTrace = roundRectTraceStart("round.pattern.setup")
   setupPatternConstants(material, w, h, roundRectRadiusScalar(radius, w, h), spec)
   surfaceSetMaterial(material)
   surfaceSetDrawColor(255, 255, 255, 255)
-  roundRectTraceEnd(setupTrace)
-  local drawTrace = roundRectTraceStart("round.pattern.draw")
   drawTexturedQuad(x, y, w, h, material)
-  roundRectTraceEnd(drawTrace)
   true
 }
+
+fn drawRoundRectPattern(x, y, w, h, radius, pattern) =
+  drawRoundRectPatternPrepared(x, y, w, h, radius, patternStyle(pattern))
 
 fn radiusWithGrow(radius, grow) {
   grow = mathMax(0, toNumber(grow) ?? 0)
@@ -377,7 +367,6 @@ fn drawRoundRectInnerGlowRaw(x, y, w, h, radius, enabled, gr, gg, gb, ga, glowWi
   }
 
   local material = roundRectMaterials.roundrect_innerglow
-  local setupTrace = roundRectTraceStart("round.innerGlow.setup")
   setupParamMatrixRaw(material,
     gr, gg, gb, ga,
     w, h, 0, roundRectRadiusScalar(radius, w, h),
@@ -389,10 +378,7 @@ fn drawRoundRectInnerGlowRaw(x, y, w, h, radius, enabled, gr, gg, gb, ga, glowWi
   )
   surfaceSetMaterial(material)
   surfaceSetDrawColor(255, 255, 255, 255)
-  roundRectTraceEnd(setupTrace)
-  local drawTrace = roundRectTraceStart("round.innerGlow.draw")
   drawTexturedQuad(x, y, w, h, material)
-  roundRectTraceEnd(drawTrace)
   true
 }
 
@@ -401,14 +387,17 @@ fn drawRoundRectShadowOuterRaw(
   hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowExtent, shadowGrow, shadowStrength, shadowFalloff,
   hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerExtent, outerGrow, outerStrength, outerFalloff
 ) {
+  local profiling = roundRectProfileActive()
   hasShadow = hasShadow and sa > 0 and shadowStrength > 0
   hasOuter = hasOuter and oa > 0 and outerStrength > 0
-  stopif not hasShadow and not hasOuter, false
-  stopif not shadersActive() or not materialOK(roundRectMaterials.roundrect_shadow_outer), false
+  if not hasShadow and not hasOuter {
+    return false
+  }
+  if not shadersActive() or not materialOK(roundRectMaterials.roundrect_shadow_outer) {
+    return false
+  }
 
-  local profiling = roundRectProfileActive()
   local setupProfile = profiling then roundRectProfileStart() else nil
-  local setupTrace = roundRectTraceStart("round.shadowOuter.setup")
 
   shadowGrow = mathMax(0, shadowGrow ?? 0)
   outerGrow = mathMax(0, outerGrow ?? 0)
@@ -496,15 +485,12 @@ fn drawRoundRectShadowOuterRaw(
     hasOuter then outerFalloff else 1,
     0, 0, 0, 0
   )
-  roundRectTraceEnd(setupTrace)
   if profiling {
     roundRectProfileEnd("round.shadowOuter.setup", setupProfile)
   }
 
   local bleedProfile = profiling then roundRectProfileStart() else nil
-  local bleedTrace = roundRectTraceStart("round.shadowOuter.bleedBegin")
   local bleedToken = beginPanelEffectDraw(sx, sy, sw, sh)
-  roundRectTraceEnd(bleedTrace)
   if profiling {
     roundRectProfileEnd("round.shadowOuter.bleedBegin", bleedProfile)
   }
@@ -512,17 +498,13 @@ fn drawRoundRectShadowOuterRaw(
   surfaceSetMaterial(material)
   surfaceSetDrawColor(255, 255, 255, 255)
   local drawProfile = profiling then roundRectProfileStart() else nil
-  local drawTrace = roundRectTraceStart("round.shadowOuter.draw")
   drawTexturedQuad(sx, sy, sw, sh, material)
-  roundRectTraceEnd(drawTrace)
   if profiling {
     roundRectProfileEnd("round.shadowOuter.draw", drawProfile)
   }
 
   bleedProfile = profiling then roundRectProfileStart() else nil
-  bleedTrace = roundRectTraceStart("round.shadowOuter.bleedEnd")
   endPanelEffectBleed(bleedToken)
-  roundRectTraceEnd(bleedTrace)
   if profiling {
     roundRectProfileEnd("round.shadowOuter.bleedEnd", bleedProfile)
   }
@@ -544,7 +526,6 @@ fn drawRoundRectFusedRaw(
 
   local profiling = roundRectProfileActive()
   local setupProfile = profiling then roundRectProfileStart() else nil
-  local setupTrace = roundRectTraceStart("round.fused.setup")
 
   shadowX = shadowX ?? 0
   shadowY = shadowY ?? 0
@@ -589,7 +570,6 @@ fn drawRoundRectFusedRaw(
   local sw = ex - sx
   local sh = ey - sy
   if sw <= 0 or sh <= 0 {
-    roundRectTraceEnd(setupTrace)
     if profiling {
       roundRectProfileEnd("round.fused.setup", setupProfile)
     }
@@ -612,15 +592,12 @@ fn drawRoundRectFusedRaw(
   )
   surfaceSetMaterial(material)
   surfaceSetDrawColor(255, 255, 255, 255)
-  roundRectTraceEnd(setupTrace)
   if profiling {
     roundRectProfileEnd("round.fused.setup", setupProfile)
   }
 
   local bleedProfile = profiling then roundRectProfileStart() else nil
-  local bleedTrace = roundRectTraceStart("round.fused.bleedBegin")
   local bleedToken = beginPanelEffectDraw(sx, sy, sw, sh)
-  roundRectTraceEnd(bleedTrace)
   if profiling {
     roundRectProfileEnd("round.fused.bleedBegin", bleedProfile)
   }
@@ -630,17 +607,13 @@ fn drawRoundRectFusedRaw(
   local u1 = (ex - x) / w
   local v1 = (ey - y) / h
   local drawProfile = profiling then roundRectProfileStart() else nil
-  local drawTrace = roundRectTraceStart("round.fused.draw")
   drawTexturedQuadUV(sx, sy, sw, sh, u0, v0, u1, v1, material)
-  roundRectTraceEnd(drawTrace)
   if profiling {
     roundRectProfileEnd("round.fused.draw", drawProfile)
   }
 
   bleedProfile = profiling then roundRectProfileStart() else nil
-  bleedTrace = roundRectTraceStart("round.fused.bleedEnd")
   endPanelEffectBleed(bleedToken)
-  roundRectTraceEnd(bleedTrace)
   if profiling {
     roundRectProfileEnd("round.fused.bleedEnd", bleedProfile)
   }
@@ -663,7 +636,6 @@ fn backdropTintColor(spec) {
 
 fn drawRoundRectBackdrop(x, y, w, h, radius, spec) {
   stopif spec == nil, nil
-  local trace = roundRectTraceStart("round.backdrop.pass")
   local pad = mathMax(0, toNumber(spec.padding) ?? 0)
   local bx = x - pad
   local by = y - pad
@@ -674,7 +646,6 @@ fn drawRoundRectBackdrop(x, y, w, h, radius, spec) {
   local blurred = false
 
   if spec.blur > 0 and roundRectBlurRT ~= nil and renderCopyRenderTargetToTexture ~= nil and materialOK(roundRectMaterials.roundrect_blur) {
-    local blurTrace = roundRectTraceStart("round.backdrop.blur")
     local material = roundRectMaterials.roundrect_blur
     local intensity = blurIntensity(spec.blur)
     surfaceSetMaterial(material)
@@ -719,18 +690,14 @@ fn drawRoundRectBackdrop(x, y, w, h, radius, spec) {
       0, 0, 0, 0
     )
     drawTexturedQuad(bx, by, bw, bh, material)
-    roundRectTraceEnd(blurTrace)
     blurred = true
   }
 
   if tint ~= nil and not blurred {
-    local tintTrace = roundRectTraceStart("round.backdrop.tint")
     backdropFillScratch._mgfxFillVisible = true
     drawRoundRectFillPass(bx, by, bw, bh, br, backdropFillScratch)
-    roundRectTraceEnd(tintTrace)
   }
 
-  roundRectTraceEnd(trace)
   spec
 }
 
@@ -740,7 +707,6 @@ fn drawRoundRectStrokePass(x, y, w, h, radius, stroke, strokeWidth) {
   if materialOK(roundRectMaterials.roundrect_stroke) {
     local material = roundRectMaterials.roundrect_stroke
     local r, g, b, a = style.color01(stroke)
-    local setupTrace = roundRectTraceStart("round.strokePass.setup")
     setupParamMatrix(material,
       r, g, b, a,
       w, h, mathMax(0, style.strokeWidth(strokeWidth, 0)), roundRectRadiusScalar(radius, w, h),
@@ -749,23 +715,16 @@ fn drawRoundRectStrokePass(x, y, w, h, radius, stroke, strokeWidth) {
     )
     surfaceSetMaterial(material)
     surfaceSetDrawColor(255, 255, 255, 255)
-    roundRectTraceEnd(setupTrace)
-    local drawTrace = roundRectTraceStart("round.strokePass.draw")
     drawTexturedQuad(x, y, w, h, material)
-    roundRectTraceEnd(drawTrace)
     return true
   }
 
   local material = roundRectMaterials.roundrect
   stopif not materialOK(material), false
-  local setupTrace = roundRectTraceStart("round.strokePass.setup")
   setupRoundRectConstants(material, w, h, transparentFill, stroke, strokeWidth, roundRectRadiusScalar(radius, w, h))
   surfaceSetMaterial(material)
   surfaceSetDrawColor(255, 255, 255, 255)
-  roundRectTraceEnd(setupTrace)
-  local drawTrace = roundRectTraceStart("round.strokePass.draw")
   drawTexturedQuad(x, y, w, h, material)
-  roundRectTraceEnd(drawTrace)
   true
 }
 
@@ -774,7 +733,6 @@ fn drawRoundRectFxPassRaw(x, y, w, h, radius, fill, stroke, strokeWidth, innerEn
 
   local profiling = roundRectProfileActive()
   local setupProfile = profiling then roundRectProfileStart() else nil
-  local setupTrace = roundRectTraceStart("round.base.fx.setup")
   local material = roundRectMaterials.roundrect_fx
   if not innerEnabled {
     gr = 0
@@ -796,7 +754,6 @@ fn drawRoundRectFxPassRaw(x, y, w, h, radius, fill, stroke, strokeWidth, innerEn
     0, 0, 0, 0,
     0, 0, 0, 0
   ) {
-    roundRectTraceEnd(setupTrace)
     if profiling {
       roundRectProfileEnd("round.base.fx.setup", setupProfile)
     }
@@ -805,14 +762,11 @@ fn drawRoundRectFxPassRaw(x, y, w, h, radius, fill, stroke, strokeWidth, innerEn
   setupRoundRectConstants(material, w, h, fill, stroke, strokeWidth, roundRectRadiusScalar(radius, w, h))
   surfaceSetMaterial(material)
   surfaceSetDrawColor(255, 255, 255, 255)
-  roundRectTraceEnd(setupTrace)
   if profiling {
     roundRectProfileEnd("round.base.fx.setup", setupProfile)
   }
   local drawProfile = profiling then roundRectProfileStart() else nil
-  local drawTrace = roundRectTraceStart("round.base.fx.draw")
   drawTexturedQuad(x, y, w, h, material)
-  roundRectTraceEnd(drawTrace)
   if profiling {
     roundRectProfileEnd("round.base.fx.draw", drawProfile)
   }

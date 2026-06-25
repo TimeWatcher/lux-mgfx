@@ -162,15 +162,7 @@ return function(__lux_import)
     end
     current = function()
       local globalPack = MGFXShaderPack
-      local __lux_tmp_1 = globalPack ~= nil
-      if __lux_tmp_1 then
-        __lux_tmp_1 = globalPack.GMA ~= nil
-      end
-      local __lux_tmp_2 = __lux_tmp_1
-      if __lux_tmp_2 then
-        __lux_tmp_2 = globalPack.GMA ~= ""
-      end
-      if __lux_tmp_2 then
+      if globalPack ~= nil and globalPack.GMA ~= nil and globalPack.GMA ~= "" then
         return globalPack
       end
       return pack()
@@ -179,13 +171,9 @@ return function(__lux_import)
       if name == nil then
         name = "MGFXShaderPack"
       end
-      local target
-      do
-        local __lux_tmp_3 = _G[name]
-        if __lux_tmp_3 == nil then
-          __lux_tmp_3 = {}
-        end
-        target = __lux_tmp_3
+      local target = _G[name]
+      if target == nil then
+        target = {}
       end
       target.Version = VERSION
       target.GMA = gma()

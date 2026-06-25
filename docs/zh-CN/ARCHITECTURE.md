@@ -68,6 +68,23 @@ Pattern 是 shader-space paint field。UI code 不应该把大面积 stripe、sm
 - color helper
 - glow softness 到 shader falloff 的转换
 
+这些 normalization 应停在 public API 边界。进入具体 renderer 后，内部函数应消费 prepared fill/stroke/effect scalar 参数，而不是继续传递 style 表或构造临时 spec 表。这样代码链路更短，也避免每帧在 `shadowRaw`、`outerGlowRaw`、`innerGlowRaw`、`backdropStyle`、`patternStyle`、`fillFromStyle`、`fillVisible` 上重复付费。
+
+推荐链路：
+
+```text
+MGFX.RoundedBoxEx(..., style)
+  -> API 边界解析一次
+  -> scalar radius/fill/stroke/effect 参数
+  -> shader/fallback draw
+```
+
+避免链路：
+
+```text
+widget helper -> 临时 style table -> shape helper -> 再次 normalization -> draw
+```
+
 `cl_mgfx_capabilities.lua` 负责 target capability matrix 和 paint-slot normalization。它是 public style record 与 primitive family 之间的边界。Capability entry 必须描述已经实现的渲染行为，而不是愿望清单。
 
 `cl_mgfx_geometry.lua` 负责纯底层绘制和图像几何 helper：

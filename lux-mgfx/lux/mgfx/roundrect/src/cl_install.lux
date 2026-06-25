@@ -2,6 +2,7 @@ export client fn install(owner) {
   configureRoundRect(owner)
   owner._internal = owner._internal ?? {}
   owner._internal.drawRoundRectRaw = drawRoundRectRaw
+  owner._internal.drawRoundRectPrepared = drawRoundRectPrepared
   owner._internal.drawRoundRectImmediate = drawRoundRectImmediate
   owner._internal.setupParamMatrix = setupParamMatrix
   owner._internal.setupParamMatrixRaw = setupParamMatrixRaw
@@ -25,6 +26,7 @@ export client fn install(owner) {
   owner.CapsuleEx = capsuleEx
   owner._RoundRect = {
     drawRoundRectRaw = drawRoundRectRaw,
+    drawRoundRectPrepared = drawRoundRectPrepared,
     drawRoundRectImmediate = drawRoundRectImmediate,
     fallbackRoundRectPoints = fallbackRoundRectPoints,
     roundRaw = owner._internal.roundRaw,

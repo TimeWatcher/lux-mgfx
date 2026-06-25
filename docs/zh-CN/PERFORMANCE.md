@@ -5,11 +5,48 @@ MGFX 的性能目标不是“消灭 immediate”，而是在 immediate 心智模
 ## 当前方向
 
 - Shape 和 widget 保持 immediate shader/fallback path。
+- Public `NameEx(..., style)` 仍然接受表，但 renderer 内部必须在 API 边界展开为直接参数，不能一层层传 style 表再重复解析。
 - 只保留经过实测的专用 fused shader，不恢复通用 data-texture batch scheduler。
 - 常规 shape 参数优先通过 `$viewprojmat` / pixel shader `c11` 上传。
 - `$invviewprojmat` / pixel shader `c15` 作为辅助 16-float 参数页，`$c0..$c3` 只保留给兼容和诊断。
 - Pattern 在 shader 中数学化生成，不拆成大量 `LineEx` 或几何段。
 - Scoreboard、表格、聊天和普通 label 文本优先走原生 GMod text。
+
+## 当前实测基线
+
+当前代表性压力场景是复杂 shop UI：大量 rounded box、gradient、stroke、shadow、glow、image 和少量 text 混合绘制。关闭诊断后，实测结果为：
+
+```text
+满商品列表      稳定 130+ FPS
+商品较少分类    稳定 160+ FPS
+```
+
+这次提升来自减少 Lua 侧准备工作和无意义 pass，而不是恢复通用 batch scheduler。
+
+## Prepared 绘制层
+
+外部 API 可以继续使用 style table，因为这是 GLua/Lux 调用方最容易读写的形式。但内部绘制层不应该继续传递这些表。
+
+正确链路：
+
+```text
+public API style table
+  -> API 边界解析一次
+  -> prepared fill/stroke/effect scalar 参数
+  -> shader/fallback draw
+```
+
+应避免的链路：
+
+```text
+style table
+  -> helper table/spec
+  -> 转发 style table
+  -> 再次 normalization
+  -> shader/fallback draw
+```
+
+RoundedBox、Chamfer、Progress/Segment、Image round/chamfer、line-backed rect、poly/chamfer fallback 现在都走 prepared 参数。这样 public API 仍然易用，但 inner loop 不再重复调用 `shadowRaw`、`outerGlowRaw`、`innerGlowRaw`、`backdropStyle`、`patternStyle`、`fillFromStyle` 和 `fillVisible`。
 
 ## 参数上传
 

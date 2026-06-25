@@ -18,34 +18,20 @@ return function(__lux_import)
   local installGlobal
   local create
   do
-    local __lux_import_1 = __lux_import("lux/mgfx/api#client")
-    local api_mod = __lux_import_1
-    local __lux_import_2 = __lux_import("lux/mgfx/capabilities#client")
-    local capabilities_mod = __lux_import_2
-    local __lux_import_3 = __lux_import("lux/mgfx/commands#client")
-    local commands_mod = __lux_import_3
-    local __lux_import_4 = __lux_import("lux/mgfx/console#client")
-    local console_mod = __lux_import_4
-    local __lux_import_5 = __lux_import("lux/mgfx/frame#client")
-    local frame_mod = __lux_import_5
-    local __lux_import_6 = __lux_import("lux/mgfx/geometry#client")
-    local geometry_mod = __lux_import_6
-    local __lux_import_7 = __lux_import("lux/mgfx/materials#client")
-    local materials_mod = __lux_import_7
-    local __lux_import_8 = __lux_import("lux/mgfx/primitives#client")
-    local primitives_mod = __lux_import_8
-    local __lux_import_9 = __lux_import("lux/mgfx/profiler#client")
-    local profiler_mod = __lux_import_9
-    local __lux_import_10 = __lux_import("lux/mgfx/roundrect#client")
-    local roundrect_mod = __lux_import_10
-    local __lux_import_11 = __lux_import("lux/mgfx/shaderpack#client")
-    local shaderpack_mod = __lux_import_11
-    local __lux_import_12 = __lux_import("lux/mgfx/style#client")
-    local style_mod = __lux_import_12
-    local __lux_import_13 = __lux_import("lux/mgfx/text#client")
-    local text_mod = __lux_import_13
-    local __lux_import_14 = __lux_import("lux/mgfx/widgets#client")
-    local widgets_mod = __lux_import_14
+    local api_mod = __lux_import("lux/mgfx/api#client")
+    local capabilities_mod = __lux_import("lux/mgfx/capabilities#client")
+    local commands_mod = __lux_import("lux/mgfx/commands#client")
+    local console_mod = __lux_import("lux/mgfx/console#client")
+    local frame_mod = __lux_import("lux/mgfx/frame#client")
+    local geometry_mod = __lux_import("lux/mgfx/geometry#client")
+    local materials_mod = __lux_import("lux/mgfx/materials#client")
+    local primitives_mod = __lux_import("lux/mgfx/primitives#client")
+    local profiler_mod = __lux_import("lux/mgfx/profiler#client")
+    local roundrect_mod = __lux_import("lux/mgfx/roundrect#client")
+    local shaderpack_mod = __lux_import("lux/mgfx/shaderpack#client")
+    local style_mod = __lux_import("lux/mgfx/style#client")
+    local text_mod = __lux_import("lux/mgfx/text#client")
+    local widgets_mod = __lux_import("lux/mgfx/widgets#client")
     api = api_mod
     capabilities = capabilities_mod
     commands = commands_mod
@@ -67,13 +53,9 @@ return function(__lux_import)
       if name == nil then
         name = "MGFX"
       end
-      local out
-      do
-        local __lux_tmp_15 = _G[name]
-        if __lux_tmp_15 == nil then
-          __lux_tmp_15 = {}
-        end
-        out = __lux_tmp_15
+      local out = _G[name]
+      if out == nil then
+        out = {}
       end
       _G[name] = install(out)
       return _G[name]
