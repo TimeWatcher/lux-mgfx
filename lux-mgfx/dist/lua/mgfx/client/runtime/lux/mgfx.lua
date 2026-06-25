@@ -3,6 +3,7 @@ return function(__lux_import)
   local api
   local capabilities
   local commands
+  local console
   local frame
   local geometry
   local materials
@@ -21,6 +22,7 @@ return function(__lux_import)
     local api_mod = __lux_import("lux/mgfx/api#client")
     local capabilities_mod = __lux_import("lux/mgfx/capabilities#client")
     local commands_mod = __lux_import("lux/mgfx/commands#client")
+    local console_mod = __lux_import("lux/mgfx/console#client")
     local frame_mod = __lux_import("lux/mgfx/frame#client")
     local geometry_mod = __lux_import("lux/mgfx/geometry#client")
     local materials_mod = __lux_import("lux/mgfx/materials#client")
@@ -35,6 +37,7 @@ return function(__lux_import)
     api = api_mod
     capabilities = capabilities_mod
     commands = commands_mod
+    console = console_mod
     frame = frame_mod
     geometry = geometry_mod
     materials = materials_mod
@@ -71,6 +74,7 @@ return function(__lux_import)
   __lux_exports.api = api
   __lux_exports.capabilities = capabilities
   __lux_exports.commands = commands
+  __lux_exports.console = console
   __lux_exports.frame = frame
   __lux_exports.geometry = geometry
   __lux_exports.materials = materials

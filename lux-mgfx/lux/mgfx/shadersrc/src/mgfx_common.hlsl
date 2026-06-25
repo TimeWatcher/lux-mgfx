@@ -16,11 +16,17 @@ const float4 Constants1 : register(c1);
 const float4 Constants2 : register(c2);
 const float4 Constants3 : register(c3);
 const float4x4 MGFXExtraParams : register(c11);
+const float4x4 MGFXAuxParams : register(c15);
 
 #define EXTRA0 MGFXExtraParams[0]
 #define EXTRA1 MGFXExtraParams[1]
 #define EXTRA2 MGFXExtraParams[2]
 #define EXTRA3 MGFXExtraParams[3]
+
+#define AUX0 MGFXAuxParams[0]
+#define AUX1 MGFXAuxParams[1]
+#define AUX2 MGFXAuxParams[2]
+#define AUX3 MGFXAuxParams[3]
 
 #define FILL_COLOR_B EXTRA0
 #define SIZE EXTRA1.xy

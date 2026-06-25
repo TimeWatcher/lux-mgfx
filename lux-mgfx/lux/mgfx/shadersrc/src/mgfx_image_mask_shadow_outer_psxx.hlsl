@@ -1,24 +1,23 @@
 #include "mgfx_common.hlsl"
 
-#define SHADOW_COLOR EXTRA0
-#define SHAPE_SIZE EXTRA1.xy
-#define MASK_KIND_PACKED EXTRA1.z
-#define MASK_RADIUS EXTRA1.w
-#define SHADOW_SPREAD EXTRA2.x
-#define SHADOW_OPACITY EXTRA2.y
-#define SHADOW_SOFTNESS EXTRA2.z
-#define SHADOW_EXTENT EXTRA2.w
-#define MASK_PARAMS EXTRA3
+#define DRAW_SIZE EXTRA0.xy
+#define SHAPE_SIZE EXTRA0.zw
+#define MASK_KIND_PACKED EXTRA1.x
+#define MASK_RADIUS EXTRA1.y
+#define SHADOW_COLOR EXTRA2
+#define SHADOW_OFFSET EXTRA3.xy
+#define SHADOW_WIDTH EXTRA3.z
+#define SHADOW_OPACITY EXTRA3.w
 
-#define MASK_ROUNDED 0.0
-#define MASK_CHAMFER 1.0
-#define MASK_CIRCLE 2.0
-#define MASK_CAPSULE 3.0
+#define OUTER_COLOR AUX0
+#define OUTER_OFFSET AUX1.xy
+#define OUTER_WIDTH AUX1.z
+#define OUTER_OPACITY AUX1.w
+#define SHADOW_SOFTNESS AUX2.x
+#define OUTER_SOFTNESS AUX2.y
+#define MASK_PARAMS AUX3
+
 #define MASK_TEXTURE_A 10.0
-#define MASK_TEXTURE_R 11.0
-#define MASK_TEXTURE_G 12.0
-#define MASK_TEXTURE_B 13.0
-#define MASK_TEXTURE_LUMA 14.0
 
 float sd_roundrect_mask(float2 p, float2 halfSize, float radius)
 {
@@ -118,10 +117,10 @@ float texture_mask_sample(float2 localUV, float kind, float invert)
 	return inBounds * lerp(v, 1.0 - v, invert);
 }
 
-float texture_shadow(float2 localUV, float kind, float invert)
+float texture_effect(float2 localUV, float kind, float invert, float width, float softness, bool outsideOnly)
 {
-	float blur = max(SHADOW_SPREAD, 0.001);
-	float falloff = max(1.0 / max(SHADOW_SOFTNESS, 0.1), 0.35);
+	float blur = max(width, 0.001);
+	float falloff = max(1.0 / max(softness, 0.1), 0.35);
 	float2 stepUV = blur / max(SHAPE_SIZE, float2(1.0, 1.0));
 	float center = texture_mask_sample(localUV, kind, invert);
 	float accum = center;
@@ -145,33 +144,48 @@ float texture_shadow(float2 localUV, float kind, float invert)
 		total += weight * 8.0;
 	}
 
-	return saturate(accum / max(total, 0.0001));
+	float effect = saturate(accum / max(total, 0.0001));
+	return outsideOnly ? saturate(effect * (1.0 - center)) : effect;
+}
+
+float4 source_over(float4 top, float4 bottom)
+{
+	float alpha = top.a + bottom.a * (1.0 - top.a);
+	float3 rgb = (top.rgb * top.a + bottom.rgb * bottom.a * (1.0 - top.a)) / max(alpha, 0.0001);
+	return float4(saturate(rgb), saturate(alpha));
 }
 
 float4 main(PS_INPUT i) : COLOR
 {
 	float invert = step(128.0, MASK_KIND_PACKED);
 	float kind = MASK_KIND_PACKED - invert * 128.0;
-	float blur = max(SHADOW_SPREAD, 0.001);
-	float extent = max(max(SHADOW_EXTENT, blur), 1.0);
-	float opacity = max(SHADOW_OPACITY, 0.0);
-	float2 expandedSize = SHAPE_SIZE + extent * 2.0;
-	float2 localPos = i.uv * expandedSize - extent;
-	float2 localUV = localPos / max(SHAPE_SIZE, float2(1.0, 1.0));
-	float shadow = 0.0;
+	float2 pos = i.uv * DRAW_SIZE;
 
-	if (kind < 9.5)
+	float2 shadowLocalPos = pos - SHADOW_OFFSET;
+	float2 shadowLocalUV = shadowLocalPos / max(SHAPE_SIZE, float2(1.0, 1.0));
+	float2 outerLocalPos = pos - OUTER_OFFSET;
+	float2 outerLocalUV = outerLocalPos / max(SHAPE_SIZE, float2(1.0, 1.0));
+
+	float shadowEffect = 0.0;
+	float outerEffect = 0.0;
+	if (kind < MASK_TEXTURE_A - 0.5)
 	{
-		float dist = procedural_dist(localPos, kind);
-		dist = lerp(dist, -dist, invert);
-		shadow = mgfx_css_shadow_effect(dist, blur, max(1.0 / max(SHADOW_SOFTNESS, 0.1), 0.35));
+		float shadowDist = procedural_dist(shadowLocalPos, kind);
+		float outerDist = procedural_dist(outerLocalPos, kind);
+		shadowDist = lerp(shadowDist, -shadowDist, invert);
+		outerDist = lerp(outerDist, -outerDist, invert);
+		shadowEffect = mgfx_css_shadow_effect(shadowDist, max(SHADOW_WIDTH, 0.001), max(1.0 / max(SHADOW_SOFTNESS, 0.1), 0.35));
+		outerEffect = mgfx_css_outer_effect(outerDist, max(OUTER_WIDTH, 0.001), max(1.0 / max(OUTER_SOFTNESS, 0.1), 0.35));
 	}
 	else
 	{
-		shadow = texture_shadow(localUV, kind, invert);
+		shadowEffect = texture_effect(shadowLocalUV, kind, invert, SHADOW_WIDTH, SHADOW_SOFTNESS, false);
+		outerEffect = texture_effect(outerLocalUV, kind, invert, OUTER_WIDTH, OUTER_SOFTNESS, true);
 	}
 
-	float alpha = SHADOW_COLOR.a * opacity * shadow;
-	clip(alpha - 0.001);
-	return float4(saturate(SHADOW_COLOR.rgb), saturate(alpha));
+	float4 shadowColor = float4(saturate(SHADOW_COLOR.rgb), saturate(SHADOW_COLOR.a * max(SHADOW_OPACITY, 0.0) * shadowEffect));
+	float4 outerColor = float4(saturate(OUTER_COLOR.rgb), saturate(OUTER_COLOR.a * max(OUTER_OPACITY, 0.0) * outerEffect));
+	float4 color = source_over(outerColor, shadowColor);
+	clip(color.a - 0.001);
+	return color;
 }

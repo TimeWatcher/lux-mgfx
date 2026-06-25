@@ -1,3 +1,27 @@
+fn drawRoundImageEffect(x, y, w, h, radius, fill, shadow = nil, outerGlow = nil, backdrop = nil, stroke = nil, strokeWidth = nil) {
+  local resolved = imageRoundEffectStyle
+  resolved.radius = radius
+  resolved.fill = fill
+  resolved.shadow = shadow
+  resolved.outerGlow = outerGlow
+  resolved.backdrop = backdrop
+  resolved.stroke = stroke
+  resolved.strokeWidth = strokeWidth
+  roundrect.drawRoundRectImmediate(x, y, w, h, resolved)
+}
+
+fn drawChamferImageEffect(x, y, w, h, cuts, fill, shadow = nil, outerGlow = nil, backdrop = nil, stroke = nil, strokeWidth = nil) {
+  local resolved = imageChamferEffectStyle
+  resolved.cuts = cuts
+  resolved.fill = fill
+  resolved.shadow = shadow
+  resolved.outerGlow = outerGlow
+  resolved.backdrop = backdrop
+  resolved.stroke = stroke
+  resolved.strokeWidth = strokeWidth
+  primitives.drawChamferBoxImmediate(x, y, w, h, resolved, cuts)
+}
+
 fn drawImageFallback(x, y, w, h, source, drawStyle) {
   local texture, material = imageTextureSource(source)
   local createdMaterialFallback = material == nil
@@ -15,30 +39,22 @@ fn drawImageFallback(x, y, w, h, source, drawStyle) {
   local radius = geometry.imageRadius(drawStyle.radius, w, h)
   local background = drawStyle.fill ?? drawStyle.background
   if background ~= nil and (background.a ?? 255) > 0 {
-    roundrect.roundedBoxEx(x, y, w, h, {
-      radius = radius,
-      fill = background
-    })
+    drawRoundImageEffect(x, y, w, h, radius, background)
   }
 
   surfaceSetMaterial(material)
   style.setDrawColor(geometry.imageTint(drawStyle))
   if hasTransform() {
-    geometry.drawTexturedQuadUV(x, y, w, h, u0, v0, u1, v1)
+    geometry.drawTexturedQuadUV(x, y, w, h, u0, v0, u1, v1, material)
   } else if createdMaterialFallback {
     geometry.drawCreatedMaterialTexturedRectUV(x, y, w, h, u0, v0, u1, v1)
   } else {
-    geometry.drawTexturedRectUV(x, y, w, h, u0, v0, u1, v1)
+    geometry.drawTexturedQuadUV(x, y, w, h, u0, v0, u1, v1, material)
   }
 
   local strokeWidth = style.strokeWidthValue(drawStyle.strokeWidth, 0)
   if style.strokeVisible(drawStyle.stroke, strokeWidth) {
-    roundrect.roundedBoxEx(x, y, w, h, {
-      radius = radius,
-      fill = transparentColor,
-      stroke = drawStyle.stroke,
-      strokeWidth = mathMax(1, mathFloor(strokeWidth))
-    })
+    drawRoundImageEffect(x, y, w, h, radius, transparentColor, nil, nil, nil, drawStyle.stroke, mathMax(1, mathFloor(strokeWidth)))
   }
 }
 
@@ -48,27 +64,20 @@ fn drawImageChamfer(x, y, w, h, texture, u0, v0, u1, v1, drawStyle, cuts) {
   }
 
   if drawStyle.shadow ~= nil {
-    primitives.chamferBoxEx(x, y, w, h, {
-      cuts = cuts,
-      fill = transparentColor,
-      shadow = drawStyle.shadow
-    })
+    drawChamferImageEffect(x, y, w, h, cuts, transparentColor, drawStyle.shadow)
+  }
+
+  if drawStyle.outerGlow ~= nil {
+    drawChamferImageEffect(x, y, w, h, cuts, transparentColor, nil, drawStyle.outerGlow)
   }
 
   if drawStyle.backdrop ~= nil {
-    primitives.chamferBoxEx(x, y, w, h, {
-      cuts = cuts,
-      backdrop = drawStyle.backdrop,
-      fill = transparentColor
-    })
+    drawChamferImageEffect(x, y, w, h, cuts, transparentColor, nil, nil, drawStyle.backdrop)
   }
 
   local background = drawStyle.fill ?? drawStyle.background
   if background ~= nil and (background.a ?? 255) > 0 {
-    primitives.chamferBoxEx(x, y, w, h, {
-      cuts = cuts,
-      fill = background
-    })
+    drawChamferImageEffect(x, y, w, h, cuts, background)
   }
 
   local tl, tr, br, bl = primitives.chamferTuple(cuts, w, h)
@@ -83,15 +92,10 @@ fn drawImageChamfer(x, y, w, h, texture, u0, v0, u1, v1, drawStyle, cuts) {
   )
   surfaceSetMaterial(material)
   surfaceSetDrawColor(255, 255, 255, 255)
-  drawTexturedQuad(x, y, w, h)
+  drawTexturedQuad(x, y, w, h, material)
 
   if style.strokeVisible(drawStyle.stroke, drawStyle.strokeWidth) {
-    primitives.chamferBoxEx(x, y, w, h, {
-      cuts = cuts,
-      fill = transparentColor,
-      stroke = drawStyle.stroke,
-      strokeWidth = drawStyle.strokeWidth
-    })
+    drawChamferImageEffect(x, y, w, h, cuts, transparentColor, nil, nil, nil, drawStyle.stroke, drawStyle.strokeWidth)
   }
 
   true
@@ -137,7 +141,7 @@ fn drawImageRoundRectShader(x, y, w, h, texture, u0, v0, u1, v1, drawStyle, radi
   )
   style.setDrawColor(geometry.imageTint(drawStyle))
   surfaceSetMaterial(material)
-  drawTexturedQuad(x, y, w, h)
+  drawTexturedQuad(x, y, w, h, material)
   true
 }
 
@@ -165,7 +169,12 @@ fn imageImmediate(x, y, w, h, source, drawStyle) {
   local mask
   local maskKind
   if imageUsesSourceAlphaEffectMask(resolved, shadow, outer, backdrop) {
-    mask = { kind = "texture", source = source, channel = "alpha", sourceAlpha = true, u0 = u0, v0 = v0, u1 = u1, v1 = v1 }
+    mask = sourceAlphaMaskScratch
+    mask.source = source
+    mask.u0 = u0
+    mask.v0 = v0
+    mask.u1 = u1
+    mask.v1 = v1
     maskKind = ImageMaskKind.TextureA
   } else {
     mask = style.imageMaskStyle(resolved.mask, resolved)
@@ -175,8 +184,9 @@ fn imageImmediate(x, y, w, h, source, drawStyle) {
   if imageMaskUsesTexture(maskKind) {
     local maskTexture = imageMaskTextureSource(mask)
     local backdropMaskKind = imageMaskTextureChannelKind(mask.channel) ?? maskKind
-    drawImageMaskShadow(x, y, w, h, mask, maskKind, shadow)
-    drawImageMaskOuterGlow(x, y, w, h, mask, maskKind, outer)
+    if shadow ~= nil or outer ~= nil {
+      drawImageMaskShadowOuter(x, y, w, h, mask, maskKind, shadow, outer)
+    }
     drawImageMaskBackdrop(x, y, w, h, mask, backdropMaskKind, maskTexture, resolved.backdrop)
     if drawImageMaskShader(x, y, w, h, texture, u0, v0, u1, v1, resolved, mask, maskKind) {
       return
@@ -189,36 +199,17 @@ fn imageImmediate(x, y, w, h, source, drawStyle) {
   }
 
   local radius = imageRoundedRadius(resolved, mask, maskKind, w, h)
-  if resolved.shadow ~= nil {
-    roundrect.roundedBoxEx(x, y, w, h, {
-      radius = radius,
-      fill = transparentColor,
-      shadow = resolved.shadow
-    })
-  }
-
-  if resolved.outerGlow ~= nil {
-    roundrect.roundedBoxEx(x, y, w, h, {
-      radius = radius,
-      fill = transparentColor,
-      outerGlow = resolved.outerGlow
-    })
+  if resolved.shadow ~= nil or resolved.outerGlow ~= nil {
+    drawRoundImageEffect(x, y, w, h, radius, transparentColor, resolved.shadow, resolved.outerGlow)
   }
 
   if resolved.backdrop ~= nil {
-    roundrect.roundedBoxEx(x, y, w, h, {
-      radius = radius,
-      backdrop = resolved.backdrop,
-      fill = transparentColor
-    })
+    drawRoundImageEffect(x, y, w, h, radius, transparentColor, nil, nil, resolved.backdrop)
   }
 
   local background = resolved.fill ?? resolved.background
   if background ~= nil and (background.a ?? 255) > 0 {
-    roundrect.roundedBoxEx(x, y, w, h, {
-      radius = radius,
-      fill = background
-    })
+    drawRoundImageEffect(x, y, w, h, radius, background)
   }
 
   drawImageRoundRectShader(x, y, w, h, texture, u0, v0, u1, v1, resolved, radius)

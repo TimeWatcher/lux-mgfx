@@ -80,6 +80,30 @@ function MGFX._InstallWidgetBars(C)
 	local defaultProgressStroke = Color(255, 255, 255, 18)
 	local defaultSegmentFill = Color(255, 120, 72, 230)
 	local defaultSegmentTrack = Color(255, 255, 255, 22)
+	local progressTrackStyle = {}
+	local progressTickStyle = {radius = 0}
+	local progressGlowStyle = {}
+	local progressFillStyle = {}
+	local progressSheenStyle = {}
+	local progressMarkerStyle = {radius = 1}
+	local segmentContainerStyle = {}
+	local segmentItemStyle = {}
+	local progressTrackGradient = M.LinearGradient(0, 0, 0, 1, Color(0, 0, 0, 0), color_white)
+	local progressSheenGradient = M.LinearGradient(0, 0, 0, 1, Color(255, 255, 255, 42), Color(255, 255, 255, 0))
+	local progressTrackDarkColor = Color(0, 0, 0, 0)
+	local tickColor = Color(255, 255, 255, 18)
+	local glowColor = Color(80, 190, 255, 38)
+	local markerColor = Color(255, 255, 255, 96)
+
+	local function setGradientColors(fill, colorA, colorB)
+		fill.colorA = colorA
+		fill.colorB = colorB
+		fill.stops[1].color = colorA
+		fill.stops[2].color = colorB
+		fill._mgfxFillVisible = (colorA.a == nil or colorA.a > 0) or (colorB.a == nil or colorB.a > 0)
+		fill._mgfxLutCacheSafe = false
+		return fill
+	end
 
 
 	local function progressFx(style)
@@ -198,7 +222,7 @@ local function drawProgressBarFast(x, y, w, h, value, style, fill, radius, inset
 	local mat = materials.progress
 	setupProgressConstants(mat, w, h, value, radius, inset, track, fill, stroke, strokeWidth)
 	surface_SetMaterial(mat)
-	drawTexturedQuad(x, y, w, h)
+	drawTexturedQuad(x, y, w, h, mat)
 end
 
 local function drawProgressBarFxFast(x, y, w, h, value, style, fill, radius, inset, track, stroke, strokeWidth, flags, ticks)
@@ -207,7 +231,7 @@ local function drawProgressBarFxFast(x, y, w, h, value, style, fill, radius, ins
 	local mat = materials.progress_fx
 	setupProgressFxConstants(mat, w, h, value, radius, inset, track, fill, stroke, strokeWidth, flags, ticks)
 	surface_SetMaterial(mat)
-	drawTexturedQuad(x, y, w, h)
+	drawTexturedQuad(x, y, w, h, mat)
 end
 
 local function drawProgressBarImmediate(x, y, w, h, value, style)
@@ -230,17 +254,20 @@ local function drawProgressBarImmediate(x, y, w, h, value, style)
 	end
 
 	recordDirectImmediate("DrawProgressBar", "progress")
-	M.RoundedBoxEx(x, y, w, h, {
-		radius = radius,
-		fill = M.LinearGradient(0, 0, 0, 1, Color(math_floor(track.r * 0.65), math_floor(track.g * 0.65), math_floor(track.b * 0.65), track.a or 190), track),
-		stroke = stroke,
-		strokeWidth = strokeWidth,
-		shadow = style.shadow,
-		outerGlow = style.outerGlow,
-		innerGlow = style.innerGlow,
-		backdrop = style.backdrop,
-		pattern = style.trackPattern,
-	})
+	progressTrackDarkColor.r = math_floor(track.r * 0.65)
+	progressTrackDarkColor.g = math_floor(track.g * 0.65)
+	progressTrackDarkColor.b = math_floor(track.b * 0.65)
+	progressTrackDarkColor.a = track.a or 190
+	progressTrackStyle.radius = radius
+	progressTrackStyle.fill = setGradientColors(progressTrackGradient, progressTrackDarkColor, track)
+	progressTrackStyle.stroke = stroke
+	progressTrackStyle.strokeWidth = strokeWidth
+	progressTrackStyle.shadow = style.shadow
+	progressTrackStyle.outerGlow = style.outerGlow
+	progressTrackStyle.innerGlow = style.innerGlow
+	progressTrackStyle.backdrop = style.backdrop
+	progressTrackStyle.pattern = style.trackPattern
+	drawRoundRectImmediate(x, y, w, h, progressTrackStyle)
 
 	local ih = h - inset * 2
 	local iw = (w - inset * 2) * frac
@@ -248,45 +275,70 @@ local function drawProgressBarImmediate(x, y, w, h, value, style)
 	if ih <= 0 then return end
 
 	if ticks and ticks > 1 then
-		local tickColor = Color(255, 255, 255, 18)
+		progressTickStyle.shadow = nil
+		progressTickStyle.outerGlow = nil
+		progressTickStyle.innerGlow = nil
+		progressTickStyle.backdrop = nil
+		progressTickStyle.pattern = nil
+		progressTickStyle.stroke = nil
+		progressTickStyle.strokeWidth = nil
+		progressTickStyle.fill = tickColor
 		for i = 1, ticks - 1 do
 			local tx = x + math_floor(w * i / ticks)
-			M.RoundedBoxEx(tx, y + 3, 1, math_max(1, h - 6), {
-				radius = 0,
-				fill = tickColor,
-			})
+			drawRoundRectImmediate(tx, y + 3, 1, math_max(1, h - 6), progressTickStyle)
 		end
 	end
 
 	if iw <= 0 then return end
 
 	if fxFlag(flags, FX_GLOW) and iw > 4 then
-		local glowColor = Color(80, 190, 255, 38)
-		M.RoundedBoxEx(x + inset - 2, y + inset - 2, iw + 4, ih + 4, {
-			radius = math_min(radius + 2, (ih + 4) * 0.5, (iw + 4) * 0.5),
-			fill = glowColor,
-		})
+		progressGlowStyle.radius = math_min(radius + 2, (ih + 4) * 0.5, (iw + 4) * 0.5)
+		progressGlowStyle.fill = glowColor
+		progressGlowStyle.shadow = nil
+		progressGlowStyle.outerGlow = nil
+		progressGlowStyle.innerGlow = nil
+		progressGlowStyle.backdrop = nil
+		progressGlowStyle.pattern = nil
+		progressGlowStyle.stroke = nil
+		progressGlowStyle.strokeWidth = nil
+		drawRoundRectImmediate(x + inset - 2, y + inset - 2, iw + 4, ih + 4, progressGlowStyle)
 	end
 
-	M.RoundedBoxEx(x + inset, y + inset, iw, ih, {
-		radius = math_min(math_max(0, radius - inset), ih * 0.5, iw * 0.5),
-		fill = fill,
-		pattern = style.fillPattern or style.pattern,
-	})
+	progressFillStyle.radius = math_min(math_max(0, radius - inset), ih * 0.5, iw * 0.5)
+	progressFillStyle.fill = fill
+	progressFillStyle.pattern = style.fillPattern or style.pattern
+	progressFillStyle.shadow = nil
+	progressFillStyle.outerGlow = nil
+	progressFillStyle.innerGlow = nil
+	progressFillStyle.backdrop = nil
+	progressFillStyle.stroke = nil
+	progressFillStyle.strokeWidth = nil
+	drawRoundRectImmediate(x + inset, y + inset, iw, ih, progressFillStyle)
 
 	if fxFlag(flags, FX_SHEEN) and iw > 8 then
-		M.RoundedBoxEx(x + inset + 1, y + inset + 1, math_max(1, iw - 2), math_max(1, ih * 0.38), {
-			radius = math_min(radius, ih * 0.25),
-			fill = M.LinearGradient(0, 0, 0, 1, Color(255, 255, 255, 42), Color(255, 255, 255, 0)),
-		})
+		progressSheenStyle.radius = math_min(radius, ih * 0.25)
+		progressSheenStyle.fill = progressSheenGradient
+		progressSheenStyle.shadow = nil
+		progressSheenStyle.outerGlow = nil
+		progressSheenStyle.innerGlow = nil
+		progressSheenStyle.backdrop = nil
+		progressSheenStyle.pattern = nil
+		progressSheenStyle.stroke = nil
+		progressSheenStyle.strokeWidth = nil
+		drawRoundRectImmediate(x + inset + 1, y + inset + 1, math_max(1, iw - 2), math_max(1, ih * 0.38), progressSheenStyle)
 	end
 
 	if fxFlag(flags, FX_MARKER) and iw > 5 then
 		local mx = x + inset + iw - 2
-		M.RoundedBoxEx(mx, y + 2, 2, h - 4, {
-			radius = 1,
-			fill = Color(255, 255, 255, 96),
-		})
+		progressMarkerStyle.fill = markerColor
+		progressMarkerStyle.shadow = nil
+		progressMarkerStyle.outerGlow = nil
+		progressMarkerStyle.innerGlow = nil
+		progressMarkerStyle.backdrop = nil
+		progressMarkerStyle.pattern = nil
+		progressMarkerStyle.stroke = nil
+		progressMarkerStyle.strokeWidth = nil
+		drawRoundRectImmediate(mx, y + 2, 2, h - 4, progressMarkerStyle)
 	end
 end
 
@@ -349,29 +401,34 @@ local function drawSegmentBarFallback(x, y, w, h, value, style)
 	local containerRadius = style.backgroundRadius or style.radius or math_min(3, h * 0.5)
 
 	if style.shadow or style.outerGlow or style.innerGlow or style.backdrop or style.background then
-		M.RoundedBoxEx(x, y, w, h, {
-			radius = containerRadius,
-			fill = style.background or transparentColor,
-			shadow = style.shadow,
-			outerGlow = style.outerGlow,
-			innerGlow = style.innerGlow,
-			backdrop = style.backdrop,
-		})
+		segmentContainerStyle.radius = containerRadius
+		segmentContainerStyle.fill = style.background or transparentColor
+		segmentContainerStyle.shadow = style.shadow
+		segmentContainerStyle.outerGlow = style.outerGlow
+		segmentContainerStyle.innerGlow = style.innerGlow
+		segmentContainerStyle.backdrop = style.backdrop
+		segmentContainerStyle.pattern = nil
+		segmentContainerStyle.stroke = nil
+		segmentContainerStyle.strokeWidth = nil
+		drawRoundRectImmediate(x, y, w, h, segmentContainerStyle)
 	end
 
+	segmentItemStyle.radius = style.radius == nil and math_min(2, h * 0.35) or style.radius
+	segmentItemStyle.stroke = style.stroke
+	segmentItemStyle.strokeWidth = style.strokeWidth or 0
+	segmentItemStyle.shadow = nil
+	segmentItemStyle.outerGlow = nil
+	segmentItemStyle.innerGlow = nil
+	segmentItemStyle.backdrop = nil
 	for i = 1, count do
 		local t = count == 1 and 1 or (i - 1) / (count - 1)
 		local sx = x + (i - 1) * (segW + gap)
 		local color = i <= active and colorAtFill(fill, t) or track
 		local pattern = i <= active and (style.fillPattern or style.pattern) or style.trackPattern
 		if (color and (color.a or 255) > 0) or pattern then
-			M.RoundedBoxEx(sx, y, segW, h, {
-				radius = style.radius == nil and math_min(2, h * 0.35) or style.radius,
-				fill = color or transparentColor,
-				pattern = pattern,
-				stroke = style.stroke,
-				strokeWidth = style.strokeWidth or 0,
-			})
+			segmentItemStyle.fill = color or transparentColor
+			segmentItemStyle.pattern = pattern
+			drawRoundRectImmediate(sx, y, segW, h, segmentItemStyle)
 		end
 	end
 end
@@ -412,7 +469,7 @@ local function drawSegmentBarShader(x, y, w, h, value, style)
 	bindGradientLut(mat, fill)
 	setDrawColor(fillA)
 	surface_SetMaterial(mat)
-	drawTexturedQuad(x, y, w, h)
+	drawTexturedQuad(x, y, w, h, mat)
 	return true
 end
 

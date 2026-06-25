@@ -1,4 +1,4 @@
-fn countsLine(label, counts) {
+﻿fn countsLine(label, counts) {
   local parts = {}
   for key, value in pairs(counts ?? {}) {
     if value ~= nil and value ~= 0 {
@@ -21,6 +21,99 @@ fn shaderStatus(owner) {
 
 fn profilerApi(owner) =
   owner?.Profiler
+
+fn profilerRegistry() =
+  globalTable.MGFX?._ProfilerRegistry?.items
+
+fn collectProfilerRows(owner, methodName, limit = nil) {
+  local rows = {}
+  local registry = profilerRegistry()
+  if registry ~= nil {
+    for _, item in pairs(registry) {
+      local api = item?.profiler
+      local method = api?.[methodName]
+      if method ~= nil {
+        local instanceRows = method(limit)
+        for index = 1, #(instanceRows ?? {}) {
+          rows[#rows + 1] = instanceRows[index]
+        }
+      }
+    }
+  }
+
+  if #rows == 0 {
+    local profiler = profilerApi(owner)
+    local method = profiler?.[methodName]
+    if method ~= nil {
+      rows = method(limit) ?? {}
+    }
+  }
+
+  tableSort(rows, (a, b) => {
+    local av = methodName == "RecentScopes" then (a.last ?? 0) else (a.avg ?? a.last ?? 0)
+    local bv = methodName == "RecentScopes" then (b.last ?? 0) else (b.avg ?? b.last ?? 0)
+    if av == bv {
+      return toString(a.name ?? "") < toString(b.name ?? "")
+    }
+    av > bv
+  })
+
+  local numericLimit = toNumber(limit)
+  if numericLimit ~= nil and numericLimit > 0 {
+    while #rows > numericLimit {
+      rows[#rows] = nil
+    }
+  }
+  rows
+}
+
+fn profilerInstanceCount() {
+  local registry = profilerRegistry()
+  if registry == nil {
+    return 0
+  }
+
+  local count = 0
+  for _, item in pairs(registry) {
+    if item?.profiler ~= nil {
+      count += 1
+    }
+  }
+  count
+}
+
+fn formatProfiler(owner) {
+  local direct = profilerApi(owner)
+  if direct ~= nil {
+    return direct
+  }
+
+  local registry = profilerRegistry()
+  if registry ~= nil {
+    for _, item in pairs(registry) {
+      if item?.profiler ~= nil {
+        return item.profiler
+      }
+    }
+  }
+
+  nil
+}
+
+fn resetAllProfilers() {
+  local registry = profilerRegistry()
+  local count = 0
+  if registry ~= nil {
+    for _, item in pairs(registry) {
+      local reset = item?.profiler?.Reset
+      if reset ~= nil {
+        reset()
+        count += 1
+      }
+    }
+  }
+  count
+}
 
 fn textStatus(owner) {
   local snapshot = nil
@@ -47,20 +140,18 @@ local statusMaterialFields = {
     { "roundrect solid", "roundrectSolid" },
     { "roundrect stroke", "roundrectStroke" },
     { "param probe", "paramProbe" },
+    { "param probe inv", "paramProbeInv" },
     { "blur", "blur" },
     { "chamfer", "chamfer" },
     { "chamfer image", "chamferImage" },
     { "image mask", "imageMask" },
-    { "image mask shadow", "imageMaskShadow" },
-    { "image mask outerglow", "imageMaskOuterGlow" },
+    { "image mask shadow outer", "imageMaskShadowOuter" },
     { "image mask backdrop", "imageMaskBackdrop" },
     { "chamfer stroke", "chamferStroke" },
     { "inner glow", "innerGlow" },
     { "chamfer inner glow", "chamferInnerGlow" },
-    { "shadow", "shadow" },
-    { "outer glow", "outerGlow" },
-    { "chamfer shadow", "chamferShadow" },
-    { "chamfer outer glow", "chamferOuterGlow" },
+    { "shadow outer", "shadowOuter" },
+    { "chamfer shadow outer", "chamferShadowOuter" },
     { "chamfer backdrop", "chamferBackdrop" },
     { "progress", "progress" },
     { "progress fx", "progressFx" },
@@ -75,8 +166,7 @@ local statusMaterialFields = {
     { "ring backdrop", "ringBackdrop" },
     { "ring stroke", "ringStroke" },
     { "ring inner glow", "ringInnerGlow" },
-    { "ring shadow", "ringShadow" },
-    { "ring outer glow", "ringOuterGlow" },
+    { "ring shadow outer", "ringShadowOuter" },
     { "ring pattern", "ringPattern" },
     { "poly3 stroke", "poly3Stroke" },
     { "poly3", "poly3" },
@@ -156,32 +246,258 @@ fn printProfileRows(label, rows, rollingRows, profiler) {
   }
 }
 
+fn printProfileScopes(label, rows, includeBreakdown, profiler) {
+  printFn("[MGFX] " .. label)
+  if rows == nil or #rows == 0 {
+    printFn("[MGFX]   none")
+    return
+  }
+
+  local formatRows = profiler?.FormatScopeRows
+  local formatted = formatRows ~= nil then formatRows(rows, includeBreakdown) else {}
+  for index = 1, #formatted {
+    printFn("[MGFX]   " .. formatted[index])
+  }
+}
+
+fn rowTopParts(items = nil, maxParts = profileHudTopRows, useAvg = true) {
+  local parts = {}
+  for index = 1, #(items ?? {}) {
+    breakif index > maxParts
+    local item = items[index]
+    local ms = useAvg then (item.avg ?? item.last ?? 0) else (item.last ?? item.avg ?? 0)
+    local count = item.avgCount ?? item.count ?? 0
+    parts[#parts + 1] = stringFormat("%s %.2f/%d", item.name ?? "?", ms, count)
+  }
+
+  #parts > 0 then tableConcat(parts, "  ") else "none"
+}
+
+fn printProfileInstanceRows(label, rows) {
+  printFn("[MGFX] " .. label)
+  if rows == nil or #rows == 0 {
+    printFn("[MGFX]   none")
+    return
+  }
+
+  for index = 1, #rows {
+    local row = rows[index]
+    local stats = row.stats ?? {}
+    printFn(stringFormat("[MGFX]   %s last=%.3f avg=%.3f max=%.3f scopes=%d avgScopes=%.1f draws=%d blur=%d text=%d bake=%d fallback=%d samples=%d",
+      row.name ?? row.instance ?? "runtime",
+      row.last ?? 0,
+      row.avg ?? 0,
+      row.max ?? 0,
+      row.count ?? 0,
+      row.avgCount ?? 0,
+      stats.draws ?? 0,
+      stats.blurPasses ?? 0,
+      stats.textDraws ?? 0,
+      stats.textComposedBakes ?? 0,
+      stats.fallbacks ?? 0,
+      row.samples ?? 0))
+    printFn("[MGFX]     api " .. rowTopParts(row.apiTop, 8, true))
+    printFn("[MGFX]     stage " .. rowTopParts(row.profileTop, 8, true))
+    printFn("[MGFX]     commands " .. rowTopParts(row.commandTop, 8, true))
+    printFn("[MGFX]     immediate " .. rowTopParts(row.immediateTop, 8, true))
+  }
+}
+
 export client fn profileStatus(owner) {
-  local profiler = profilerApi(owner)
+  local profiler = formatProfiler(owner)
   local enabled = getConVar ~= nil then getConVar("mgfx_profile") else nil
   local window = getConVar ~= nil then getConVar("mgfx_profile_window") else nil
   local top = getConVar ~= nil then getConVar("mgfx_profile_top") else nil
-  printFn("[MGFX] profiler enabled=" .. toString(enabled ~= nil and enabled:GetBool() or false) .. " window=" .. toString(window ~= nil and window:GetInt() or "n/a") .. " top=" .. toString(top ~= nil and top:GetInt() or "n/a"))
+  printFn("[MGFX] profiler enabled=" .. toString(enabled ~= nil and enabled:GetBool() or false) .. " window=" .. toString(window ~= nil and window:GetInt() or "n/a") .. " top=" .. toString(top ~= nil and top:GetInt() or "n/a") .. " instances=" .. toString(profilerInstanceCount()))
 
-  if profiler == nil {
+  if profiler == nil and profilerInstanceCount() == 0 {
     printFn("[MGFX] profiler unavailable")
     return false
   }
 
-  local currentRows = profiler.CurrentRows ~= nil then profiler.CurrentRows() else nil
-  local rollingRows = profiler.Snapshot ~= nil then profiler.Snapshot() else nil
-  printProfileRows("profile current", currentRows, false, profiler)
-  printProfileRows("profile rolling", rollingRows, true, profiler)
+  local instanceRows = collectProfilerRows(owner, "InstanceRows")
+  printProfileInstanceRows("profile instances", instanceRows)
+  printFn("[MGFX] scope details: use mgfx_profile_panels for rolling panel/screen rows, mgfx_profile_current for recent scopes.")
   true
 }
 
-export client fn profileReset(owner) {
-  local profiler = profilerApi(owner)
-  if profiler ~= nil and profiler.Reset ~= nil {
-    profiler.Reset()
+export client fn profilePanels(owner, limit = nil) {
+  local profiler = formatProfiler(owner)
+  if profiler == nil and profilerInstanceCount() == 0 {
+    printFn("[MGFX] profiler unavailable")
+    return false
   }
 
-  printFn("[MGFX] profiler reset")
+  local rows = collectProfilerRows(owner, "ScopeRows", limit)
+  printProfileScopes("profile panel/screen rolling", rows, true, profiler)
+  true
+}
+
+export client fn profileCurrent(owner, limit = nil) {
+  local profiler = formatProfiler(owner)
+  if profiler == nil and profilerInstanceCount() == 0 {
+    printFn("[MGFX] profiler unavailable")
+    return false
+  }
+
+  local rows = collectProfilerRows(owner, "RecentScopes", limit)
+  printProfileScopes("profile recent scopes", rows, true, profiler)
+  true
+}
+
+fn hudText(textValue, font, x, y, color = nil, align = nil) {
+  if drawSimpleText ~= nil {
+    drawSimpleText(toString(textValue ?? ""), font ?? "DermaDefault", x, y, color ?? color_white, align ?? TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
+  }
+}
+
+fn shortHotspotName(name) {
+  local text = toString(name ?? "?")
+  if stringSub(text, 1, 4) == "api." {
+    text = stringSub(text, 5)
+  } else if stringSub(text, 1, 4) == "cmd." {
+    text = stringSub(text, 5)
+  }
+  if #text > 32 {
+    text = stringSub(text, 1, 29) .. "..."
+  }
+  text
+}
+
+fn drawHotspotTable(title, items, x, y, maxRows, headerColor, rowColor) {
+  hudText(title, "DermaDefaultBold", x, y, headerColor)
+  hudText("avg", "DermaDefaultBold", x + 330, y, headerColor, TEXT_ALIGN_RIGHT)
+  hudText("last", "DermaDefaultBold", x + 395, y, headerColor, TEXT_ALIGN_RIGHT)
+  hudText("max", "DermaDefaultBold", x + 460, y, headerColor, TEXT_ALIGN_RIGHT)
+  hudText("calls/f", "DermaDefaultBold", x + 535, y, headerColor, TEXT_ALIGN_RIGHT)
+  y += 16
+
+  if items == nil or #items == 0 {
+    hudText("none", "DermaDefault", x + 18, y, makeColor(145, 160, 170))
+    return y + 16
+  }
+
+  maxRows = mathMin(maxRows ?? profileHudTopRows, #items)
+  for index = 1, maxRows {
+    local item = items[index]
+    hudText(stringFormat("%02d", index), "DermaDefault", x, y, rowColor)
+    hudText(shortHotspotName(item.name), "DermaDefault", x + 30, y, rowColor)
+    hudText(stringFormat("%.2f", item.avg ?? item.last ?? 0), "DermaDefault", x + 330, y, rowColor, TEXT_ALIGN_RIGHT)
+    hudText(stringFormat("%.2f", item.last ?? item.avg ?? 0), "DermaDefault", x + 395, y, rowColor, TEXT_ALIGN_RIGHT)
+    hudText(stringFormat("%.2f", item.max ?? 0), "DermaDefault", x + 460, y, rowColor, TEXT_ALIGN_RIGHT)
+    hudText(stringFormat("%.1f", item.avgCount ?? item.count ?? 0), "DermaDefault", x + 535, y, rowColor, TEXT_ALIGN_RIGHT)
+    y += 15
+  }
+
+  y
+}
+
+fn drawProfileHud(owner) {
+  local profiler = formatProfiler(owner)
+  if profiler == nil and profilerInstanceCount() == 0 {
+    return
+  }
+
+  local rows = collectProfilerRows(owner, "InstanceRows", profileHudRows)
+  local width = 1260
+  local blockH = 112 + profileHudTopRows * 15
+  local headerH = 42
+  local height = headerH + mathMax(1, #rows) * blockH + 18
+  local x = profileHudX
+  local y = profileHudY
+
+  if surfaceSetDrawColor ~= nil and surfaceDrawRect ~= nil {
+    surfaceSetDrawColor(5, 8, 12, 218)
+    surfaceDrawRect(x, y, width, height)
+  }
+  if surfaceSetDrawColor ~= nil and surfaceDrawOutlinedRect ~= nil {
+    surfaceSetDrawColor(86, 176, 230, 150)
+    surfaceDrawOutlinedRect(x, y, width, height)
+  }
+
+  local enabled = getConVar ~= nil then getConVar("mgfx_profile") else nil
+  local drawCounts = getConVar ~= nil then getConVar("mgfx_draw_counts") else nil
+  hudText("MGFX PROFILE HUD", "DermaDefaultBold", x + 10, y + 8, makeColor(130, 220, 255))
+  hudText("runtime total + API hotspots  profile=" .. toString(enabled ~= nil and enabled:GetBool() or false) .. "  counts=" .. toString(drawCounts ~= nil and drawCounts:GetBool() or false) .. "  instances=" .. toString(profilerInstanceCount()), "DermaDefault", x + 170, y + 8, makeColor(205, 220, 226))
+  hudText("Use mgfx_profile_panels only when the runtime/API view points to a suspicious container.", "DermaDefault", x + 10, y + 26, makeColor(150, 176, 188))
+
+  local rowY = y + headerH
+  for index = 1, #rows {
+    local row = rows[index]
+    local stats = row.stats ?? {}
+    local hot = (row.last ?? 0) >= 2
+    local rowColor = hot then makeColor(255, 206, 128) else makeColor(210, 224, 232)
+    local name = toString(row.name ?? row.key ?? "scope")
+    if #name > 58 {
+      name = stringSub(name, 1, 55) .. "..."
+    }
+
+    hudText(stringFormat("%02d %s", index, name), "DermaDefaultBold", x + 10, rowY, rowColor)
+    hudText(stringFormat("total last %.2fms   avg %.2fms   max %.2fms   scopes %.0f/frame",
+      row.last ?? 0,
+      row.avg ?? 0,
+      row.max ?? 0,
+      row.avgCount ?? row.count ?? 0), "DermaDefaultBold", x + 430, rowY, rowColor)
+    rowY += 17
+
+    hudText(stringFormat("draws %d   blur %d   text %d   bakes %d   fallback %d",
+      stats.draws ?? 0,
+      stats.blurPasses ?? 0,
+      stats.textDraws ?? 0,
+      stats.textComposedBakes ?? 0,
+      stats.fallbacks ?? 0), "DermaDefault", x + 30, rowY, makeColor(170, 194, 204))
+    rowY += 19
+
+    local tableY = drawHotspotTable("API hotspots in this runtime", row.apiTop, x + 30, rowY, profileHudTopRows, makeColor(180, 218, 232), makeColor(210, 226, 234))
+    hudText("stage " .. rowTopParts(row.profileTop, 4, true), "DermaDefault", x + 640, rowY, makeColor(170, 204, 218))
+    hudText("commands " .. rowTopParts(row.commandTop, 4, true), "DermaDefault", x + 640, rowY + 17, makeColor(160, 190, 204))
+    hudText("immediate " .. rowTopParts(row.immediateTop, 4, true), "DermaDefault", x + 640, rowY + 34, makeColor(160, 190, 204))
+    rowY = tableY + 16
+  }
+}
+
+export client fn setProfileHud(owner, enabled) {
+  profileHudEnabled = enabled == true
+  if hookRemove ~= nil {
+    hookRemove("HUDPaint", profileHudHook)
+  }
+  if profileHudEnabled {
+    if runConsoleCommand ~= nil {
+      runConsoleCommand("mgfx_profile", "1")
+      runConsoleCommand("mgfx_draw_counts", "1")
+    }
+    if hookAdd ~= nil {
+      hookAdd("HUDPaint", profileHudHook, () => {
+        drawProfileHud(owner);
+      })
+    }
+  }
+  printFn("[MGFX] profile hud " .. (profileHudEnabled then "ON" else "OFF"))
+  profileHudEnabled
+}
+
+export client fn toggleProfileHud(owner, mode = "toggle") {
+  if mode == "1" or mode == "on" or mode == "true" {
+    return setProfileHud(owner, true)
+  }
+  if mode == "0" or mode == "off" or mode == "false" {
+    return setProfileHud(owner, false)
+  }
+
+  setProfileHud(owner, not profileHudEnabled)
+}
+
+export client fn profileReset(owner) {
+  local count = resetAllProfilers()
+  if count == 0 {
+    local profiler = profilerApi(owner)
+    if profiler ~= nil and profiler.Reset ~= nil {
+      profiler.Reset()
+      count = 1
+    }
+  }
+
+  printFn("[MGFX] profiler reset instances=" .. toString(count))
   true
 }
 

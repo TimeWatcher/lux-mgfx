@@ -54,9 +54,9 @@ function M._CreateTextRenderer(deps)
 	local cam_Start2D = cam.Start2D
 	local cam_End2D = cam.End2D
 	local surface_CreateFont = surface.CreateFont
-	local surface_DrawPoly = surface.DrawPoly
 	local surface_DrawRect = surface.DrawRect
 	local surface_DrawText = surface.DrawText
+	local surface_DrawTexturedRectUV = surface.DrawTexturedRectUV
 	local surface_GetTextSize = surface.GetTextSize
 	local surface_SetDrawColor = surface.SetDrawColor
 	local surface_SetFont = surface.SetFont
@@ -158,6 +158,7 @@ function M._CreateTextRenderer(deps)
 		and cam_End2D ~= nil
 
 	local textParamMatrices = {}
+	local textAuxParamMatrices = {}
 	local textParamMatrixSetUnpacked
 	do
 		local probeMatrix = Matrix and Matrix() or nil
@@ -189,12 +190,30 @@ function M._CreateTextRenderer(deps)
 		return true
 	end
 
-	local quad = {
-		{x = 0, y = 0, u = 0, v = 0},
-		{x = 0, y = 0, u = 1, v = 0},
-		{x = 0, y = 0, u = 1, v = 1},
-		{x = 0, y = 0, u = 0, v = 1},
-	}
+	local function setupTextAuxParamMatrix(mat,
+		a0, a1, a2, a3,
+		b0, b1, b2, b3,
+		c0, c1, c2, c3,
+		d0, d1, d2, d3)
+		if not mat or not Matrix or not textParamMatrixSetUnpacked then
+			error("MGFX text compose auxiliary matrix unavailable", 2)
+		end
+
+		local matrix = textAuxParamMatrices[mat]
+		if not matrix then
+			matrix = Matrix()
+			textAuxParamMatrices[mat] = matrix
+		end
+
+		textParamMatrixSetUnpacked(matrix,
+			a0 or 0, b0 or 0, c0 or 0, d0 or 0,
+			a1 or 0, b1 or 0, c1 or 0, d1 or 0,
+			a2 or 0, b2 or 0, c2 or 0, d2 or 0,
+			a3 or 0, b3 or 0, c3 or 0, d3 or 0
+		)
+		mat:SetMatrix("$invviewprojmat", matrix)
+		return true
+	end
 
 	local function initStats()
 		stats.textDraws = stats.textDraws or 0
@@ -710,15 +729,19 @@ function M._CreateTextRenderer(deps)
 		end
 	end
 
-	local function drawUV(mat, x, y, w, h, u0, v0, u1, v1, color)
-		quad[1].x, quad[1].y, quad[1].u, quad[1].v = x, y, u0, v0
-		quad[2].x, quad[2].y, quad[2].u, quad[2].v = x + w, y, u1, v0
-		quad[3].x, quad[3].y, quad[3].u, quad[3].v = x + w, y + h, u1, v1
-		quad[4].x, quad[4].y, quad[4].u, quad[4].v = x, y + h, u0, v1
+	local function drawUV(mat, x, y, w, h, u0, v0, u1, v1, color, pageW, pageH)
+		local du = 0.5 / math_max(1, pageW or ATLAS_W)
+		local dv = 0.5 / math_max(1, pageH or ATLAS_H)
+		local denomU = 1 - 2 * du
+		local denomV = 1 - 2 * dv
 		surface_SetMaterial(mat)
 		color = asColor(color, white)
 		surface_SetDrawColor(color.r or 255, color.g or 255, color.b or 255, color.a == nil and 255 or color.a)
-		surface_DrawPoly(quad)
+		surface_DrawTexturedRectUV(
+			x, y, w, h,
+			(u0 - du) / denomU, (v0 - dv) / denomV,
+			(u1 - du) / denomU, (v1 - dv) / denomV
+		)
 	end
 
 	local function snapTextPos(x, y, style)
@@ -1324,24 +1347,6 @@ function M._CreateTextRenderer(deps)
 			0, 0, 0, 0,
 			0, 0, 0, 0
 		)
-		local r, g, b, a = scaledColor01(stroke, 1)
-		mat:SetFloat("$c0_x", r)
-		mat:SetFloat("$c0_y", g)
-		mat:SetFloat("$c0_z", b)
-		mat:SetFloat("$c0_w", a)
-
-		r, g, b, a = scaledColor01(glow, glow and glow.strength or 1)
-		mat:SetFloat("$c1_x", r)
-		mat:SetFloat("$c1_y", g)
-		mat:SetFloat("$c1_z", b)
-		mat:SetFloat("$c1_w", a)
-
-		r, g, b, a = scaledColor01(shadow, shadow and shadow.strength or 1)
-		mat:SetFloat("$c2_x", r)
-		mat:SetFloat("$c2_y", g)
-		mat:SetFloat("$c2_z", b)
-		mat:SetFloat("$c2_w", a)
-
 		local scaledStroke = stroke and {
 			width = stroke.width * oversample,
 			softness = stroke.softness,
@@ -1352,10 +1357,18 @@ function M._CreateTextRenderer(deps)
 			blur = shadow.blur * oversample,
 		} or nil
 
-		mat:SetFloat("$c3_x", scaledStroke and scaledStroke.width or 0)
-		mat:SetFloat("$c3_y", glow and glow.width * oversample or 0)
-		mat:SetFloat("$c3_z", packEffectParams(glow, scaledShadow, face, weightAdjust * oversample, entry.shaderFace))
-		mat:SetFloat("$c3_w", scaledShadow and packShadowParams(scaledShadow.x, scaledShadow.y, scaledStroke) or packShadowParams(0, 0, scaledStroke))
+		local sr, sg, sb, sa = scaledColor01(stroke, 1)
+		local gr, gg, gb, ga = scaledColor01(glow, glow and glow.strength or 1)
+		local shr, shg, shb, sha = scaledColor01(shadow, shadow and shadow.strength or 1)
+		setupTextAuxParamMatrix(mat,
+			sr, sg, sb, sa,
+			gr, gg, gb, ga,
+			shr, shg, shb, sha,
+			scaledStroke and scaledStroke.width or 0,
+			glow and glow.width * oversample or 0,
+			packEffectParams(glow, scaledShadow, face, weightAdjust * oversample, entry.shaderFace),
+			scaledShadow and packShadowParams(scaledShadow.x, scaledShadow.y, scaledStroke) or packShadowParams(0, 0, scaledStroke)
+		)
 	end
 
 	local function fillEndpointColors(fill, fallback)
@@ -1380,30 +1393,17 @@ function M._CreateTextRenderer(deps)
 		mat:SetTexture("$basetexture", entry.page.rt)
 		local lut = gradientLutForFill(fill)
 		if lut then mat:SetTexture("$texture1", lut) end
-		mat:SetFloat("$c0_x", u0)
-		mat:SetFloat("$c0_y", v0)
-		mat:SetFloat("$c0_z", u1)
-		mat:SetFloat("$c0_w", v1)
-		mat:SetFloat("$c1_x", r)
-		mat:SetFloat("$c1_y", g)
-		mat:SetFloat("$c1_z", b)
-		mat:SetFloat("$c1_w", a)
-		r, g, b, a = color01(colorB)
-		mat:SetFloat("$c2_x", r)
-		mat:SetFloat("$c2_y", g)
-		mat:SetFloat("$c2_z", b)
-		mat:SetFloat("$c2_w", a)
+		local r2, g2, b2, a2 = color01(colorB)
+		local x1, y1, x2, y2 = 0, 0, 1, 0
 		if istable(fill) and fill.kind == 1 then
-			mat:SetFloat("$c3_x", tonumber(fill.x1) or 0)
-			mat:SetFloat("$c3_y", tonumber(fill.y1) or 0)
-			mat:SetFloat("$c3_z", tonumber(fill.x2) or 1)
-			mat:SetFloat("$c3_w", tonumber(fill.y2) or 0)
-		else
-			mat:SetFloat("$c3_x", 0)
-			mat:SetFloat("$c3_y", 0)
-			mat:SetFloat("$c3_z", 1)
-			mat:SetFloat("$c3_w", 0)
+			x1, y1, x2, y2 = tonumber(fill.x1) or 0, tonumber(fill.y1) or 0, tonumber(fill.x2) or 1, tonumber(fill.y2) or 0
 		end
+		setupTextAuxParamMatrix(mat,
+			u0, v0, u1, v1,
+			r, g, b, a,
+			r2, g2, b2, a2,
+			x1, y1, x2, y2
+		)
 	end
 
 	local function drawEntryAt(entry, record, contentX, contentY, fillOverride)
@@ -1445,11 +1445,11 @@ function M._CreateTextRenderer(deps)
 		if fx and entry.shaderFace then
 			drawColor = asColor(fillOverride or fillForRecord(record), record.color or white)
 		end
-		drawUV(mat, x, y, entry.w, entry.h, u0, v0, u1, v1, drawColor)
+		drawUV(mat, x, y, entry.w, entry.h, u0, v0, u1, v1, drawColor, page.w, page.h)
 		local blits = 1
 		if fx and not entry.shaderFace and faceMat then
 			setupTextFaceMaterial(faceMat, entry, record, u0, v0, u1, v1, fillOverride)
-			drawUV(faceMat, x, y, entry.w, entry.h, u0, v0, u1, v1, white)
+			drawUV(faceMat, x, y, entry.w, entry.h, u0, v0, u1, v1, white, page.w, page.h)
 			blits = blits + 1
 		end
 		stats.textComposedBlits = stats.textComposedBlits + blits

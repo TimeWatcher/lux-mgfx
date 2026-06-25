@@ -2,19 +2,77 @@ import * as frameImport from "@lux/mgfx/frame"
 
 local frame = frameImport
 
+fn queuedTextBatch(owner, records) {
+  local state = owner?._FrameState
+  if state == nil or state.commandStack == nil or state.replaying {
+    return false
+  }
+
+  state.commandStack[#state.commandStack + 1] = {
+    op = "DrawTextBatch",
+    records = records
+  }
+  owner.stats = owner.stats ?? {}
+  owner.stats.textQueuedBatches = (owner.stats.textQueuedBatches ?? 0) + 1
+  owner.stats.textQueuedRecords = (owner.stats.textQueuedRecords ?? 0) + #(records ?? {})
+  true
+}
+
+fn queuedTextRecord(owner, record) {
+  local state = owner?._FrameState
+  if state == nil or state.commandStack == nil or state.replaying {
+    return false
+  }
+
+  local stack = state.commandStack
+  local last = stack[#stack]
+  if last ~= nil and last.op == "DrawTextBatch" {
+    last.records[#last.records + 1] = record
+  } else {
+    stack[#stack + 1] = {
+      op = "DrawTextBatch",
+      records = { record }
+    }
+    owner.stats = owner.stats ?? {}
+    owner.stats.textQueuedBatches = (owner.stats.textQueuedBatches ?? 0) + 1
+  }
+  owner.stats = owner.stats ?? {}
+  owner.stats.textQueuedRecords = (owner.stats.textQueuedRecords ?? 0) + 1
+  true
+}
+
+fn queuedTextBox(owner, textValue, font, x, y, w, h, textStyle) {
+  local state = owner?._FrameState
+  if state == nil or state.commandStack == nil or state.replaying {
+    return false
+  }
+
+  state.commandStack[#state.commandStack + 1] = {
+    op = "DrawTextBox",
+    text = textValue,
+    font = font,
+    x = x,
+    y = y,
+    w = w,
+    h = h,
+    style = textStyle
+  }
+  true
+}
+
 export client fn install(owner) {
   owner.stats = owner.stats ?? {}
   local materialState = owner._MaterialState ?? {}
   local renderer = createTextRenderer({
     M = owner,
-      owner = owner,
-      stats = owner.stats,
-      materials = owner._Materials ?? materialState.materials ?? {},
-      createPageTextMaterials = materialState.CreatePageTextMaterials,
-      matOK = owner.MaterialOK ?? materialState.matOK,
-      profiler = owner.Profiler,
-      restoreScissor = frame.restoreScissor,
-      gradientLutForFill = owner.GradientLutForFill
+    owner = owner,
+    stats = owner.stats,
+    materials = owner._Materials ?? materialState.materials ?? {},
+    createPageTextMaterials = materialState.CreatePageTextMaterials,
+    matOK = owner.MaterialOK ?? materialState.matOK,
+    profiler = owner.Profiler,
+    restoreScissor = frame.restoreScissor,
+    gradientLutForFill = owner.GradientLutForFill
   })
 
   owner.RegisterTextFont = renderer.RegisterFont
@@ -27,11 +85,34 @@ export client fn install(owner) {
   owner.MeasureText = renderer.MeasureText
   owner.MeasureTextBox = renderer.MeasureTextBox
   owner.PrewarmText = renderer.PrewarmText
-  owner.TextBatchEx = renderer.Flush
-  owner.Text = renderer.DrawTextImmediate
-  owner.TextEx = renderer.DrawTextImmediate
-  owner.TextBox = renderer.DrawTextBoxImmediate
-  owner.TextBoxEx = renderer.DrawTextBoxImmediate
+  owner.TextBatchEx = (records, reason = nil) => {
+    if queuedTextBatch(owner, records ?? {}) {
+      return
+    }
+    return renderer.Flush(records, reason ?? "batch")
+  }
+  owner.Text = (value, font, x, y, color, ax = nil, ay = nil) =>
+    owner.TextEx(value, font, x, y, color, ax, ay, nil)
+  owner.TextEx = (value, font, x, y, color, ax = nil, ay = nil, textStyle = nil) => {
+    local record = renderer.MakeRecord(value, font, x, y, color, ax, ay, textStyle ?? {})
+    if queuedTextRecord(owner, record) {
+      return
+    }
+    return renderer.DrawRecordImmediate(record)
+  }
+  owner.TextBox = (value, font, x, y, w, h, color = nil, alignX = TEXT_ALIGN_LEFT, alignY = TEXT_ALIGN_TOP) =>
+    owner.TextBoxEx(value, font, x, y, w, h, {
+      color = color,
+      alignX = alignX,
+      alignY = alignY
+    })
+  owner.TextBoxEx = (value, font, x, y, w, h, textStyle = nil) => {
+    local resolved = renderer.ResolveStyle(textStyle ?? {})
+    if queuedTextBox(owner, value, font, x, y, w, h, resolved) {
+      return
+    }
+    return renderer.DrawTextBoxImmediate(value, font, x, y, w, h, resolved)
+  }
   owner.ClearTextMeasureCache = renderer.ClearMeasureCache
   owner.ClearTextComposedCache = renderer.ClearComposedCache
   owner.TextComposedEnabled = renderer.ComposedEnabled

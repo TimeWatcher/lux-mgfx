@@ -13,10 +13,10 @@ export client fn resetProfile() {
 export client fn profileSnapshot(reset = false) {
   local out = {
     active = profile.active,
-      draws = profile.draws,
-      measures = profile.measures,
-      times = tableCopy(profile.times ?? {}),
-      counts = tableCopy(profile.counts ?? {})
+    draws = profile.draws,
+    measures = profile.measures,
+    times = tableCopy(profile.times ?? {}),
+    counts = tableCopy(profile.counts ?? {})
   }
   if reset {
     resetProfile()
@@ -46,6 +46,8 @@ fn resetRendererFrameStats(stats) {
   stats.textDraws = 0
   stats.textNativeDraws = 0
   stats.textShaderDraws = 0
+  stats.textQueuedBatches = 0
+  stats.textQueuedRecords = 0
   stats.textComposedBakes = 0
   stats.textComposedBlits = 0
   stats.textComposedDraws = 0

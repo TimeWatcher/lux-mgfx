@@ -31,6 +31,11 @@ export client fn recordDraws(amount = 1) {
   stats.draws
 }
 
+export client fn recordFallbacks(amount = 1) {
+  stats.fallbacks = (stats.fallbacks ?? 0) + (amount ?? 1)
+  stats.fallbacks
+}
+
 export client fn profileSnapshot(reset = false) {
   local out = tableCopy(stats)
   if reset {
@@ -41,6 +46,7 @@ export client fn profileSnapshot(reset = false) {
 }
 
 export client fn install(owner) {
+  geometryProfiler = owner.Profiler
   bindStats(owner)
   owner.Transform = transform
   owner.ProjectedQuad = projectedQuad
@@ -63,10 +69,12 @@ export client fn install(owner) {
   }
   owner.ResetGeometryFrameStats = resetFrameStats
   owner.GetGeometryProfileSnapshot = profileSnapshot
+  owner._internal = owner._internal ?? {}
   owner._Geometry = {
     blurIntensity = blurIntensity,
       resetFrameStats = resetFrameStats,
       recordDraws = recordDraws,
+      recordFallbacks = recordFallbacks,
       drawTexturedQuad = drawTexturedQuad,
       drawTexturedQuadUV = drawTexturedQuadUV,
       drawTransformedPoly = drawTransformedPoly,
@@ -86,5 +94,7 @@ export client fn install(owner) {
       imageFitRect = imageFitRect,
       profileSnapshot = profileSnapshot
   }
+  owner._internal.drawTexturedQuad = drawTexturedQuad
+  owner._internal.drawTexturedQuadUV = drawTexturedQuadUV
   owner
 }

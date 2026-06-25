@@ -1,11 +1,11 @@
 #include "mgfx_common.hlsl"
 #include "mgfx_chamfer_common.hlsl"
 
-#define CHAMFER_CUTS Constants0
-#define INNER_GLOW_COLOR Constants1
-#define INNER_GLOW_WIDTH Constants2.x
-#define INNER_GLOW_STRENGTH Constants2.y
-#define INNER_GLOW_FALLOFF Constants2.z
+#define CHAMFER_CUTS AUX0
+#define INNER_GLOW_COLOR AUX1
+#define INNER_GLOW_WIDTH AUX2.x
+#define INNER_GLOW_STRENGTH AUX2.y
+#define INNER_GLOW_FALLOFF AUX2.z
 
 float inner_glow_profile(float depth, float width, float falloff)
 {

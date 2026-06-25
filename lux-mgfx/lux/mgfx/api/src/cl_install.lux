@@ -1,5 +1,6 @@
 import * as capabilities from "@lux/mgfx/capabilities"
 import * as commands from "@lux/mgfx/commands"
+import * as console from "@lux/mgfx/console"
 import * as frame from "@lux/mgfx/frame"
 import * as geometry from "@lux/mgfx/geometry"
 import * as materials from "@lux/mgfx/materials"
@@ -12,13 +13,41 @@ import * as style from "@lux/mgfx/style"
 import * as textModule from "@lux/mgfx/text"
 import * as widgets from "@lux/mgfx/widgets"
 
+local tableEmpty = table.Empty
+local typeOf = type
+local makeColor = Color
+local colorDrawStyleCache = setmetatable({}, { __mode = "k" })
+local transparentFillColor = makeColor(0, 0, 0, 0)
+
 fn installTargets(owner) {
   owner.TARGET = capabilities.TARGET
   owner.TARGET_NAME = capabilities.TARGET_NAME
 }
 
+fn clearFrameStatTables(stats) {
+  stats.drawCommandCounts = stats.drawCommandCounts ?? {}
+  stats.drawImmediateCounts = stats.drawImmediateCounts ?? {}
+  stats.profileTimes = stats.profileTimes ?? {}
+  stats.profileCounts = stats.profileCounts ?? {}
+
+  tableEmpty(stats.drawCommandCounts)
+  tableEmpty(stats.drawImmediateCounts)
+  tableEmpty(stats.profileTimes)
+  tableEmpty(stats.profileCounts)
+}
+
 fn resetFrameStats(owner) {
   owner.stats = owner.stats ?? {}
+  local stats = owner.stats
+  stats.draws = 0
+  stats.blurPasses = 0
+  stats.fallbacks = 0
+  stats.culled = 0
+  stats.gradientLutFillHits = 0
+  stats.textQueuedBatches = 0
+  stats.textQueuedRecords = 0
+  clearFrameStatTables(stats)
+
   if owner.ResetGeometryFrameStats ~= nil {
     owner.ResetGeometryFrameStats()
   }
@@ -26,7 +55,7 @@ fn resetFrameStats(owner) {
     owner.ResetTextFrameStats()
   }
 
-  owner.stats
+  stats
 }
 
 fn installFrameStatsReset(owner) {
@@ -55,6 +84,48 @@ fn installFrameStatsReset(owner) {
   owner
 }
 
+fn colorDrawStyle(color) {
+  local cached = colorDrawStyleCache[color]
+  if cached ~= nil {
+    return cached
+  }
+
+  cached = { fill = color }
+  colorDrawStyleCache[color] = cached
+  cached
+}
+
+fn normalizeDrawStyle(drawStyle, target) {
+  stopif drawStyle == nil, nil
+
+  if style.isColor(drawStyle) {
+    return colorDrawStyle(drawStyle)
+  }
+
+  stopif typeOf(drawStyle) ~= "table", nil
+
+  local fill = drawStyle.fill
+  local fillKind = typeOf(fill) == "table" then fill.kind else nil
+  stopif fillKind ~= style.PATTERN_STRIPE and fillKind ~= style.PATTERN_SMOKE, drawStyle
+
+  if target == capabilities.TARGET.PROGRESS_BAR or target == capabilities.TARGET.SEGMENT_BAR {
+    local out = { ...drawStyle }
+    if out.fillPattern == nil {
+      out.fillPattern = fill
+    }
+    out.fill = drawStyle.fillBase ?? drawStyle.baseFill
+    return out
+  }
+
+  local cap = capabilities.get(target)
+  stopif cap == nil or cap.keys == nil or cap.keys.pattern ~= true or drawStyle.pattern ~= nil, drawStyle
+
+  local out = { ...drawStyle }
+  out.pattern = fill
+  out.fill = drawStyle.patternBase ?? drawStyle.baseFill ?? transparentFillColor
+  out
+}
+
 fn installNormalizedDrawApi(owner) {
   local rawRoundedBoxEx = owner.RoundedBoxEx
   local rawCircleEx = owner.CircleEx
@@ -74,52 +145,142 @@ fn installNormalizedDrawApi(owner) {
   local rawIconEx = owner.IconEx
 
   owner.RoundedBoxEx = (x, y, w, h, drawStyle = nil) =>
-    rawRoundedBoxEx(x, y, w, h, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.ROUNDED_BOX))
+    rawRoundedBoxEx(x, y, w, h, normalizeDrawStyle(drawStyle, capabilities.TARGET.ROUNDED_BOX))
 
   owner.CircleEx = (cx, cy, radius, drawStyle = nil) =>
-    rawCircleEx(cx, cy, radius, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.CIRCLE))
+    rawCircleEx(cx, cy, radius, normalizeDrawStyle(drawStyle, capabilities.TARGET.CIRCLE))
 
   owner.CapsuleEx = (x, y, w, h, drawStyle = nil) =>
-    rawCapsuleEx(x, y, w, h, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.CAPSULE))
+    rawCapsuleEx(x, y, w, h, normalizeDrawStyle(drawStyle, capabilities.TARGET.CAPSULE))
 
   owner.ChamferBoxEx = (x, y, w, h, drawStyle = nil) =>
-    rawChamferBoxEx(x, y, w, h, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.CHAMFER_BOX))
+    rawChamferBoxEx(x, y, w, h, normalizeDrawStyle(drawStyle, capabilities.TARGET.CHAMFER_BOX))
 
   owner.RegularPolyEx = (cx, cy, radius, sides, drawStyle = nil) =>
-    rawRegularPolyEx(cx, cy, radius, sides, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.POLY))
+    rawRegularPolyEx(cx, cy, radius, sides, normalizeDrawStyle(drawStyle, capabilities.TARGET.POLY))
 
   owner.DiamondEx = (x, y, w, h, drawStyle = nil) =>
-    rawDiamondEx(x, y, w, h, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.POLY))
+    rawDiamondEx(x, y, w, h, normalizeDrawStyle(drawStyle, capabilities.TARGET.POLY))
 
   owner.CaretEx = (x, y, w, h, drawStyle = nil) =>
-    rawCaretEx(x, y, w, h, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.POLY))
+    rawCaretEx(x, y, w, h, normalizeDrawStyle(drawStyle, capabilities.TARGET.POLY))
 
   owner.PolyEx = (points, drawStyle = nil) =>
-    rawPolyEx(points, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.POLY))
+    rawPolyEx(points, normalizeDrawStyle(drawStyle, capabilities.TARGET.POLY))
 
   owner.LineEx = (x1, y1, x2, y2, drawStyle = nil) =>
-    rawLineEx(x1, y1, x2, y2, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.LINE))
+    rawLineEx(x1, y1, x2, y2, normalizeDrawStyle(drawStyle, capabilities.TARGET.LINE))
 
   owner.ProgressBarEx = (x, y, w, h, value, drawStyle = nil) =>
-    rawProgressBarEx(x, y, w, h, value, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.PROGRESS_BAR))
+    rawProgressBarEx(x, y, w, h, value, normalizeDrawStyle(drawStyle, capabilities.TARGET.PROGRESS_BAR))
 
   owner.SegmentBarEx = (x, y, w, h, value, drawStyle = nil) =>
-    rawSegmentBarEx(x, y, w, h, value, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.SEGMENT_BAR))
+    rawSegmentBarEx(x, y, w, h, value, normalizeDrawStyle(drawStyle, capabilities.TARGET.SEGMENT_BAR))
 
   owner.RingEx = (cx, cy, radius, width, drawStyle = nil) =>
-    rawRingEx(cx, cy, radius, width, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.RING))
+    rawRingEx(cx, cy, radius, width, normalizeDrawStyle(drawStyle, capabilities.TARGET.RING))
 
   owner.ArcEx = (cx, cy, radius, width, startDeg, endDeg, drawStyle = nil) =>
-    rawArcEx(cx, cy, radius, width, startDeg, endDeg, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.ARC))
+    rawArcEx(cx, cy, radius, width, startDeg, endDeg, normalizeDrawStyle(drawStyle, capabilities.TARGET.ARC))
 
   owner.SectorEx = (cx, cy, innerRadius, outerRadius, startDeg, endDeg, drawStyle = nil) =>
-    rawSectorEx(cx, cy, innerRadius, outerRadius, startDeg, endDeg, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.SECTOR))
+    rawSectorEx(cx, cy, innerRadius, outerRadius, startDeg, endDeg, normalizeDrawStyle(drawStyle, capabilities.TARGET.SECTOR))
 
   owner.ImageEx = (x, y, w, h, source, drawStyle = nil) =>
-    rawImageEx(x, y, w, h, source, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.IMAGE))
+    rawImageEx(x, y, w, h, source, normalizeDrawStyle(drawStyle, capabilities.TARGET.IMAGE))
 
   owner.IconEx = (x, y, w, h, source, drawStyle = nil) =>
-    rawIconEx(x, y, w, h, source, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.IMAGE))
+    rawIconEx(x, y, w, h, source, normalizeDrawStyle(drawStyle, capabilities.TARGET.IMAGE))
+
+  owner
+}
+
+fn installProfileWrappers(owner) {
+  local api = owner.Profiler
+  if api == nil or api.InstallApiWrappers == nil {
+    return owner
+  }
+
+  api.InstallApiWrappers(owner, {
+    "RoundedBox",
+    "RoundedBoxEx",
+    "ChamferBox",
+    "ChamferBoxEx",
+    "RegularPoly",
+    "RegularPolyEx",
+    "Diamond",
+    "DiamondEx",
+    "Caret",
+    "CaretEx",
+    "Poly",
+    "PolyEx",
+    "Image",
+    "ImageEx",
+    "Icon",
+    "IconEx",
+    "Text",
+    "TextEx",
+    "TextBatchEx",
+    "TextBox",
+    "TextBoxEx",
+    "ProgressBar",
+    "ProgressBarEx",
+    "SegmentBar",
+    "SegmentBarEx",
+    "Line",
+    "LineEx",
+    "Ring",
+    "RingEx",
+    "Arc",
+    "ArcEx",
+    "Circle",
+    "CircleEx",
+    "Capsule",
+    "CapsuleEx",
+    "PushClip",
+    "PopClip",
+    "Solid",
+    "LinearGradient",
+    "LinearGradientStops",
+    "RadialGradient",
+    "RingRadialGradient",
+    "SectorRadialGradient",
+    "ConicGradient",
+    "ShapeAngularGradient",
+    "RingAngularGradient",
+    "ArcAngularGradient",
+    "SectorAngularGradient",
+    "StripePattern",
+    "SmokePattern",
+    "Mask",
+    "Backdrop",
+    "ImageMaskStyle",
+    "BackdropStyle",
+    "FillFromStyle",
+    "ColorAtFill",
+    "NormalizedRotation",
+    "GlowSoftnessToFalloff",
+    "GradientLutForFill",
+    "BindGradientLut",
+    "GradientLutStatus",
+    "GetCapabilities",
+    "Supports",
+    "NormalizeStyle",
+    "Transform",
+    "ProjectedQuad",
+    "PointerTilt",
+    "PushTransform",
+    "PopTransform",
+    "TransformPoint",
+    "UntransformPoint",
+    "RegisterTextFont",
+    "DefineTextStyle",
+    "GetTextStyle",
+    "ResolveTextStyle",
+    "MeasureText",
+    "MeasureTextBox",
+    "PrewarmText"
+  }, () => owner._FrameState ~= nil and owner._FrameState.replaying == true)
 
   owner
 }
@@ -135,10 +296,11 @@ export client fn install(owner = nil) {
   style.install(out)
   capabilities.install(out)
   commands.install(out)
+  console.install(out)
+  profiler.install(out)
   frame.install(out)
   geometry.install(out)
   materials.install(out)
-  profiler.install(out)
   paint.install(out)
   textModule.install(out)
   roundrect.install(out)
@@ -146,6 +308,7 @@ export client fn install(owner = nil) {
   widgets.install(out)
   installNormalizedDrawApi(out)
   installFrameStatsReset(out)
+  installProfileWrappers(out)
 
   out
 }

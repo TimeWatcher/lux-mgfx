@@ -16,7 +16,11 @@ local mathMin = math.min
 local matrixCtor = Matrix
 local printFn = print
 local realTime = RealTime
+local runConsoleCommand = RunConsoleCommand
 local stringFormat = string.format
+local stringSub = string.sub
+local drawSimpleText = _G.draw.SimpleText
+local globalTable = _G
 local surfaceCreateFont = surface?.CreateFont
 local surfaceDrawOutlinedRect = surface?.DrawOutlinedRect
 local surfaceDrawRect = surface?.DrawRect
@@ -36,13 +40,22 @@ local commandNames = {}
 local textDemoEnabled = false
 local textStressEnabled = false
 local atlasDebugEnabled = false
+local profileHudEnabled = false
 local paramProbeEnabled = false
+local paramProbeInvEnabled = false
 local textDemoFontsReady = false
 local paramProbeMatrix = matrixCtor ~= nil then matrixCtor() else nil
 local paramProbeSetUnpacked = paramProbeMatrix?.SetUnpacked
+local paramProbeInvMatrix = matrixCtor ~= nil then matrixCtor() else nil
+local paramProbeInvSetUnpacked = paramProbeInvMatrix?.SetUnpacked
 local paramBenchMatrix = matrixCtor ~= nil then matrixCtor() else nil
 local paramBenchSetUnpacked = paramBenchMatrix?.SetUnpacked
 local paramBenchTimer = "MGFXParamBench"
+local profileHudHook = "MGFXProfileHUD"
+local profileHudX = 24
+local profileHudY = 360
+local profileHudRows = 4
+local profileHudTopRows = 6
 local textDemoFx = createClientConVar ~= nil then createClientConVar("mgfx_text_demo_fx", "1", true, false, "MGFX text demo effect intensity.") else nil
 
 local requiredMaterialKeys = {
@@ -52,20 +65,18 @@ local requiredMaterialKeys = {
     "roundrect_stroke",
     "roundrect_texture",
     "param_probe",
+    "param_probe_inv",
     "chamfer",
     "chamfer_texture",
     "image_mask",
-    "image_mask_shadow",
-    "image_mask_outerglow",
+    "image_mask_shadow_outer",
     "image_mask_backdrop",
     "chamfer_stroke",
     "roundrect_blur",
     "roundrect_innerglow",
     "chamfer_innerglow",
-    "roundrect_shadow",
-    "roundrect_outerglow",
-    "chamfer_shadow",
-    "chamfer_outerglow",
+    "roundrect_shadow_outer",
+    "chamfer_shadow_outer",
     "chamfer_backdrop",
     "progress",
     "progress_fx",
@@ -81,8 +92,7 @@ local requiredMaterialKeys = {
     "ring_backdrop",
     "ring_stroke",
     "ring_innerglow",
-    "ring_shadow",
-    "ring_outerglow",
+    "ring_shadow_outer",
     "ring_pattern",
     "poly3_stroke",
     "poly3",

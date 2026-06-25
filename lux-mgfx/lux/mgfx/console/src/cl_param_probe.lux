@@ -1,24 +1,43 @@
-fn setupParamProbeMatrix(mat, columnPacked) {
-  if not materialsPkg.matOK(mat) or paramProbeMatrix == nil or paramProbeSetUnpacked == nil {
-    return false
-  }
-
+fn writeParamProbeMatrix(matrix, setUnpacked, columnPacked, variant = "view") {
   local pulse = math.sin(realTime() * 2.2) * 0.2 + 0.2
-  if columnPacked {
-    paramProbeSetUnpacked(paramProbeMatrix,
+  if variant == "inv" {
+    setUnpacked(matrix,
+      0.05, 1.0, 1.0, 0.35 + pulse,
+      0.85, 0.05, 0.72, 1.0,
+      1.0, 0.85, 0.05, 0.05,
+      1.0, 1.0, 1.0, 1.0)
+  } else if columnPacked {
+    setUnpacked(matrix,
       1.0, 0.05, 0.05, 1.0,
       0.05, 1.0, 0.05, 1.0,
       0.05, 0.05, 1.0, pulse,
       1.0, 1.0, 1.0, 1.0)
   } else {
-    paramProbeSetUnpacked(paramProbeMatrix,
+    setUnpacked(matrix,
       1.0, 0.05, 0.05, 1.0,
       0.05, 1.0, 0.05, 1.0,
       0.05, 0.05, 1.0, 1.0,
       1.0, 1.0, pulse, 1.0)
   }
+}
 
+fn setupParamProbeMatrix(mat, columnPacked) {
+  if not materialsPkg.matOK(mat) or paramProbeMatrix == nil or paramProbeSetUnpacked == nil {
+    return false
+  }
+
+  writeParamProbeMatrix(paramProbeMatrix, paramProbeSetUnpacked, columnPacked)
   mat:SetMatrix("$viewprojmat", paramProbeMatrix)
+  true
+}
+
+fn setupNamedParamProbeMatrix(mat, matrix, setUnpacked, paramName, variant = "view") {
+  if not materialsPkg.matOK(mat) or matrix == nil or setUnpacked == nil {
+    return false
+  }
+
+  writeParamProbeMatrix(matrix, setUnpacked, true, variant)
+  mat:SetMatrix(paramName, matrix)
   true
 }
 
@@ -36,7 +55,7 @@ fn drawParamProbeBlock(mat, x, y, w, h, columnPacked) {
 fn drawParamProbe(owner) {
   local mat = owner?._Materials?.param_probe
   local x = 42
-  local y = 128
+  local y = 300
   local w = 360
   local h = 76
   if not materialsPkg.matOK(mat) or paramProbeMatrix == nil or paramProbeSetUnpacked == nil {
@@ -55,15 +74,72 @@ export client fn toggleParamProbe(owner) {
   paramProbeEnabled = not paramProbeEnabled
   if hookRemove ~= nil {
     hookRemove("HUDPaint", "MGFXParamProbe")
+    hookRemove("HUDPaint", "MGFXParamProbeInv")
   }
+  paramProbeInvEnabled = false
 
   if paramProbeEnabled and hookAdd ~= nil {
-    hookAdd("HUDPaint", "MGFXParamProbe", () => drawParamProbe(owner))
+    hookAdd("HUDPaint", "MGFXParamProbe", () => {
+      drawParamProbe(owner);
+    })
     printFn("[MGFX] param probe ON")
     return true
   }
 
   printFn("[MGFX] param probe OFF")
+  false
+}
+
+fn drawNamedParamProbeBlock(mat, matrix, setUnpacked, paramName, variant, x, y, w, h) {
+  if not setupNamedParamProbeMatrix(mat, matrix, setUnpacked, paramName, variant) {
+    return false
+  }
+
+  surfaceSetMaterial(mat)
+  surfaceSetDrawColor(255, 255, 255, 255)
+  surfaceDrawTexturedRectUV(x, y, w, h, -0.015625, -0.015625, 1.015625, 1.015625)
+  true
+}
+
+fn drawParamProbeInv(owner) {
+  local materials = owner?._Materials ?? {}
+  local matC11 = materials.param_probe
+  local matC15 = materials.param_probe_inv
+  local x = 42
+  local y = 300
+  local w = 360
+  local h = 76
+  if not materialsPkg.matOK(matC11) or not materialsPkg.matOK(matC15) or paramProbeMatrix == nil or paramProbeSetUnpacked == nil or paramProbeInvMatrix == nil or paramProbeInvSetUnpacked == nil {
+    draw.SimpleText("MGFX c15 param probe unavailable", "DermaDefaultBold", x, y, makeColor(255, 90, 90))
+    return
+  }
+
+  draw.SimpleText("c11 / $viewprojmat: red, green, blue, yellow pulse", "DermaDefaultBold", x, y - 16, color_white)
+  drawNamedParamProbeBlock(matC11, paramProbeMatrix, paramProbeSetUnpacked, "$viewprojmat", "view", x, y, w, h)
+
+  local y2 = y + h + 42
+  draw.SimpleText("c15 / $invviewprojmat: cyan, magenta, amber, lime pulse", "DermaDefaultBold", x, y2 - 16, color_white)
+  drawNamedParamProbeBlock(matC15, paramProbeInvMatrix, paramProbeInvSetUnpacked, "$invviewprojmat", "inv", x, y2, w, h)
+  draw.SimpleText("if both blocks are correct and different, c15 is an independent matrix parameter page", "DermaDefault", x, y2 + h + 6, makeColor(210, 230, 240))
+}
+
+export client fn toggleParamProbeInv(owner) {
+  paramProbeInvEnabled = not paramProbeInvEnabled
+  if hookRemove ~= nil {
+    hookRemove("HUDPaint", "MGFXParamProbeInv")
+    hookRemove("HUDPaint", "MGFXParamProbe")
+  }
+  paramProbeEnabled = false
+
+  if paramProbeInvEnabled and hookAdd ~= nil {
+    hookAdd("HUDPaint", "MGFXParamProbeInv", () => {
+      drawParamProbeInv(owner);
+    })
+    printFn("[MGFX] c15 param probe ON: compare $viewprojmat/c11 with $invviewprojmat/c15")
+    return true
+  }
+
+  printFn("[MGFX] c15 param probe OFF")
   false
 }
 
@@ -134,6 +210,12 @@ fn runParamBenchSlice(test, mat, matrix, setUnpacked, first, last) {
       mat:SetMatrix("$viewprojmat", matrix)
       sink += value
     }
+  } else if test == "SetInvMatrix only" {
+    for index = first, last {
+      local value = (index % 1024) * 0.0009765625
+      mat:SetMatrix("$invviewprojmat", matrix)
+      sink += value
+    }
   } else if test == "SetUnpacked + SetMatrix" {
     for index = first, last {
       local value = (index % 1024) * 0.0009765625
@@ -143,6 +225,17 @@ fn runParamBenchSlice(test, mat, matrix, setUnpacked, first, last) {
         value + 0.02, value + 0.06, value + 0.10, value + 0.14,
         value + 0.03, value + 0.07, value + 0.11, value + 0.15)
       mat:SetMatrix("$viewprojmat", matrix)
+      sink += value
+    }
+  } else if test == "SetUnpacked + SetInvMatrix" {
+    for index = first, last {
+      local value = (index % 1024) * 0.0009765625
+      setUnpacked(matrix,
+        value, value + 0.04, value + 0.08, value + 0.12,
+        value + 0.01, value + 0.05, value + 0.09, value + 0.13,
+        value + 0.02, value + 0.06, value + 0.10, value + 0.14,
+        value + 0.03, value + 0.07, value + 0.11, value + 0.15)
+      mat:SetMatrix("$invviewprojmat", matrix)
       sink += value
     }
   }
@@ -161,7 +254,7 @@ export client fn stopParamBench() {
 
 export client fn runParamBench(owner, args = nil) {
   local materials = owner?._Materials ?? {}
-  local mat = materials.param_probe ?? materials.roundrect
+  local mat = materials.param_probe_inv ?? materials.param_probe ?? materials.roundrect
   if not materialsPkg.matOK(mat) {
     printFn("[MGFX] param bench unavailable: material error")
     return false
@@ -190,7 +283,9 @@ export client fn runParamBench(owner, args = nil) {
       "SetFloat x16",
       "SetUnpacked only",
       "SetMatrix only",
-      "SetUnpacked + SetMatrix"
+      "SetInvMatrix only",
+      "SetUnpacked + SetMatrix",
+      "SetUnpacked + SetInvMatrix"
   }
   local state = {
     round = 1,

@@ -73,35 +73,45 @@ fn lineQuadVertsInto(out, x1, y1, x2, y2, strokeWidth, noCaps, fringeOverride = 
 
 fn drawLineRect(x, y, w, h, fill, resolved) {
   if resolved.radius ~= nil or resolved.shadow ~= nil or resolved.outerGlow ~= nil or resolved.backdrop ~= nil {
-    return roundrect.roundedBoxEx(x, y, w, h, {
-      radius = resolved.radius ?? 0,
-        backdrop = resolved.backdrop,
-        fill = fill,
-        shadow = resolved.shadow,
-        outerGlow = resolved.outerGlow
-    })
+    lineRoundRectStyle.radius = resolved.radius ?? 0
+    lineRoundRectStyle.backdrop = resolved.backdrop
+    lineRoundRectStyle.fill = fill
+    lineRoundRectStyle.shadow = resolved.shadow
+    lineRoundRectStyle.outerGlow = resolved.outerGlow
+    return roundrect.drawRoundRectImmediate(x, y, w, h, lineRoundRectStyle)
   }
 
-  drawTransformedPoly({
-    { x = x, y = y },
-      { x = x + w, y = y },
-      { x = x + w, y = y + h },
-      { x = x, y = y + h }
-  })
+  local points = linePolyPointsScratch
+  points[1].x = x
+  points[1].y = y
+  points[2].x = x + w
+  points[2].y = y
+  points[3].x = x + w
+  points[3].y = y + h
+  points[4].x = x
+  points[4].y = y + h
+  linePolyStyle.backdrop = resolved.backdrop
+  linePolyStyle.fill = fill
+  linePolyStyle.shadow = nil
+  linePolyStyle.outerGlow = nil
+  drawPolyImmediate(points, linePolyStyle)
 }
 
 fn drawLineFallbackVerts(verts, fill, backdrop = nil, shadow = nil, outerGlow = nil) {
-  polyEx({
-    { x = verts[1].x, y = verts[1].y },
-      { x = verts[2].x, y = verts[2].y },
-      { x = verts[3].x, y = verts[3].y },
-      { x = verts[4].x, y = verts[4].y }
-  }, {
-    backdrop = backdrop,
-      fill = fill,
-      shadow = shadow,
-      outerGlow = outerGlow
-  })
+  local points = linePolyPointsScratch
+  points[1].x = verts[1].x
+  points[1].y = verts[1].y
+  points[2].x = verts[2].x
+  points[2].y = verts[2].y
+  points[3].x = verts[3].x
+  points[3].y = verts[3].y
+  points[4].x = verts[4].x
+  points[4].y = verts[4].y
+  linePolyStyle.backdrop = backdrop
+  linePolyStyle.fill = fill
+  linePolyStyle.shadow = shadow
+  linePolyStyle.outerGlow = outerGlow
+  drawPolyImmediate(points, linePolyStyle)
 }
 
 fn drawLineQuad(x1, y1, x2, y2, strokeWidth, noCaps, verts, fill, resolved) {

@@ -64,6 +64,9 @@ export client fn install(owner) {
   addCommand(owner, "mgfx_hot_reload", () => reloadMGFX(owner), "Reload Lux MGFX into the current API table.")
   addCommand(owner, "mgfx_status", () => status(owner), "Print MGFX runtime status.")
   addCommand(owner, "mgfx_profile_status", () => profileStatus(owner), "Print MGFX profiler rows.")
+  addCommand(owner, "mgfx_profile_panels", (_cmd = nil, _argString = nil, args = nil) => profilePanels(owner, toNumber(args?.[1])), "Print MGFX panel/screen profiler rows.")
+  addCommand(owner, "mgfx_profile_current", (_cmd = nil, _argString = nil, args = nil) => profileCurrent(owner, toNumber(args?.[1])), "Print recent MGFX profiler scopes.")
+  addCommand(owner, "mgfx_profile_hud", (_cmd = nil, _argString = nil, args = nil) => toggleProfileHud(owner, args?.[1] ?? "toggle"), "Toggle MGFX profiler HUD overlay.")
   addCommand(owner, "mgfx_profile_reset", () => profileReset(owner), "Reset MGFX profiler rows.")
   addCommand(owner, "mgfx_text_status", () => textStatusCommand(owner), "Print MGFX text renderer status.")
   addCommand(owner, "mgfx_text_cache_clear", () => textCacheClear(owner), "Clear MGFX text measure cache.")
@@ -73,6 +76,7 @@ export client fn install(owner) {
   addCommand(owner, "mgfx_text_demo", (_cmd = nil, _argString = nil, args = nil) => toggleTextDemo(owner, args?.[1] ?? "toggle"), "Toggle MGFX text demo overlay.")
   addCommand(owner, "mgfx_text_trace_demo", () => traceTextDemo(owner), "Print MGFX text demo font/atlas route diagnostics.")
   addCommand(owner, "mgfx_param_probe", () => toggleParamProbe(owner), "Toggle MGFX shader parameter probe.")
+  addCommand(owner, "mgfx_param_probe_inv", () => toggleParamProbeInv(owner), "Toggle MGFX c15 shader parameter probe.")
   addCommand(owner, "mgfx_param_bench_stop", () => stopParamBench(), "Stop MGFX shader parameter benchmark.")
   addCommand(owner, "mgfx_param_bench", (_cmd = nil, _argString = nil, args = nil) => runParamBench(owner, args), "Run MGFX shader parameter benchmark.")
   addCommand(owner, "mgfx_selftest", () => selftest(owner), "Run MGFX API/material selftest.")
@@ -81,11 +85,15 @@ export client fn install(owner) {
   owner.SelfTest = () => selftest(owner)
   owner.ReloadCommand = () => reloadMGFX(owner)
   owner.ProfileStatus = () => profileStatus(owner)
+  owner.ProfilePanels = (limit = nil) => profilePanels(owner, limit)
+  owner.ProfileCurrent = (limit = nil) => profileCurrent(owner, limit)
+  owner.ToggleProfileHud = (mode = "toggle") => toggleProfileHud(owner, mode)
   owner.ResetProfileCommand = () => profileReset(owner)
   owner.ToggleTextDemo = (mode = "toggle") => toggleTextDemo(owner, mode)
   owner.TraceTextDemo = () => traceTextDemo(owner)
   owner.ToggleTextStress = () => toggleTextStress(owner)
   owner.ToggleParamProbe = () => toggleParamProbe(owner)
+  owner.ToggleParamProbeInv = () => toggleParamProbeInv(owner)
   owner.RunParamBench = (args = nil) => runParamBench(owner, args)
   owner.StopParamBench = () => stopParamBench()
   owner._ConsoleCommands = commandNames
@@ -101,7 +109,9 @@ export client fn uninstall(owner = nil) {
     hookRemove("HUDPaint", "MGFXTextDemo")
     hookRemove("HUDPaint", "MGFXTextStress")
     hookRemove("HUDPaint", "MGFXTextAtlasDebug")
+    hookRemove("HUDPaint", profileHudHook)
     hookRemove("HUDPaint", "MGFXParamProbe")
+    hookRemove("HUDPaint", "MGFXParamProbeInv")
   }
   if timerRemove ~= nil {
     timerRemove(paramBenchTimer)
@@ -111,6 +121,8 @@ export client fn uninstall(owner = nil) {
   textDemoEnabled = false
   textStressEnabled = false
   atlasDebugEnabled = false
+  profileHudEnabled = false
   paramProbeEnabled = false
+  paramProbeInvEnabled = false
   true
 }

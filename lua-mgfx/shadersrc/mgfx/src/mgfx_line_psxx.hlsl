@@ -1,7 +1,7 @@
 #include "mgfx_common.hlsl"
 
-#define LINE_COLOR_A Constants0
-#define LINE_COLOR_B Constants1
+#define LINE_COLOR_A AUX0
+#define LINE_COLOR_B AUX1
 
 float4 main(PS_INPUT i) : COLOR
 {

@@ -123,32 +123,23 @@ fn fastEntryKey(record, textStyle, info) {
     toString(info?.routeKey ?? "")
 }
 
-fn drawUV(material, x, y, w, h, u0, v0, u1, v1, color) {
-  if material == nil or surfaceSetMaterial == nil or surfaceSetDrawColor == nil or surfaceDrawPoly == nil {
+fn drawUV(material, x, y, w, h, u0, v0, u1, v1, color, pageW = ATLAS_W, pageH = ATLAS_H) {
+  if material == nil or surfaceSetMaterial == nil or surfaceSetDrawColor == nil or surfaceDrawTexturedRectUV == nil {
     return false
   }
 
-  atlasQuad[1].x = x
-  atlasQuad[1].y = y
-  atlasQuad[1].u = u0
-  atlasQuad[1].v = v0
-  atlasQuad[2].x = x + w
-  atlasQuad[2].y = y
-  atlasQuad[2].u = u1
-  atlasQuad[2].v = v0
-  atlasQuad[3].x = x + w
-  atlasQuad[3].y = y + h
-  atlasQuad[3].u = u1
-  atlasQuad[3].v = v1
-  atlasQuad[4].x = x
-  atlasQuad[4].y = y + h
-  atlasQuad[4].u = u0
-  atlasQuad[4].v = v1
-
+  local du = 0.5 / mathMax(1, pageW)
+  local dv = 0.5 / mathMax(1, pageH)
+  local denomU = 1 - 2 * du
+  local denomV = 1 - 2 * dv
   surfaceSetMaterial(material)
   local c = style.asColor ~= nil then style.asColor(color, white) else style.colorOr(color, white)
   surfaceSetDrawColor(c.r ?? 255, c.g ?? 255, c.b ?? 255, c.a ?? 255)
-  surfaceDrawPoly(atlasQuad)
+  surfaceDrawTexturedRectUV(
+    x, y, w, h,
+    (u0 - du) / denomU, (v0 - dv) / denomV,
+    (u1 - du) / denomU, (v1 - dv) / denomV
+  )
   true
 }
 
@@ -377,30 +368,20 @@ fn setupTextComposeMaterial(material, entry, u0, v0, u1, v1) {
     0, 0, 0, 0,
     0, 0, 0, 0
   )
-  local r, g, b, a = scaledColor01(stroke, 1)
-  material:SetFloat("$c0_x", r)
-  material:SetFloat("$c0_y", g)
-  material:SetFloat("$c0_z", b)
-  material:SetFloat("$c0_w", a)
-
-  r, g, b, a = scaledColor01(glow, glow?.strength ?? 1)
-  material:SetFloat("$c1_x", r)
-  material:SetFloat("$c1_y", g)
-  material:SetFloat("$c1_z", b)
-  material:SetFloat("$c1_w", a)
-
-  r, g, b, a = scaledColor01(shadow, shadow?.strength ?? 1)
-  material:SetFloat("$c2_x", r)
-  material:SetFloat("$c2_y", g)
-  material:SetFloat("$c2_z", b)
-  material:SetFloat("$c2_w", a)
-
   local scaledStroke = stroke ~= nil then { width = stroke.width * oversample, softness = stroke.softness } else nil
   local scaledShadow = shadow ~= nil then { x = shadow.x * oversample, y = shadow.y * oversample, blur = shadow.blur * oversample } else nil
-  material:SetFloat("$c3_x", scaledStroke?.width ?? 0)
-  material:SetFloat("$c3_y", glow ~= nil then glow.width * oversample else 0)
-  material:SetFloat("$c3_z", packEffectParams(glow, scaledShadow, face, (entry.weightAdjust ?? 0) * oversample, entry.shaderFace))
-  material:SetFloat("$c3_w", scaledShadow ~= nil then packShadowParams(scaledShadow.x, scaledShadow.y, scaledStroke) else packShadowParams(0, 0, scaledStroke))
+  local sr, sg, sb, sa = scaledColor01(stroke, 1)
+  local gr, gg, gb, ga = scaledColor01(glow, glow?.strength ?? 1)
+  local shr, shg, shb, sha = scaledColor01(shadow, shadow?.strength ?? 1)
+  setupTextAuxParamMatrix(material,
+    sr, sg, sb, sa,
+    gr, gg, gb, ga,
+    shr, shg, shb, sha,
+    scaledStroke?.width ?? 0,
+    glow ~= nil then glow.width * oversample else 0,
+    packEffectParams(glow, scaledShadow, face, (entry.weightAdjust ?? 0) * oversample, entry.shaderFace),
+    scaledShadow ~= nil then packShadowParams(scaledShadow.x, scaledShadow.y, scaledStroke) else packShadowParams(0, 0, scaledStroke)
+  )
 }
 
 fn fillEndpointColors(fill, fallback) {
@@ -430,30 +411,23 @@ fn setupTextFaceMaterial(material, entry, record, u0, v0, u1, v1, fillOverride =
   if lut ~= nil {
     material:SetTexture("$texture1", lut)
   }
-  material:SetFloat("$c0_x", u0)
-  material:SetFloat("$c0_y", v0)
-  material:SetFloat("$c0_z", u1)
-  material:SetFloat("$c0_w", v1)
-  material:SetFloat("$c1_x", r)
-  material:SetFloat("$c1_y", g)
-  material:SetFloat("$c1_z", b)
-  material:SetFloat("$c1_w", a)
-  r, g, b, a = style.color01(colorB)
-  material:SetFloat("$c2_x", r)
-  material:SetFloat("$c2_y", g)
-  material:SetFloat("$c2_z", b)
-  material:SetFloat("$c2_w", a)
+  local r2, g2, b2, a2 = style.color01(colorB)
+  local x1 = 0
+  local y1 = 0
+  local x2 = 1
+  local y2 = 0
   if typeOf(fill) == "table" and fill.kind == 1 {
-    material:SetFloat("$c3_x", toNumber(fill.x1) ?? 0)
-    material:SetFloat("$c3_y", toNumber(fill.y1) ?? 0)
-    material:SetFloat("$c3_z", toNumber(fill.x2) ?? 1)
-    material:SetFloat("$c3_w", toNumber(fill.y2) ?? 0)
-  } else {
-    material:SetFloat("$c3_x", 0)
-    material:SetFloat("$c3_y", 0)
-    material:SetFloat("$c3_z", 1)
-    material:SetFloat("$c3_w", 0)
+    x1 = toNumber(fill.x1) ?? 0
+    y1 = toNumber(fill.y1) ?? 0
+    x2 = toNumber(fill.x2) ?? 1
+    y2 = toNumber(fill.y2) ?? 0
   }
+  setupTextAuxParamMatrix(material,
+    u0, v0, u1, v1,
+    r, g, b, a,
+    r2, g2, b2, a2,
+    x1, y1, x2, y2
+  )
 }
 
 fn drawEntryAt(entry, record, contentX, contentY, fillOverride = nil, stats = nil) {
@@ -489,14 +463,14 @@ fn drawEntryAt(entry, record, contentX, contentY, fillOverride = nil, stats = ni
     drawColor = style.asColor(fillOverride ?? fillForRecord(record), record.color ?? white)
   }
 
-  if not drawUV(material, x, y, entry.w, entry.h, u0, v0, u1, v1, drawColor) {
+  if not drawUV(material, x, y, entry.w, entry.h, u0, v0, u1, v1, drawColor, page.w, page.h) {
     return nil
   }
 
   local blits = 1
   if fx and not entry.shaderFace and faceMat ~= nil {
     setupTextFaceMaterial(faceMat, entry, record, u0, v0, u1, v1, fillOverride)
-    drawUV(faceMat, x, y, entry.w, entry.h, u0, v0, u1, v1, white)
+    drawUV(faceMat, x, y, entry.w, entry.h, u0, v0, u1, v1, white, page.w, page.h)
     blits += 1
   }
 

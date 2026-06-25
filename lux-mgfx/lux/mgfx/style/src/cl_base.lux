@@ -42,6 +42,10 @@ local utilCRC = util?.CRC
 local solidCache = nil
 local transparentColor = nil
 local gradientLutOwner = nil
+local backdropTableCache = setmetatable({}, { __mode = "k" })
+local backdropTrueSpec = nil
+local backdropNumberCache = {}
+local backdropColorCache = setmetatable({}, { __mode = "k" })
 
 fn ensureSolidCache() {
   if solidCache == nil {

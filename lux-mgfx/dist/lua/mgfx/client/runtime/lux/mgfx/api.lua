@@ -1,9 +1,18 @@
 return function(__lux_import)
   local __lux_exports = {}
+  local tableEmpty
+  local typeOf
+  local makeColor
+  local colorDrawStyleCache
+  local transparentFillColor
   local installTargets
+  local clearFrameStatTables
   local resetFrameStats
   local installFrameStatsReset
+  local colorDrawStyle
+  local normalizeDrawStyle
   local installNormalizedDrawApi
+  local installProfileWrappers
   local install
   local installGlobal
   local create
@@ -110,6 +119,7 @@ return function(__lux_import)
   do
     local capabilities = __lux_import("lux/mgfx/capabilities#client")
     local commands = __lux_import("lux/mgfx/commands#client")
+    local console = __lux_import("lux/mgfx/console#client")
     local frame = __lux_import("lux/mgfx/frame#client")
     local geometry = __lux_import("lux/mgfx/geometry#client")
     local materials = __lux_import("lux/mgfx/materials#client")
@@ -121,25 +131,73 @@ return function(__lux_import)
     local style = __lux_import("lux/mgfx/style#client")
     local textModule = __lux_import("lux/mgfx/text#client")
     local widgets = __lux_import("lux/mgfx/widgets#client")
+    tableEmpty = table.Empty
+    typeOf = type
+    makeColor = Color
+    colorDrawStyleCache = setmetatable({}, { __mode = "k" })
+    transparentFillColor = makeColor(0, 0, 0, 0)
     installTargets = function(owner)
       owner.TARGET = capabilities.TARGET
       owner.TARGET_NAME = capabilities.TARGET_NAME
     end
+    clearFrameStatTables = function(stats)
+      do
+        local __lux_tmp_drawCommandCounts_1 = stats.drawCommandCounts
+        if __lux_tmp_drawCommandCounts_1 == nil then
+          __lux_tmp_drawCommandCounts_1 = {}
+        end
+        stats.drawCommandCounts = __lux_tmp_drawCommandCounts_1
+      end
+      do
+        local __lux_tmp_drawImmediateCounts_2 = stats.drawImmediateCounts
+        if __lux_tmp_drawImmediateCounts_2 == nil then
+          __lux_tmp_drawImmediateCounts_2 = {}
+        end
+        stats.drawImmediateCounts = __lux_tmp_drawImmediateCounts_2
+      end
+      do
+        local __lux_tmp_profileTimes_3 = stats.profileTimes
+        if __lux_tmp_profileTimes_3 == nil then
+          __lux_tmp_profileTimes_3 = {}
+        end
+        stats.profileTimes = __lux_tmp_profileTimes_3
+      end
+      do
+        local __lux_tmp_profileCounts_4 = stats.profileCounts
+        if __lux_tmp_profileCounts_4 == nil then
+          __lux_tmp_profileCounts_4 = {}
+        end
+        stats.profileCounts = __lux_tmp_profileCounts_4
+      end
+      tableEmpty(stats.drawCommandCounts)
+      tableEmpty(stats.drawImmediateCounts)
+      tableEmpty(stats.profileTimes)
+      return tableEmpty(stats.profileCounts)
+    end
     resetFrameStats = function(owner)
       do
-        local __lux_tmp_stats_1 = owner.stats
-        if __lux_tmp_stats_1 == nil then
-          __lux_tmp_stats_1 = {}
+        local __lux_tmp_stats_5 = owner.stats
+        if __lux_tmp_stats_5 == nil then
+          __lux_tmp_stats_5 = {}
         end
-        owner.stats = __lux_tmp_stats_1
+        owner.stats = __lux_tmp_stats_5
       end
+      local stats = owner.stats
+      stats.draws = 0
+      stats.blurPasses = 0
+      stats.fallbacks = 0
+      stats.culled = 0
+      stats.gradientLutFillHits = 0
+      stats.textQueuedBatches = 0
+      stats.textQueuedRecords = 0
+      clearFrameStatTables(stats)
       if owner.ResetGeometryFrameStats ~= nil then
         owner.ResetGeometryFrameStats()
       end
       if owner.ResetTextFrameStats ~= nil then
         owner.ResetTextFrameStats()
       end
-      return owner.stats
+      return stats
     end
     installFrameStatsReset = function(owner)
       local rawStartPanel = owner.StartPanel
@@ -162,6 +220,87 @@ return function(__lux_import)
         end
       end
       return owner
+    end
+    colorDrawStyle = function(color)
+      local cached = colorDrawStyleCache[color]
+      if cached ~= nil then
+        return cached
+      end
+      cached = { fill = color }
+      colorDrawStyleCache[color] = cached
+      return cached
+    end
+    normalizeDrawStyle = function(drawStyle, target)
+      if drawStyle == nil then
+        return nil
+      end
+      if style.isColor(drawStyle) then
+        return colorDrawStyle(drawStyle)
+      end
+      if typeOf(drawStyle) ~= "table" then
+        return nil
+      end
+      local fill = drawStyle.fill
+      local fillKind
+      if typeOf(fill) == "table" then
+        fillKind = fill.kind
+      else
+        fillKind = nil
+      end
+      if fillKind ~= style.PATTERN_STRIPE and fillKind ~= style.PATTERN_SMOKE then
+        return drawStyle
+      end
+      if target == capabilities.TARGET.PROGRESS_BAR or target == capabilities.TARGET.SEGMENT_BAR then
+        local out
+        do
+          local __lux_table_6 = {}
+          local __lux_spread_7 = drawStyle
+          if __lux_spread_7 ~= nil then
+            for __lux_k_8, __lux_v_9 in pairs(__lux_spread_7) do
+              __lux_table_6[__lux_k_8] = __lux_v_9
+            end
+          end
+          out = __lux_table_6
+        end
+        if out.fillPattern == nil then
+          out.fillPattern = fill
+        end
+        do
+          local __lux_tmp_fillBase_10 = drawStyle.fillBase
+          if __lux_tmp_fillBase_10 == nil then
+            __lux_tmp_fillBase_10 = drawStyle.baseFill
+          end
+          out.fill = __lux_tmp_fillBase_10
+        end
+        return out
+      end
+      local cap = capabilities.get(target)
+      if cap == nil or cap.keys == nil or cap.keys.pattern ~= true or drawStyle.pattern ~= nil then
+        return drawStyle
+      end
+      local out
+      do
+        local __lux_table_11 = {}
+        local __lux_spread_12 = drawStyle
+        if __lux_spread_12 ~= nil then
+          for __lux_k_13, __lux_v_14 in pairs(__lux_spread_12) do
+            __lux_table_11[__lux_k_13] = __lux_v_14
+          end
+        end
+        out = __lux_table_11
+      end
+      out.pattern = fill
+      do
+        local __lux_tmp_patternBase_15 = drawStyle.patternBase
+        if __lux_tmp_patternBase_15 == nil then
+          __lux_tmp_patternBase_15 = drawStyle.baseFill
+        end
+        if __lux_tmp_patternBase_15 == nil then
+          __lux_tmp_patternBase_15 = transparentFillColor
+        end
+        out.fill = __lux_tmp_patternBase_15
+      end
+      return out
     end
     installNormalizedDrawApi = function(owner)
       local rawRoundedBoxEx = owner.RoundedBoxEx
@@ -186,25 +325,14 @@ return function(__lux_import)
           y,
           w,
           h,
-          capabilities.normalizeStyle(drawStyle, capabilities.TARGET.ROUNDED_BOX)
+          normalizeDrawStyle(drawStyle, capabilities.TARGET.ROUNDED_BOX)
         )
       end
       owner.CircleEx = function(cx, cy, radius, drawStyle)
-        return rawCircleEx(
-          cx,
-          cy,
-          radius,
-          capabilities.normalizeStyle(drawStyle, capabilities.TARGET.CIRCLE)
-        )
+        return rawCircleEx(cx, cy, radius, normalizeDrawStyle(drawStyle, capabilities.TARGET.CIRCLE))
       end
       owner.CapsuleEx = function(x, y, w, h, drawStyle)
-        return rawCapsuleEx(
-          x,
-          y,
-          w,
-          h,
-          capabilities.normalizeStyle(drawStyle, capabilities.TARGET.CAPSULE)
-        )
+        return rawCapsuleEx(x, y, w, h, normalizeDrawStyle(drawStyle, capabilities.TARGET.CAPSULE))
       end
       owner.ChamferBoxEx = function(x, y, w, h, drawStyle)
         return rawChamferBoxEx(
@@ -212,7 +340,7 @@ return function(__lux_import)
           y,
           w,
           h,
-          capabilities.normalizeStyle(drawStyle, capabilities.TARGET.CHAMFER_BOX)
+          normalizeDrawStyle(drawStyle, capabilities.TARGET.CHAMFER_BOX)
         )
       end
       owner.RegularPolyEx = function(cx, cy, radius, sides, drawStyle)
@@ -221,32 +349,20 @@ return function(__lux_import)
           cy,
           radius,
           sides,
-          capabilities.normalizeStyle(drawStyle, capabilities.TARGET.POLY)
+          normalizeDrawStyle(drawStyle, capabilities.TARGET.POLY)
         )
       end
       owner.DiamondEx = function(x, y, w, h, drawStyle)
-        return rawDiamondEx(
-          x,
-          y,
-          w,
-          h,
-          capabilities.normalizeStyle(drawStyle, capabilities.TARGET.POLY)
-        )
+        return rawDiamondEx(x, y, w, h, normalizeDrawStyle(drawStyle, capabilities.TARGET.POLY))
       end
       owner.CaretEx = function(x, y, w, h, drawStyle)
-        return rawCaretEx(x, y, w, h, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.POLY))
+        return rawCaretEx(x, y, w, h, normalizeDrawStyle(drawStyle, capabilities.TARGET.POLY))
       end
       owner.PolyEx = function(points, drawStyle)
-        return rawPolyEx(points, capabilities.normalizeStyle(drawStyle, capabilities.TARGET.POLY))
+        return rawPolyEx(points, normalizeDrawStyle(drawStyle, capabilities.TARGET.POLY))
       end
       owner.LineEx = function(x1, y1, x2, y2, drawStyle)
-        return rawLineEx(
-          x1,
-          y1,
-          x2,
-          y2,
-          capabilities.normalizeStyle(drawStyle, capabilities.TARGET.LINE)
-        )
+        return rawLineEx(x1, y1, x2, y2, normalizeDrawStyle(drawStyle, capabilities.TARGET.LINE))
       end
       owner.ProgressBarEx = function(x, y, w, h, value, drawStyle)
         return rawProgressBarEx(
@@ -255,7 +371,7 @@ return function(__lux_import)
           w,
           h,
           value,
-          capabilities.normalizeStyle(drawStyle, capabilities.TARGET.PROGRESS_BAR)
+          normalizeDrawStyle(drawStyle, capabilities.TARGET.PROGRESS_BAR)
         )
       end
       owner.SegmentBarEx = function(x, y, w, h, value, drawStyle)
@@ -265,7 +381,7 @@ return function(__lux_import)
           w,
           h,
           value,
-          capabilities.normalizeStyle(drawStyle, capabilities.TARGET.SEGMENT_BAR)
+          normalizeDrawStyle(drawStyle, capabilities.TARGET.SEGMENT_BAR)
         )
       end
       owner.RingEx = function(cx, cy, radius, width, drawStyle)
@@ -274,7 +390,7 @@ return function(__lux_import)
           cy,
           radius,
           width,
-          capabilities.normalizeStyle(drawStyle, capabilities.TARGET.RING)
+          normalizeDrawStyle(drawStyle, capabilities.TARGET.RING)
         )
       end
       owner.ArcEx = function(cx, cy, radius, width, startDeg, endDeg, drawStyle)
@@ -285,7 +401,7 @@ return function(__lux_import)
           width,
           startDeg,
           endDeg,
-          capabilities.normalizeStyle(drawStyle, capabilities.TARGET.ARC)
+          normalizeDrawStyle(drawStyle, capabilities.TARGET.ARC)
         )
       end
       owner.SectorEx = function(cx, cy, innerRadius, outerRadius, startDeg, endDeg, drawStyle)
@@ -296,29 +412,108 @@ return function(__lux_import)
           outerRadius,
           startDeg,
           endDeg,
-          capabilities.normalizeStyle(drawStyle, capabilities.TARGET.SECTOR)
+          normalizeDrawStyle(drawStyle, capabilities.TARGET.SECTOR)
         )
       end
       owner.ImageEx = function(x, y, w, h, source, drawStyle)
-        return rawImageEx(
-          x,
-          y,
-          w,
-          h,
-          source,
-          capabilities.normalizeStyle(drawStyle, capabilities.TARGET.IMAGE)
-        )
+        return rawImageEx(x, y, w, h, source, normalizeDrawStyle(drawStyle, capabilities.TARGET.IMAGE))
       end
       owner.IconEx = function(x, y, w, h, source, drawStyle)
-        return rawIconEx(
-          x,
-          y,
-          w,
-          h,
-          source,
-          capabilities.normalizeStyle(drawStyle, capabilities.TARGET.IMAGE)
-        )
+        return rawIconEx(x, y, w, h, source, normalizeDrawStyle(drawStyle, capabilities.TARGET.IMAGE))
       end
+      return owner
+    end
+    installProfileWrappers = function(owner)
+      local api = owner.Profiler
+      if api == nil or api.InstallApiWrappers == nil then
+        return owner
+      end
+      api.InstallApiWrappers(
+        owner,
+        {
+          "RoundedBox",
+          "RoundedBoxEx",
+          "ChamferBox",
+          "ChamferBoxEx",
+          "RegularPoly",
+          "RegularPolyEx",
+          "Diamond",
+          "DiamondEx",
+          "Caret",
+          "CaretEx",
+          "Poly",
+          "PolyEx",
+          "Image",
+          "ImageEx",
+          "Icon",
+          "IconEx",
+          "Text",
+          "TextEx",
+          "TextBatchEx",
+          "TextBox",
+          "TextBoxEx",
+          "ProgressBar",
+          "ProgressBarEx",
+          "SegmentBar",
+          "SegmentBarEx",
+          "Line",
+          "LineEx",
+          "Ring",
+          "RingEx",
+          "Arc",
+          "ArcEx",
+          "Circle",
+          "CircleEx",
+          "Capsule",
+          "CapsuleEx",
+          "PushClip",
+          "PopClip",
+          "Solid",
+          "LinearGradient",
+          "LinearGradientStops",
+          "RadialGradient",
+          "RingRadialGradient",
+          "SectorRadialGradient",
+          "ConicGradient",
+          "ShapeAngularGradient",
+          "RingAngularGradient",
+          "ArcAngularGradient",
+          "SectorAngularGradient",
+          "StripePattern",
+          "SmokePattern",
+          "Mask",
+          "Backdrop",
+          "ImageMaskStyle",
+          "BackdropStyle",
+          "FillFromStyle",
+          "ColorAtFill",
+          "NormalizedRotation",
+          "GlowSoftnessToFalloff",
+          "GradientLutForFill",
+          "BindGradientLut",
+          "GradientLutStatus",
+          "GetCapabilities",
+          "Supports",
+          "NormalizeStyle",
+          "Transform",
+          "ProjectedQuad",
+          "PointerTilt",
+          "PushTransform",
+          "PopTransform",
+          "TransformPoint",
+          "UntransformPoint",
+          "RegisterTextFont",
+          "DefineTextStyle",
+          "GetTextStyle",
+          "ResolveTextStyle",
+          "MeasureText",
+          "MeasureTextBox",
+          "PrewarmText",
+        },
+        function()
+          return owner._FrameState ~= nil and owner._FrameState.replaying == true
+        end
+      )
       return owner
     end
     install = function(owner)
@@ -336,10 +531,11 @@ return function(__lux_import)
       style.install(out)
       capabilities.install(out)
       commands.install(out)
+      console.install(out)
+      profiler.install(out)
       frame.install(out)
       geometry.install(out)
       materials.install(out)
-      profiler.install(out)
       paint.install(out)
       textModule.install(out)
       roundrect.install(out)
@@ -347,6 +543,7 @@ return function(__lux_import)
       widgets.install(out)
       installNormalizedDrawApi(out)
       installFrameStatsReset(out)
+      installProfileWrappers(out)
       return out
     end
     installGlobal = function(name)
@@ -366,13 +563,6 @@ return function(__lux_import)
   end
   do
     local capabilities = __lux_import("lux/mgfx/capabilities#client")
-    local frame = __lux_import("lux/mgfx/frame#client")
-    local geometry = __lux_import("lux/mgfx/geometry#client")
-    local primitives = __lux_import("lux/mgfx/primitives#client")
-    local roundrect = __lux_import("lux/mgfx/roundrect#client")
-    local style = __lux_import("lux/mgfx/style#client")
-    local textModule = __lux_import("lux/mgfx/text#client")
-    local widgets = __lux_import("lux/mgfx/widgets#client")
     defaultRuntime = install({})
     TARGET_ROUNDED_BOX = 1
     TARGET_CHAMFER_BOX = 2
@@ -391,46 +581,46 @@ return function(__lux_import)
       return capabilities.normalizeStyle(drawStyle, target)
     end
     solid = function(color)
-      return style.solid(color)
+      return defaultRuntime.Solid(color)
     end
     linearGradient = function(x1, y1, x2, y2, stopsOrColorA, colorB)
-      return style.linearGradient(x1, y1, x2, y2, stopsOrColorA, colorB)
+      return defaultRuntime.LinearGradient(x1, y1, x2, y2, stopsOrColorA, colorB)
     end
     linearGradientStops = function(x1, y1, x2, y2, stops)
-      return style.linearGradientStops(x1, y1, x2, y2, stops)
+      return defaultRuntime.LinearGradientStops(x1, y1, x2, y2, stops)
     end
     radialGradient = function(cx, cy, radius, stopsOrColorA, colorB)
-      return style.radialGradient(cx, cy, radius, stopsOrColorA, colorB)
+      return defaultRuntime.RadialGradient(cx, cy, radius, stopsOrColorA, colorB)
     end
     ringRadialGradient = function(stopsOrColorA, colorB)
-      return style.ringRadialGradient(stopsOrColorA, colorB)
+      return defaultRuntime.RingRadialGradient(stopsOrColorA, colorB)
     end
     sectorRadialGradient = function(stopsOrColorA, colorB)
-      return style.sectorRadialGradient(stopsOrColorA, colorB)
+      return defaultRuntime.SectorRadialGradient(stopsOrColorA, colorB)
     end
     conicGradient = function(cx, cy, rotation, stopsOrColorA, colorB)
-      return style.conicGradient(cx, cy, rotation, stopsOrColorA, colorB)
+      return defaultRuntime.ConicGradient(cx, cy, rotation, stopsOrColorA, colorB)
     end
     shapeAngularGradient = function(stopsOrColorA, colorB, rotation)
-      return style.shapeAngularGradient(stopsOrColorA, colorB, rotation)
+      return defaultRuntime.ShapeAngularGradient(stopsOrColorA, colorB, rotation)
     end
     ringAngularGradient = function(stopsOrColorA, colorB, rotation)
       if rotation == nil then
         rotation = 0
       end
-      return style.ringAngularGradient(stopsOrColorA, colorB, rotation)
+      return defaultRuntime.RingAngularGradient(stopsOrColorA, colorB, rotation)
     end
     arcAngularGradient = function(stopsOrColorA, colorB, rotation)
       if rotation == nil then
         rotation = 0
       end
-      return style.arcAngularGradient(stopsOrColorA, colorB, rotation)
+      return defaultRuntime.ArcAngularGradient(stopsOrColorA, colorB, rotation)
     end
     sectorAngularGradient = function(stopsOrColorA, colorB, rotation)
       if rotation == nil then
         rotation = 0
       end
-      return style.sectorAngularGradient(stopsOrColorA, colorB, rotation)
+      return defaultRuntime.SectorAngularGradient(stopsOrColorA, colorB, rotation)
     end
     stripePattern = function(color, spacing, width, angle, offset)
       if spacing == nil then
@@ -445,7 +635,7 @@ return function(__lux_import)
       if offset == nil then
         offset = 0
       end
-      return style.stripePattern(color, spacing, width, angle, offset)
+      return defaultRuntime.StripePattern(color, spacing, width, angle, offset)
     end
     smokePattern = function(color, scale, density, softness, angle, offset, seed)
       if scale == nil then
@@ -466,70 +656,70 @@ return function(__lux_import)
       if seed == nil then
         seed = 0
       end
-      return style.smokePattern(color, scale, density, softness, angle, offset, seed)
+      return defaultRuntime.SmokePattern(color, scale, density, softness, angle, offset, seed)
     end
     mask = function(kind, spec)
-      return style.mask(kind, spec)
+      return defaultRuntime.Mask(kind, spec)
     end
     backdrop = function(value)
-      return style.backdrop(value)
+      return defaultRuntime.Backdrop(value)
     end
     backdropStyle = function(value)
-      return style.backdropStyle(value)
+      return defaultRuntime.BackdropStyle(value)
     end
     imageMaskStyle = function(maskValue, drawStyle)
-      return style.imageMaskStyle(maskValue, drawStyle)
+      return defaultRuntime.ImageMaskStyle(maskValue, drawStyle)
     end
     fillFromStyle = function(fill)
-      return style.fillFromStyle(fill)
+      return defaultRuntime.FillFromStyle(fill)
     end
     colorAtFill = function(fill, t)
-      return style.colorAtFill(fill, t)
+      return defaultRuntime.ColorAtFill(fill, t)
     end
     normalizedRotation = function(value)
-      return style.normalizedRotation(value)
+      return defaultRuntime.NormalizedRotation(value)
     end
     glowSoftnessToFalloff = function(softness, defaultSoftness)
       if defaultSoftness == nil then
         defaultSoftness = 0.55
       end
-      return style.glowSoftnessToFalloff(softness, defaultSoftness)
+      return defaultRuntime.GlowSoftnessToFalloff(softness, defaultSoftness)
     end
     gradientLutForFill = function(fill)
-      return style.gradientLutForFill(fill)
+      return defaultRuntime.GradientLutForFill(fill)
     end
     bindGradientLut = function(material, fill)
-      return style.bindGradientLut(material, fill)
+      return defaultRuntime.BindGradientLut(material, fill)
     end
     gradientLutStatus = function()
-      return style.gradientLutStatus()
+      return defaultRuntime.GradientLutStatus()
     end
     getCapabilities = function(target)
-      return capabilities.get(target)
+      return defaultRuntime.GetCapabilities(target)
     end
     supports = function(target, key)
-      return capabilities.supports(target, key)
+      return defaultRuntime.Supports(target, key)
     end
     normalizeStyle = function(input, target)
-      return capabilities.normalizeStyle(input, target)
+      return defaultRuntime.NormalizeStyle(input, target)
     end
     startPanel = function(panel, w, h)
-      return frame.startPanel(panel, w, h)
+      return defaultRuntime.StartPanel(panel, w, h)
     end
     endPanel = function()
-      return frame.endPanel()
+      return defaultRuntime.EndPanel()
     end
     startScreen = function(w, h)
-      return frame.startScreen(w, h)
+      return defaultRuntime.StartScreen(w, h)
     end
     endScreen = function()
-      return frame.endScreen()
+      return defaultRuntime.EndScreen()
     end
     pushClip = function(x, y, w, h)
-      return frame.pushClip(x, y, w, h)
+      return defaultRuntime.PushClip(x, y, w, h)
     end
     popClip = function()
-      return frame.popClip()
+      return defaultRuntime.PopClip()
     end
     debugOverlay = function(x, y)
       if x == nil then
@@ -538,164 +728,148 @@ return function(__lux_import)
       if y == nil then
         y = 8
       end
-      return frame.debugOverlay(x, y)
+      return defaultRuntime.DebugOverlay(x, y)
     end
     transform = function(spec)
-      return geometry.transform(spec)
+      return defaultRuntime.Transform(spec)
     end
     projectedQuad = function(spec)
-      return geometry.projectedQuad(spec)
+      return defaultRuntime.ProjectedQuad(spec)
     end
     pointerTilt = function(x, y, spec)
-      return geometry.pointerTilt(x, y, spec)
+      return defaultRuntime.PointerTilt(x, y, spec)
     end
     pushTransform = function(spec, x, y, w, h)
-      return geometry.pushTransform(spec, x, y, w, h)
+      return defaultRuntime.PushTransform(spec, x, y, w, h)
     end
     popTransform = function()
-      return geometry.popTransform()
+      return defaultRuntime.PopTransform()
     end
     transformPoint = function(x, y)
-      return geometry.transformPoint(x, y)
+      return defaultRuntime.TransformPoint(x, y)
     end
     untransformPoint = function(sx, sy)
-      return geometry.untransformPoint(sx, sy)
+      return defaultRuntime.UntransformPoint(sx, sy)
     end
     roundedBoxEx = function(x, y, w, h, drawStyle)
-      return roundrect.roundedBoxEx(x, y, w, h, resolvedStyle(drawStyle, TARGET_ROUNDED_BOX))
+      return defaultRuntime.RoundedBoxEx(x, y, w, h, drawStyle)
     end
     roundedBox = function(x, y, w, h, radius, fill, stroke, strokeWidth)
-      return roundrect.roundedBox(x, y, w, h, radius, fill, stroke, strokeWidth)
+      return defaultRuntime.RoundedBox(x, y, w, h, radius, fill, stroke, strokeWidth)
     end
     circleEx = function(cx, cy, radius, drawStyle)
-      return roundrect.circleEx(cx, cy, radius, resolvedStyle(drawStyle, TARGET_CIRCLE))
+      return defaultRuntime.CircleEx(cx, cy, radius, drawStyle)
     end
     circle = function(cx, cy, radius, fill, stroke, strokeWidth)
-      return roundrect.circle(cx, cy, radius, fill, stroke, strokeWidth)
+      return defaultRuntime.Circle(cx, cy, radius, fill, stroke, strokeWidth)
     end
     capsuleEx = function(x, y, w, h, drawStyle)
-      return roundrect.capsuleEx(x, y, w, h, resolvedStyle(drawStyle, TARGET_CAPSULE))
+      return defaultRuntime.CapsuleEx(x, y, w, h, drawStyle)
     end
     capsule = function(x, y, w, h, fill, stroke, strokeWidth)
-      return roundrect.capsule(x, y, w, h, fill, stroke, strokeWidth)
+      return defaultRuntime.Capsule(x, y, w, h, fill, stroke, strokeWidth)
     end
     chamferBoxEx = function(x, y, w, h, drawStyle)
-      return primitives.chamferBoxEx(x, y, w, h, resolvedStyle(drawStyle, TARGET_CHAMFER_BOX))
+      return defaultRuntime.ChamferBoxEx(x, y, w, h, drawStyle)
     end
     chamferBox = function(x, y, w, h, cuts, fill, stroke, strokeWidth)
-      return primitives.chamferBox(x, y, w, h, cuts, fill, stroke, strokeWidth)
+      return defaultRuntime.ChamferBox(x, y, w, h, cuts, fill, stroke, strokeWidth)
     end
     regularPolyEx = function(cx, cy, radius, sides, drawStyle)
-      return primitives.regularPolyEx(cx, cy, radius, sides, resolvedStyle(drawStyle, TARGET_POLY))
+      return defaultRuntime.RegularPolyEx(cx, cy, radius, sides, drawStyle)
     end
     regularPoly = function(cx, cy, radius, sides, rotation, fill, stroke, strokeWidth)
-      return primitives.regularPoly(cx, cy, radius, sides, rotation, fill, stroke, strokeWidth)
+      return defaultRuntime.RegularPoly(cx, cy, radius, sides, rotation, fill, stroke, strokeWidth)
     end
     diamondEx = function(x, y, w, h, drawStyle)
-      return primitives.diamondEx(x, y, w, h, resolvedStyle(drawStyle, TARGET_POLY))
+      return defaultRuntime.DiamondEx(x, y, w, h, drawStyle)
     end
     diamond = function(x, y, w, h, fill, stroke, strokeWidth)
-      return primitives.diamond(x, y, w, h, fill, stroke, strokeWidth)
+      return defaultRuntime.Diamond(x, y, w, h, fill, stroke, strokeWidth)
     end
     caretEx = function(x, y, w, h, drawStyle)
-      return primitives.caretEx(x, y, w, h, resolvedStyle(drawStyle, TARGET_POLY))
+      return defaultRuntime.CaretEx(x, y, w, h, drawStyle)
     end
     caret = function(x, y, w, h, direction, fill, stroke, strokeWidth)
-      return primitives.caret(x, y, w, h, direction, fill, stroke, strokeWidth)
+      return defaultRuntime.Caret(x, y, w, h, direction, fill, stroke, strokeWidth)
     end
     polyEx = function(points, drawStyle)
-      return primitives.polyEx(points, resolvedStyle(drawStyle, TARGET_POLY))
+      return defaultRuntime.PolyEx(points, drawStyle)
     end
     poly = function(points, fill, stroke, strokeWidth)
-      return primitives.poly(points, fill, stroke, strokeWidth)
+      return defaultRuntime.Poly(points, fill, stroke, strokeWidth)
     end
     lineEx = function(x1, y1, x2, y2, drawStyle)
-      return primitives.lineEx(x1, y1, x2, y2, resolvedStyle(drawStyle, TARGET_LINE))
+      return defaultRuntime.LineEx(x1, y1, x2, y2, drawStyle)
     end
     line = function(x1, y1, x2, y2, width, fill)
       if width == nil then
         width = 1
       end
-      return primitives.line(x1, y1, x2, y2, width, fill)
+      return defaultRuntime.Line(x1, y1, x2, y2, width, fill)
     end
     progressBarEx = function(x, y, w, h, value, drawStyle)
-      return widgets.progressBarEx(x, y, w, h, value, resolvedStyle(drawStyle, TARGET_PROGRESS_BAR))
+      return defaultRuntime.ProgressBarEx(x, y, w, h, value, drawStyle)
     end
     progressBar = function(x, y, w, h, value, radius, track, fill, stroke, strokeWidth)
-      return widgets.progressBar(x, y, w, h, value, radius, track, fill, stroke, strokeWidth)
+      return defaultRuntime.ProgressBar(x, y, w, h, value, radius, track, fill, stroke, strokeWidth)
     end
     segmentBarEx = function(x, y, w, h, value, drawStyle)
-      return widgets.segmentBarEx(x, y, w, h, value, resolvedStyle(drawStyle, TARGET_SEGMENT_BAR))
+      return defaultRuntime.SegmentBarEx(x, y, w, h, value, drawStyle)
     end
     segmentBar = function(x, y, w, h, value, segments, fill, track)
-      return widgets.segmentBar(x, y, w, h, value, segments, fill, track)
+      return defaultRuntime.SegmentBar(x, y, w, h, value, segments, fill, track)
     end
     ringEx = function(cx, cy, radius, width, drawStyle)
-      return widgets.ringEx(cx, cy, radius, width, resolvedStyle(drawStyle, TARGET_RING))
+      return defaultRuntime.RingEx(cx, cy, radius, width, drawStyle)
     end
     ring = function(cx, cy, radius, width, fill)
-      return widgets.ring(cx, cy, radius, width, fill)
+      return defaultRuntime.Ring(cx, cy, radius, width, fill)
     end
     arcEx = function(cx, cy, radius, width, startDeg, endDeg, drawStyle)
-      return widgets.arcEx(
-        cx,
-        cy,
-        radius,
-        width,
-        startDeg,
-        endDeg,
-        resolvedStyle(drawStyle, TARGET_ARC)
-      )
+      return defaultRuntime.ArcEx(cx, cy, radius, width, startDeg, endDeg, drawStyle)
     end
     arc = function(cx, cy, radius, startDeg, endDeg, width, fill)
-      return widgets.arc(cx, cy, radius, startDeg, endDeg, width, fill)
+      return defaultRuntime.Arc(cx, cy, radius, startDeg, endDeg, width, fill)
     end
     sectorEx = function(cx, cy, innerRadius, outerRadius, startDeg, endDeg, drawStyle)
-      return widgets.sectorEx(
-        cx,
-        cy,
-        innerRadius,
-        outerRadius,
-        startDeg,
-        endDeg,
-        resolvedStyle(drawStyle, TARGET_SECTOR)
-      )
+      return defaultRuntime.SectorEx(cx, cy, innerRadius, outerRadius, startDeg, endDeg, drawStyle)
     end
     sector = function(cx, cy, innerRadius, outerRadius, startDeg, endDeg, fill)
-      return widgets.sector(cx, cy, innerRadius, outerRadius, startDeg, endDeg, fill)
+      return defaultRuntime.Sector(cx, cy, innerRadius, outerRadius, startDeg, endDeg, fill)
     end
     imageEx = function(x, y, w, h, source, drawStyle)
-      return widgets.imageEx(x, y, w, h, source, resolvedStyle(drawStyle, TARGET_IMAGE))
+      return defaultRuntime.ImageEx(x, y, w, h, source, drawStyle)
     end
     image = function(x, y, w, h, source, radius, tint)
-      return widgets.image(x, y, w, h, source, radius, tint)
+      return defaultRuntime.Image(x, y, w, h, source, radius, tint)
     end
     iconEx = function(x, y, w, h, source, drawStyle)
-      return widgets.iconEx(x, y, w, h, source, resolvedStyle(drawStyle, TARGET_IMAGE))
+      return defaultRuntime.IconEx(x, y, w, h, source, drawStyle)
     end
     icon = function(x, y, w, h, source, tint)
-      return widgets.icon(x, y, w, h, source, tint)
+      return defaultRuntime.Icon(x, y, w, h, source, tint)
     end
     registerTextFont = function(fontName, spec)
-      return textModule.registerFont(fontName, spec)
+      return defaultRuntime.RegisterTextFont(fontName, spec)
     end
     defineTextStyle = function(name, textStyle)
-      return textModule.defineStyle(name, textStyle)
+      return defaultRuntime.DefineTextStyle(name, textStyle)
     end
     getTextStyle = function(name)
-      return textModule.getStyle(name)
+      return defaultRuntime.GetTextStyle(name)
     end
     resolveTextStyle = function(textStyle)
-      return textModule.resolveStyle(textStyle)
+      return defaultRuntime.ResolveTextStyle(textStyle)
     end
     measureText = function(value, font)
       if font == nil then
         font = "DermaDefault"
       end
-      return textModule.measure(value, font)
+      return defaultRuntime.MeasureText(value, font)
     end
     measureTextBox = function(value, font, w, textStyle)
-      return textModule.measureBox(value, font, w, textStyle)
+      return defaultRuntime.MeasureTextBox(value, font, w, textStyle)
     end
     text = function(value, font, x, y, color, ax, ay)
       if ax == nil then
@@ -704,7 +878,7 @@ return function(__lux_import)
       if ay == nil then
         ay = 0
       end
-      return textModule.draw(value, font, x, y, color, ax, ay)
+      return defaultRuntime.Text(value, font, x, y, color, ax, ay)
     end
     textEx = function(value, font, x, y, color, ax, ay, textStyle)
       if ax == nil then
@@ -713,16 +887,7 @@ return function(__lux_import)
       if ay == nil then
         ay = 0
       end
-      return textModule.drawEx(
-        value,
-        font,
-        x,
-        y,
-        color,
-        ax,
-        ay,
-        resolvedStyle(textStyle, TARGET_TEXT)
-      )
+      return defaultRuntime.TextEx(value, font, x, y, color, ax, ay, textStyle)
     end
     textBox = function(value, font, x, y, w, h, color, alignX, alignY)
       if alignX == nil then
@@ -731,16 +896,16 @@ return function(__lux_import)
       if alignY == nil then
         alignY = TEXT_ALIGN_TOP
       end
-      return textModule.box(value, font, x, y, w, h, color, alignX, alignY)
+      return defaultRuntime.TextBox(value, font, x, y, w, h, color, alignX, alignY)
     end
     textBoxEx = function(value, font, x, y, w, h, textStyle)
-      return textModule.boxEx(value, font, x, y, w, h, resolvedStyle(textStyle, TARGET_TEXT))
+      return defaultRuntime.TextBoxEx(value, font, x, y, w, h, textStyle)
     end
     textBatchEx = function(records)
-      return textModule.batch(records)
+      return defaultRuntime.TextBatchEx(records)
     end
     prewarmText = function(value, font, textStyle)
-      return textModule.prewarm(value, font, textStyle)
+      return defaultRuntime.PrewarmText(value, font, textStyle)
     end
   end
   

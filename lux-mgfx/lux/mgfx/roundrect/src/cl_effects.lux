@@ -2,31 +2,62 @@ export client fn innerGlowStyle(glow) {
   stopif glow == nil or glow == false, nil
 
   if glow == true {
-    return {
-      color = makeColor(76, 190, 255, 34),
-      width = 7,
-      strength = 1,
-      falloff = style.glowSoftnessToFalloff(0.55)
-    }
+    return defaultInnerGlowSpec
   }
 
   if style.isColor(glow) {
-    return {
+    local cached = innerGlowColorCache[glow]
+    if cached ~= nil {
+      return cached
+    }
+
+    cached = {
       color = glow,
       width = 7,
       strength = 1,
       falloff = style.glowSoftnessToFalloff(0.55)
     }
+    innerGlowColorCache[glow] = cached
+    return cached
   }
 
   stopif typeOf(glow) ~= "table", nil
 
-  return {
-    color = style.asColor(glow.color ?? glow.tint, makeColor(76, 190, 255, 34)),
-    width = mathMax(1, toNumber(glow.size ?? glow.width) ?? 7),
-    strength = toNumber(glow.opacity ?? glow.strength) ?? 1,
-    falloff = toNumber(glow.falloff) ?? style.glowSoftnessToFalloff(glow.softness, 0.55)
+  -- Cache normalized specs, but guard on raw inputs so mutating a style table
+  -- still takes effect without paying color/number normalization on hits.
+  local cached = innerGlowTableCache[glow]
+  if cached ~= nil
+    and cached._colorInput == glow.color
+    and cached._tintInput == glow.tint
+    and cached._sizeInput == glow.size
+    and cached._widthInput == glow.width
+    and cached._opacityInput == glow.opacity
+    and cached._strengthInput == glow.strength
+    and cached._falloffInput == glow.falloff
+    and cached._softnessInput == glow.softness {
+    return cached
   }
+
+  local color = style.asColor(glow.color ?? glow.tint, defaultInnerGlowColor)
+  local width = mathMax(1, toNumber(glow.size ?? glow.width) ?? 7)
+  local strength = toNumber(glow.opacity ?? glow.strength) ?? 1
+  local falloff = toNumber(glow.falloff) ?? style.glowSoftnessToFalloff(glow.softness, 0.55)
+
+  cached = {}
+  cached.color = color
+  cached.width = width
+  cached.strength = strength
+  cached.falloff = falloff
+  cached._colorInput = glow.color
+  cached._tintInput = glow.tint
+  cached._sizeInput = glow.size
+  cached._widthInput = glow.width
+  cached._opacityInput = glow.opacity
+  cached._strengthInput = glow.strength
+  cached._falloffInput = glow.falloff
+  cached._softnessInput = glow.softness
+  innerGlowTableCache[glow] = cached
+  cached
 }
 
 fn effectOffset(input, fallbackX = 0, fallbackY = 0) {
@@ -52,32 +83,20 @@ export client fn glowBiasPads(base, x = 0, y = 0, minPad = 1) {
     mathMax(minPad, pad + oy)
 }
 
-export client fn effectExtentFromSpec(spec, defaultWidth = 18) {
-  local width = mathMax(0.001, toNumber(spec?.width) ?? defaultWidth)
-  local falloff = mathMax(0.35, toNumber(spec?.falloff) ?? 1.9)
-  local sigma = mathMax(width / mathSqrt(falloff) * 0.72, 0.35)
-  local tail = sigma * 3.72
-  mathMax(1, toNumber(spec?.spread) ?? width, tail)
-}
-
 export client fn outerGlowStyle(glow) {
   stopif glow == nil or glow == false, nil
 
   if glow == true {
-    return {
-      color = makeColor(76, 190, 255, 88),
-      x = 0,
-      y = 0,
-      width = 18,
-      spread = 18,
-      grow = 0,
-      strength = 1,
-      falloff = style.glowSoftnessToFalloff(0.54)
-    }
+    return defaultOuterGlowSpec
   }
 
   if style.isColor(glow) {
-    return {
+    local cached = outerGlowColorCache[glow]
+    if cached ~= nil {
+      return cached
+    }
+
+    cached = {
       color = glow,
       x = 0,
       y = 0,
@@ -87,42 +106,103 @@ export client fn outerGlowStyle(glow) {
       strength = 1,
       falloff = style.glowSoftnessToFalloff(0.54)
     }
+    cached._extent = effectExtentFromSpec(cached, 18)
+    cached._cullSpread = cached._extent
+    outerGlowColorCache[glow] = cached
+    return cached
   }
 
   stopif typeOf(glow) ~= "table", nil
 
+  local cacheable = typeOf(glow.offset) ~= "table"
+  local cached = cacheable then outerGlowTableCache[glow] else nil
+  if cached ~= nil
+    and cached._xInput == glow.x
+    and cached._offsetXInput == glow.offsetX
+    and cached._dxInput == glow.dx
+    and cached._indexXInput == glow[1]
+    and cached._yInput == glow.y
+    and cached._offsetYInput == glow.offsetY
+    and cached._dyInput == glow.dy
+    and cached._indexYInput == glow[2]
+    and cached._sizeInput == glow.size
+    and cached._widthInput == glow.width
+    and cached._blurInput == glow.blur
+    and cached._radiusInput == glow.radius
+    and cached._spreadInput == glow.spread
+    and cached._colorInput == glow.color
+    and cached._tintInput == glow.tint
+    and cached._growInput == glow.grow
+    and cached._expandInput == glow.expand
+    and cached._shapeSpreadInput == glow.shapeSpread
+    and cached._opacityInput == glow.opacity
+    and cached._strengthInput == glow.strength
+    and cached._falloffInput == glow.falloff
+    and cached._softnessInput == glow.softness {
+    return cached
+  }
+
   local x, y = effectOffset(glow, 0, 0)
   local width = mathMax(1, toNumber(glow.size ?? glow.width ?? glow.blur ?? glow.radius ?? glow.spread) ?? 18)
-  return {
-    color = style.asColor(glow.color ?? glow.tint, makeColor(76, 190, 255, 88)),
-    x = x,
-    y = y,
-    width = width,
-    spread = mathMax(1, toNumber(glow.spread) ?? width),
-    grow = mathMax(0, toNumber(glow.grow ?? glow.expand ?? glow.shapeSpread) ?? 0),
-    strength = toNumber(glow.opacity ?? glow.strength) ?? 1,
-    falloff = toNumber(glow.falloff) ?? style.glowSoftnessToFalloff(glow.softness, 0.54)
+  local color = style.asColor(glow.color ?? glow.tint, defaultOuterGlowColor)
+  local spread = mathMax(1, toNumber(glow.spread) ?? width)
+  local grow = mathMax(0, toNumber(glow.grow ?? glow.expand ?? glow.shapeSpread) ?? 0)
+  local strength = toNumber(glow.opacity ?? glow.strength) ?? 1
+  local falloff = toNumber(glow.falloff) ?? style.glowSoftnessToFalloff(glow.softness, 0.54)
+
+  cached = {}
+  cached.color = color
+  cached.x = x
+  cached.y = y
+  cached.width = width
+  cached.spread = spread
+  cached.grow = grow
+  cached.strength = strength
+  cached.falloff = falloff
+  cached._extent = effectExtentFromSpec(cached, 18)
+  cached._cullSpread = mathAbs(x) + mathAbs(y) + cached._extent + grow
+  if cacheable {
+    cached._xInput = glow.x
+    cached._offsetXInput = glow.offsetX
+    cached._dxInput = glow.dx
+    cached._indexXInput = glow[1]
+    cached._yInput = glow.y
+    cached._offsetYInput = glow.offsetY
+    cached._dyInput = glow.dy
+    cached._indexYInput = glow[2]
+    cached._sizeInput = glow.size
+    cached._widthInput = glow.width
+    cached._blurInput = glow.blur
+    cached._radiusInput = glow.radius
+    cached._spreadInput = glow.spread
+    cached._colorInput = glow.color
+    cached._tintInput = glow.tint
+    cached._growInput = glow.grow
+    cached._expandInput = glow.expand
+    cached._shapeSpreadInput = glow.shapeSpread
+    cached._opacityInput = glow.opacity
+    cached._strengthInput = glow.strength
+    cached._falloffInput = glow.falloff
+    cached._softnessInput = glow.softness
+    outerGlowTableCache[glow] = cached
   }
+  cached
 }
 
 export client fn shadowStyle(shadow) {
   stopif shadow == nil or shadow == false, nil
 
   if shadow == true {
-    return {
-      color = makeColor(0, 0, 0, 132),
-      x = 0,
-      y = 4,
-      width = 12,
-      spread = 12,
-      grow = 0,
-      strength = 1,
-      falloff = style.glowSoftnessToFalloff(0.62)
-    }
+    return defaultShadowSpec
   }
 
   if style.isColor(shadow) {
-    return {
+    local cached = shadowColorCache[shadow]
+    if cached ~= nil {
+      return cached
+    }
+
+    cached = {
       color = shadow,
       x = 0,
       y = 4,
@@ -132,12 +212,21 @@ export client fn shadowStyle(shadow) {
       strength = 1,
       falloff = style.glowSoftnessToFalloff(0.62)
     }
+    cached._extent = effectExtentFromSpec(cached, 12)
+    cached._cullSpread = mathAbs(cached.x) + mathAbs(cached.y) + cached._extent + cached.grow
+    shadowColorCache[shadow] = cached
+    return cached
   }
 
   if typeOf(shadow) ~= "table" {
     local blur = mathMax(0.001, toNumber(shadow) ?? 12)
-    return {
-      color = makeColor(0, 0, 0, 132),
+    local cached = shadowNumberCache[blur]
+    if cached ~= nil {
+      return cached
+    }
+
+    cached = {
+      color = defaultShadowColor,
       x = 0,
       y = 4,
       width = blur,
@@ -146,21 +235,89 @@ export client fn shadowStyle(shadow) {
       strength = 1,
       falloff = style.glowSoftnessToFalloff(0.62)
     }
+    cached._extent = effectExtentFromSpec(cached, 12)
+    cached._cullSpread = mathAbs(cached.x) + mathAbs(cached.y) + cached._extent + cached.grow
+    shadowNumberCache[blur] = cached
+    return cached
+  }
+
+  local cacheable = typeOf(shadow.offset) ~= "table"
+  local cached = cacheable then shadowTableCache[shadow] else nil
+  if cached ~= nil
+    and cached._xInput == shadow.x
+    and cached._offsetXInput == shadow.offsetX
+    and cached._dxInput == shadow.dx
+    and cached._indexXInput == shadow[1]
+    and cached._yInput == shadow.y
+    and cached._offsetYInput == shadow.offsetY
+    and cached._dyInput == shadow.dy
+    and cached._indexYInput == shadow[2]
+    and cached._blurInput == shadow.blur
+    and cached._radiusInput == shadow.radius
+    and cached._sizeInput == shadow.size
+    and cached._widthInput == shadow.width
+    and cached._spreadInput == shadow.spread
+    and cached._growInput == shadow.grow
+    and cached._expandInput == shadow.expand
+    and cached._shapeSpreadInput == shadow.shapeSpread
+    and cached._colorInput == shadow.color
+    and cached._tintInput == shadow.tint
+    and cached._extentInput == shadow.extent
+    and cached._paddingInput == shadow.padding
+    and cached._opacityInput == shadow.opacity
+    and cached._strengthInput == shadow.strength
+    and cached._falloffInput == shadow.falloff
+    and cached._softnessInput == shadow.softness {
+    return cached
   }
 
   local x, y = effectOffset(shadow, 0, 4)
   local blur = mathMax(0.001, toNumber(shadow.blur ?? shadow.radius ?? shadow.size ?? shadow.width) ?? 12)
   local grow = mathMax(0, toNumber(shadow.spread ?? shadow.grow ?? shadow.expand ?? shadow.shapeSpread) ?? 0)
-  return {
-    color = style.asColor(shadow.color ?? shadow.tint, makeColor(0, 0, 0, 132)),
-    x = x,
-    y = y,
-    width = blur,
-    spread = mathMax(1, toNumber(shadow.extent ?? shadow.padding) ?? blur),
-    grow = grow,
-    strength = toNumber(shadow.opacity ?? shadow.strength) ?? 1,
-    falloff = toNumber(shadow.falloff) ?? style.glowSoftnessToFalloff(shadow.softness, 0.62)
+  local color = style.asColor(shadow.color ?? shadow.tint, defaultShadowColor)
+  local spread = mathMax(1, toNumber(shadow.extent ?? shadow.padding) ?? blur)
+  local strength = toNumber(shadow.opacity ?? shadow.strength) ?? 1
+  local falloff = toNumber(shadow.falloff) ?? style.glowSoftnessToFalloff(shadow.softness, 0.62)
+
+  cached = {}
+  cached.color = color
+  cached.x = x
+  cached.y = y
+  cached.width = blur
+  cached.spread = spread
+  cached.grow = grow
+  cached.strength = strength
+  cached.falloff = falloff
+  cached._extent = effectExtentFromSpec(cached, 12)
+  cached._cullSpread = mathAbs(x) + mathAbs(y) + cached._extent + grow
+  if cacheable {
+    cached._xInput = shadow.x
+    cached._offsetXInput = shadow.offsetX
+    cached._dxInput = shadow.dx
+    cached._indexXInput = shadow[1]
+    cached._yInput = shadow.y
+    cached._offsetYInput = shadow.offsetY
+    cached._dyInput = shadow.dy
+    cached._indexYInput = shadow[2]
+    cached._blurInput = shadow.blur
+    cached._radiusInput = shadow.radius
+    cached._sizeInput = shadow.size
+    cached._widthInput = shadow.width
+    cached._spreadInput = shadow.spread
+    cached._growInput = shadow.grow
+    cached._expandInput = shadow.expand
+    cached._shapeSpreadInput = shadow.shapeSpread
+    cached._colorInput = shadow.color
+    cached._tintInput = shadow.tint
+    cached._extentInput = shadow.extent
+    cached._paddingInput = shadow.padding
+    cached._opacityInput = shadow.opacity
+    cached._strengthInput = shadow.strength
+    cached._falloffInput = shadow.falloff
+    cached._softnessInput = shadow.softness
+    shadowTableCache[shadow] = cached
   }
+  cached
 }
 
 export client fn patternStyle(pattern) {

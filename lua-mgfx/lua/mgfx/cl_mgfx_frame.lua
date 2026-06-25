@@ -20,6 +20,13 @@ function MGFX._InstallFrame(C)
 	local profileFrameActive = false
 	assert(commandApi, "MGFX frame module requires commandApi")
 
+local function profileCallsite()
+	if not profiler or not profiler.IsEnabled or not profiler.IsEnabled() or not debug or not debug.getinfo then
+		return nil
+	end
+	return debug.getinfo(3, "Sln")
+end
+
 local function profileStart()
 	if profileFrameActive then
 		return SysTime()
@@ -196,15 +203,15 @@ local function finishFrame(commands, frameProfile)
 	profileFrameActive = false
 end
 
-local function startFrame(w, h, screenX, screenY)
+local function startFrame(w, h, screenX, screenY, kind, subject, info)
 	resetStats()
-	profileFrameActive = profiler and profiler.BeginFrame and profiler.BeginFrame()
+	profileFrameActive = profiler and profiler.BeginFrame and profiler.BeginFrame(kind, subject, info)
 	if not profileFrameActive and profileEnabled and profileEnabled.GetBool then
 		profileFrameActive = profileEnabled:GetBool()
 	end
 	table.Empty(clipStack)
 	render.SetScissorRect(0, 0, 0, 0, false)
-	commandState.stack = acquireCommandStack()
+	commandState.stack = nil
 	commandState.replaying = false
 	frameState.forceFallback = forceFallback:GetBool()
 	frameState.shadersActive = not frameState.forceFallback and M.hasShaders()
@@ -218,7 +225,6 @@ local function startFrame(w, h, screenX, screenY)
 end
 
 local function flushFrame()
-	if not commandState.stack then return end
 	local frameProfile = profileStart()
 	if frameProfile and frameState.profilePaintStarted and profiler and profiler.Record then
 		profiler.Record("paintBuild", (frameProfile - frameState.profilePaintStarted) * 1000)
@@ -226,41 +232,54 @@ local function flushFrame()
 
 	local commands = commandState.stack
 	commandState.stack = nil
-	commandState.replaying = true
-	installFrameClip()
+	if commands then
+		commandState.replaying = true
+		installFrameClip()
 
-	local textBatch = {}
-	local loopProfile = profileStart()
-	for commandIndex = 1, #commands do
-		local command = commands[commandIndex]
-		local commandName = command and (command.op or command[1])
-		local commandProfile = profileStart()
-		if frameState.drawCountsActive then
-			addStat("drawCommandCounts", commandName)
+		local textBatch = {}
+		local loopProfile = profileStart()
+		for commandIndex = 1, #commands do
+			local command = commands[commandIndex]
+			local commandName = command and (command.op or command[1])
+			local commandProfile = profileStart()
+			if frameState.drawCountsActive then
+				addStat("drawCommandCounts", commandName)
+			end
+
+			if commandName == "DrawText" then
+				appendTextCommand(command, textBatch)
+			elseif commandName == "DrawTextBatch" then
+				appendTextBatchCommand(command, textBatch)
+			elseif commandName == "DrawTextBox" then
+				flushTextBatch(textBatch, "text")
+				drawTextBoxCommand(command)
+			elseif commandName == "PushClip" then
+				flushTextBatch(textBatch, "clip")
+				local cmd = commandApi.clip(command)
+				applyPushClip(cmd.x, cmd.y, cmd.w, cmd.h)
+			elseif commandName == "PopClip" then
+				flushTextBatch(textBatch, "clip")
+				applyPopClip()
+			end
+
+			profileEnd("cmd." .. tostring(commandName or "unknown"), commandProfile)
 		end
-
-		if commandName == "DrawText" then
-			appendTextCommand(command, textBatch)
-		elseif commandName == "DrawTextBatch" then
-			appendTextBatchCommand(command, textBatch)
-		elseif commandName == "DrawTextBox" then
-			flushTextBatch(textBatch, "text")
-			drawTextBoxCommand(command)
-		elseif commandName == "PushClip" then
-			flushTextBatch(textBatch, "clip")
-			local cmd = commandApi.clip(command)
-			applyPushClip(cmd.x, cmd.y, cmd.w, cmd.h)
-		elseif commandName == "PopClip" then
-			flushTextBatch(textBatch, "clip")
-			applyPopClip()
-		end
-
-		profileEnd("cmd." .. tostring(commandName or "unknown"), commandProfile)
+		profileEnd("commandLoop", loopProfile)
+		flushTextBatch(textBatch, "end")
 	end
-	profileEnd("commandLoop", loopProfile)
 
-	flushTextBatch(textBatch, "end")
 	finishFrame(commands, frameProfile)
+end
+
+function M.BeginCommands()
+	if commandState.stack then return commandState.stack end
+	commandState.stack = acquireCommandStack()
+	commandState.replaying = false
+	return commandState.stack
+end
+
+function M.FlushCommands()
+	return flushFrame()
 end
 
 function M.StartPanel(panel, w, h)
@@ -273,7 +292,9 @@ function M.StartPanel(panel, w, h)
 		w, h = panel:GetSize()
 	end
 
-	startFrame(w, h, sx, sy)
+	startFrame(w, h, sx, sy, "panel", panel, {
+		callsite = profileCallsite(),
+	})
 	frameState.clipToFrame = true
 	installFrameClip()
 end
@@ -283,7 +304,10 @@ function M.EndPanel()
 end
 
 function M.StartScreen(w, h)
-	return startFrame(w or ScrW(), h or ScrH(), 0, 0)
+	return startFrame(w or ScrW(), h or ScrH(), 0, 0, "screen", nil, {
+		callsite = profileCallsite(),
+		label = "screen",
+	})
 end
 
 function M.EndScreen()

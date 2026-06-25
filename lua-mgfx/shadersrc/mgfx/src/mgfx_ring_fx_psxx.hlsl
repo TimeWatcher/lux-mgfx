@@ -9,12 +9,12 @@
 #define ARC_MODE EXTRA2.z
 #define RING_FILL_KIND EXTRA2.w
 #define RING_FILL_PARAMS EXTRA3
-#define RING_STROKE_COLOR Constants0
-#define RING_STROKE_WIDTH Constants1.x
-#define INNER_GLOW_WIDTH Constants1.y
-#define INNER_GLOW_STRENGTH Constants1.z
-#define INNER_GLOW_FALLOFF Constants1.w
-#define INNER_GLOW_COLOR Constants2
+#define RING_STROKE_COLOR AUX0
+#define RING_STROKE_WIDTH AUX1.x
+#define INNER_GLOW_WIDTH AUX1.y
+#define INNER_GLOW_STRENGTH AUX1.z
+#define INNER_GLOW_FALLOFF AUX1.w
+#define INNER_GLOW_COLOR AUX2
 
 float normalize_angle(float a)
 {

@@ -3,12 +3,12 @@
 
 #include "mgfx_poly_shape_common.hlsl"
 
-#define GLOW_COLOR Constants0
-#define GLOW_DRAW_SIZE Constants1.xy
-#define GLOW_WIDTH Constants1.z
-#define GLOW_FALLOFF Constants1.w
-#define GLOW_STRENGTH Constants2.x
-#define GLOW_GROW Constants2.y
+#define GLOW_COLOR AUX0
+#define GLOW_DRAW_SIZE AUX1.xy
+#define GLOW_WIDTH AUX1.z
+#define GLOW_FALLOFF AUX1.w
+#define GLOW_STRENGTH AUX2.x
+#define GLOW_GROW AUX2.y
 
 float4 main(PS_INPUT i) : COLOR
 {

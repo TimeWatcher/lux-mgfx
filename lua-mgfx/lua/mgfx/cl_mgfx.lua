@@ -115,12 +115,12 @@ local cam_Start2D = cam.Start2D
 local cam_End2D = cam.End2D
 local surface_GetAlphaMultiplier = surface.GetAlphaMultiplier
 local surface_DrawLine = surface.DrawLine
-local surface_DrawPoly = surface.DrawPoly
 local surface_DrawRect = surface.DrawRect
 local surface_SetAlphaMultiplier = surface.SetAlphaMultiplier
 local surface_SetDrawColor = surface.SetDrawColor
 local surface_SetMaterial = surface.SetMaterial
 local transparentColor = Color(0, 0, 0, 0)
+local inv255 = 1 / 255
 
 local materialState = assert(M._CreateMaterialState and M._CreateMaterialState(M), "MGFX material module unavailable")
 local shaderVersion = materialState.shaderVersion
@@ -143,6 +143,7 @@ M.stats.drawCommandCounts = M.stats.drawCommandCounts or {}
 M.stats.drawImmediateCounts = M.stats.drawImmediateCounts or {}
 M.stats.profileTimes = M.stats.profileTimes or {}
 M.stats.profileCounts = M.stats.profileCounts or {}
+M._internal = M._internal or {}
 
 local clipStack = {}
 local frameState = {w = nil, h = nil, screenX = 0, screenY = 0}
@@ -188,6 +189,9 @@ local function acquireCommandObject(op)
 	return command
 end
 
+local emptyDrawStyle = {}
+local colorDrawStyleCache = setmetatable({}, {__mode = "k"})
+
 local function copyStyle(style)
 	if not istable(style) then
 		return {}
@@ -201,10 +205,24 @@ local function copyStyle(style)
 end
 
 local function resolveDrawStyle(style, target)
-	if capabilityApi and capabilityApi.normalizeStyle then
-		return capabilityApi.normalizeStyle(style, target) or {}
+	if style == nil then return emptyDrawStyle end
+	if not istable(style) then return emptyDrawStyle end
+	if style.r ~= nil and style.g ~= nil and style.b ~= nil then
+		local cached = colorDrawStyleCache[style]
+		if cached then return cached end
+		cached = {fill = style}
+		colorDrawStyleCache[style] = cached
+		return cached
 	end
-	return istable(style) and style or {}
+
+	local fill = style.fill
+	local fillKind = istable(fill) and fill.kind or nil
+	if fillKind ~= "stripe" and fillKind ~= "smoke" then return style end
+
+	if capabilityApi and capabilityApi.normalizeStyle then
+		return capabilityApi.normalizeStyle(style, target) or emptyDrawStyle
+	end
+	return style
 end
 
 local function copyPoints(points)
@@ -279,6 +297,8 @@ end
 local function queueTextBatch(records)
 	if commandState.stack and not commandState.replaying then
 		commandState.stack[#commandState.stack + 1] = {op = "DrawTextBatch", records = records}
+		M.stats.textQueuedBatches = (M.stats.textQueuedBatches or 0) + 1
+		M.stats.textQueuedRecords = (M.stats.textQueuedRecords or 0) + #(records or {})
 		return true
 	end
 	return false
@@ -295,6 +315,22 @@ local profiler = assert(M._CreateProfiler and M._CreateProfiler({
 	M = M,
 	enabledConVar = profileEnabled,
 }), "MGFX profiler module unavailable")
+M.Profiler = profiler
+M.BeginProfileFrame = profiler.BeginFrame
+M.EndProfileFrame = profiler.EndFrame
+M.GetProfileRows = profiler.Snapshot
+M.GetCurrentProfileRows = profiler.CurrentRows
+M.GetProfileScopeRows = profiler.ScopeRows
+M.GetRecentProfileScopes = profiler.RecentScopes
+M.GetProfileInstanceRows = profiler.InstanceRows
+M.FormatProfileRows = profiler.FormatRows
+M.FormatProfileScopeRows = profiler.FormatScopeRows
+M.ResetProfile = profiler.Reset
+M.InstallApiWrappers = profiler.InstallApiWrappers
+M.BeginTrace = profiler.BeginTrace
+M.EndTrace = profiler.EndTrace
+M.TraceStart = profiler.TraceStart
+M.TraceEnd = profiler.TraceEnd
 
 local function shadersActive()
 	local cached = frameState.shadersActive
@@ -549,9 +585,26 @@ local function bindGradientLut(mat, fill)
 	return lut
 end
 
+function M.GradientLutForFill(fill)
+	return gradientLutForFill(fill)
+end
+
+function M.BindGradientLut(mat, fill)
+	return bindGradientLut(mat, fill)
+end
+
+function M.GradientLutStatus()
+	return {
+		count = gradientLutCacheCount,
+		limit = GRADIENT_LUT_CACHE_LIMIT,
+		serial = gradientLutSerial,
+	}
+end
+
 local geometryApi = assert(M._CreateGeometryHelpers and M._CreateGeometryHelpers({
 	M = M,
 	stats = M.stats,
+	profiler = profiler,
 	asColor = asColor,
 	copyStyle = copyStyle,
 }), "MGFX geometry module unavailable")
@@ -570,6 +623,9 @@ local imageRadius = geometryApi.imageRadius
 local imageAlign = geometryApi.imageAlign
 local imageUV = geometryApi.imageUV
 local imageFitRect = geometryApi.imageFitRect
+M._Geometry = geometryApi
+M._internal.drawTexturedQuad = drawTexturedQuad
+M._internal.drawTexturedQuadUV = drawTexturedQuadUV
 
 local frameGeometryApi = assert(M._CreateFrameGeometry and M._CreateFrameGeometry({
 	M = M,
@@ -584,6 +640,9 @@ local withPanelEffectBleed = frameGeometryApi.withPanelEffectBleed
 restoreScissor = frameGeometryApi.restoreScissor
 
 local paramMatrices = {}
+local paramMatrixRawState = {}
+local auxParamMatrices = {}
+local auxParamMatrixRawState = {}
 local paramMatrixSetUnpacked
 do
 	local probeMatrix = Matrix and Matrix() or nil
@@ -613,28 +672,101 @@ local function setupParamMatrix(mat,
 	return true
 end
 
+local function setupParamMatrixRaw(mat,
+	a0, a1, a2, a3,
+	b0, b1, b2, b3,
+	c0, c1, c2, c3,
+	d0, d1, d2, d3)
+	local state = paramMatrixRawState[mat]
+	if state
+		and state[1] == a0 and state[2] == a1 and state[3] == a2 and state[4] == a3
+		and state[5] == b0 and state[6] == b1 and state[7] == b2 and state[8] == b3
+		and state[9] == c0 and state[10] == c1 and state[11] == c2 and state[12] == c3
+		and state[13] == d0 and state[14] == d1 and state[15] == d2 and state[16] == d3 then
+		return
+	end
+	if not state then
+		state = {}
+		paramMatrixRawState[mat] = state
+	end
+	state[1], state[2], state[3], state[4] = a0, a1, a2, a3
+	state[5], state[6], state[7], state[8] = b0, b1, b2, b3
+	state[9], state[10], state[11], state[12] = c0, c1, c2, c3
+	state[13], state[14], state[15], state[16] = d0, d1, d2, d3
+
+	local matrix = paramMatrices[mat]
+	if not matrix then
+		matrix = Matrix()
+		paramMatrices[mat] = matrix
+	end
+
+	paramMatrixSetUnpacked(matrix,
+		a0, b0, c0, d0,
+		a1, b1, c1, d1,
+		a2, b2, c2, d2,
+		a3, b3, c3, d3
+	)
+	mat:SetMatrix("$viewprojmat", matrix)
+end
+
 local function setupAuxConstants(mat,
 	a0, a1, a2, a3,
 	b0, b1, b2, b3,
 	c0, c1, c2, c3,
 	d0, d1, d2, d3)
-	if not mat then return false end
-	mat:SetFloat("$c0_x", a0 or 0)
-	mat:SetFloat("$c0_y", a1 or 0)
-	mat:SetFloat("$c0_z", a2 or 0)
-	mat:SetFloat("$c0_w", a3 or 0)
-	mat:SetFloat("$c1_x", b0 or 0)
-	mat:SetFloat("$c1_y", b1 or 0)
-	mat:SetFloat("$c1_z", b2 or 0)
-	mat:SetFloat("$c1_w", b3 or 0)
-	mat:SetFloat("$c2_x", c0 or 0)
-	mat:SetFloat("$c2_y", c1 or 0)
-	mat:SetFloat("$c2_z", c2 or 0)
-	mat:SetFloat("$c2_w", c3 or 0)
-	mat:SetFloat("$c3_x", d0 or 0)
-	mat:SetFloat("$c3_y", d1 or 0)
-	mat:SetFloat("$c3_z", d2 or 0)
-	mat:SetFloat("$c3_w", d3 or 0)
+	if not mat or not paramMatrixSetUnpacked then return false end
+
+	local matrix = auxParamMatrices[mat]
+	if not matrix then
+		matrix = Matrix()
+		auxParamMatrices[mat] = matrix
+	end
+
+	paramMatrixSetUnpacked(matrix,
+		a0 or 0, b0 or 0, c0 or 0, d0 or 0,
+		a1 or 0, b1 or 0, c1 or 0, d1 or 0,
+		a2 or 0, b2 or 0, c2 or 0, d2 or 0,
+		a3 or 0, b3 or 0, c3 or 0, d3 or 0
+	)
+	mat:SetMatrix("$invviewprojmat", matrix)
+	return true
+end
+
+local function setupAuxConstantsRaw(mat,
+	a0, a1, a2, a3,
+	b0, b1, b2, b3,
+	c0, c1, c2, c3,
+	d0, d1, d2, d3)
+	local state = auxParamMatrixRawState[mat]
+	if state
+		and state[1] == a0 and state[2] == a1 and state[3] == a2 and state[4] == a3
+		and state[5] == b0 and state[6] == b1 and state[7] == b2 and state[8] == b3
+		and state[9] == c0 and state[10] == c1 and state[11] == c2 and state[12] == c3
+		and state[13] == d0 and state[14] == d1 and state[15] == d2 and state[16] == d3 then
+		return true
+	end
+	if not state then
+		state = {}
+		auxParamMatrixRawState[mat] = state
+	end
+	state[1], state[2], state[3], state[4] = a0, a1, a2, a3
+	state[5], state[6], state[7], state[8] = b0, b1, b2, b3
+	state[9], state[10], state[11], state[12] = c0, c1, c2, c3
+	state[13], state[14], state[15], state[16] = d0, d1, d2, d3
+
+	local matrix = auxParamMatrices[mat]
+	if not matrix then
+		matrix = Matrix()
+		auxParamMatrices[mat] = matrix
+	end
+
+	paramMatrixSetUnpacked(matrix,
+		a0, b0, c0, d0,
+		a1, b1, c1, d1,
+		a2, b2, c2, d2,
+		a3, b3, c3, d3
+	)
+	mat:SetMatrix("$invviewprojmat", matrix)
 	return true
 end
 
@@ -771,17 +903,41 @@ local function drawLineShaderVerts(verts, fill)
 	return true
 end
 
-local function drawBlurredQuad(mat, x, y, w, h, radius, amount)
+local function drawBlurredQuad(mat, x, y, w, h, radius, amount, tint)
 	surface_SetMaterial(mat)
 	surface_SetDrawColor(255, 255, 255, 255)
 
+	setupAuxConstantsRaw(mat,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0
+	)
 	render_CopyRenderTargetToTexture(blurRT)
 	setupBlurConstants(mat, w, h, false, blurIntensity(amount), radius)
-	drawTexturedQuad(x, y, w, h)
+	drawTexturedQuad(x, y, w, h, mat)
 
+	if tint then
+		setupAuxConstantsRaw(mat,
+			(tint.r or 0) * inv255,
+			(tint.g or 0) * inv255,
+			(tint.b or 0) * inv255,
+			(tint.a == nil and 255 or tint.a) * inv255,
+			1, 0, 0, 0,
+			0, 0, 0, 0,
+			0, 0, 0, 0
+		)
+	else
+		setupAuxConstantsRaw(mat,
+			0, 0, 0, 0,
+			0, 0, 0, 0,
+			0, 0, 0, 0,
+			0, 0, 0, 0
+		)
+	end
 	render_CopyRenderTargetToTexture(blurRT)
 	setupBlurConstants(mat, w, h, true, blurIntensity(amount), radius)
-	drawTexturedQuad(x, y, w, h)
+	drawTexturedQuad(x, y, w, h, mat)
 
 	M.stats.blurPasses = M.stats.blurPasses + 2
 end
@@ -792,11 +948,11 @@ local function drawBlurredCustomQuad(mat, x, y, w, h, amount, setup)
 
 	render_CopyRenderTargetToTexture(blurRT)
 	setup(mat, false, blurIntensity(amount))
-	drawTexturedQuad(x, y, w, h)
+	drawTexturedQuad(x, y, w, h, mat)
 
 	render_CopyRenderTargetToTexture(blurRT)
 	setup(mat, true, blurIntensity(amount))
-	drawTexturedQuad(x, y, w, h)
+	drawTexturedQuad(x, y, w, h, mat)
 
 	M.stats.blurPasses = M.stats.blurPasses + 2
 end
@@ -842,13 +998,21 @@ local roundRectApi = assert(M._InstallRoundRect and M._InstallRoundRect({
 	FILL_RADIAL = FILL_RADIAL,
 	FILL_CONIC = FILL_CONIC,
 	isCulled = isCulled,
+	normalizedRotation = normalizedRotation,
+	bindGradientLut = bindGradientLut,
 	setupParamMatrix = setupParamMatrix,
+	setupParamMatrixRaw = setupParamMatrixRaw,
 	setupConstants = setupConstants,
+	setupExtraParams = setupExtraParams,
+	setupExtraParamsRaw = setupAuxConstantsRaw,
 	drawTexturedQuad = drawTexturedQuad,
 	drawTransformedPoly = drawTransformedPoly,
 	withTransform = withTransform,
 	splitStyleTransform = splitStyleTransform,
 	hasTransform = hasTransform,
+	beginPanelEffectBleed = frameGeometryApi.beginPanelEffectBleed,
+	beginPanelEffectDraw = frameGeometryApi.beginPanelEffectDraw,
+	endPanelEffectBleed = frameGeometryApi.endPanelEffectBleed,
 	withPanelEffectBleed = withPanelEffectBleed,
 	drawBlurredQuad = drawBlurredQuad,
 }), "MGFX roundrect module unavailable")
@@ -867,6 +1031,7 @@ local outerGlowStyle = roundRectApi.outerGlowStyle
 local shadowStyle = roundRectApi.shadowStyle
 local glowBiasPads = roundRectApi.glowBiasPads
 local effectExtentFromSpec = roundRectApi.effectExtentFromSpec
+M._internal.drawRoundRectImmediate = drawRoundRectImmediate
 
 local context = {
 	M = M,
@@ -931,6 +1096,9 @@ local context = {
 	drawTexturedQuadUV = drawTexturedQuadUV,
 	withLocalScissor = withLocalScissor,
 	withScreenScissorPixels = withScreenScissorPixels,
+	beginPanelEffectBleed = frameGeometryApi.beginPanelEffectBleed,
+	beginPanelEffectDraw = frameGeometryApi.beginPanelEffectDraw,
+	endPanelEffectBleed = frameGeometryApi.endPanelEffectBleed,
 	withPanelEffectBleed = withPanelEffectBleed,
 	setupLineConstants = setupLineConstants,
 	drawLineShaderVerts = drawLineShaderVerts,
@@ -1026,8 +1194,54 @@ if profiler and profiler.InstallApiWrappers then
 		"CircleEx",
 		"Capsule",
 		"CapsuleEx",
+		"StartPanel",
+		"EndPanel",
+		"StartScreen",
+		"EndScreen",
 		"PushClip",
 		"PopClip",
+		"Solid",
+		"LinearGradient",
+		"LinearGradientStops",
+		"RadialGradient",
+		"RingRadialGradient",
+		"SectorRadialGradient",
+		"ConicGradient",
+		"ShapeAngularGradient",
+		"RingAngularGradient",
+		"ArcAngularGradient",
+		"SectorAngularGradient",
+		"StripePattern",
+		"SmokePattern",
+		"Mask",
+		"Backdrop",
+		"ImageMaskStyle",
+		"BackdropStyle",
+		"FillFromStyle",
+		"ColorAtFill",
+		"NormalizedRotation",
+		"GlowSoftnessToFalloff",
+		"GradientLutForFill",
+		"BindGradientLut",
+		"GradientLutStatus",
+		"GetCapabilities",
+		"Supports",
+		"NormalizeStyle",
+		"Transform",
+		"ProjectedQuad",
+		"PointerTilt",
+		"PushTransform",
+		"PopTransform",
+		"TransformPoint",
+		"UntransformPoint",
+		"RegisterTextFont",
+		"DefineTextStyle",
+		"GetTextStyle",
+		"ResolveTextStyle",
+		"MeasureText",
+		"MeasureTextBox",
+		"PrewarmText",
+		"DebugOverlay",
 	}, function()
 		return commandState and commandState.replaying == true
 	end)

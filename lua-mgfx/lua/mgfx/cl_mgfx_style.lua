@@ -16,6 +16,10 @@ function MGFX._InstallStyle(owner)
 	local FILL_CONIC = 3
 	local transparentColor = Color(0, 0, 0, 0)
 	local solidColorCache = setmetatable({}, {__mode = "kv"})
+	local backdropTableCache = setmetatable({}, {__mode = "k"})
+	local backdropColorCache = setmetatable({}, {__mode = "k"})
+	local backdropNumberCache = {}
+	local backdropTrueSpec
 
 	local function asColor(value, fallback)
 		if istable(value) and value.r and value.g and value.b then return value end
@@ -407,11 +411,15 @@ end
 		return nil
 	end
 
+	owner.ImageMaskStyle = imageMaskStyle
+
 	local function fillFromStyle(fill)
 		if istable(fill) and (fill.kind == FILL_SOLID or fill.kind == FILL_LINEAR or fill.kind == FILL_RADIAL or fill.kind == FILL_CONIC) then return fill end
 		if istable(fill) and fill.kind ~= nil then return owner.Solid(transparentColor) end
 		return owner.Solid(asColor(fill, color_white))
 	end
+
+	owner.FillFromStyle = fillFromStyle
 
 	local function fillVisible(fill)
 		fill = fillFromStyle(fill)
@@ -437,6 +445,8 @@ end
 		return lerpColor(fill.colorA or color_white, fill.colorB or fill.colorA or color_white, t)
 	end
 
+	owner.ColorAtFill = colorAtFill
+
 	local function normalizedRotation(value)
 		value = tonumber(value) or 0
 		value = (value / 360) % 1
@@ -444,10 +454,14 @@ end
 		return value
 	end
 
+	owner.NormalizedRotation = normalizedRotation
+
 	local function glowSoftnessToFalloff(softness, defaultSoftness)
 		softness = math.Clamp(tonumber(softness) or defaultSoftness or 0.55, 0, 1)
 		return math.Clamp(3.25 - softness * 2.5, 0.75, 3.25)
 	end
+
+	owner.GlowSoftnessToFalloff = glowSoftnessToFalloff
 
 	local function strokeVisible(stroke, strokeWidth)
 		return stroke and strokeWidthValue(strokeWidth, 0) > 0 and (stroke.a == nil or stroke.a > 0)
@@ -457,31 +471,101 @@ end
 		if value == nil or value == false then return nil end
 
 		if value == true then
-			value = {blur = 4}
-		elseif isnumber(value) then
-			value = {blur = value}
-		elseif istable(value) and value.r and value.g and value.b then
-			value = {tint = value}
-		elseif not istable(value) then
+			if not backdropTrueSpec then
+				backdropTrueSpec = {blur = 4, tint = transparentColor, opacity = 1, padding = 0}
+			end
+			return backdropTrueSpec
+		end
+
+		if isnumber(value) then
+			local blurKey = math_max(0, tonumber(value) or 0)
+			local cached = backdropNumberCache[blurKey]
+			if cached ~= nil then return cached ~= false and cached or nil end
+			if blurKey <= 0 then
+				backdropNumberCache[blurKey] = false
+				return nil
+			end
+			cached = {blur = blurKey, tint = transparentColor, opacity = 1, padding = 0}
+			backdropNumberCache[blurKey] = cached
+			return cached
+		end
+
+		if istable(value) and value.r and value.g and value.b then
+			local cached = backdropColorCache[value]
+			if cached ~= nil then return cached ~= false and cached or nil end
+			if (value.a == nil and 255 or value.a) <= 0 then
+				backdropColorCache[value] = false
+				return nil
+			end
+			cached = {blur = 0, tint = value, opacity = 1, padding = 0}
+			backdropColorCache[value] = cached
+			return cached
+		end
+
+		if not istable(value) then
+			return nil
+		end
+
+		local cached = backdropTableCache[value]
+		if cached
+			and cached._blurInput == value.blur
+			and cached._sizeInput == value.size
+			and cached._indexInput == value[1]
+			and cached._tintInput == value.tint
+			and cached._colorInput == value.color
+			and cached._opacityInput == value.opacity
+			and cached._strengthInput == value.strength
+			and cached._paddingInput == value.padding
+			and cached._spreadInput == value.spread then
+			return cached
+		end
+		if cached == false
+			and value.blur == nil
+			and value.size == nil
+			and value[1] == nil
+			and value.tint == nil
+			and value.color == nil
+			and value.opacity == nil
+			and value.strength == nil
+			and value.padding == nil
+			and value.spread == nil then
 			return nil
 		end
 
 		local blur = math_max(0, tonumber(value.blur or value.size or value[1]) or 0)
-		local tint = asColor(value.tint or value.color, Color(0, 0, 0, 0))
+		local tint = asColor(value.tint or value.color, transparentColor)
 		local opacity = math.Clamp(tonumber(value.opacity or value.strength) or 1, 0, 1)
 		local padding = math_max(0, tonumber(value.padding or value.spread) or 0)
 
 		if blur <= 0 and ((tint.a == nil and 255 or tint.a) <= 0 or opacity <= 0) then
+			backdropTableCache[value] = false
 			return nil
 		end
 
-		return {
+		cached = {
 			blur = blur,
 			tint = tint,
 			opacity = opacity,
 			padding = padding,
 		}
+		cached._blurInput = value.blur
+		cached._sizeInput = value.size
+		cached._indexInput = value[1]
+		cached._tintInput = value.tint
+		cached._colorInput = value.color
+		cached._opacityInput = value.opacity
+		cached._strengthInput = value.strength
+		cached._paddingInput = value.padding
+		cached._spreadInput = value.spread
+		backdropTableCache[value] = cached
+		return cached
 	end
+
+	function owner.Backdrop(value)
+		return backdropStyle(value)
+	end
+
+	owner.BackdropStyle = backdropStyle
 
 	return {
 		FILL_SOLID = FILL_SOLID,

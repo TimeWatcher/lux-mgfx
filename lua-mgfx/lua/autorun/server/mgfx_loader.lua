@@ -25,6 +25,7 @@ local files = {
 local demoFiles = {
 	"cl_mgfx_demo.lua",
 	"cl_mgfx_wheel_demo.lua",
+	"cl_mgfx_perf_demo.lua",
 }
 
 AddCSLuaFile("autorun/client/mgfx_loader.lua")

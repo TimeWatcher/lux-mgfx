@@ -3,12 +3,12 @@
 
 #include "mgfx_poly_shape_common.hlsl"
 
-#define SHADOW_COLOR Constants0
-#define SHADOW_DRAW_SIZE Constants1.xy
-#define SHADOW_WIDTH Constants1.z
-#define SHADOW_FALLOFF Constants1.w
-#define SHADOW_STRENGTH Constants2.x
-#define SHADOW_GROW Constants2.y
+#define SHADOW_COLOR AUX0
+#define SHADOW_DRAW_SIZE AUX1.xy
+#define SHADOW_WIDTH AUX1.z
+#define SHADOW_FALLOFF AUX1.w
+#define SHADOW_STRENGTH AUX2.x
+#define SHADOW_GROW AUX2.y
 
 float4 main(PS_INPUT i) : COLOR
 {

@@ -12,11 +12,21 @@ function MGFX._InstallConsole(C)
 	local drawTexturedQuad = C.drawTexturedQuad
 	local textRenderer = C.textRenderer
 	local profiler = C.profiler
+	local math_max = math.max
 	local math_min = math.min
 	local math_sin = math.sin
 	local addCommand = M._AddCommand or concommand.Add
+	local draw_SimpleText = draw.SimpleText
+	local surface_DrawOutlinedRect = surface.DrawOutlinedRect
+	local surface_DrawRect = surface.DrawRect
 	local surface_SetDrawColor = surface.SetDrawColor
 	local surface_SetMaterial = surface.SetMaterial
+	local PROFILE_HUD_HOOK = "MGFXProfileHUD"
+	local profileHudEnabled = false
+	local profileHudX = 24
+	local profileHudY = 360
+	local profileHudRows = 4
+	local profileHudTopRows = 6
 
 	local function reloadMGFX()
 		local basePath = M._BasePath or "mgfx/"
@@ -25,6 +35,7 @@ function MGFX._InstallConsole(C)
 			basePath .. "cl_mgfx.lua",
 			basePath .. "cl_mgfx_demo.lua",
 			basePath .. "cl_mgfx_wheel_demo.lua",
+			basePath .. "cl_mgfx_perf_demo.lua",
 		}
 
 		print("[MGFX] reload begin")
@@ -76,19 +87,17 @@ addCommand("mgfx_status", function()
 	print("[MGFX] roundrect solid material: " .. tostring(status.roundrectSolid))
 	print("[MGFX] roundrect stroke material: " .. tostring(status.roundrectStroke))
 	print("[MGFX] param probe material: " .. tostring(status.paramProbe))
+	print("[MGFX] param probe inv material: " .. tostring(status.paramProbeInv))
 	print("[MGFX] blur material: " .. tostring(status.blur))
 	print("[MGFX] chamfer material: " .. tostring(status.chamfer))
 	print("[MGFX] chamfer image material: " .. tostring(status.chamferImage))
 	print("[MGFX] image mask material: " .. tostring(status.imageMask))
-	print("[MGFX] image mask shadow material: " .. tostring(status.imageMaskShadow))
-	print("[MGFX] image mask outerglow material: " .. tostring(status.imageMaskOuterGlow))
+	print("[MGFX] image mask shadow outer material: " .. tostring(status.imageMaskShadowOuter))
 	print("[MGFX] chamfer stroke material: " .. tostring(status.chamferStroke))
 	print("[MGFX] inner glow material: " .. tostring(status.innerGlow))
 	print("[MGFX] chamfer inner glow material: " .. tostring(status.chamferInnerGlow))
-	print("[MGFX] shadow material: " .. tostring(status.shadow))
-	print("[MGFX] outer glow material: " .. tostring(status.outerGlow))
-	print("[MGFX] chamfer shadow material: " .. tostring(status.chamferShadow))
-	print("[MGFX] chamfer outer glow material: " .. tostring(status.chamferOuterGlow))
+	print("[MGFX] shadow outer material: " .. tostring(status.shadowOuter))
+	print("[MGFX] chamfer shadow outer material: " .. tostring(status.chamferShadowOuter))
 	print("[MGFX] chamfer backdrop material: " .. tostring(status.chamferBackdrop))
 	print("[MGFX] progress fx material: " .. tostring(status.progressFx))
 	print("[MGFX] segmentbar material: " .. tostring(status.segmentbar))
@@ -102,8 +111,7 @@ addCommand("mgfx_status", function()
 	print("[MGFX] ring backdrop material: " .. tostring(status.ringBackdrop))
 	print("[MGFX] ring stroke material: " .. tostring(status.ringStroke))
 	print("[MGFX] ring inner glow material: " .. tostring(status.ringInnerGlow))
-	print("[MGFX] ring shadow material: " .. tostring(status.ringShadow))
-	print("[MGFX] ring outer glow material: " .. tostring(status.ringOuterGlow))
+	print("[MGFX] ring shadow outer material: " .. tostring(status.ringShadowOuter))
 	print("[MGFX] ring pattern material: " .. tostring(status.ringPattern))
 	print("[MGFX] poly3 stroke material: " .. tostring(status.poly3Stroke))
 	print("[MGFX] poly3 outer glow material: " .. tostring(status.poly3OuterGlow))
@@ -126,29 +134,51 @@ addCommand("mgfx_status", function()
 end)
 
 local paramProbeOn = false
+local paramProbeInvOn = false
 local paramProbeMatrix = Matrix and Matrix() or nil
+local paramProbeInvMatrix = Matrix and Matrix() or nil
 local matrixSetUnpacked = paramProbeMatrix and paramProbeMatrix.SetUnpacked or nil
+local matrixInvSetUnpacked = paramProbeInvMatrix and paramProbeInvMatrix.SetUnpacked or nil
 
-local function setupParamProbeMatrix(mat, columnPacked)
-	if not matOK(mat) or not paramProbeMatrix or not matrixSetUnpacked then return false end
-
+local function writeParamProbeMatrix(matrix, setUnpacked, columnPacked, variant)
 	local pulse = math_sin(RealTime() * 2.2) * 0.2 + 0.2
-	if columnPacked then
-		matrixSetUnpacked(paramProbeMatrix,
+	if variant == "inv" then
+		setUnpacked(matrix,
+			0.05, 1.0, 1.0, 0.35 + pulse,
+			0.85, 0.05, 0.72, 1.0,
+			1.0, 0.85, 0.05, 0.05,
+			1.0, 1.0, 1.0, 1.0
+		)
+	elseif columnPacked then
+		setUnpacked(matrix,
 			1.0, 0.05, 0.05, 1.0,
 			0.05, 1.0, 0.05, 1.0,
 			0.05, 0.05, 1.0, pulse,
 			1.0, 1.0, 1.0, 1.0
 		)
 	else
-		matrixSetUnpacked(paramProbeMatrix,
+		setUnpacked(matrix,
 			1.0, 0.05, 0.05, 1.0,
 			0.05, 1.0, 0.05, 1.0,
 			0.05, 0.05, 1.0, 1.0,
 			1.0, 1.0, pulse, 1.0
 		)
 	end
+end
+
+local function setupParamProbeMatrix(mat, columnPacked)
+	if not matOK(mat) or not paramProbeMatrix or not matrixSetUnpacked then return false end
+
+	writeParamProbeMatrix(paramProbeMatrix, matrixSetUnpacked, columnPacked)
 	mat:SetMatrix("$viewprojmat", paramProbeMatrix)
+	return true
+end
+
+local function setupNamedParamProbeMatrix(mat, matrix, setUnpacked, paramName, variant)
+	if not matOK(mat) or not matrix or not setUnpacked then return false end
+
+	writeParamProbeMatrix(matrix, setUnpacked, true, variant)
+	mat:SetMatrix(paramName, matrix)
 	return true
 end
 
@@ -157,7 +187,7 @@ local function drawParamProbeBlock(mat, x, y, w, h, columnPacked)
 	surface_SetMaterial(mat)
 	surface_SetDrawColor(255, 255, 255, 255)
 	if drawTexturedQuad then
-		drawTexturedQuad(x, y, w, h)
+		drawTexturedQuad(x, y, w, h, mat)
 	else
 		surface.DrawTexturedRectUV(x, y, w, h, -0.015625, -0.015625, 1.015625, 1.015625)
 	end
@@ -166,7 +196,7 @@ end
 
 local function drawParamProbe()
 	local mat = materials.param_probe
-	local x, y, w, h = 42, 128, 360, 76
+	local x, y, w, h = 42, 300, 360, 76
 	if not matOK(mat) or not paramProbeMatrix or not matrixSetUnpacked then
 		draw.SimpleText("MGFX param probe unavailable", "DermaDefaultBold", x, y, Color(255, 90, 90))
 		return
@@ -184,11 +214,61 @@ end
 addCommand("mgfx_param_probe", function()
 	paramProbeOn = not paramProbeOn
 	hook.Remove("HUDPaint", "MGFXParamProbe")
+	hook.Remove("HUDPaint", "MGFXParamProbeInv")
+	paramProbeInvOn = false
 	if paramProbeOn then
 		hook.Add("HUDPaint", "MGFXParamProbe", drawParamProbe)
 		print("[MGFX] param probe ON: compare row-packed control with column-packed candidate")
 	else
 		print("[MGFX] param probe OFF")
+	end
+end)
+
+local function drawParamProbeInv()
+	local matC11 = materials.param_probe
+	local matC15 = materials.param_probe_inv
+	local x, y, w, h = 42, 300, 360, 76
+	if not matOK(matC11) or not matOK(matC15) or not paramProbeMatrix or not matrixSetUnpacked or not paramProbeInvMatrix or not matrixInvSetUnpacked then
+		draw.SimpleText("MGFX c15 param probe unavailable", "DermaDefaultBold", x, y, Color(255, 90, 90))
+		return
+	end
+
+	draw.SimpleText("c11 / $viewprojmat: red, green, blue, yellow pulse", "DermaDefaultBold", x, y - 16, color_white)
+	if setupNamedParamProbeMatrix(matC11, paramProbeMatrix, matrixSetUnpacked, "$viewprojmat", "view") then
+		surface_SetMaterial(matC11)
+		surface_SetDrawColor(255, 255, 255, 255)
+		if drawTexturedQuad then
+			drawTexturedQuad(x, y, w, h, matC11)
+		else
+			surface.DrawTexturedRectUV(x, y, w, h, -0.015625, -0.015625, 1.015625, 1.015625)
+		end
+	end
+
+	local y2 = y + h + 42
+	draw.SimpleText("c15 / $invviewprojmat: cyan, magenta, amber, lime pulse", "DermaDefaultBold", x, y2 - 16, color_white)
+	if setupNamedParamProbeMatrix(matC15, paramProbeInvMatrix, matrixInvSetUnpacked, "$invviewprojmat", "inv") then
+		surface_SetMaterial(matC15)
+		surface_SetDrawColor(255, 255, 255, 255)
+		if drawTexturedQuad then
+			drawTexturedQuad(x, y2, w, h, matC15)
+		else
+			surface.DrawTexturedRectUV(x, y2, w, h, -0.015625, -0.015625, 1.015625, 1.015625)
+		end
+	end
+
+	draw.SimpleText("if both blocks are correct and different, c15 is an independent matrix parameter page", "DermaDefault", x, y2 + h + 6, Color(210, 230, 240))
+end
+
+addCommand("mgfx_param_probe_inv", function()
+	paramProbeInvOn = not paramProbeInvOn
+	hook.Remove("HUDPaint", "MGFXParamProbeInv")
+	hook.Remove("HUDPaint", "MGFXParamProbe")
+	paramProbeOn = false
+	if paramProbeInvOn then
+		hook.Add("HUDPaint", "MGFXParamProbeInv", drawParamProbeInv)
+		print("[MGFX] c15 param probe ON: compare $viewprojmat/c11 with $invviewprojmat/c15")
+	else
+		print("[MGFX] c15 param probe OFF")
 	end
 end)
 
@@ -260,6 +340,12 @@ local function runParamBenchSlice(test, mat, matrix, setUnpacked, first, last)
 			mat:SetMatrix("$viewprojmat", matrix)
 			sink = sink + v
 		end
+	elseif test == "SetInvMatrix only" then
+		for i = first, last do
+			local v = (i % 1024) * 0.0009765625
+			mat:SetMatrix("$invviewprojmat", matrix)
+			sink = sink + v
+		end
 	elseif test == "SetUnpacked + SetMatrix" then
 		for i = first, last do
 			local v = (i % 1024) * 0.0009765625
@@ -272,6 +358,18 @@ local function runParamBenchSlice(test, mat, matrix, setUnpacked, first, last)
 			mat:SetMatrix("$viewprojmat", matrix)
 			sink = sink + v
 		end
+	elseif test == "SetUnpacked + SetInvMatrix" then
+		for i = first, last do
+			local v = (i % 1024) * 0.0009765625
+			setUnpacked(matrix,
+				v, v + 0.04, v + 0.08, v + 0.12,
+				v + 0.01, v + 0.05, v + 0.09, v + 0.13,
+				v + 0.02, v + 0.06, v + 0.10, v + 0.14,
+				v + 0.03, v + 0.07, v + 0.11, v + 0.15
+			)
+			mat:SetMatrix("$invviewprojmat", matrix)
+			sink = sink + v
+		end
 	end
 	return sink
 end
@@ -282,7 +380,7 @@ addCommand("mgfx_param_bench_stop", function()
 end)
 
 addCommand("mgfx_param_bench", function(_, _, args)
-	local mat = materials.param_probe or materials.roundrect
+	local mat = materials.param_probe_inv or materials.param_probe or materials.roundrect
 	if not matOK(mat) then
 		print("[MGFX] param bench unavailable: material error")
 		return
@@ -306,7 +404,9 @@ addCommand("mgfx_param_bench", function(_, _, args)
 		"SetFloat x16",
 		"SetUnpacked only",
 		"SetMatrix only",
-		"SetUnpacked + SetMatrix"
+		"SetInvMatrix only",
+		"SetUnpacked + SetMatrix",
+		"SetUnpacked + SetInvMatrix"
 	}
 	local state = {
 		round = 1,
@@ -375,26 +475,284 @@ local function printProfileRows(label, rows, rollingRows)
 	end
 end
 
+local function profilerRegistry()
+	return MGFX and MGFX._ProfilerRegistry and MGFX._ProfilerRegistry.items or nil
+end
+
+local function collectProfilerRows(methodName, limit)
+	local rows = {}
+	local registry = profilerRegistry()
+	if registry then
+		for _, item in pairs(registry) do
+			local api = item and item.profiler
+			local method = api and api[methodName]
+			if method then
+				local instanceRows = method(limit)
+				for _, row in ipairs(instanceRows or {}) do
+					rows[#rows + 1] = row
+				end
+			end
+		end
+	elseif profiler and profiler[methodName] then
+		rows = profiler[methodName](limit) or {}
+	end
+
+	table.sort(rows, function(a, b)
+		local av = methodName == "RecentScopes" and (a.last or 0) or (a.avg or a.last or 0)
+		local bv = methodName == "RecentScopes" and (b.last or 0) or (b.avg or b.last or 0)
+		if av == bv then return tostring(a.name or "") < tostring(b.name or "") end
+		return av > bv
+	end)
+
+	limit = tonumber(limit)
+	if limit and limit > 0 then
+		while #rows > limit do rows[#rows] = nil end
+	end
+	return rows
+end
+
+local function resetAllProfilers()
+	local count = 0
+	local registry = profilerRegistry()
+	if registry then
+		for _, item in pairs(registry) do
+			local api = item and item.profiler
+			if api and api.Reset then
+				api.Reset()
+				count = count + 1
+			end
+		end
+	elseif profiler and profiler.Reset then
+		profiler.Reset()
+		count = 1
+	end
+	return count
+end
+
+local function profilerInstanceCount()
+	local count = 0
+	local registry = profilerRegistry()
+	if registry then
+		for _, item in pairs(registry) do
+			if item and item.profiler then count = count + 1 end
+		end
+	elseif profiler then
+		count = 1
+	end
+	return count
+end
+
+local function printProfileScopes(label, rows, includeBreakdown)
+	print("[MGFX] " .. label)
+	if not rows or #rows == 0 then
+		print("[MGFX]   none")
+		return
+	end
+
+	local formatted = profiler and profiler.FormatScopeRows and profiler.FormatScopeRows(rows, includeBreakdown) or {}
+	for _, line in ipairs(formatted) do
+		print("[MGFX]   " .. line)
+	end
+end
+
+local function rowTopParts(items, maxParts, useAvg)
+	local out = {}
+	for i, item in ipairs(items or {}) do
+		if i > (maxParts or profileHudTopRows) then break end
+		local ms = useAvg and (item.avg or item.last or 0) or (item.last or item.avg or 0)
+		local count = item.avgCount or item.count or 0
+		out[#out + 1] = string.format("%s %.2f/%d", item.name or "?", ms, count)
+	end
+	return #out > 0 and table.concat(out, "  ") or "none"
+end
+
+local function printProfileInstanceRows(label, rows)
+	print("[MGFX] " .. label)
+	if not rows or #rows == 0 then
+		print("[MGFX]   none")
+		return
+	end
+
+	for _, row in ipairs(rows) do
+		local stats = row.stats or {}
+		print(string.format("[MGFX]   %s last=%.3f avg=%.3f max=%.3f scopes=%d avgScopes=%.1f draws=%d blur=%d text=%d bake=%d fallback=%d samples=%d",
+			row.name or row.instance or "runtime",
+			row.last or 0,
+			row.avg or 0,
+			row.max or 0,
+			row.count or 0,
+			row.avgCount or 0,
+			stats.draws or 0,
+			stats.blurPasses or 0,
+			stats.textDraws or 0,
+			stats.textComposedBakes or 0,
+			stats.fallbacks or 0,
+			row.samples or 0))
+		print("[MGFX]     api " .. rowTopParts(row.apiTop, 8, true))
+		print("[MGFX]     stage " .. rowTopParts(row.profileTop, 8, true))
+		print("[MGFX]     commands " .. rowTopParts(row.commandTop, 8, true))
+		print("[MGFX]     immediate " .. rowTopParts(row.immediateTop, 8, true))
+	end
+end
+
 addCommand("mgfx_profile_status", function()
 	local enabled = GetConVar("mgfx_profile")
 	local window = GetConVar("mgfx_profile_window")
 	local top = GetConVar("mgfx_profile_top")
 	print("[MGFX] profiler enabled=" .. tostring(enabled and enabled:GetBool() or false)
 		.. " window=" .. tostring(window and window:GetInt() or "n/a")
-		.. " top=" .. tostring(top and top:GetInt() or "n/a"))
+		.. " top=" .. tostring(top and top:GetInt() or "n/a")
+		.. " instances=" .. tostring(profilerInstanceCount()))
 
 	if not profiler then
 		print("[MGFX] profiler unavailable")
 		return
 	end
 
-	printProfileRows("profile current", profiler.CurrentRows and profiler.CurrentRows() or nil, false)
-	printProfileRows("profile rolling", profiler.Snapshot and profiler.Snapshot() or nil, true)
+	printProfileInstanceRows("profile instances", collectProfilerRows("InstanceRows"))
+	print("[MGFX] scope details: use mgfx_profile_panels for rolling panel/screen rows, mgfx_profile_current for recent scopes.")
+end)
+
+addCommand("mgfx_profile_panels", function(_, _, args)
+	if not profiler then
+		print("[MGFX] profiler unavailable")
+		return
+	end
+	local limit = args and tonumber(args[1]) or nil
+	printProfileScopes("profile panel/screen rolling", collectProfilerRows("ScopeRows", limit), true)
+end)
+
+addCommand("mgfx_profile_current", function(_, _, args)
+	if not profiler then
+		print("[MGFX] profiler unavailable")
+		return
+	end
+	local limit = args and tonumber(args[1]) or nil
+	printProfileScopes("profile recent scopes", collectProfilerRows("RecentScopes", limit), true)
+end)
+
+local function hudText(text, font, x, y, color, ax)
+	draw_SimpleText(tostring(text or ""), font or "DermaDefault", x, y, color or color_white, ax or TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
+end
+
+local function shortHotspotName(name)
+	name = tostring(name or "?")
+	if string.sub(name, 1, 4) == "api." then
+		name = string.sub(name, 5)
+	elseif string.sub(name, 1, 4) == "cmd." then
+		name = string.sub(name, 5)
+	end
+	if #name > 32 then
+		name = string.sub(name, 1, 29) .. "..."
+	end
+	return name
+end
+
+local function drawHotspotTable(title, items, x, y, maxRows, headerColor, rowColor)
+	hudText(title, "DermaDefaultBold", x, y, headerColor)
+	hudText("avg", "DermaDefaultBold", x + 330, y, headerColor, TEXT_ALIGN_RIGHT)
+	hudText("last", "DermaDefaultBold", x + 395, y, headerColor, TEXT_ALIGN_RIGHT)
+	hudText("max", "DermaDefaultBold", x + 460, y, headerColor, TEXT_ALIGN_RIGHT)
+	hudText("calls/f", "DermaDefaultBold", x + 535, y, headerColor, TEXT_ALIGN_RIGHT)
+	y = y + 16
+
+	if not items or #items == 0 then
+		hudText("none", "DermaDefault", x + 18, y, Color(145, 160, 170))
+		return y + 16
+	end
+
+	maxRows = math_min(maxRows or profileHudTopRows, #items)
+	for i = 1, maxRows do
+		local item = items[i]
+		hudText(string.format("%02d", i), "DermaDefault", x, y, rowColor)
+		hudText(shortHotspotName(item.name), "DermaDefault", x + 30, y, rowColor)
+		hudText(string.format("%.2f", item.avg or item.last or 0), "DermaDefault", x + 330, y, rowColor, TEXT_ALIGN_RIGHT)
+		hudText(string.format("%.2f", item.last or item.avg or 0), "DermaDefault", x + 395, y, rowColor, TEXT_ALIGN_RIGHT)
+		hudText(string.format("%.2f", item.max or 0), "DermaDefault", x + 460, y, rowColor, TEXT_ALIGN_RIGHT)
+		hudText(string.format("%.1f", item.avgCount or item.count or 0), "DermaDefault", x + 535, y, rowColor, TEXT_ALIGN_RIGHT)
+		y = y + 15
+	end
+
+	return y
+end
+
+local function drawProfileHud()
+	if not profiler then return end
+
+	local rows = collectProfilerRows("InstanceRows", profileHudRows)
+	local width = 1260
+	local blockH = 112 + profileHudTopRows * 15
+	local headerH = 42
+	local height = headerH + math_max(1, #rows) * blockH + 18
+	local x, y = profileHudX, profileHudY
+
+	surface_SetDrawColor(5, 8, 12, 218)
+	surface_DrawRect(x, y, width, height)
+	surface_SetDrawColor(86, 176, 230, 150)
+	surface_DrawOutlinedRect(x, y, width, height)
+
+	local enabled = GetConVar("mgfx_profile")
+	local drawCounts = GetConVar("mgfx_draw_counts")
+	hudText("MGFX PROFILE HUD", "DermaDefaultBold", x + 10, y + 8, Color(130, 220, 255))
+	hudText("runtime total + API hotspots  profile=" .. tostring(enabled and enabled:GetBool() or false) .. "  counts=" .. tostring(drawCounts and drawCounts:GetBool() or false) .. "  instances=" .. tostring(profilerInstanceCount()), "DermaDefault", x + 170, y + 8, Color(205, 220, 226))
+	hudText("Use mgfx_profile_panels only when the runtime/API view points to a suspicious container.", "DermaDefault", x + 10, y + 26, Color(150, 176, 188))
+
+	local rowY = y + headerH
+	for index, row in ipairs(rows) do
+		local stats = row.stats or {}
+		local hot = (row.last or 0) >= 2
+		local color = hot and Color(255, 206, 128) or Color(210, 224, 232)
+		local name = tostring(row.name or row.key or "scope")
+		if #name > 58 then name = string.sub(name, 1, 55) .. "..." end
+
+		hudText(string.format("%02d %s", index, name), "DermaDefaultBold", x + 10, rowY, color)
+		hudText(string.format("total last %.2fms   avg %.2fms   max %.2fms   scopes %.0f/frame",
+			row.last or 0,
+			row.avg or 0,
+			row.max or 0,
+			row.avgCount or row.count or 0), "DermaDefaultBold", x + 430, rowY, color)
+		rowY = rowY + 17
+
+		hudText(string.format("draws %d   blur %d   text %d   bakes %d   fallback %d",
+			stats.draws or 0,
+			stats.blurPasses or 0,
+			stats.textDraws or 0,
+			stats.textComposedBakes or 0,
+			stats.fallbacks or 0), "DermaDefault", x + 30, rowY, Color(170, 194, 204))
+		rowY = rowY + 19
+
+		local tableY = drawHotspotTable("API hotspots in this runtime", row.apiTop, x + 30, rowY, profileHudTopRows, Color(180, 218, 232), Color(210, 226, 234))
+		hudText("stage " .. rowTopParts(row.profileTop, 4, true), "DermaDefault", x + 640, rowY, Color(170, 204, 218))
+		hudText("commands " .. rowTopParts(row.commandTop, 4, true), "DermaDefault", x + 640, rowY + 17, Color(160, 190, 204))
+		hudText("immediate " .. rowTopParts(row.immediateTop, 4, true), "DermaDefault", x + 640, rowY + 34, Color(160, 190, 204))
+		rowY = tableY + 16
+	end
+end
+
+local function setProfileHud(enabled)
+	profileHudEnabled = enabled == true
+	hook.Remove("HUDPaint", PROFILE_HUD_HOOK)
+	if profileHudEnabled then
+		RunConsoleCommand("mgfx_profile", "1")
+		RunConsoleCommand("mgfx_draw_counts", "1")
+		hook.Add("HUDPaint", PROFILE_HUD_HOOK, drawProfileHud)
+	end
+	print("[MGFX] profile hud " .. (profileHudEnabled and "ON" or "OFF"))
+end
+
+addCommand("mgfx_profile_hud", function(_, _, args)
+	local mode = args and args[1] or "toggle"
+	if mode == "1" or mode == "on" or mode == "true" then
+		setProfileHud(true)
+	elseif mode == "0" or mode == "off" or mode == "false" then
+		setProfileHud(false)
+	else
+		setProfileHud(not profileHudEnabled)
+	end
 end)
 
 addCommand("mgfx_profile_reset", function()
-	if profiler and profiler.Reset then profiler.Reset() end
-	print("[MGFX] profiler reset")
+	print("[MGFX] profiler reset instances=" .. tostring(resetAllProfilers()))
 end)
 
 addCommand("mgfx_text_status", function()
@@ -711,21 +1069,19 @@ addCommand("mgfx_selftest", function()
 		"roundrect_stroke",
 		"roundrect_texture",
 		"param_probe",
+		"param_probe_inv",
 		"chamfer",
 		"chamfer_texture",
 		"image_mask",
-		"image_mask_shadow",
-		"image_mask_outerglow",
+		"image_mask_shadow_outer",
 		"image_mask_backdrop",
 		"image_mask_backdrop_fill",
 		"chamfer_stroke",
 		"roundrect_blur",
 		"roundrect_innerglow",
 		"chamfer_innerglow",
-		"roundrect_shadow",
-		"roundrect_outerglow",
-		"chamfer_shadow",
-		"chamfer_outerglow",
+		"roundrect_shadow_outer",
+		"chamfer_shadow_outer",
 		"chamfer_backdrop",
 		"progress",
 		"progress_fx",
@@ -741,8 +1097,7 @@ addCommand("mgfx_selftest", function()
 		"ring_backdrop",
 		"ring_stroke",
 		"ring_innerglow",
-		"ring_shadow",
-		"ring_outerglow",
+		"ring_shadow_outer",
 		"ring_pattern",
 		"poly3_stroke",
 		"poly3",

@@ -15,17 +15,17 @@ fn polyDrawRect(poly, pad = 1) {
   pad = mathMax(1, toNumber(pad) ?? 1)
   local invW = 1 / poly.w
   local invH = 1 / poly.h
-  {
-    x = poly.x - pad,
-      y = poly.y - pad,
-      w = poly.w + pad * 2,
-      h = poly.h + pad * 2,
-      pad = pad,
-      u0 = -pad * invW,
-      v0 = -pad * invH,
-      u1 = 1 + pad * invW,
-      v1 = 1 + pad * invH
-  }
+  local out = polyDrawRectScratch
+  out.x = poly.x - pad
+  out.y = poly.y - pad
+  out.w = poly.w + pad * 2
+  out.h = poly.h + pad * 2
+  out.pad = pad
+  out.u0 = -pad * invW
+  out.v0 = -pad * invH
+  out.u1 = 1 + pad * invW
+  out.v1 = 1 + pad * invH
+  out
 }
 
 fn setupPrimitiveBlurConstants(material, w, h, vertical, intensity, radius = 0) {
@@ -152,24 +152,21 @@ fn setupPolyShadowAuxConstants(material,
   b0, b1, b2, b3,
   c0, c1, c2, c3,
   d0, d1, d2, d3) {
-    stopif material == nil, false
+    stopif material == nil or paramMatrixSetUnpacked == nil or matrixCtor == nil, false
 
-    material:SetFloat("$c0_x", a0 ?? 0)
-    material:SetFloat("$c0_y", a1 ?? 0)
-    material:SetFloat("$c0_z", a2 ?? 0)
-    material:SetFloat("$c0_w", a3 ?? 0)
-    material:SetFloat("$c1_x", b0 ?? 0)
-    material:SetFloat("$c1_y", b1 ?? 0)
-    material:SetFloat("$c1_z", b2 ?? 0)
-    material:SetFloat("$c1_w", b3 ?? 0)
-    material:SetFloat("$c2_x", c0 ?? 0)
-    material:SetFloat("$c2_y", c1 ?? 0)
-    material:SetFloat("$c2_z", c2 ?? 0)
-    material:SetFloat("$c2_w", c3 ?? 0)
-    material:SetFloat("$c3_x", d0 ?? 0)
-    material:SetFloat("$c3_y", d1 ?? 0)
-    material:SetFloat("$c3_z", d2 ?? 0)
-    material:SetFloat("$c3_w", d3 ?? 0)
+    local matrix = auxParamMatrices[material]
+    if matrix == nil {
+      matrix = matrixCtor()
+      auxParamMatrices[material] = matrix
+    }
+
+    paramMatrixSetUnpacked(matrix,
+      a0 ?? 0, b0 ?? 0, c0 ?? 0, d0 ?? 0,
+      a1 ?? 0, b1 ?? 0, c1 ?? 0, d1 ?? 0,
+      a2 ?? 0, b2 ?? 0, c2 ?? 0, d2 ?? 0,
+      a3 ?? 0, b3 ?? 0, c3 ?? 0, d3 ?? 0
+    )
+    material:SetMatrix("$invviewprojmat", matrix)
     true
   }
 
@@ -207,11 +204,11 @@ fn drawPolyShadow(poly, shadow, bounds) {
 
   setupPolyShadowConstants(material, poly, shadow, bounds)
   local bleedLeft, bleedTop, bleedRight, bleedBottom = effectBleedFromDrawRect(poly.x, poly.y, poly.w, poly.h, bounds.x, bounds.y, bounds.w, bounds.h)
-  withPanelEffectBleed(bleedLeft, bleedTop, bleedRight, bleedBottom, () => {
-    surfaceSetMaterial(material)
-    surfaceSetDrawColor(255, 255, 255, 255)
-    drawTexturedQuad(bounds.x, bounds.y, bounds.w, bounds.h)
-  })
+  local bleedToken = beginPanelEffectBleed(bleedLeft, bleedTop, bleedRight, bleedBottom)
+  surfaceSetMaterial(material)
+  surfaceSetDrawColor(255, 255, 255, 255)
+  drawTexturedQuad(bounds.x, bounds.y, bounds.w, bounds.h, material)
+  endPanelEffectBleed(bleedToken)
   true
 }
 
@@ -223,11 +220,11 @@ fn drawPolyOuterGlow(poly, glow, bounds) {
 
   setupPolyShadowConstants(material, poly, glow, bounds)
   local bleedLeft, bleedTop, bleedRight, bleedBottom = effectBleedFromDrawRect(poly.x, poly.y, poly.w, poly.h, bounds.x, bounds.y, bounds.w, bounds.h)
-  withPanelEffectBleed(bleedLeft, bleedTop, bleedRight, bleedBottom, () => {
-    surfaceSetMaterial(material)
-    surfaceSetDrawColor(255, 255, 255, 255)
-    drawTexturedQuad(bounds.x, bounds.y, bounds.w, bounds.h)
-  })
+  local bleedToken = beginPanelEffectBleed(bleedLeft, bleedTop, bleedRight, bleedBottom)
+  surfaceSetMaterial(material)
+  surfaceSetDrawColor(255, 255, 255, 255)
+  drawTexturedQuad(bounds.x, bounds.y, bounds.w, bounds.h, material)
+  endPanelEffectBleed(bleedToken)
   true
 }
 
@@ -312,7 +309,7 @@ fn drawPolyStrokeShader(poly, color, strokeWidth) {
   local drawRect = setupPolyStrokeConstants(material, poly, color, strokeWidth)
   surfaceSetDrawColor(255, 255, 255, 255)
   surfaceSetMaterial(material)
-  drawTexturedQuadUV(drawRect.x, drawRect.y, drawRect.w, drawRect.h, drawRect.u0, drawRect.v0, drawRect.u1, drawRect.v1)
+  drawTexturedQuadUV(drawRect.x, drawRect.y, drawRect.w, drawRect.h, drawRect.u0, drawRect.v0, drawRect.u1, drawRect.v1, material)
   true
 }
 
@@ -344,11 +341,9 @@ fn drawPolyStroke(poly, color, strokeWidth) {
     return
   }
 
-  local lineStyle = {
-    width = style.strokeWidthValue(strokeWidth, 1),
-    fill = color,
-    noCaps = true
-  }
+  local lineStyle = polyLineStrokeStyle
+  lineStyle.width = style.strokeWidthValue(strokeWidth, 1)
+  lineStyle.fill = color
   for index = 1, #poly.points {
     local a = poly.points[index]
     local b = poly.points[index % #poly.points + 1]
@@ -368,11 +363,9 @@ fn drawPolyFallback(points, drawStyle) {
   }
 
   if hasStroke {
-    local lineStyle = {
-      width = strokeWidth,
-      fill = drawStyle.stroke,
-      noCaps = true
-    }
+    local lineStyle = polyFallbackLineStyle
+    lineStyle.width = strokeWidth
+    lineStyle.fill = drawStyle.stroke
     for index = 1, #points {
       local a = points[index]
       local b = points[index % #points + 1]
@@ -381,12 +374,8 @@ fn drawPolyFallback(points, drawStyle) {
   }
 }
 
-fn drawPolyImmediate(points, drawStyle = nil) {
+fn drawPolyImmediateNormalized(points, drawStyle = nil, poly) {
   local resolved = drawStyle ?? {}
-  local poly = normalizePoly(points)
-  if poly == nil {
-    return
-  }
 
   local shadow = roundrect.shadowStyle(resolved.shadow)
   local shadowBounds = polyShadowBounds(poly, shadow)
@@ -402,12 +391,12 @@ fn drawPolyImmediate(points, drawStyle = nil) {
   if backdrop ~= nil {
     local pad = mathMax(0, toNumber(backdrop.padding) ?? 0)
     if pad > 0 {
-      cullX, cullY, cullW, cullH = includeBounds(cullX, cullY, cullW, cullH, {
-        x = poly.x - pad,
-        y = poly.y - pad,
-        w = poly.w + pad * 2,
-        h = poly.h + pad * 2
-      })
+      local bounds = polyDrawRectScratch
+      bounds.x = poly.x - pad
+      bounds.y = poly.y - pad
+      bounds.w = poly.w + pad * 2
+      bounds.h = poly.h + pad * 2
+      cullX, cullY, cullW, cullH = includeBounds(cullX, cullY, cullW, cullH, bounds)
     }
   }
   if not hasTransform() and isCulled(cullX, cullY, cullW, cullH) {
@@ -431,7 +420,7 @@ fn drawPolyImmediate(points, drawStyle = nil) {
   if hasFill and materialOK(material) {
     local drawRect = setupPolyFillConstants(material, poly, fill)
     surfaceSetMaterial(material)
-    drawTexturedQuadUV(drawRect.x, drawRect.y, drawRect.w, drawRect.h, drawRect.u0, drawRect.v0, drawRect.u1, drawRect.v1)
+    drawTexturedQuadUV(drawRect.x, drawRect.y, drawRect.w, drawRect.h, drawRect.u0, drawRect.v0, drawRect.u1, drawRect.v1, material)
   } else if hasFill {
     drawPolyFallback(points, {
       fill = fill
@@ -443,4 +432,13 @@ fn drawPolyImmediate(points, drawStyle = nil) {
   if hasStroke {
     drawPolyStroke(poly, resolved.stroke, strokeWidth)
   }
+}
+
+fn drawPolyImmediate(points, drawStyle = nil) {
+  local poly = normalizePoly(points)
+  if poly == nil {
+    return
+  }
+
+  drawPolyImmediateNormalized(points, drawStyle, poly)
 }

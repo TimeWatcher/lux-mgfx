@@ -1,9 +1,9 @@
 #include "mgfx_common.hlsl"
 
-#define TEXT_STROKE_COLOR Constants0
-#define TEXT_GLOW_COLOR Constants1
-#define TEXT_SHADOW_COLOR Constants2
-#define TEXT_PARAMS Constants3
+#define TEXT_STROKE_COLOR AUX0
+#define TEXT_GLOW_COLOR AUX1
+#define TEXT_SHADOW_COLOR AUX2
+#define TEXT_PARAMS AUX3
 #define TEXT_STROKE_WIDTH TEXT_PARAMS.x
 #define TEXT_GLOW_WIDTH TEXT_PARAMS.y
 #define TEXT_EFFECT_PACK TEXT_PARAMS.z

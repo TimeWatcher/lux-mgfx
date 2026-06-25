@@ -3,6 +3,7 @@ return function(__lux_import)
   local makeColor
   local tableCopy
   local typeOf
+  local colorStyleCache
   local keySet
   local TARGET
   local TARGET_NAME
@@ -19,6 +20,7 @@ return function(__lux_import)
     makeColor = Color
     tableCopy = table.Copy
     typeOf = type
+    colorStyleCache = setmetatable({}, { __mode = "k" })
     keySet = function(...)
       local out = {}
       for index = 1, select("#", ...) do
@@ -326,7 +328,17 @@ return function(__lux_import)
       end
     end
     normalizePaintSlots = function(input, target)
-      if typeOf(input) ~= "table" or not isPattern(input.fill) then
+      if typeOf(input) ~= "table" then
+        return input
+      end
+      local fill = input.fill
+      local fillKind
+      if typeOf(fill) == "table" then
+        fillKind = fill.kind
+      else
+        fillKind = nil
+      end
+      if fillKind ~= style.PATTERN_STRIPE and fillKind ~= style.PATTERN_SMOKE then
         return input
       end
       local __lux_match_7 = target
@@ -369,25 +381,17 @@ return function(__lux_import)
         return {}
       end
       if style.isColor(input) then
-        return { fill = style.solid(input) }
+        local cached = colorStyleCache[input]
+        if cached == nil then
+          cached = { fill = input }
+          colorStyleCache[input] = cached
+        end
+        return cached
       end
       if typeOf(input) ~= "table" then
         return {}
       end
-      local out = normalizePaintSlots(tableCopy(input), target)
-      if out.fill ~= nil then
-        out.fill = style.fillFrom(out.fill)
-      end
-      if out.strokeWidth ~= nil then
-        out.strokeWidth = style.strokeWidth(out.strokeWidth, 1)
-      end
-      if out.backdrop ~= nil then
-        out.backdrop = style.backdropStyle(out.backdrop)
-      end
-      if out.mask ~= nil then
-        out.mask = style.imageMaskStyle(out.mask, out)
-      end
-      return out
+      return normalizePaintSlots(input, target)
     end
     install = function(owner)
       owner.GetCapabilities = get

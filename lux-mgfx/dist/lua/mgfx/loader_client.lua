@@ -27,18 +27,6 @@ do
   end
 end
 do
-  if __lux_registry["lux/mgfx/frame#client"] == nil then
-    local __lux_factory = include("mgfx/client/runtime/lux/mgfx/frame.lua")
-    __lux_registry["lux/mgfx/frame#client"] = __lux_factory(__lux_import) or {}
-  end
-end
-do
-  if __lux_registry["lux/mgfx/geometry#client"] == nil then
-    local __lux_factory = include("mgfx/client/runtime/lux/mgfx/geometry.lua")
-    __lux_registry["lux/mgfx/geometry#client"] = __lux_factory(__lux_import) or {}
-  end
-end
-do
   if __lux_registry["lux/mgfx/shaderpack#client"] == nil then
     local __lux_factory = include("mgfx/client/runtime/lux/mgfx/shaderpack.lua")
     __lux_registry["lux/mgfx/shaderpack#client"] = __lux_factory(__lux_import) or {}
@@ -48,6 +36,24 @@ do
   if __lux_registry["lux/mgfx/materials#client"] == nil then
     local __lux_factory = include("mgfx/client/runtime/lux/mgfx/materials.lua")
     __lux_registry["lux/mgfx/materials#client"] = __lux_factory(__lux_import) or {}
+  end
+end
+do
+  if __lux_registry["lux/mgfx/console#client"] == nil then
+    local __lux_factory = include("mgfx/client/runtime/lux/mgfx/console.lua")
+    __lux_registry["lux/mgfx/console#client"] = __lux_factory(__lux_import) or {}
+  end
+end
+do
+  if __lux_registry["lux/mgfx/frame#client"] == nil then
+    local __lux_factory = include("mgfx/client/runtime/lux/mgfx/frame.lua")
+    __lux_registry["lux/mgfx/frame#client"] = __lux_factory(__lux_import) or {}
+  end
+end
+do
+  if __lux_registry["lux/mgfx/geometry#client"] == nil then
+    local __lux_factory = include("mgfx/client/runtime/lux/mgfx/geometry.lua")
+    __lux_registry["lux/mgfx/geometry#client"] = __lux_factory(__lux_import) or {}
   end
 end
 do

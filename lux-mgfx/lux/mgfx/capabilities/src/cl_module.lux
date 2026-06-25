@@ -4,6 +4,7 @@ import macro { defineCapabilities } from "@lux/mgfx/capabilities"
 local makeColor = Color
 local tableCopy = table.Copy
 local typeOf = type
+local colorStyleCache = setmetatable({}, { __mode = "k" })
 
 enum CapabilityTarget repr number {
   RoundedBox = 1,
@@ -89,7 +90,13 @@ export client fn isFill(value) {
 }
 
 fn normalizePaintSlots(input, target) {
-  stopif typeOf(input) ~= "table" or not isPattern(input.fill), input
+  if typeOf(input) ~= "table" {
+    return input
+  }
+
+  local fill = input.fill
+  local fillKind = typeOf(fill) == "table" then fill.kind else nil
+  stopif fillKind ~= style.PATTERN_STRIPE and fillKind ~= style.PATTERN_SMOKE, input
 
   match target {
     CapabilityTarget.ProgressBar | CapabilityTarget.SegmentBar => {
@@ -114,28 +121,17 @@ fn normalizePaintSlots(input, target) {
 
 export client fn normalizeStyle(input, target = nil) {
   stopif input == nil, {}
-  stopif style.isColor(input), { fill = style.solid(input) }
+  if style.isColor(input) {
+    local cached = colorStyleCache[input]
+    if cached == nil {
+      cached = { fill = input }
+      colorStyleCache[input] = cached
+    }
+    return cached
+  }
   stopif typeOf(input) ~= "table", {}
 
-  local out = normalizePaintSlots(tableCopy(input), target)
-
-  if out.fill ~= nil {
-    out.fill = style.fillFrom(out.fill)
-  }
-
-  if out.strokeWidth ~= nil {
-    out.strokeWidth = style.strokeWidth(out.strokeWidth, 1)
-  }
-
-  if out.backdrop ~= nil {
-    out.backdrop = style.backdropStyle(out.backdrop)
-  }
-
-  if out.mask ~= nil {
-    out.mask = style.imageMaskStyle(out.mask, out)
-  }
-
-  out
+  normalizePaintSlots(input, target)
 }
 
 export client fn install(owner) {

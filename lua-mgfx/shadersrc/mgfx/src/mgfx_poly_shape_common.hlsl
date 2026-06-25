@@ -8,14 +8,14 @@
 #endif
 
 #if MGFX_POLY_VERTS_FROM_CONSTANTS
-#define POLY_V0 Constants0.xy
-#define POLY_V1 Constants0.zw
-#define POLY_V2 Constants1.xy
-#define POLY_V3 Constants1.zw
-#define POLY_V4 Constants2.xy
-#define POLY_V5 Constants2.zw
-#define POLY_V6 Constants3.xy
-#define POLY_V7 Constants3.zw
+#define POLY_V0 AUX0.xy
+#define POLY_V1 AUX0.zw
+#define POLY_V2 AUX1.xy
+#define POLY_V3 AUX1.zw
+#define POLY_V4 AUX2.xy
+#define POLY_V5 AUX2.zw
+#define POLY_V6 AUX3.xy
+#define POLY_V7 AUX3.zw
 #else
 #define POLY_V0 EXTRA0.xy
 #define POLY_V1 EXTRA0.zw

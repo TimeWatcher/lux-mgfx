@@ -30,10 +30,13 @@ return function(__lux_import)
   local isCulled
   local splitStyleTransform
   local withTransform
+  local beginPanelEffectBleed
+  local endPanelEffectBleed
   local withPanelEffectBleed
   local paramMatrixProbe
   local paramMatrixSetUnpacked
   local paramMatrices
+  local auxParamMatrices
   local primitiveMaterials
   local primitiveBlurRT
   local primitiveMatOK
@@ -41,6 +44,12 @@ return function(__lux_import)
   local forceFallbackCvar
   local lineVertsScratch
   local lineFallbackVertsScratch
+  local lineRoundRectStyle
+  local linePolyStyle
+  local linePolyPointsScratch
+  local polyLineStrokeStyle
+  local polyFallbackLineStyle
+  local polyDrawRectScratch
   local chamferStyle
   local lineStyle
   local polyStyle
@@ -97,6 +106,7 @@ return function(__lux_import)
   local setupPolyFillConstants
   local drawPolyStroke
   local drawPolyFallback
+  local drawPolyImmediateNormalized
   local drawPolyImmediate
   local chamferFillFallbackStyle
   local chamferStrokeFallbackStyle
@@ -106,8 +116,8 @@ return function(__lux_import)
   local setupPrimitiveFillConstants
   local drawChamferInnerGlowSpec
   local cutsWithGrow
-  local drawChamferOuterGlowSpec
-  local drawChamferShadowSpec
+  local chamferEffectBounds
+  local drawChamferShadowOuterSpec
   local chamferBackdropTintColor
   local drawChamferBackdrop
   local drawChamferPattern
@@ -178,6 +188,8 @@ return function(__lux_import)
     isCulled = frame.isCulled
     splitStyleTransform = geometry.splitStyleTransform
     withTransform = geometry.withTransform
+    beginPanelEffectBleed = frame.beginPanelEffectBleed
+    endPanelEffectBleed = frame.endPanelEffectBleed
     withPanelEffectBleed = frame.withPanelEffectBleed
     do
       local __lux_tmp_3
@@ -197,6 +209,7 @@ return function(__lux_import)
       paramMatrixSetUnpacked = __lux_val_SetUnpacked_5
     end
     paramMatrices = {}
+    auxParamMatrices = {}
     primitiveMaterials = {}
     primitiveBlurRT = nil
     primitiveMatOK = function(material)
@@ -208,6 +221,12 @@ return function(__lux_import)
     forceFallbackCvar = nil
     lineVertsScratch = { {}, {}, {}, {} }
     lineFallbackVertsScratch = { {}, {}, {}, {} }
+    lineRoundRectStyle = { radius = 0 }
+    linePolyStyle = {}
+    linePolyPointsScratch = { {}, {}, {}, {} }
+    polyLineStrokeStyle = { noCaps = true }
+    polyFallbackLineStyle = { noCaps = true }
+    polyDrawRectScratch = {}
     chamferStyle = {}
     lineStyle = {}
     polyStyle = {}
@@ -800,43 +819,49 @@ return function(__lux_import)
     end
     drawLineRect = function(x, y, w, h, fill, resolved)
       if resolved.radius ~= nil or resolved.shadow ~= nil or resolved.outerGlow ~= nil or resolved.backdrop ~= nil then
-        local __lux_tmp_radius_55 = resolved.radius
-        if __lux_tmp_radius_55 == nil then
-          __lux_tmp_radius_55 = 0
+        do
+          local __lux_tmp_radius_55 = resolved.radius
+          if __lux_tmp_radius_55 == nil then
+            __lux_tmp_radius_55 = 0
+          end
+          lineRoundRectStyle.radius = __lux_tmp_radius_55
         end
-        return roundrect.roundedBoxEx(
-          x,
-          y,
-          w,
-          h,
-          {
-            radius = __lux_tmp_radius_55,
-            backdrop = resolved.backdrop,
-            fill = fill,
-            shadow = resolved.shadow,
-            outerGlow = resolved.outerGlow,
-          }
-        )
+        lineRoundRectStyle.backdrop = resolved.backdrop
+        lineRoundRectStyle.fill = fill
+        lineRoundRectStyle.shadow = resolved.shadow
+        lineRoundRectStyle.outerGlow = resolved.outerGlow
+        return roundrect.drawRoundRectImmediate(x, y, w, h, lineRoundRectStyle)
       end
-      return drawTransformedPoly(
-        {
-          { x = x, y = y },
-          { x = x + w, y = y },
-          { x = x + w, y = y + h },
-          { x = x, y = y + h },
-        }
-      )
+      local points = linePolyPointsScratch
+      points[1].x = x
+      points[1].y = y
+      points[2].x = x + w
+      points[2].y = y
+      points[3].x = x + w
+      points[3].y = y + h
+      points[4].x = x
+      points[4].y = y + h
+      linePolyStyle.backdrop = resolved.backdrop
+      linePolyStyle.fill = fill
+      linePolyStyle.shadow = nil
+      linePolyStyle.outerGlow = nil
+      return drawPolyImmediate(points, linePolyStyle)
     end
     drawLineFallbackVerts = function(verts, fill, backdrop, shadow, outerGlow)
-      return polyEx(
-        {
-          { x = verts[1].x, y = verts[1].y },
-          { x = verts[2].x, y = verts[2].y },
-          { x = verts[3].x, y = verts[3].y },
-          { x = verts[4].x, y = verts[4].y },
-        },
-        { backdrop = backdrop, fill = fill, shadow = shadow, outerGlow = outerGlow }
-      )
+      local points = linePolyPointsScratch
+      points[1].x = verts[1].x
+      points[1].y = verts[1].y
+      points[2].x = verts[2].x
+      points[2].y = verts[2].y
+      points[3].x = verts[3].x
+      points[3].y = verts[3].y
+      points[4].x = verts[4].x
+      points[4].y = verts[4].y
+      linePolyStyle.backdrop = backdrop
+      linePolyStyle.fill = fill
+      linePolyStyle.shadow = shadow
+      linePolyStyle.outerGlow = outerGlow
+      return drawPolyImmediate(points, linePolyStyle)
     end
     drawLineQuad = function(x1, y1, x2, y2, strokeWidth, noCaps, verts, fill, resolved)
       if resolved.backdrop ~= nil then
@@ -1009,17 +1034,17 @@ return function(__lux_import)
       end
       local invW = 1 / poly.w
       local invH = 1 / poly.h
-      return {
-        x = poly.x - pad,
-        y = poly.y - pad,
-        w = poly.w + pad * 2,
-        h = poly.h + pad * 2,
-        pad = pad,
-        u0 = -pad * invW,
-        v0 = -pad * invH,
-        u1 = 1 + pad * invW,
-        v1 = 1 + pad * invH,
-      }
+      local out = polyDrawRectScratch
+      out.x = poly.x - pad
+      out.y = poly.y - pad
+      out.w = poly.w + pad * 2
+      out.h = poly.h + pad * 2
+      out.pad = pad
+      out.u0 = -pad * invW
+      out.v0 = -pad * invH
+      out.u1 = 1 + pad * invW
+      out.v1 = 1 + pad * invH
+      return out
     end
     setupPrimitiveBlurConstants = function(material, w, h, vertical, intensity, radius)
       if radius == nil then
@@ -1257,121 +1282,100 @@ return function(__lux_import)
       return poly.x + point.x + bounds.ox - bounds.x, poly.y + point.y + bounds.oy - bounds.y
     end
     setupPolyShadowAuxConstants = function(material, a0, a1, a2, a3, b0, b1, b2, b3, c0, c1, c2, c3, d0, d1, d2, d3)
-      if material == nil then
+      if material == nil or paramMatrixSetUnpacked == nil or matrixCtor == nil then
         return false
+      end
+      local matrix = auxParamMatrices[material]
+      if matrix == nil then
+        matrix = matrixCtor()
+        auxParamMatrices[material] = matrix
       end
       do
         local __lux_tmp_a0_80 = a0
         if __lux_tmp_a0_80 == nil then
           __lux_tmp_a0_80 = 0
         end
-        material:SetFloat("$c0_x", __lux_tmp_a0_80)
-      end
-      do
-        local __lux_tmp_a1_81 = a1
-        if __lux_tmp_a1_81 == nil then
-          __lux_tmp_a1_81 = 0
+        local __lux_tmp_b0_81 = b0
+        if __lux_tmp_b0_81 == nil then
+          __lux_tmp_b0_81 = 0
         end
-        material:SetFloat("$c0_y", __lux_tmp_a1_81)
-      end
-      do
-        local __lux_tmp_a2_82 = a2
-        if __lux_tmp_a2_82 == nil then
-          __lux_tmp_a2_82 = 0
+        local __lux_tmp_c0_82 = c0
+        if __lux_tmp_c0_82 == nil then
+          __lux_tmp_c0_82 = 0
         end
-        material:SetFloat("$c0_z", __lux_tmp_a2_82)
-      end
-      do
-        local __lux_tmp_a3_83 = a3
-        if __lux_tmp_a3_83 == nil then
-          __lux_tmp_a3_83 = 0
+        local __lux_tmp_d0_83 = d0
+        if __lux_tmp_d0_83 == nil then
+          __lux_tmp_d0_83 = 0
         end
-        material:SetFloat("$c0_w", __lux_tmp_a3_83)
-      end
-      do
-        local __lux_tmp_b0_84 = b0
-        if __lux_tmp_b0_84 == nil then
-          __lux_tmp_b0_84 = 0
+        local __lux_tmp_a1_84 = a1
+        if __lux_tmp_a1_84 == nil then
+          __lux_tmp_a1_84 = 0
         end
-        material:SetFloat("$c1_x", __lux_tmp_b0_84)
-      end
-      do
         local __lux_tmp_b1_85 = b1
         if __lux_tmp_b1_85 == nil then
           __lux_tmp_b1_85 = 0
         end
-        material:SetFloat("$c1_y", __lux_tmp_b1_85)
-      end
-      do
-        local __lux_tmp_b2_86 = b2
-        if __lux_tmp_b2_86 == nil then
-          __lux_tmp_b2_86 = 0
+        local __lux_tmp_c1_86 = c1
+        if __lux_tmp_c1_86 == nil then
+          __lux_tmp_c1_86 = 0
         end
-        material:SetFloat("$c1_z", __lux_tmp_b2_86)
-      end
-      do
-        local __lux_tmp_b3_87 = b3
-        if __lux_tmp_b3_87 == nil then
-          __lux_tmp_b3_87 = 0
+        local __lux_tmp_d1_87 = d1
+        if __lux_tmp_d1_87 == nil then
+          __lux_tmp_d1_87 = 0
         end
-        material:SetFloat("$c1_w", __lux_tmp_b3_87)
-      end
-      do
-        local __lux_tmp_c0_88 = c0
-        if __lux_tmp_c0_88 == nil then
-          __lux_tmp_c0_88 = 0
+        local __lux_tmp_a2_88 = a2
+        if __lux_tmp_a2_88 == nil then
+          __lux_tmp_a2_88 = 0
         end
-        material:SetFloat("$c2_x", __lux_tmp_c0_88)
-      end
-      do
-        local __lux_tmp_c1_89 = c1
-        if __lux_tmp_c1_89 == nil then
-          __lux_tmp_c1_89 = 0
+        local __lux_tmp_b2_89 = b2
+        if __lux_tmp_b2_89 == nil then
+          __lux_tmp_b2_89 = 0
         end
-        material:SetFloat("$c2_y", __lux_tmp_c1_89)
-      end
-      do
         local __lux_tmp_c2_90 = c2
         if __lux_tmp_c2_90 == nil then
           __lux_tmp_c2_90 = 0
         end
-        material:SetFloat("$c2_z", __lux_tmp_c2_90)
-      end
-      do
-        local __lux_tmp_c3_91 = c3
-        if __lux_tmp_c3_91 == nil then
-          __lux_tmp_c3_91 = 0
+        local __lux_tmp_d2_91 = d2
+        if __lux_tmp_d2_91 == nil then
+          __lux_tmp_d2_91 = 0
         end
-        material:SetFloat("$c2_w", __lux_tmp_c3_91)
-      end
-      do
-        local __lux_tmp_d0_92 = d0
-        if __lux_tmp_d0_92 == nil then
-          __lux_tmp_d0_92 = 0
+        local __lux_tmp_a3_92 = a3
+        if __lux_tmp_a3_92 == nil then
+          __lux_tmp_a3_92 = 0
         end
-        material:SetFloat("$c3_x", __lux_tmp_d0_92)
-      end
-      do
-        local __lux_tmp_d1_93 = d1
-        if __lux_tmp_d1_93 == nil then
-          __lux_tmp_d1_93 = 0
+        local __lux_tmp_b3_93 = b3
+        if __lux_tmp_b3_93 == nil then
+          __lux_tmp_b3_93 = 0
         end
-        material:SetFloat("$c3_y", __lux_tmp_d1_93)
-      end
-      do
-        local __lux_tmp_d2_94 = d2
-        if __lux_tmp_d2_94 == nil then
-          __lux_tmp_d2_94 = 0
+        local __lux_tmp_c3_94 = c3
+        if __lux_tmp_c3_94 == nil then
+          __lux_tmp_c3_94 = 0
         end
-        material:SetFloat("$c3_z", __lux_tmp_d2_94)
-      end
-      do
         local __lux_tmp_d3_95 = d3
         if __lux_tmp_d3_95 == nil then
           __lux_tmp_d3_95 = 0
         end
-        material:SetFloat("$c3_w", __lux_tmp_d3_95)
+        paramMatrixSetUnpacked(
+          matrix,
+          __lux_tmp_a0_80,
+          __lux_tmp_b0_81,
+          __lux_tmp_c0_82,
+          __lux_tmp_d0_83,
+          __lux_tmp_a1_84,
+          __lux_tmp_b1_85,
+          __lux_tmp_c1_86,
+          __lux_tmp_d1_87,
+          __lux_tmp_a2_88,
+          __lux_tmp_b2_89,
+          __lux_tmp_c2_90,
+          __lux_tmp_d2_91,
+          __lux_tmp_a3_92,
+          __lux_tmp_b3_93,
+          __lux_tmp_c3_94,
+          __lux_tmp_d3_95
+        )
       end
+      material:SetMatrix("$invviewprojmat", matrix)
       return true
     end
     setupPolyShadowConstants = function(material, poly, shadow, bounds)
@@ -1443,17 +1447,11 @@ return function(__lux_import)
         bounds.w,
         bounds.h
       )
-      withPanelEffectBleed(
-        bleedLeft,
-        bleedTop,
-        bleedRight,
-        bleedBottom,
-        function()
-          surfaceSetMaterial(material)
-          surfaceSetDrawColor(255, 255, 255, 255)
-          return drawTexturedQuad(bounds.x, bounds.y, bounds.w, bounds.h)
-        end
-      )
+      local bleedToken = beginPanelEffectBleed(bleedLeft, bleedTop, bleedRight, bleedBottom)
+      surfaceSetMaterial(material)
+      surfaceSetDrawColor(255, 255, 255, 255)
+      drawTexturedQuad(bounds.x, bounds.y, bounds.w, bounds.h, material)
+      endPanelEffectBleed(bleedToken)
       return true
     end
     drawPolyOuterGlow = function(poly, glow, bounds)
@@ -1475,17 +1473,11 @@ return function(__lux_import)
         bounds.w,
         bounds.h
       )
-      withPanelEffectBleed(
-        bleedLeft,
-        bleedTop,
-        bleedRight,
-        bleedBottom,
-        function()
-          surfaceSetMaterial(material)
-          surfaceSetDrawColor(255, 255, 255, 255)
-          return drawTexturedQuad(bounds.x, bounds.y, bounds.w, bounds.h)
-        end
-      )
+      local bleedToken = beginPanelEffectBleed(bleedLeft, bleedTop, bleedRight, bleedBottom)
+      surfaceSetMaterial(material)
+      surfaceSetDrawColor(255, 255, 255, 255)
+      drawTexturedQuad(bounds.x, bounds.y, bounds.w, bounds.h, material)
+      endPanelEffectBleed(bleedToken)
       return true
     end
     drawPolyPattern = function(poly, pattern)
@@ -1710,7 +1702,8 @@ return function(__lux_import)
         drawRect.u0,
         drawRect.v0,
         drawRect.u1,
-        drawRect.v1
+        drawRect.v1,
+        material
       )
       return true
     end
@@ -1766,7 +1759,9 @@ return function(__lux_import)
       if drawPolyStrokeShader(poly, color, strokeWidth) then
         return
       end
-      local lineStyle = { width = style.strokeWidthValue(strokeWidth, 1), fill = color, noCaps = true }
+      local lineStyle = polyLineStrokeStyle
+      lineStyle.width = style.strokeWidthValue(strokeWidth, 1)
+      lineStyle.fill = color
       for index = 1, #poly.points do
         local a = poly.points[index]
         local b = poly.points[index % #poly.points + 1]
@@ -1798,7 +1793,9 @@ return function(__lux_import)
         drawTransformedPoly(points)
       end
       if hasStroke then
-        local lineStyle = { width = strokeWidth, fill = drawStyle.stroke, noCaps = true }
+        local lineStyle = polyFallbackLineStyle
+        lineStyle.width = strokeWidth
+        lineStyle.fill = drawStyle.stroke
         for index = 1, #points do
           local a = points[index]
           local b = points[index % #points + 1]
@@ -1832,14 +1829,10 @@ return function(__lux_import)
         end
       end
     end
-    drawPolyImmediate = function(points, drawStyle)
+    drawPolyImmediateNormalized = function(points, drawStyle, poly)
       local resolved = drawStyle
       if resolved == nil then
         resolved = {}
-      end
-      local poly = normalizePoly(points)
-      if poly == nil then
-        return
       end
       local shadow = roundrect.shadowStyle(resolved.shadow)
       local shadowBounds = polyShadowBounds(poly, shadow)
@@ -1862,13 +1855,12 @@ return function(__lux_import)
           pad = mathMax(0, __lux_tmp_padding_116)
         end
         if pad > 0 then
-          cullX, cullY, cullW, cullH = includeBounds(
-            cullX,
-            cullY,
-            cullW,
-            cullH,
-            { x = poly.x - pad, y = poly.y - pad, w = poly.w + pad * 2, h = poly.h + pad * 2 }
-          )
+          local bounds = polyDrawRectScratch
+          bounds.x = poly.x - pad
+          bounds.y = poly.y - pad
+          bounds.w = poly.w + pad * 2
+          bounds.h = poly.h + pad * 2
+          cullX, cullY, cullW, cullH = includeBounds(cullX, cullY, cullW, cullH, bounds)
         end
       end
       if not hasTransform() and isCulled(cullX, cullY, cullW, cullH) then
@@ -1903,7 +1895,8 @@ return function(__lux_import)
           drawRect.u0,
           drawRect.v0,
           drawRect.u1,
-          drawRect.v1
+          drawRect.v1,
+          material
         )
       else
         if hasFill then
@@ -1914,6 +1907,13 @@ return function(__lux_import)
       if hasStroke then
         drawPolyStroke(poly, resolved.stroke, strokeWidth)
       end
+    end
+    drawPolyImmediate = function(points, drawStyle)
+      local poly = normalizePoly(points)
+      if poly == nil then
+        return
+      end
+      return drawPolyImmediateNormalized(points, drawStyle, poly)
     end
   end
   do
@@ -2017,94 +2017,113 @@ return function(__lux_import)
       end
       return p0, p1, p2, p3
     end
-    setupPrimitiveAuxConstants = function(material, a0, a1, a2, a3, b0, b1, b2, b3, c0, c1, c2, c3)
-      if material == nil then
+    setupPrimitiveAuxConstants = function(material, a0, a1, a2, a3, b0, b1, b2, b3, c0, c1, c2, c3, d0, d1, d2, d3)
+      if d0 == nil then
+        d0 = 0
+      end
+      if d1 == nil then
+        d1 = 0
+      end
+      if d2 == nil then
+        d2 = 0
+      end
+      if d3 == nil then
+        d3 = 0
+      end
+      if material == nil or paramMatrixSetUnpacked == nil or matrixCtor == nil then
         return false
+      end
+      local matrix = auxParamMatrices[material]
+      if matrix == nil then
+        matrix = matrixCtor()
+        auxParamMatrices[material] = matrix
       end
       do
         local __lux_tmp_a0_130 = a0
         if __lux_tmp_a0_130 == nil then
           __lux_tmp_a0_130 = 0
         end
-        material:SetFloat("$c0_x", __lux_tmp_a0_130)
-      end
-      do
-        local __lux_tmp_a1_131 = a1
-        if __lux_tmp_a1_131 == nil then
-          __lux_tmp_a1_131 = 0
+        local __lux_tmp_b0_131 = b0
+        if __lux_tmp_b0_131 == nil then
+          __lux_tmp_b0_131 = 0
         end
-        material:SetFloat("$c0_y", __lux_tmp_a1_131)
-      end
-      do
-        local __lux_tmp_a2_132 = a2
-        if __lux_tmp_a2_132 == nil then
-          __lux_tmp_a2_132 = 0
+        local __lux_tmp_c0_132 = c0
+        if __lux_tmp_c0_132 == nil then
+          __lux_tmp_c0_132 = 0
         end
-        material:SetFloat("$c0_z", __lux_tmp_a2_132)
-      end
-      do
-        local __lux_tmp_a3_133 = a3
-        if __lux_tmp_a3_133 == nil then
-          __lux_tmp_a3_133 = 0
+        local __lux_tmp_d0_133 = d0
+        if __lux_tmp_d0_133 == nil then
+          __lux_tmp_d0_133 = 0
         end
-        material:SetFloat("$c0_w", __lux_tmp_a3_133)
-      end
-      do
-        local __lux_tmp_b0_134 = b0
-        if __lux_tmp_b0_134 == nil then
-          __lux_tmp_b0_134 = 0
+        local __lux_tmp_a1_134 = a1
+        if __lux_tmp_a1_134 == nil then
+          __lux_tmp_a1_134 = 0
         end
-        material:SetFloat("$c1_x", __lux_tmp_b0_134)
-      end
-      do
         local __lux_tmp_b1_135 = b1
         if __lux_tmp_b1_135 == nil then
           __lux_tmp_b1_135 = 0
         end
-        material:SetFloat("$c1_y", __lux_tmp_b1_135)
-      end
-      do
-        local __lux_tmp_b2_136 = b2
-        if __lux_tmp_b2_136 == nil then
-          __lux_tmp_b2_136 = 0
+        local __lux_tmp_c1_136 = c1
+        if __lux_tmp_c1_136 == nil then
+          __lux_tmp_c1_136 = 0
         end
-        material:SetFloat("$c1_z", __lux_tmp_b2_136)
-      end
-      do
-        local __lux_tmp_b3_137 = b3
-        if __lux_tmp_b3_137 == nil then
-          __lux_tmp_b3_137 = 0
+        local __lux_tmp_d1_137 = d1
+        if __lux_tmp_d1_137 == nil then
+          __lux_tmp_d1_137 = 0
         end
-        material:SetFloat("$c1_w", __lux_tmp_b3_137)
-      end
-      do
-        local __lux_tmp_c0_138 = c0
-        if __lux_tmp_c0_138 == nil then
-          __lux_tmp_c0_138 = 0
+        local __lux_tmp_a2_138 = a2
+        if __lux_tmp_a2_138 == nil then
+          __lux_tmp_a2_138 = 0
         end
-        material:SetFloat("$c2_x", __lux_tmp_c0_138)
-      end
-      do
-        local __lux_tmp_c1_139 = c1
-        if __lux_tmp_c1_139 == nil then
-          __lux_tmp_c1_139 = 0
+        local __lux_tmp_b2_139 = b2
+        if __lux_tmp_b2_139 == nil then
+          __lux_tmp_b2_139 = 0
         end
-        material:SetFloat("$c2_y", __lux_tmp_c1_139)
-      end
-      do
         local __lux_tmp_c2_140 = c2
         if __lux_tmp_c2_140 == nil then
           __lux_tmp_c2_140 = 0
         end
-        material:SetFloat("$c2_z", __lux_tmp_c2_140)
-      end
-      do
-        local __lux_tmp_c3_141 = c3
-        if __lux_tmp_c3_141 == nil then
-          __lux_tmp_c3_141 = 0
+        local __lux_tmp_d2_141 = d2
+        if __lux_tmp_d2_141 == nil then
+          __lux_tmp_d2_141 = 0
         end
-        material:SetFloat("$c2_w", __lux_tmp_c3_141)
+        local __lux_tmp_a3_142 = a3
+        if __lux_tmp_a3_142 == nil then
+          __lux_tmp_a3_142 = 0
+        end
+        local __lux_tmp_b3_143 = b3
+        if __lux_tmp_b3_143 == nil then
+          __lux_tmp_b3_143 = 0
+        end
+        local __lux_tmp_c3_144 = c3
+        if __lux_tmp_c3_144 == nil then
+          __lux_tmp_c3_144 = 0
+        end
+        local __lux_tmp_d3_145 = d3
+        if __lux_tmp_d3_145 == nil then
+          __lux_tmp_d3_145 = 0
+        end
+        paramMatrixSetUnpacked(
+          matrix,
+          __lux_tmp_a0_130,
+          __lux_tmp_b0_131,
+          __lux_tmp_c0_132,
+          __lux_tmp_d0_133,
+          __lux_tmp_a1_134,
+          __lux_tmp_b1_135,
+          __lux_tmp_c1_136,
+          __lux_tmp_d1_137,
+          __lux_tmp_a2_138,
+          __lux_tmp_b2_139,
+          __lux_tmp_c2_140,
+          __lux_tmp_d2_141,
+          __lux_tmp_a3_142,
+          __lux_tmp_b3_143,
+          __lux_tmp_c3_144,
+          __lux_tmp_d3_145
+        )
       end
+      material:SetMatrix("$invviewprojmat", matrix)
       return true
     end
     setupPrimitiveFillConstants = function(material, w, h, fill, stroke, strokeWidth, radius)
@@ -2164,32 +2183,32 @@ return function(__lux_import)
         return false
       end
       local color = spec.color
-      local __lux_tmp_144 = color == nil
-      if not __lux_tmp_144 then
-        local __lux_tmp_a_143 = color.a
-        if __lux_tmp_a_143 == nil then
-          __lux_tmp_a_143 = 255
+      local __lux_tmp_148 = color == nil
+      if not __lux_tmp_148 then
+        local __lux_tmp_a_147 = color.a
+        if __lux_tmp_a_147 == nil then
+          __lux_tmp_a_147 = 255
         end
-        __lux_tmp_144 = __lux_tmp_a_143 <= 0
+        __lux_tmp_148 = __lux_tmp_a_147 <= 0
       end
-      if __lux_tmp_144 then
+      if __lux_tmp_148 then
         return false
       end
       local tl, tr, br, bl = chamferTuple(cuts, w, h)
       local material = primitiveMaterials.chamfer_innerglow
       local r, g, b, a = style.color01(color)
       do
-        local __lux_tmp_width_145 = toNumber(spec.width)
-        if __lux_tmp_width_145 == nil then
-          __lux_tmp_width_145 = 8
+        local __lux_tmp_width_149 = toNumber(spec.width)
+        if __lux_tmp_width_149 == nil then
+          __lux_tmp_width_149 = 8
         end
-        local __lux_tmp_strength_146 = toNumber(spec.strength)
-        if __lux_tmp_strength_146 == nil then
-          __lux_tmp_strength_146 = 1
+        local __lux_tmp_strength_150 = toNumber(spec.strength)
+        if __lux_tmp_strength_150 == nil then
+          __lux_tmp_strength_150 = 1
         end
-        local __lux_tmp_falloff_147 = toNumber(spec.falloff)
-        if __lux_tmp_falloff_147 == nil then
-          __lux_tmp_falloff_147 = 1.65
+        local __lux_tmp_falloff_151 = toNumber(spec.falloff)
+        if __lux_tmp_falloff_151 == nil then
+          __lux_tmp_falloff_151 = 1.65
         end
         setupParamMatrix(
           material,
@@ -2205,168 +2224,164 @@ return function(__lux_import)
           tr,
           br,
           bl,
-          mathMax(0.001, __lux_tmp_width_145),
-          mathMax(0, __lux_tmp_strength_146),
-          mathMax(0.001, __lux_tmp_falloff_147),
+          mathMax(0.001, __lux_tmp_width_149),
+          mathMax(0, __lux_tmp_strength_150),
+          mathMax(0.001, __lux_tmp_falloff_151),
           0
         )
       end
       surfaceSetMaterial(material)
       surfaceSetDrawColor(255, 255, 255, 255)
-      drawTexturedQuad(x, y, w, h)
+      drawTexturedQuad(x, y, w, h, material)
       return true
     end
     cutsWithGrow = function(cuts, grow)
       do
-        local __lux_tmp_grow_148 = toNumber(grow)
-        if __lux_tmp_grow_148 == nil then
-          __lux_tmp_grow_148 = 0
+        local __lux_tmp_grow_152 = toNumber(grow)
+        if __lux_tmp_grow_152 == nil then
+          __lux_tmp_grow_152 = 0
         end
-        grow = mathMax(0, __lux_tmp_grow_148)
+        grow = mathMax(0, __lux_tmp_grow_152)
       end
       if grow <= 0 then
         return cuts
       end
       if typeOf(cuts) == "table" and not style.isColor(cuts) then
-        local __lux_tmp_tl_149 = cuts.tl
-        if __lux_tmp_tl_149 == nil then
-          __lux_tmp_tl_149 = cuts[1]
+        local __lux_tmp_tl_153 = cuts.tl
+        if __lux_tmp_tl_153 == nil then
+          __lux_tmp_tl_153 = cuts[1]
         end
-        local __lux_tmp_tl_150 = toNumber(__lux_tmp_tl_149)
-        if __lux_tmp_tl_150 == nil then
-          __lux_tmp_tl_150 = 0
+        local __lux_tmp_tl_154 = toNumber(__lux_tmp_tl_153)
+        if __lux_tmp_tl_154 == nil then
+          __lux_tmp_tl_154 = 0
         end
-        local __lux_tmp_tr_151 = cuts.tr
-        if __lux_tmp_tr_151 == nil then
-          __lux_tmp_tr_151 = cuts[2]
+        local __lux_tmp_tr_155 = cuts.tr
+        if __lux_tmp_tr_155 == nil then
+          __lux_tmp_tr_155 = cuts[2]
         end
-        if __lux_tmp_tr_151 == nil then
-          __lux_tmp_tr_151 = cuts.tl
+        if __lux_tmp_tr_155 == nil then
+          __lux_tmp_tr_155 = cuts.tl
         end
-        if __lux_tmp_tr_151 == nil then
-          __lux_tmp_tr_151 = cuts[1]
+        if __lux_tmp_tr_155 == nil then
+          __lux_tmp_tr_155 = cuts[1]
         end
-        local __lux_tmp_tr_152 = toNumber(__lux_tmp_tr_151)
-        if __lux_tmp_tr_152 == nil then
-          __lux_tmp_tr_152 = 0
+        local __lux_tmp_tr_156 = toNumber(__lux_tmp_tr_155)
+        if __lux_tmp_tr_156 == nil then
+          __lux_tmp_tr_156 = 0
         end
-        local __lux_tmp_br_153 = cuts.br
-        if __lux_tmp_br_153 == nil then
-          __lux_tmp_br_153 = cuts[3]
+        local __lux_tmp_br_157 = cuts.br
+        if __lux_tmp_br_157 == nil then
+          __lux_tmp_br_157 = cuts[3]
         end
-        if __lux_tmp_br_153 == nil then
-          __lux_tmp_br_153 = cuts.tr
+        if __lux_tmp_br_157 == nil then
+          __lux_tmp_br_157 = cuts.tr
         end
-        if __lux_tmp_br_153 == nil then
-          __lux_tmp_br_153 = cuts[2]
+        if __lux_tmp_br_157 == nil then
+          __lux_tmp_br_157 = cuts[2]
         end
-        if __lux_tmp_br_153 == nil then
-          __lux_tmp_br_153 = cuts.tl
+        if __lux_tmp_br_157 == nil then
+          __lux_tmp_br_157 = cuts.tl
         end
-        if __lux_tmp_br_153 == nil then
-          __lux_tmp_br_153 = cuts[1]
+        if __lux_tmp_br_157 == nil then
+          __lux_tmp_br_157 = cuts[1]
         end
-        local __lux_tmp_br_154 = toNumber(__lux_tmp_br_153)
-        if __lux_tmp_br_154 == nil then
-          __lux_tmp_br_154 = 0
+        local __lux_tmp_br_158 = toNumber(__lux_tmp_br_157)
+        if __lux_tmp_br_158 == nil then
+          __lux_tmp_br_158 = 0
         end
-        local __lux_tmp_bl_155 = cuts.bl
-        if __lux_tmp_bl_155 == nil then
-          __lux_tmp_bl_155 = cuts[4]
+        local __lux_tmp_bl_159 = cuts.bl
+        if __lux_tmp_bl_159 == nil then
+          __lux_tmp_bl_159 = cuts[4]
         end
-        if __lux_tmp_bl_155 == nil then
-          __lux_tmp_bl_155 = cuts.br
+        if __lux_tmp_bl_159 == nil then
+          __lux_tmp_bl_159 = cuts.br
         end
-        if __lux_tmp_bl_155 == nil then
-          __lux_tmp_bl_155 = cuts[3]
+        if __lux_tmp_bl_159 == nil then
+          __lux_tmp_bl_159 = cuts[3]
         end
-        if __lux_tmp_bl_155 == nil then
-          __lux_tmp_bl_155 = cuts.tr
+        if __lux_tmp_bl_159 == nil then
+          __lux_tmp_bl_159 = cuts.tr
         end
-        if __lux_tmp_bl_155 == nil then
-          __lux_tmp_bl_155 = cuts[2]
+        if __lux_tmp_bl_159 == nil then
+          __lux_tmp_bl_159 = cuts[2]
         end
-        if __lux_tmp_bl_155 == nil then
-          __lux_tmp_bl_155 = cuts.tl
+        if __lux_tmp_bl_159 == nil then
+          __lux_tmp_bl_159 = cuts.tl
         end
-        if __lux_tmp_bl_155 == nil then
-          __lux_tmp_bl_155 = cuts[1]
+        if __lux_tmp_bl_159 == nil then
+          __lux_tmp_bl_159 = cuts[1]
         end
-        local __lux_tmp_bl_156 = toNumber(__lux_tmp_bl_155)
-        if __lux_tmp_bl_156 == nil then
-          __lux_tmp_bl_156 = 0
+        local __lux_tmp_bl_160 = toNumber(__lux_tmp_bl_159)
+        if __lux_tmp_bl_160 == nil then
+          __lux_tmp_bl_160 = 0
         end
         return {
-          tl = mathMax(0, __lux_tmp_tl_150) + grow,
-          tr = mathMax(0, __lux_tmp_tr_152) + grow,
-          br = mathMax(0, __lux_tmp_br_154) + grow,
-          bl = mathMax(0, __lux_tmp_bl_156) + grow,
+          tl = mathMax(0, __lux_tmp_tl_154) + grow,
+          tr = mathMax(0, __lux_tmp_tr_156) + grow,
+          br = mathMax(0, __lux_tmp_br_158) + grow,
+          bl = mathMax(0, __lux_tmp_bl_160) + grow,
         }
       end
-      local __lux_tmp_cuts_157 = toNumber(cuts)
-      if __lux_tmp_cuts_157 == nil then
-        __lux_tmp_cuts_157 = 0
+      local __lux_tmp_cuts_161 = toNumber(cuts)
+      if __lux_tmp_cuts_161 == nil then
+        __lux_tmp_cuts_161 = 0
       end
-      return __lux_tmp_cuts_157 + grow
+      return __lux_tmp_cuts_161 + grow
     end
-    drawChamferOuterGlowSpec = function(x, y, w, h, cuts, spec, biasOffset)
+    chamferEffectBounds = function(x, y, w, h, cuts, spec, biasOffset)
       if biasOffset == nil then
         biasOffset = false
       end
-      if spec == nil or not shadersActive() or not materialOK(primitiveMaterials.chamfer_outerglow) then
-        return false
-      end
-      local color = spec.color
-      local __lux_tmp_160 = color == nil
-      if not __lux_tmp_160 then
-        local __lux_tmp_a_159 = color.a
-        if __lux_tmp_a_159 == nil then
-          __lux_tmp_a_159 = 255
+      local __lux_tmp_164 = spec == nil or spec.color == nil
+      if not __lux_tmp_164 then
+        local __lux_tmp_a_163 = spec.color.a
+        if __lux_tmp_a_163 == nil then
+          __lux_tmp_a_163 = 255
         end
-        __lux_tmp_160 = __lux_tmp_a_159 <= 0
+        __lux_tmp_164 = __lux_tmp_a_163 <= 0
       end
-      if __lux_tmp_160 then
-        return false
+      if __lux_tmp_164 then
+        return nil
       end
       local grow
       do
-        local __lux_tmp_grow_161 = spec.grow
-        if __lux_tmp_grow_161 == nil then
-          __lux_tmp_grow_161 = spec.shapeSpread
+        local __lux_tmp_grow_165 = spec.grow
+        if __lux_tmp_grow_165 == nil then
+          __lux_tmp_grow_165 = spec.shapeSpread
         end
-        if __lux_tmp_grow_161 == nil then
-          __lux_tmp_grow_161 = spec.expand
+        if __lux_tmp_grow_165 == nil then
+          __lux_tmp_grow_165 = spec.expand
         end
-        local __lux_tmp_grow_162 = toNumber(__lux_tmp_grow_161)
-        if __lux_tmp_grow_162 == nil then
-          __lux_tmp_grow_162 = 0
+        local __lux_tmp_grow_166 = toNumber(__lux_tmp_grow_165)
+        if __lux_tmp_grow_166 == nil then
+          __lux_tmp_grow_166 = 0
         end
-        grow = mathMax(0, __lux_tmp_grow_162)
+        grow = mathMax(0, __lux_tmp_grow_166)
       end
       local ox
       do
-        local __lux_tmp_x_163 = spec.x
-        if __lux_tmp_x_163 == nil then
-          __lux_tmp_x_163 = spec.offsetX
+        local __lux_tmp_x_167 = spec.x
+        if __lux_tmp_x_167 == nil then
+          __lux_tmp_x_167 = spec.offsetX
         end
-        if __lux_tmp_x_163 == nil then
-          __lux_tmp_x_163 = spec.dx
+        if __lux_tmp_x_167 == nil then
+          __lux_tmp_x_167 = spec.dx
         end
-        ox = toNumber(__lux_tmp_x_163)
+        ox = toNumber(__lux_tmp_x_167)
         if ox == nil then
           ox = 0
         end
       end
       local oy
       do
-        local __lux_tmp_y_164 = spec.y
-        if __lux_tmp_y_164 == nil then
-          __lux_tmp_y_164 = spec.offsetY
+        local __lux_tmp_y_168 = spec.y
+        if __lux_tmp_y_168 == nil then
+          __lux_tmp_y_168 = spec.offsetY
         end
-        if __lux_tmp_y_164 == nil then
-          __lux_tmp_y_164 = spec.dy
+        if __lux_tmp_y_168 == nil then
+          __lux_tmp_y_168 = spec.dy
         end
-        oy = toNumber(__lux_tmp_y_164)
+        oy = toNumber(__lux_tmp_y_168)
         if oy == nil then
           oy = 0
         end
@@ -2376,14 +2391,6 @@ return function(__lux_import)
       local gw = w + grow * 2
       local gh = h + grow * 2
       local gcuts = cutsWithGrow(cuts, grow)
-      local width
-      do
-        local __lux_tmp_width_165 = toNumber(spec.width)
-        if __lux_tmp_width_165 == nil then
-          __lux_tmp_width_165 = 18
-        end
-        width = mathMax(0.001, __lux_tmp_width_165)
-      end
       local spread = roundrect.effectExtentFromSpec(spec, 18)
       local left = spread
       local top = spread
@@ -2394,175 +2401,357 @@ return function(__lux_import)
         gx = x - grow
         gy = y - grow
       end
+      local sx = gx - left
+      local sy = gy - top
       local sw = gw + left + right
       local sh = gh + top + bottom
       local tl, tr, br, bl = chamferTuple(gcuts, gw, gh)
-      local material = primitiveMaterials.chamfer_outerglow
-      do
-        local __lux_tmp_falloff_166 = toNumber(spec.falloff)
-        if __lux_tmp_falloff_166 == nil then
-          __lux_tmp_falloff_166 = 1.9
-        end
-        local __lux_tmp_strength_167 = toNumber(spec.strength)
-        if __lux_tmp_strength_167 == nil then
-          __lux_tmp_strength_167 = 1
-        end
-        setupParamMatrix(
-          material,
-          sw,
-          sh,
-          left,
-          top,
-          gw,
-          gh,
-          tl,
-          tr,
-          br,
-          bl,
-          width,
-          mathMax(0.001, __lux_tmp_falloff_166),
-          mathMax(0, __lux_tmp_strength_167),
-          0,
-          0,
-          0
-        )
+      local __lux_tmp_width_169 = toNumber(spec.width)
+      if __lux_tmp_width_169 == nil then
+        __lux_tmp_width_169 = 18
       end
-      local sx = gx - left
-      local sy = gy - top
-      local bleedLeft, bleedTop, bleedRight, bleedBottom = effectBleedFromDrawRect(x, y, w, h, sx, sy, sw, sh)
-      withPanelEffectBleed(
-        bleedLeft,
-        bleedTop,
-        bleedRight,
-        bleedBottom,
-        function()
-          surfaceSetMaterial(material)
-          style.setDrawColor(color)
-          return drawTexturedQuad(sx, sy, sw, sh)
-        end
-      )
-      return true
+      local __lux_tmp_strength_170 = toNumber(spec.strength)
+      if __lux_tmp_strength_170 == nil then
+        __lux_tmp_strength_170 = 1
+      end
+      local __lux_tmp_falloff_171 = toNumber(spec.falloff)
+      if __lux_tmp_falloff_171 == nil then
+        __lux_tmp_falloff_171 = 1.9
+      end
+      return {
+        x = sx,
+        y = sy,
+        w = sw,
+        h = sh,
+        shapeX = gx,
+        shapeY = gy,
+        shapeW = gw,
+        shapeH = gh,
+        tl = tl,
+        tr = tr,
+        br = br,
+        bl = bl,
+        width = mathMax(0.001, __lux_tmp_width_169),
+        strength = mathMax(0, __lux_tmp_strength_170),
+        falloff = mathMax(0.001, __lux_tmp_falloff_171),
+      }
     end
-    drawChamferShadowSpec = function(x, y, w, h, cuts, spec)
-      if spec == nil or not shadersActive() or not materialOK(primitiveMaterials.chamfer_shadow) then
+    drawChamferShadowOuterSpec = function(x, y, w, h, cuts, shadowSpec, outerSpec)
+      if shadowSpec == nil and outerSpec == nil or not shadersActive() or not materialOK(primitiveMaterials.chamfer_shadow_outer) then
         return false
       end
-      local color = spec.color
-      local __lux_tmp_170 = color == nil
-      if not __lux_tmp_170 then
-        local __lux_tmp_a_169 = color.a
-        if __lux_tmp_a_169 == nil then
-          __lux_tmp_a_169 = 255
-        end
-        __lux_tmp_170 = __lux_tmp_a_169 <= 0
-      end
-      if __lux_tmp_170 then
+      local shadowBounds = chamferEffectBounds(x, y, w, h, cuts, shadowSpec, false)
+      local outerBounds = chamferEffectBounds(x, y, w, h, cuts, outerSpec, true)
+      if shadowBounds == nil and outerBounds == nil then
         return false
       end
-      local grow
-      do
-        local __lux_tmp_grow_171 = spec.grow
-        if __lux_tmp_grow_171 == nil then
-          __lux_tmp_grow_171 = spec.shapeSpread
-        end
-        if __lux_tmp_grow_171 == nil then
-          __lux_tmp_grow_171 = spec.expand
-        end
-        local __lux_tmp_grow_172 = toNumber(__lux_tmp_grow_171)
-        if __lux_tmp_grow_172 == nil then
-          __lux_tmp_grow_172 = 0
-        end
-        grow = mathMax(0, __lux_tmp_grow_172)
+      local baseBounds = shadowBounds
+      if baseBounds == nil then
+        baseBounds = outerBounds
       end
-      local ox
-      do
-        local __lux_tmp_x_173 = spec.x
-        if __lux_tmp_x_173 == nil then
-          __lux_tmp_x_173 = spec.offsetX
-        end
-        if __lux_tmp_x_173 == nil then
-          __lux_tmp_x_173 = spec.dx
-        end
-        ox = toNumber(__lux_tmp_x_173)
-        if ox == nil then
-          ox = 0
-        end
+      local sx = baseBounds.x
+      local sy = baseBounds.y
+      local ex = baseBounds.x + baseBounds.w
+      local ey = baseBounds.y + baseBounds.h
+      if shadowBounds ~= nil then
+        sx = mathMin(sx, shadowBounds.x)
+        sy = mathMin(sy, shadowBounds.y)
+        ex = mathMax(ex, shadowBounds.x + shadowBounds.w)
+        ey = mathMax(ey, shadowBounds.y + shadowBounds.h)
       end
-      local oy
+      if outerBounds ~= nil then
+        sx = mathMin(sx, outerBounds.x)
+        sy = mathMin(sy, outerBounds.y)
+        ex = mathMax(ex, outerBounds.x + outerBounds.w)
+        ey = mathMax(ey, outerBounds.y + outerBounds.h)
+      end
+      local sw = ex - sx
+      local sh = ey - sy
+      local material = primitiveMaterials.chamfer_shadow_outer
+      local shadowColor
       do
-        local __lux_tmp_y_174 = spec.y
-        if __lux_tmp_y_174 == nil then
-          __lux_tmp_y_174 = spec.offsetY
+        local __lux_obj_shadowSpec_172 = shadowSpec
+        local __lux_val_color_173 = nil
+        if __lux_obj_shadowSpec_172 ~= nil then
+          __lux_val_color_173 = __lux_obj_shadowSpec_172.color
         end
-        if __lux_tmp_y_174 == nil then
-          __lux_tmp_y_174 = spec.dy
-        end
-        oy = toNumber(__lux_tmp_y_174)
-        if oy == nil then
-          oy = 0
+        shadowColor = __lux_val_color_173
+        if shadowColor == nil then
+          shadowColor = transparentColor
         end
       end
-      local gx = x + ox - grow
-      local gy = y + oy - grow
-      local gw = w + grow * 2
-      local gh = h + grow * 2
-      local gcuts = cutsWithGrow(cuts, grow)
-      local width
+      local outerColor
       do
-        local __lux_tmp_width_175 = toNumber(spec.width)
-        if __lux_tmp_width_175 == nil then
-          __lux_tmp_width_175 = 18
+        local __lux_obj_outerSpec_174 = outerSpec
+        local __lux_val_color_175 = nil
+        if __lux_obj_outerSpec_174 ~= nil then
+          __lux_val_color_175 = __lux_obj_outerSpec_174.color
         end
-        width = mathMax(0.001, __lux_tmp_width_175)
+        outerColor = __lux_val_color_175
+        if outerColor == nil then
+          outerColor = transparentColor
+        end
       end
-      local spread = roundrect.effectExtentFromSpec(spec, 18)
-      local sw = gw + spread * 2
-      local sh = gh + spread * 2
-      local tl, tr, br, bl = chamferTuple(gcuts, gw, gh)
-      local material = primitiveMaterials.chamfer_shadow
       do
-        local __lux_tmp_falloff_176 = toNumber(spec.falloff)
-        if __lux_tmp_falloff_176 == nil then
-          __lux_tmp_falloff_176 = 1.9
+        local __lux_tmp_176
+        if shadowBounds ~= nil then
+          __lux_tmp_176 = shadowBounds.width
+        else
+          __lux_tmp_176 = 1
         end
-        local __lux_tmp_strength_177 = toNumber(spec.strength)
-        if __lux_tmp_strength_177 == nil then
-          __lux_tmp_strength_177 = 1
+        local __lux_tmp_177
+        if shadowBounds ~= nil then
+          __lux_tmp_177 = shadowBounds.strength
+        else
+          __lux_tmp_177 = 0
+        end
+        local __lux_tmp_r_178 = shadowColor.r
+        if __lux_tmp_r_178 == nil then
+          __lux_tmp_r_178 = 0
+        end
+        local __lux_tmp_g_179 = shadowColor.g
+        if __lux_tmp_g_179 == nil then
+          __lux_tmp_g_179 = 0
+        end
+        local __lux_tmp_b_180 = shadowColor.b
+        if __lux_tmp_b_180 == nil then
+          __lux_tmp_b_180 = 0
+        end
+        local __lux_tmp_181
+        if shadowBounds ~= nil then
+          do
+            local __lux_tmp_a_182 = shadowColor.a
+            if __lux_tmp_a_182 == nil then
+              __lux_tmp_a_182 = 255
+            end
+            __lux_tmp_181 = __lux_tmp_a_182 / 255
+          end
+        else
+          __lux_tmp_181 = 0
+        end
+        local __lux_obj_shadowBounds_183 = shadowBounds
+        local __lux_tmp_shapeX_184 = nil
+        if __lux_obj_shadowBounds_183 ~= nil then
+          __lux_tmp_shapeX_184 = __lux_obj_shadowBounds_183.shapeX
+        end
+        if __lux_tmp_shapeX_184 == nil then
+          __lux_tmp_shapeX_184 = x
+        end
+        local __lux_obj_shadowBounds_185 = shadowBounds
+        local __lux_tmp_shapeY_186 = nil
+        if __lux_obj_shadowBounds_185 ~= nil then
+          __lux_tmp_shapeY_186 = __lux_obj_shadowBounds_185.shapeY
+        end
+        if __lux_tmp_shapeY_186 == nil then
+          __lux_tmp_shapeY_186 = y
+        end
+        local __lux_obj_shadowBounds_187 = shadowBounds
+        local __lux_tmp_shapeW_188 = nil
+        if __lux_obj_shadowBounds_187 ~= nil then
+          __lux_tmp_shapeW_188 = __lux_obj_shadowBounds_187.shapeW
+        end
+        if __lux_tmp_shapeW_188 == nil then
+          __lux_tmp_shapeW_188 = w
+        end
+        local __lux_obj_shadowBounds_189 = shadowBounds
+        local __lux_tmp_shapeH_190 = nil
+        if __lux_obj_shadowBounds_189 ~= nil then
+          __lux_tmp_shapeH_190 = __lux_obj_shadowBounds_189.shapeH
+        end
+        if __lux_tmp_shapeH_190 == nil then
+          __lux_tmp_shapeH_190 = h
+        end
+        local __lux_obj_shadowBounds_191 = shadowBounds
+        local __lux_tmp_tl_192 = nil
+        if __lux_obj_shadowBounds_191 ~= nil then
+          __lux_tmp_tl_192 = __lux_obj_shadowBounds_191.tl
+        end
+        if __lux_tmp_tl_192 == nil then
+          __lux_tmp_tl_192 = 0
+        end
+        local __lux_obj_shadowBounds_193 = shadowBounds
+        local __lux_tmp_tr_194 = nil
+        if __lux_obj_shadowBounds_193 ~= nil then
+          __lux_tmp_tr_194 = __lux_obj_shadowBounds_193.tr
+        end
+        if __lux_tmp_tr_194 == nil then
+          __lux_tmp_tr_194 = 0
+        end
+        local __lux_obj_shadowBounds_195 = shadowBounds
+        local __lux_tmp_br_196 = nil
+        if __lux_obj_shadowBounds_195 ~= nil then
+          __lux_tmp_br_196 = __lux_obj_shadowBounds_195.br
+        end
+        if __lux_tmp_br_196 == nil then
+          __lux_tmp_br_196 = 0
+        end
+        local __lux_obj_shadowBounds_197 = shadowBounds
+        local __lux_tmp_bl_198 = nil
+        if __lux_obj_shadowBounds_197 ~= nil then
+          __lux_tmp_bl_198 = __lux_obj_shadowBounds_197.bl
+        end
+        if __lux_tmp_bl_198 == nil then
+          __lux_tmp_bl_198 = 0
         end
         setupParamMatrix(
           material,
           sw,
           sh,
-          spread,
-          spread,
-          gw,
-          gh,
-          tl,
-          tr,
-          br,
-          bl,
-          width,
-          mathMax(0.001, __lux_tmp_falloff_176),
-          mathMax(0, __lux_tmp_strength_177),
-          0,
-          0,
-          0
+          __lux_tmp_176,
+          __lux_tmp_177,
+          __lux_tmp_r_178 / 255,
+          __lux_tmp_g_179 / 255,
+          __lux_tmp_b_180 / 255,
+          __lux_tmp_181,
+          __lux_tmp_shapeX_184 - sx,
+          __lux_tmp_shapeY_186 - sy,
+          __lux_tmp_shapeW_188,
+          __lux_tmp_shapeH_190,
+          __lux_tmp_tl_192,
+          __lux_tmp_tr_194,
+          __lux_tmp_br_196,
+          __lux_tmp_bl_198
         )
       end
-      local sx = gx - spread
-      local sy = gy - spread
-      local bleedLeft, bleedTop, bleedRight, bleedBottom = effectBleedFromDrawRect(x, y, w, h, sx, sy, sw, sh)
-      withPanelEffectBleed(
-        bleedLeft,
-        bleedTop,
-        bleedRight,
-        bleedBottom,
-        function()
-          surfaceSetMaterial(material)
-          style.setDrawColor(color)
-          return drawTexturedQuad(sx, sy, sw, sh)
+      do
+        local __lux_tmp_r_199 = outerColor.r
+        if __lux_tmp_r_199 == nil then
+          __lux_tmp_r_199 = 0
         end
-      )
+        local __lux_tmp_g_200 = outerColor.g
+        if __lux_tmp_g_200 == nil then
+          __lux_tmp_g_200 = 0
+        end
+        local __lux_tmp_b_201 = outerColor.b
+        if __lux_tmp_b_201 == nil then
+          __lux_tmp_b_201 = 0
+        end
+        local __lux_tmp_202
+        if outerBounds ~= nil then
+          do
+            local __lux_tmp_a_203 = outerColor.a
+            if __lux_tmp_a_203 == nil then
+              __lux_tmp_a_203 = 255
+            end
+            __lux_tmp_202 = __lux_tmp_a_203 / 255
+          end
+        else
+          __lux_tmp_202 = 0
+        end
+        local __lux_obj_outerBounds_204 = outerBounds
+        local __lux_tmp_shapeX_205 = nil
+        if __lux_obj_outerBounds_204 ~= nil then
+          __lux_tmp_shapeX_205 = __lux_obj_outerBounds_204.shapeX
+        end
+        if __lux_tmp_shapeX_205 == nil then
+          __lux_tmp_shapeX_205 = x
+        end
+        local __lux_obj_outerBounds_206 = outerBounds
+        local __lux_tmp_shapeY_207 = nil
+        if __lux_obj_outerBounds_206 ~= nil then
+          __lux_tmp_shapeY_207 = __lux_obj_outerBounds_206.shapeY
+        end
+        if __lux_tmp_shapeY_207 == nil then
+          __lux_tmp_shapeY_207 = y
+        end
+        local __lux_obj_outerBounds_208 = outerBounds
+        local __lux_tmp_shapeW_209 = nil
+        if __lux_obj_outerBounds_208 ~= nil then
+          __lux_tmp_shapeW_209 = __lux_obj_outerBounds_208.shapeW
+        end
+        if __lux_tmp_shapeW_209 == nil then
+          __lux_tmp_shapeW_209 = w
+        end
+        local __lux_obj_outerBounds_210 = outerBounds
+        local __lux_tmp_shapeH_211 = nil
+        if __lux_obj_outerBounds_210 ~= nil then
+          __lux_tmp_shapeH_211 = __lux_obj_outerBounds_210.shapeH
+        end
+        if __lux_tmp_shapeH_211 == nil then
+          __lux_tmp_shapeH_211 = h
+        end
+        local __lux_obj_outerBounds_212 = outerBounds
+        local __lux_tmp_tl_213 = nil
+        if __lux_obj_outerBounds_212 ~= nil then
+          __lux_tmp_tl_213 = __lux_obj_outerBounds_212.tl
+        end
+        if __lux_tmp_tl_213 == nil then
+          __lux_tmp_tl_213 = 0
+        end
+        local __lux_obj_outerBounds_214 = outerBounds
+        local __lux_tmp_tr_215 = nil
+        if __lux_obj_outerBounds_214 ~= nil then
+          __lux_tmp_tr_215 = __lux_obj_outerBounds_214.tr
+        end
+        if __lux_tmp_tr_215 == nil then
+          __lux_tmp_tr_215 = 0
+        end
+        local __lux_obj_outerBounds_216 = outerBounds
+        local __lux_tmp_br_217 = nil
+        if __lux_obj_outerBounds_216 ~= nil then
+          __lux_tmp_br_217 = __lux_obj_outerBounds_216.br
+        end
+        if __lux_tmp_br_217 == nil then
+          __lux_tmp_br_217 = 0
+        end
+        local __lux_obj_outerBounds_218 = outerBounds
+        local __lux_tmp_bl_219 = nil
+        if __lux_obj_outerBounds_218 ~= nil then
+          __lux_tmp_bl_219 = __lux_obj_outerBounds_218.bl
+        end
+        if __lux_tmp_bl_219 == nil then
+          __lux_tmp_bl_219 = 0
+        end
+        local __lux_tmp_220
+        if shadowBounds ~= nil then
+          __lux_tmp_220 = shadowBounds.falloff
+        else
+          __lux_tmp_220 = 1
+        end
+        local __lux_tmp_221
+        if outerBounds ~= nil then
+          __lux_tmp_221 = outerBounds.width
+        else
+          __lux_tmp_221 = 1
+        end
+        local __lux_tmp_222
+        if outerBounds ~= nil then
+          __lux_tmp_222 = outerBounds.strength
+        else
+          __lux_tmp_222 = 0
+        end
+        local __lux_tmp_223
+        if outerBounds ~= nil then
+          __lux_tmp_223 = outerBounds.falloff
+        else
+          __lux_tmp_223 = 1
+        end
+        setupPrimitiveAuxConstants(
+          material,
+          __lux_tmp_r_199 / 255,
+          __lux_tmp_g_200 / 255,
+          __lux_tmp_b_201 / 255,
+          __lux_tmp_202,
+          __lux_tmp_shapeX_205 - sx,
+          __lux_tmp_shapeY_207 - sy,
+          __lux_tmp_shapeW_209,
+          __lux_tmp_shapeH_211,
+          __lux_tmp_tl_213,
+          __lux_tmp_tr_215,
+          __lux_tmp_br_217,
+          __lux_tmp_bl_219,
+          __lux_tmp_220,
+          __lux_tmp_221,
+          __lux_tmp_222,
+          __lux_tmp_223
+        )
+      end
+      local bleedLeft, bleedTop, bleedRight, bleedBottom = effectBleedFromDrawRect(x, y, w, h, sx, sy, sw, sh)
+      local bleedToken = beginPanelEffectBleed(bleedLeft, bleedTop, bleedRight, bleedBottom)
+      surfaceSetMaterial(material)
+      surfaceSetDrawColor(255, 255, 255, 255)
+      drawTexturedQuad(sx, sy, sw, sh, material)
+      endPanelEffectBleed(bleedToken)
       return true
     end
     chamferBackdropTintColor = function(spec)
@@ -2572,35 +2761,35 @@ return function(__lux_import)
       local tint = spec.tint
       local alpha
       do
-        local __lux_tmp_a_178 = tint.a
-        if __lux_tmp_a_178 == nil then
-          __lux_tmp_a_178 = 255
+        local __lux_tmp_a_224 = tint.a
+        if __lux_tmp_a_224 == nil then
+          __lux_tmp_a_224 = 255
         end
-        local __lux_tmp_opacity_179 = spec.opacity
-        if __lux_tmp_opacity_179 == nil then
-          __lux_tmp_opacity_179 = 1
+        local __lux_tmp_opacity_225 = spec.opacity
+        if __lux_tmp_opacity_225 == nil then
+          __lux_tmp_opacity_225 = 1
         end
-        alpha = __lux_tmp_a_178 * __lux_tmp_opacity_179
+        alpha = __lux_tmp_a_224 * __lux_tmp_opacity_225
       end
       if alpha <= 0 then
         return nil
       end
-      local __lux_tmp_r_180 = tint.r
-      if __lux_tmp_r_180 == nil then
-        __lux_tmp_r_180 = 0
+      local __lux_tmp_r_226 = tint.r
+      if __lux_tmp_r_226 == nil then
+        __lux_tmp_r_226 = 0
       end
-      local __lux_tmp_g_181 = tint.g
-      if __lux_tmp_g_181 == nil then
-        __lux_tmp_g_181 = 0
+      local __lux_tmp_g_227 = tint.g
+      if __lux_tmp_g_227 == nil then
+        __lux_tmp_g_227 = 0
       end
-      local __lux_tmp_b_182 = tint.b
-      if __lux_tmp_b_182 == nil then
-        __lux_tmp_b_182 = 0
+      local __lux_tmp_b_228 = tint.b
+      if __lux_tmp_b_228 == nil then
+        __lux_tmp_b_228 = 0
       end
       return makeColor(
-        __lux_tmp_r_180,
-        __lux_tmp_g_181,
-        __lux_tmp_b_182,
+        __lux_tmp_r_226,
+        __lux_tmp_g_227,
+        __lux_tmp_b_228,
         mathFloor(mathClamp(alpha, 0, 255) + 0.5)
       )
     end
@@ -2611,11 +2800,11 @@ return function(__lux_import)
       end
       local pad
       do
-        local __lux_tmp_padding_183 = toNumber(spec.padding)
-        if __lux_tmp_padding_183 == nil then
-          __lux_tmp_padding_183 = 0
+        local __lux_tmp_padding_229 = toNumber(spec.padding)
+        if __lux_tmp_padding_229 == nil then
+          __lux_tmp_padding_229 = 0
         end
-        pad = mathMax(0, __lux_tmp_padding_183)
+        pad = mathMax(0, __lux_tmp_padding_229)
       end
       local bx = x - pad
       local by = y - pad
@@ -2648,7 +2837,7 @@ return function(__lux_import)
           0,
           0
         )
-        drawTexturedQuad(bx, by, bw, bh)
+        drawTexturedQuad(bx, by, bw, bh, material)
         renderCopyRenderTargetToTexture(primitiveBlurRT)
         setupParamMatrix(
           material,
@@ -2669,7 +2858,7 @@ return function(__lux_import)
           0,
           0
         )
-        drawTexturedQuad(bx, by, bw, bh)
+        drawTexturedQuad(bx, by, bw, bh, material)
       end
       local tint = chamferBackdropTintColor(spec)
       if tint ~= nil then
@@ -2686,29 +2875,29 @@ return function(__lux_import)
       if color == nil then
         color = spec.tint
       end
-      local __lux_tmp_186 = color ~= nil
-      if __lux_tmp_186 then
-        local __lux_tmp_a_185 = color.a
-        if __lux_tmp_a_185 == nil then
-          __lux_tmp_a_185 = 255
+      local __lux_tmp_232 = color ~= nil
+      if __lux_tmp_232 then
+        local __lux_tmp_a_231 = color.a
+        if __lux_tmp_a_231 == nil then
+          __lux_tmp_a_231 = 255
         end
-        __lux_tmp_186 = __lux_tmp_a_185 <= 0
+        __lux_tmp_232 = __lux_tmp_a_231 <= 0
       end
-      if __lux_tmp_186 then
+      if __lux_tmp_232 then
         return false
       end
       local tl, tr, br, bl = chamferTuple(cuts, w, h)
       local angle
       do
-        local __lux_tmp_angle_187 = toNumber(spec.angle)
-        if __lux_tmp_angle_187 == nil then
-          __lux_tmp_angle_187 = 135
+        local __lux_tmp_angle_233 = toNumber(spec.angle)
+        if __lux_tmp_angle_233 == nil then
+          __lux_tmp_angle_233 = 135
         end
-        angle = mathRad(__lux_tmp_angle_187)
+        angle = mathRad(__lux_tmp_angle_233)
       end
       local smoke
-      local __lux_match_188 = spec.kind
-      if __lux_match_188 == "smoke" then
+      local __lux_match_234 = spec.kind
+      if __lux_match_234 == "smoke" then
         smoke = true
       else
         smoke = false
@@ -2716,75 +2905,75 @@ return function(__lux_import)
       local material = primitiveMaterials.chamfer_pattern
       local r, g, b, a
       do
-        local __lux_tmp_color_189 = spec.color
-        if __lux_tmp_color_189 == nil then
-          __lux_tmp_color_189 = spec.tint
+        local __lux_tmp_color_235 = spec.color
+        if __lux_tmp_color_235 == nil then
+          __lux_tmp_color_235 = spec.tint
         end
-        r, g, b, a = style.color01(style.asColor(__lux_tmp_color_189, makeColor(255, 255, 255, 24)))
+        r, g, b, a = style.color01(style.asColor(__lux_tmp_color_235, makeColor(255, 255, 255, 24)))
       end
       local pz = 1
       local pw = 1
       if smoke then
         local density
         do
-          local __lux_tmp_density_190 = toNumber(spec.density)
-          if __lux_tmp_density_190 == nil then
-            __lux_tmp_density_190 = 0.48
+          local __lux_tmp_density_236 = toNumber(spec.density)
+          if __lux_tmp_density_236 == nil then
+            __lux_tmp_density_236 = 0.48
           end
-          density = mathClamp(mathFloor(__lux_tmp_density_190 * 255 + 0.5), 0, 255)
+          density = mathClamp(mathFloor(__lux_tmp_density_236 * 255 + 0.5), 0, 255)
         end
         local softness
         do
-          local __lux_tmp_softness_191 = toNumber(spec.softness)
-          if __lux_tmp_softness_191 == nil then
-            __lux_tmp_softness_191 = 0.3
+          local __lux_tmp_softness_237 = toNumber(spec.softness)
+          if __lux_tmp_softness_237 == nil then
+            __lux_tmp_softness_237 = 0.3
           end
-          softness = mathClamp(mathFloor(__lux_tmp_softness_191 * 255 + 0.5), 0, 255)
+          softness = mathClamp(mathFloor(__lux_tmp_softness_237 * 255 + 0.5), 0, 255)
         end
         local warp
         do
-          local __lux_tmp_warp_192 = toNumber(spec.warp)
-          if __lux_tmp_warp_192 == nil then
-            __lux_tmp_warp_192 = 0.85
+          local __lux_tmp_warp_238 = toNumber(spec.warp)
+          if __lux_tmp_warp_238 == nil then
+            __lux_tmp_warp_238 = 0.85
           end
-          warp = mathClamp(mathFloor(__lux_tmp_warp_192 * 255 + 0.5), 0, 255)
+          warp = mathClamp(mathFloor(__lux_tmp_warp_238 * 255 + 0.5), 0, 255)
         end
         do
-          local __lux_tmp_scale_193 = toNumber(spec.scale)
-          if __lux_tmp_scale_193 == nil then
-            __lux_tmp_scale_193 = 140
+          local __lux_tmp_scale_239 = toNumber(spec.scale)
+          if __lux_tmp_scale_239 == nil then
+            __lux_tmp_scale_239 = 140
           end
-          pz = mathMax(1, __lux_tmp_scale_193)
+          pz = mathMax(1, __lux_tmp_scale_239)
         end
         pw = density + softness * 256 + warp * 65536
       else
         do
-          local __lux_tmp_spacing_194 = toNumber(spec.spacing)
-          if __lux_tmp_spacing_194 == nil then
-            __lux_tmp_spacing_194 = 12
+          local __lux_tmp_spacing_240 = toNumber(spec.spacing)
+          if __lux_tmp_spacing_240 == nil then
+            __lux_tmp_spacing_240 = 12
           end
-          pz = mathMax(1, __lux_tmp_spacing_194)
+          pz = mathMax(1, __lux_tmp_spacing_240)
         end
         do
-          local __lux_tmp_width_195 = toNumber(spec.width)
-          if __lux_tmp_width_195 == nil then
-            __lux_tmp_width_195 = 2
+          local __lux_tmp_width_241 = toNumber(spec.width)
+          if __lux_tmp_width_241 == nil then
+            __lux_tmp_width_241 = 2
           end
-          pw = mathMax(0.25, __lux_tmp_width_195)
+          pw = mathMax(0.25, __lux_tmp_width_241)
         end
       end
       do
-        local __lux_tmp_197 = smoke
-        if __lux_tmp_197 then
-          local __lux_tmp_seed_196 = toNumber(spec.seed)
-          if __lux_tmp_seed_196 == nil then
-            __lux_tmp_seed_196 = 0
+        local __lux_tmp_243 = smoke
+        if __lux_tmp_243 then
+          local __lux_tmp_seed_242 = toNumber(spec.seed)
+          if __lux_tmp_seed_242 == nil then
+            __lux_tmp_seed_242 = 0
           end
-          __lux_tmp_197 = __lux_tmp_seed_196
+          __lux_tmp_243 = __lux_tmp_seed_242
         end
-        local __lux_tmp_198 = __lux_tmp_197
-        if not __lux_tmp_198 then
-          __lux_tmp_198 = 0
+        local __lux_tmp_244 = __lux_tmp_243
+        if not __lux_tmp_244 then
+          __lux_tmp_244 = 0
         end
         setupParamMatrix(
           material,
@@ -2795,7 +2984,7 @@ return function(__lux_import)
           w,
           h,
           roundrect.patternOffset(spec),
-          (smoke and 1 or 0) + __lux_tmp_198,
+          (smoke and 1 or 0) + __lux_tmp_244,
           mathCos(angle),
           mathSin(angle),
           pz,
@@ -2808,7 +2997,7 @@ return function(__lux_import)
       end
       surfaceSetMaterial(material)
       surfaceSetDrawColor(255, 255, 255, 255)
-      drawTexturedQuad(x, y, w, h)
+      drawTexturedQuad(x, y, w, h, material)
       return true
     end
     drawChamferStroke = function(x, y, w, h, cuts, stroke, strokeWidth)
@@ -2839,7 +3028,7 @@ return function(__lux_import)
       )
       surfaceSetMaterial(material)
       surfaceSetDrawColor(255, 255, 255, 255)
-      drawTexturedQuad(x, y, w, h)
+      drawTexturedQuad(x, y, w, h, material)
       return true
     end
     drawChamferBasePass = function(x, y, w, h, cuts, fill, stroke, strokeWidth, innerSpec)
@@ -2857,32 +3046,32 @@ return function(__lux_import)
       local glowFalloff = 1
       if innerSpec ~= nil then
         do
-          local __lux_tmp_color_199 = innerSpec.color
-          if __lux_tmp_color_199 == nil then
-            __lux_tmp_color_199 = transparentColor
+          local __lux_tmp_color_245 = innerSpec.color
+          if __lux_tmp_color_245 == nil then
+            __lux_tmp_color_245 = transparentColor
           end
-          glowR, glowG, glowB, glowA = style.color01(__lux_tmp_color_199)
+          glowR, glowG, glowB, glowA = style.color01(__lux_tmp_color_245)
         end
         do
-          local __lux_tmp_width_200 = toNumber(innerSpec.width)
-          if __lux_tmp_width_200 == nil then
-            __lux_tmp_width_200 = 8
+          local __lux_tmp_width_246 = toNumber(innerSpec.width)
+          if __lux_tmp_width_246 == nil then
+            __lux_tmp_width_246 = 8
           end
-          glowWidth = mathMax(0.001, __lux_tmp_width_200)
+          glowWidth = mathMax(0.001, __lux_tmp_width_246)
         end
         do
-          local __lux_tmp_strength_201 = toNumber(innerSpec.strength)
-          if __lux_tmp_strength_201 == nil then
-            __lux_tmp_strength_201 = 1
+          local __lux_tmp_strength_247 = toNumber(innerSpec.strength)
+          if __lux_tmp_strength_247 == nil then
+            __lux_tmp_strength_247 = 1
           end
-          glowStrength = mathMax(0, __lux_tmp_strength_201)
+          glowStrength = mathMax(0, __lux_tmp_strength_247)
         end
         do
-          local __lux_tmp_falloff_202 = toNumber(innerSpec.falloff)
-          if __lux_tmp_falloff_202 == nil then
-            __lux_tmp_falloff_202 = 1.65
+          local __lux_tmp_falloff_248 = toNumber(innerSpec.falloff)
+          if __lux_tmp_falloff_248 == nil then
+            __lux_tmp_falloff_248 = 1.65
           end
-          glowFalloff = mathMax(0.001, __lux_tmp_falloff_202)
+          glowFalloff = mathMax(0.001, __lux_tmp_falloff_248)
         end
       end
       setupPrimitiveAuxConstants(
@@ -2901,14 +3090,14 @@ return function(__lux_import)
         0
       )
       do
-        local __lux_tmp_fill_203 = fill
-        if __lux_tmp_fill_203 == nil then
-          __lux_tmp_fill_203 = transparentFill
+        local __lux_tmp_fill_249 = fill
+        if __lux_tmp_fill_249 == nil then
+          __lux_tmp_fill_249 = transparentFill
         end
-        setupPrimitiveFillConstants(material, w, h, __lux_tmp_fill_203, stroke, strokeWidth, 0)
+        setupPrimitiveFillConstants(material, w, h, __lux_tmp_fill_249, stroke, strokeWidth, 0)
       end
       surfaceSetMaterial(material)
-      drawTexturedQuad(x, y, w, h)
+      drawTexturedQuad(x, y, w, h, material)
       return true
     end
     copyChamferStyleInto = function(out, source, fillOnly)
@@ -2916,11 +3105,11 @@ return function(__lux_import)
         out[key] = nil
       end
       do
-        local __lux_tmp_source_204 = source
-        if __lux_tmp_source_204 == nil then
-          __lux_tmp_source_204 = {}
+        local __lux_tmp_source_250 = source
+        if __lux_tmp_source_250 == nil then
+          __lux_tmp_source_250 = {}
         end
-        for key, value in pairs(__lux_tmp_source_204) do
+        for key, value in pairs(__lux_tmp_source_250) do
           out[key] = value
         end
       end
@@ -2956,12 +3145,9 @@ return function(__lux_import)
         end
       end
       local shadow = roundrect.shadowStyle(resolved.shadow)
-      if shadow ~= nil then
-        drawChamferShadowSpec(x, y, w, h, cuts, shadow)
-      end
       local outer = roundrect.outerGlowStyle(resolved.outerGlow)
-      if outer ~= nil then
-        drawChamferOuterGlowSpec(x, y, w, h, cuts, outer, true)
+      if shadow ~= nil or outer ~= nil then
+        drawChamferShadowOuterSpec(x, y, w, h, cuts, shadow, outer)
       end
       local backdrop = nil
       if resolved.backdrop ~= nil then
@@ -2969,11 +3155,11 @@ return function(__lux_import)
       end
       local fill
       do
-        local __lux_tmp_fill_205 = resolved.fill
-        if __lux_tmp_fill_205 == nil then
-          __lux_tmp_fill_205 = resolved.color
+        local __lux_tmp_fill_251 = resolved.fill
+        if __lux_tmp_fill_251 == nil then
+          __lux_tmp_fill_251 = resolved.color
         end
-        fill = style.fillFromStyle(__lux_tmp_fill_205)
+        fill = style.fillFromStyle(__lux_tmp_fill_251)
       end
       local strokeWidth = style.strokeWidthValue(resolved.strokeWidth, 0)
       local fillVisible = style.fillVisible(fill)
@@ -3018,7 +3204,10 @@ return function(__lux_import)
       end
       local transform, stripped = splitStyleTransform(resolved)
       local poly = normalizePoly(points)
-      if transform ~= nil and poly ~= nil then
+      if poly == nil then
+        return
+      end
+      if transform ~= nil then
         return withTransform(
           transform,
           poly.x,
@@ -3026,11 +3215,11 @@ return function(__lux_import)
           poly.w,
           poly.h,
           function()
-            return polyEx(points, stripped)
+            return drawPolyImmediateNormalized(points, stripped, poly)
           end
         )
       end
-      return drawPolyImmediate(points, stripped)
+      return drawPolyImmediateNormalized(points, stripped, poly)
     end
     poly = function(points, fill, stroke, strokeWidth)
       polyStyle.fill = fill
@@ -3063,27 +3252,27 @@ return function(__lux_import)
       local points = clearPoints(regularPolyScratch)
       local count
       do
-        local __lux_tmp_sides_206 = toNumber(sides)
-        if __lux_tmp_sides_206 == nil then
-          __lux_tmp_sides_206 = 3
+        local __lux_tmp_sides_252 = toNumber(sides)
+        if __lux_tmp_sides_252 == nil then
+          __lux_tmp_sides_252 = 3
         end
-        count = mathClamp(mathFloor(__lux_tmp_sides_206), 3, 8)
+        count = mathClamp(mathFloor(__lux_tmp_sides_252), 3, 8)
       end
       local r
       do
-        local __lux_tmp_radius_207 = toNumber(radius)
-        if __lux_tmp_radius_207 == nil then
-          __lux_tmp_radius_207 = 0
+        local __lux_tmp_radius_253 = toNumber(radius)
+        if __lux_tmp_radius_253 == nil then
+          __lux_tmp_radius_253 = 0
         end
-        r = mathMax(0, __lux_tmp_radius_207)
+        r = mathMax(0, __lux_tmp_radius_253)
       end
       local start
       do
-        local __lux_tmp_rotation_208 = toNumber(rotation)
-        if __lux_tmp_rotation_208 == nil then
-          __lux_tmp_rotation_208 = -90
+        local __lux_tmp_rotation_254 = toNumber(rotation)
+        if __lux_tmp_rotation_254 == nil then
+          __lux_tmp_rotation_254 = -90
         end
-        start = mathRad(__lux_tmp_rotation_208)
+        start = mathRad(__lux_tmp_rotation_254)
       end
       local step = mathRad(360 / count)
       for index = 1, count do
@@ -3101,20 +3290,20 @@ return function(__lux_import)
     end
     caretPoints = function(x, y, w, h, direction)
       do
-        local __lux_tmp_direction_209 = direction
-        if __lux_tmp_direction_209 == nil then
-          __lux_tmp_direction_209 = "right"
+        local __lux_tmp_direction_255 = direction
+        if __lux_tmp_direction_255 == nil then
+          __lux_tmp_direction_255 = "right"
         end
-        local __lux_match_210 = __lux_tmp_direction_209
-        if __lux_match_210 == "up" then
+        local __lux_match_256 = __lux_tmp_direction_255
+        if __lux_match_256 == "up" then
           setPoint(caretScratch, 1, x + w * 0.5, y)
           setPoint(caretScratch, 2, x + w, y + h)
           setPoint(caretScratch, 3, x, y + h)
-        elseif __lux_match_210 == "down" then
+        elseif __lux_match_256 == "down" then
           setPoint(caretScratch, 1, x, y)
           setPoint(caretScratch, 2, x + w, y)
           setPoint(caretScratch, 3, x + w * 0.5, y + h)
-        elseif __lux_match_210 == "left" then
+        elseif __lux_match_256 == "left" then
           setPoint(caretScratch, 1, x + w, y)
           setPoint(caretScratch, 2, x + w, y + h)
           setPoint(caretScratch, 3, x, y + h * 0.5)
@@ -3131,11 +3320,11 @@ return function(__lux_import)
       if resolved == nil then
         resolved = {}
       end
-      local __lux_tmp_rotation_211 = resolved.rotation
-      if __lux_tmp_rotation_211 == nil then
-        __lux_tmp_rotation_211 = resolved.angle
+      local __lux_tmp_rotation_257 = resolved.rotation
+      if __lux_tmp_rotation_257 == nil then
+        __lux_tmp_rotation_257 = resolved.angle
       end
-      return polyEx(regularPolyPoints(cx, cy, radius, sides, __lux_tmp_rotation_211), resolved)
+      return polyEx(regularPolyPoints(cx, cy, radius, sides, __lux_tmp_rotation_257), resolved)
     end
     regularPoly = function(cx, cy, radius, sides, rotation, fill, stroke, strokeWidth)
       regularPolyStyle.rotation = rotation
@@ -3158,11 +3347,11 @@ return function(__lux_import)
       if resolved == nil then
         resolved = {}
       end
-      local __lux_tmp_direction_212 = resolved.direction
-      if __lux_tmp_direction_212 == nil then
-        __lux_tmp_direction_212 = resolved.dir
+      local __lux_tmp_direction_258 = resolved.direction
+      if __lux_tmp_direction_258 == nil then
+        __lux_tmp_direction_258 = resolved.dir
       end
-      return polyEx(caretPoints(x, y, w, h, __lux_tmp_direction_212), resolved)
+      return polyEx(caretPoints(x, y, w, h, __lux_tmp_direction_258), resolved)
     end
     caret = function(x, y, w, h, direction, fill, stroke, strokeWidth)
       caretStyle.direction = direction
@@ -3223,6 +3412,7 @@ return function(__lux_import)
         chamferPoints = chamferPoints,
         growConvexPoly = growConvexPoly,
         normalizePoly = normalizePoly,
+        drawChamferBoxImmediate = drawChamferBoxImmediate,
         drawLineImmediate = drawLineImmediate,
       }
       return owner
@@ -3236,6 +3426,7 @@ return function(__lux_import)
   __lux_exports.drawLineImmediate = drawLineImmediate
   __lux_exports.lineEx = lineEx
   __lux_exports.line = line
+  __lux_exports.drawChamferBoxImmediate = drawChamferBoxImmediate
   __lux_exports.polyEx = polyEx
   __lux_exports.poly = poly
   __lux_exports.regularPolyEx = regularPolyEx

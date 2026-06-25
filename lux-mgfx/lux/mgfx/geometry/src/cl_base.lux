@@ -25,23 +25,32 @@ local errorFn = error
 local stats = {
   draws = 0
 }
+local geometryProfiler = nil
 
 enum TransformRoute repr number {
   PointerTilt = 1,
   Projected = 2
 }
 
-local quadVerts = {
-  { x = 0, y = 0, u = 0, v = 0 },
-  { x = 0, y = 0, u = 1, v = 0 },
-  { x = 0, y = 0, u = 1, v = 1 },
-  { x = 0, y = 0, u = 0, v = 1 }
-}
-
 local transformStack = {}
 local transformPolyScratch = { {}, {}, {}, {}, {}, {}, {}, {} }
 local transformQuadVerts = { {}, {}, {}, {} }
+local texturedRectUVCache = setmetatable({}, { __mode = "k" })
 local imageTintScratch = makeColor(255, 255, 255, 255)
+
+fn traceStart(name) {
+  if geometryProfiler ~= nil and geometryProfiler._TraceActive and geometryProfiler.TraceStart ~= nil {
+    return geometryProfiler.TraceStart(name)
+  }
+
+  nil
+}
+
+fn traceEnd(token) {
+  if token ~= nil and geometryProfiler ~= nil and geometryProfiler.TraceEnd ~= nil {
+    geometryProfiler.TraceEnd(token)
+  }
+}
 
 fn copyStyle(value) {
   if typeOf(value) == "table" {

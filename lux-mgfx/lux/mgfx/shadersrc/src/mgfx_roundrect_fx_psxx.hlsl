@@ -1,9 +1,9 @@
 #include "mgfx_roundrect_common.hlsl"
 
-#define INNER_GLOW_COLOR Constants0
-#define INNER_GLOW_WIDTH Constants1.x
-#define INNER_GLOW_STRENGTH Constants1.y
-#define INNER_GLOW_FALLOFF Constants1.z
+#define INNER_GLOW_COLOR AUX0
+#define INNER_GLOW_WIDTH AUX1.x
+#define INNER_GLOW_STRENGTH AUX1.y
+#define INNER_GLOW_FALLOFF AUX1.z
 
 float inner_glow_profile(float depth, float width, float falloff)
 {

@@ -1,27 +1,63 @@
-export client fn drawTexturedQuadUV(x, y, w, h, u0, v0, u1, v1) {
+fn materialUVCorrection(material) {
+  stopif material == nil or material.Width == nil or material.Height == nil, nil
+
+  local cached = texturedRectUVCache[material]
+  stopif cached ~= nil,
+    cached.du, cached.dv, cached.denomU, cached.denomV,
+    cached.fullU0, cached.fullV0, cached.fullU1, cached.fullV1
+
+  local mw = toNumber(material:Width()) ?? 0
+  local mh = toNumber(material:Height()) ?? 0
+  stopif mw <= 1 or mh <= 1, nil
+
+  local du = 0.5 / mw
+  local dv = 0.5 / mh
+  local denomU = 1 - 2 * du
+  local denomV = 1 - 2 * dv
+  cached = {
+    du = du,
+    dv = dv,
+    denomU = denomU,
+    denomV = denomV,
+    fullU0 = -du / denomU,
+    fullV0 = -dv / denomV,
+    fullU1 = (1 - du) / denomU,
+    fullV1 = (1 - dv) / denomV
+  }
+  texturedRectUVCache[material] = cached
+
+  return cached.du, cached.dv, cached.denomU, cached.denomV,
+    cached.fullU0, cached.fullV0, cached.fullU1, cached.fullV1
+}
+
+export client fn drawTexturedQuadUV(x, y, w, h, u0, v0, u1, v1, material = nil) {
+  local trace = traceStart("geometry.drawTexturedQuadUV")
   if not hasTransform() {
-    local verts = quadVerts
-    verts[1].x = x
-    verts[1].y = y
-    verts[1].u = u0
-    verts[1].v = v0
-    verts[2].x = x + w
-    verts[2].y = y
-    verts[2].u = u1
-    verts[2].v = v0
-    verts[3].x = x + w
-    verts[3].y = y + h
-    verts[3].u = u1
-    verts[3].v = v1
-    verts[4].x = x
-    verts[4].y = y + h
-    verts[4].u = u0
-    verts[4].v = v1
-    surfaceDrawPoly(verts)
+    local uvTrace = traceStart("geometry.materialUVCorrection")
+    local du, dv, denomU, denomV = materialUVCorrection(material)
+    traceEnd(uvTrace)
+    if du ~= nil {
+      local surfaceTrace = traceStart("surface.DrawTexturedRectUV")
+      surfaceDrawTexturedRectUV(
+        x, y, w, h,
+        (u0 - du) / denomU, (v0 - dv) / denomV,
+        (u1 - du) / denomU, (v1 - dv) / denomV
+      )
+      traceEnd(surfaceTrace)
+      stats.draws = (stats.draws ?? 0) + 1
+      traceEnd(trace)
+      return
+    }
+
+    local surfaceTrace = traceStart("surface.DrawTexturedRectUV")
+    surfaceDrawTexturedRectUV(x, y, w, h, u0, v0, u1, v1)
+    traceEnd(surfaceTrace)
     stats.draws = (stats.draws ?? 0) + 1
+    traceEnd(trace)
     return
   }
 
+  local transformTrace = traceStart("geometry.transformedGrid")
   local steps = transformNeedsGrid() then transformSteps() else 1
   local draws = 0
   for gy = 0, steps - 1 {
@@ -45,11 +81,31 @@ export client fn drawTexturedQuadUV(x, y, w, h, u0, v0, u1, v1) {
     }
   }
 
+  traceEnd(transformTrace)
   stats.draws = (stats.draws ?? 0) + draws
+  traceEnd(trace)
 }
 
-export client fn drawTexturedQuad(x, y, w, h) =
-  drawTexturedQuadUV(x, y, w, h, 0, 0, 1, 1)
+export client fn drawTexturedQuad(x, y, w, h, material = nil) {
+  if hasTransform() {
+    drawTexturedQuadUV(x, y, w, h, 0, 0, 1, 1, material)
+    return
+  }
+
+  -- Most MGFX shader passes draw a full-material quad. Keep this path direct
+  -- so the hot renderer does not pay the generic UV wrapper cost.
+  local du, unusedDv, unusedDenomU, unusedDenomV, fullU0, fullV0, fullU1, fullV1 = materialUVCorrection(material)
+  if du ~= nil {
+    surfaceDrawTexturedRectUV(
+      x, y, w, h,
+      fullU0, fullV0,
+      fullU1, fullV1
+    )
+  } else {
+    surfaceDrawTexturedRectUV(x, y, w, h, 0, 0, 1, 1)
+  }
+  stats.draws = (stats.draws ?? 0) + 1
+}
 
 export client fn drawCreatedMaterialTexturedRectUV(x, y, w, h, u0, v0, u1, v1) {
   local du = 0.5 / 32

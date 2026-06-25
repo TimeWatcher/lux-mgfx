@@ -35,11 +35,14 @@ local hasTransform = geometry.hasTransform
 local isCulled = frame.isCulled
 local splitStyleTransform = geometry.splitStyleTransform
 local withTransform = geometry.withTransform
+local beginPanelEffectBleed = frame.beginPanelEffectBleed
+local endPanelEffectBleed = frame.endPanelEffectBleed
 local withPanelEffectBleed = frame.withPanelEffectBleed
 
 local paramMatrixProbe = matrixCtor ~= nil then matrixCtor() else nil
 local paramMatrixSetUnpacked = paramMatrixProbe?.SetUnpacked
 local paramMatrices = {}
+local auxParamMatrices = {}
 local primitiveMaterials = {}
 local primitiveBlurRT = nil
 local primitiveMatOK = (material) => material ~= nil and material.IsError ~= nil and not material:IsError()
@@ -47,6 +50,12 @@ local primitiveHasShaders = () => false
 local forceFallbackCvar = nil
 local lineVertsScratch = { {}, {}, {}, {} }
 local lineFallbackVertsScratch = { {}, {}, {}, {} }
+local lineRoundRectStyle = { radius = 0 }
+local linePolyStyle = {}
+local linePolyPointsScratch = { {}, {}, {}, {} }
+local polyLineStrokeStyle = { noCaps = true }
+local polyFallbackLineStyle = { noCaps = true }
+local polyDrawRectScratch = {}
 local chamferStyle = {}
 local lineStyle = {}
 local polyStyle = {}

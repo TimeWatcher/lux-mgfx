@@ -1,14 +1,71 @@
 local createClientConVar = CreateClientConVar
 local sysTime = SysTime
 local mathMax = math.max
-local tableCopy = table.Copy
+local tableConcat = table.concat
 local tableEmpty = table.Empty
+local tableRemove = table.remove
 local tableSort = table.sort
 local stringFormat = string.format
+local stringMatch = string.match
 local toBool = tobool
+local toNumber = tonumber
 local toString = tostring
 local typeOf = type
 local cvarsLib = cvars
+local debugLib = debug
+local globalTable = _G
+local stringSub = string.sub
+local frameNumber = FrameNumber
+
+local RECENT_SCOPE_LIMIT = 96
+
+local scalarStatKeys = {
+  "draws",
+  "blurPasses",
+  "fallbacks",
+  "culled",
+  "gradientLutFillHits",
+  "textQueuedBatches",
+  "textQueuedRecords",
+  "textDraws",
+  "textNativeDraws",
+  "textShaderDraws",
+  "textComposedDraws",
+  "textComposedBatchDraws",
+  "textComposedBatchedRecords",
+  "textComposedFaceDraws",
+  "textComposedFxDraws",
+  "textComposedBakes",
+  "textComposedBlits",
+  "textComposedRequests",
+  "textComposedBatches",
+  "textComposedReadyBatches",
+  "textComposedFallbackBatches",
+  "textComposedFallbackRecords",
+  "textComposedPrewarmFails",
+  "textComposedPrewarmRestarts",
+  "textFallbacks",
+  "textDataDraws",
+  "textDataBatches",
+  "textAtlasUploads",
+  "textAtlasGlyphs",
+  "textAtlasResets"
+}
+
+local tableStatKeys = {
+  "drawCommandCounts",
+  "drawImmediateCounts",
+  "profileTimes",
+  "profileCounts",
+  "textProfileTimes",
+  "textProfileCounts"
+}
+
+local broadProfileLabels = {
+  frame = true,
+  paintBuild = true,
+  paintTotal = true
+}
 
 fn makeConVar(name, defaultValue, help) {
   if createClientConVar == nil {
@@ -18,19 +75,296 @@ fn makeConVar(name, defaultValue, help) {
   createClientConVar(name, defaultValue, true, false, help)
 }
 
+fn clearTable(items) {
+  if items == nil {
+    return
+  }
+
+  if tableEmpty ~= nil {
+    tableEmpty(items)
+    return
+  }
+
+  for key, _ in pairs(items) {
+    items[key] = nil
+  }
+}
+
+fn copyCounts(source = nil) {
+  local out = {}
+  for key, value in pairs(source ?? {}) {
+    out[key] = toNumber(value) ?? 0
+  }
+  out
+}
+
+fn addCountsInto(out, source = nil) {
+  for key, value in pairs(source ?? {}) {
+    out[key] = (out[key] ?? 0) + (toNumber(value) ?? 0)
+  }
+}
+
+fn copyScalarStats(source = nil) {
+  local out = {}
+  for index = 1, #scalarStatKeys {
+    local key = scalarStatKeys[index]
+    out[key] = toNumber(source?.[key]) ?? 0
+  }
+  out
+}
+
+fn snapshotStats(target) {
+  local stats = target.stats ?? {}
+  local out = {}
+
+  for index = 1, #scalarStatKeys {
+    local key = scalarStatKeys[index]
+    out[key] = toNumber(stats[key]) ?? 0
+  }
+
+  for index = 1, #tableStatKeys {
+    local key = tableStatKeys[index]
+    out[key] = copyCounts(stats[key])
+  }
+
+  out
+}
+
+fn diffCounts(after = nil, before = nil) {
+  local out = {}
+  local total = 0
+
+  for key, value in pairs(after ?? {}) {
+    local delta = (toNumber(value) ?? 0) - (toNumber(before?.[key]) ?? 0)
+    if delta ~= 0 {
+      out[key] = delta
+      total += delta
+    }
+  }
+
+  for key, value in pairs(before ?? {}) {
+    if after == nil or after[key] == nil {
+      local delta = -(toNumber(value) ?? 0)
+      if delta ~= 0 {
+        out[key] = delta
+        total += delta
+      }
+    }
+  }
+
+  return out, total
+}
+
+fn diffStats(target, startedStats) {
+  local now = snapshotStats(target)
+  local out = {}
+
+  for index = 1, #scalarStatKeys {
+    local key = scalarStatKeys[index]
+    out[key] = (now[key] ?? 0) - (startedStats?.[key] ?? 0)
+  }
+
+  for index = 1, #tableStatKeys {
+    local key = tableStatKeys[index]
+    out[key] = diffCounts(now[key], startedStats?.[key])
+  }
+
+  out
+}
+
+fn sumCounts(source = nil) {
+  local total = 0
+  for _, value in pairs(source ?? {}) {
+    total += toNumber(value) ?? 0
+  }
+  total
+}
+
+fn topRowsFromCounts(times = nil, counts = nil, limit = 6, prefix = nil, omitBroad = false) {
+  local rows = {}
+  for name, ms in pairs(times ?? {}) {
+    local include = prefix == nil or stringSub(toString(name), 1, #prefix) == prefix
+    if include and (not omitBroad or broadProfileLabels[name] ~= true) {
+      rows[#rows + 1] = {
+        name = name,
+        last = ms ?? 0,
+        avg = ms ?? 0,
+        max = ms ?? 0,
+        count = counts?.[name] ?? 0,
+        avgCount = counts?.[name] ?? 0
+      }
+    }
+  }
+
+  tableSort(rows, (a, b) => (a.avg ?? a.last ?? 0) == (b.avg ?? b.last ?? 0) then a.name < b.name else (a.avg ?? a.last ?? 0) > (b.avg ?? b.last ?? 0))
+  limit = mathMax(1, toNumber(limit) ?? 6)
+  while #rows > limit {
+    rows[#rows] = nil
+  }
+  rows
+}
+
+fn topRowsFromBuckets(store = nil, limit = 6, prefix = nil, omitBroad = false) {
+  local rows = {}
+  for key, bucket in pairs(store ?? {}) {
+    local name = bucket.meta?.name ?? key
+    local include = prefix == nil or stringSub(toString(name), 1, #prefix) == prefix
+    if include and (not omitBroad or broadProfileLabels[name] ~= true) {
+      local n = bucket.n > 0 then bucket.n else 1
+      rows[#rows + 1] = {
+        name = name,
+        last = bucket.last ?? 0,
+        avg = (bucket.sum ?? 0) / n,
+        max = bucket.max ?? 0,
+        count = bucket.lastCount ?? 0,
+        avgCount = (bucket.countSum ?? 0) / n,
+        samples = bucket.n ?? 0
+      }
+    }
+  }
+
+  tableSort(rows, (a, b) => a.avg == b.avg then a.name < b.name else a.avg > b.avg)
+  limit = mathMax(1, toNumber(limit) ?? 6)
+  while #rows > limit {
+    rows[#rows] = nil
+  }
+  rows
+}
+
+fn formatCallsite(callsite = nil) {
+  if callsite == nil {
+    return "unknown"
+  }
+
+  local source = callsite.short_src ?? callsite.source ?? callsite.file ?? "?"
+  local line = callsite.currentline ?? callsite.line ?? 0
+  local name = callsite.name
+  if name ~= nil and name ~= "" {
+    return toString(source) .. ":" .. toString(line) .. " " .. toString(name)
+  }
+
+  toString(source) .. ":" .. toString(line)
+}
+
+fn panelLabel(panel = nil, kind = nil) {
+  if kind == "screen" or panel == nil {
+    return "screen"
+  }
+
+  local className = panel.GetClassName ~= nil then panel:GetClassName() else nil
+  local panelName = panel.GetName ~= nil then panel:GetName() else nil
+  local parts = {}
+  if className ~= nil and className ~= "" {
+    parts[#parts + 1] = className
+  }
+  if panelName ~= nil and panelName ~= "" and panelName ~= className {
+    parts[#parts + 1] = panelName
+  }
+  parts[#parts + 1] = toString(panel)
+  tableConcat(parts, " ")
+}
+
+fn scopeKey(kind = "frame", subject = nil, info = nil) {
+  kind = toString(kind ?? "frame")
+  if subject ~= nil {
+    return kind .. ":" .. toString(subject)
+  }
+
+  local callsite = info?.callsite
+  if callsite ~= nil {
+    return kind .. ":" .. formatCallsite(callsite)
+  }
+
+  kind .. ":unknown"
+}
+
+fn scopeRowFromBucket(key, bucket) {
+  local meta = bucket.meta ?? {}
+  local n = bucket.n > 0 then bucket.n else 1
+  local stats = meta.stats ?? {}
+  {
+    key = key,
+    name = meta.name ?? key,
+    kind = meta.kind ?? "frame",
+    callsite = meta.callsiteText ?? "unknown",
+    last = bucket.last ?? 0,
+    avg = (bucket.sum ?? 0) / n,
+    max = bucket.max ?? 0,
+    count = bucket.lastCount ?? 0,
+    avgCount = (bucket.countSum ?? 0) / n,
+    samples = bucket.n ?? 0,
+    stats = stats,
+    profileTimes = meta.profileTimes ?? {},
+    profileCounts = meta.profileCounts ?? {},
+    profileTop = meta.profileTop ?? {},
+    commandCounts = stats.drawCommandCounts ?? {},
+    immediateCounts = stats.drawImmediateCounts ?? {}
+  }
+}
+
+fn sourceInstanceName(target, instanceId) {
+  local explicit = target?._ProfilerName ?? target?._LuxRuntimeBase
+  if explicit ~= nil {
+    return toString(explicit)
+  }
+
+  if debugLib ~= nil and debugLib.getinfo ~= nil and stringMatch ~= nil {
+    local info = debugLib.getinfo(create, "S")
+    local source = info?.source ?? info?.short_src
+    if source ~= nil {
+      local addon = stringMatch(source, "lux/([^/]+)/client/runtime/lux/mgfx/profiler%.lua")
+      if addon ~= nil {
+        return "lux/" .. addon
+      }
+      if stringMatch(source, "mgfx/client/runtime/lux/mgfx/profiler%.lua") ~= nil {
+        return "lux/mgfx"
+      }
+    }
+  }
+
+  "instance " .. toString(instanceId)
+}
+
 export client fn create(owner = nil, options = nil) {
   local target = owner ?? {}
   local enabledConVar = options?.enabledConVar ?? makeConVar("mgfx_profile", "0", "MGFX: enable renderer profiler.")
   local windowConVar = options?.windowConVar ?? makeConVar("mgfx_profile_window", "120", "MGFX: rolling profiler sample window.")
   local topConVar = options?.topConVar ?? makeConVar("mgfx_profile_top", "18", "MGFX: number of profiler rows printed by mgfx_profile_status.")
   local rolling = {}
+  local scopeRolling = {}
+  local recentScopes = {}
+  local instanceRolling = {}
+  local instanceProfileRolling = {}
+  local instanceCommandRolling = {}
+  local instanceImmediateRolling = {}
+  local instanceCurrent = nil
   local frameIndex = 0
   local active = false
+  local traceRoot = nil
+  local traceStack = nil
+  local currentScope = nil
   local wrappedOriginals = {}
   local wrappersInstalled = false
   local wrappedOwner = nil
   local wrappedNames = nil
   local wrappedSuppress = nil
+  local globalMGFX = globalTable.MGFX ?? {}
+  globalTable.MGFX = globalMGFX
+  local registry = globalMGFX._ProfilerRegistry ?? { items = {}, nextId = 0 }
+  globalMGFX._ProfilerRegistry = registry
+  registry.items = registry.items ?? {}
+  for id, item in pairs(registry.items) {
+    if item.owner == target {
+      if item.callbackId ~= nil and cvarsLib ~= nil and cvarsLib.RemoveChangeCallback ~= nil {
+        cvarsLib.RemoveChangeCallback("mgfx_profile", item.callbackId)
+      }
+      registry.items[id] = nil
+    }
+  }
+  registry.nextId = (registry.nextId ?? 0) + 1
+  local instanceId = registry.nextId
+  local instanceName = sourceInstanceName(target, instanceId)
+  local callbackId = "MGFXProfileApiWrappers" .. toString(instanceId)
 
   local api = {}
 
@@ -38,15 +372,342 @@ export client fn create(owner = nil, options = nil) {
   local windowSize = () => mathMax(1, windowConVar ~= nil and windowConVar.GetInt ~= nil and windowConVar:GetInt() or 120)
   local topLimit = () => mathMax(1, topConVar ~= nil and topConVar.GetInt ~= nil and topConVar:GetInt() or 18)
 
-  api.BeginFrame = () => {
+  local newTraceNode = (name) => {
+    name = toString(name ?? "unknown")
+    {
+      name = name,
+      total = 0,
+      self = 0,
+      childTotal = 0,
+      count = 0,
+      max = 0,
+      selfMax = 0,
+      children = {},
+      childMap = {}
+    }
+  }
+
+  local traceChild = (parent, name) => {
+    local key = toString(name ?? "unknown")
+    local node = parent.childMap[key]
+    if node ~= nil {
+      return node
+    }
+
+    node = newTraceNode(key)
+    parent.childMap[key] = node
+    parent.children[#parent.children + 1] = node
+    node
+  }
+
+  local copyTraceNode
+  copyTraceNode = (node) => {
+    if node == nil {
+      return nil
+    }
+
+    local out = {
+      name = node.name,
+      total = node.total ?? 0,
+      self = node.self ?? 0,
+      childTotal = node.childTotal ?? 0,
+      count = node.count ?? 0,
+      max = node.max ?? 0,
+      selfMax = node.selfMax ?? 0,
+      children = {}
+    }
+    for index = 1, #(node.children ?? {}) {
+      out.children[index] = copyTraceNode(node.children[index])
+    }
+    out
+  }
+
+  local finishTraceSpan = (token) => {
+    local elapsed = (sysTime() - token.started) * 1000
+    local selfElapsed = elapsed - (token.childElapsed ?? 0)
+    if selfElapsed < 0 {
+      selfElapsed = 0
+    }
+    local node = token.node
+    node.total = (node.total ?? 0) + elapsed
+    node.self = (node.self ?? 0) + selfElapsed
+    node.childTotal = (node.childTotal ?? 0) + (token.childElapsed ?? 0)
+    node.count = (node.count ?? 0) + 1
+    if elapsed > (node.max ?? 0) {
+      node.max = elapsed
+    }
+    if selfElapsed > (node.selfMax ?? 0) {
+      node.selfMax = selfElapsed
+    }
+    elapsed
+  }
+
+  local rollBucket = (store, key, ms, count = 0, meta = nil) => {
+    local window = windowSize()
+    local bucket = store[key]
+    if bucket == nil {
+      bucket = { samples = {}, counts = {}, index = 1, n = 0, sum = 0, countSum = 0, max = 0, last = 0, lastCount = 0 }
+      store[key] = bucket
+    }
+
+    local index = bucket.index
+    local oldMs = bucket.samples[index] ?? 0
+    if bucket.n == window {
+      bucket.sum -= oldMs
+      bucket.countSum -= bucket.counts[index] ?? 0
+    } else {
+      bucket.n += 1
+    }
+
+    count = count ?? 0
+    bucket.samples[index] = ms
+    bucket.counts[index] = count
+    bucket.sum += ms
+    bucket.countSum += count
+    bucket.last = ms
+    bucket.lastCount = count
+    if ms >= (bucket.max ?? 0) {
+      bucket.max = ms
+    } else if oldMs >= (bucket.max ?? 0) {
+      local maxValue = 0
+      for sampleIndex = 1, bucket.n {
+        local sample = bucket.samples[sampleIndex] ?? 0
+        if sample > maxValue {
+          maxValue = sample
+        }
+      }
+      bucket.max = maxValue
+    }
+    bucket.index = (index % window) + 1
+    bucket.frame = frameIndex
+    bucket.meta = meta
+    bucket
+  }
+
+  local rollSeries = (store, values = nil, counts = nil) => {
+    for key, _ in pairs(store) {
+      if values == nil or values[key] == nil {
+        rollBucket(store, key, 0, 0, { name = key })
+      }
+    }
+    for key, value in pairs(values ?? {}) {
+      rollBucket(store, key, toNumber(value) ?? 0, counts?.[key] ?? value ?? 0, { name = key })
+    }
+  }
+
+  local clearInstanceCurrent = () => {
+    instanceCurrent = nil
+  }
+
+  local rollInstanceFrame = () => {
+    local aggregate = instanceCurrent
+    if aggregate == nil or (aggregate.scopes ?? 0) <= 0 {
+      return
+    }
+
+    local stats = copyScalarStats(aggregate.stats)
+    stats.drawCommandCounts = copyCounts(aggregate.commandCounts)
+    stats.drawImmediateCounts = copyCounts(aggregate.immediateCounts)
+    rollBucket(instanceRolling, "runtime", aggregate.elapsed ?? 0, aggregate.scopes ?? 0, {
+      name = "[" .. instanceName .. "] total",
+      stats = stats,
+      profileTimes = copyCounts(aggregate.profileTimes),
+      profileCounts = copyCounts(aggregate.profileCounts)
+    })
+    rollSeries(instanceProfileRolling, aggregate.profileTimes, aggregate.profileCounts)
+    rollSeries(instanceCommandRolling, aggregate.commandCounts, aggregate.commandCounts)
+    rollSeries(instanceImmediateRolling, aggregate.immediateCounts, aggregate.immediateCounts)
+  }
+
+  local currentEngineFrame = () =>
+    frameNumber ~= nil then frameNumber() else frameIndex
+
+  local ensureInstanceAggregate = () => {
+    local engineFrame = currentEngineFrame()
+    if instanceCurrent ~= nil and instanceCurrent.frame ~= engineFrame {
+      rollInstanceFrame()
+      clearInstanceCurrent()
+    }
+    if instanceCurrent == nil {
+      instanceCurrent = {
+        frame = engineFrame,
+        elapsed = 0,
+        scopes = 0,
+        stats = {},
+        profileTimes = {},
+        profileCounts = {},
+        commandCounts = {},
+        immediateCounts = {}
+      }
+    }
+    instanceCurrent
+  }
+
+  local accumulateInstanceScope = (elapsedMs, stats, profileTimes, profileCounts) => {
+    local aggregate = ensureInstanceAggregate()
+    aggregate.elapsed = (aggregate.elapsed ?? 0) + (elapsedMs ?? 0)
+    aggregate.scopes = (aggregate.scopes ?? 0) + 1
+    for index = 1, #scalarStatKeys {
+      local key = scalarStatKeys[index]
+      aggregate.stats[key] = (aggregate.stats[key] ?? 0) + (toNumber(stats?.[key]) ?? 0)
+    }
+    addCountsInto(aggregate.profileTimes, profileTimes)
+    addCountsInto(aggregate.profileCounts, profileCounts)
+    addCountsInto(aggregate.commandCounts, stats?.drawCommandCounts)
+    addCountsInto(aggregate.immediateCounts, stats?.drawImmediateCounts)
+  }
+
+  local finishScope = (scope) => {
+    if scope == nil {
+      return
+    }
+
+    local elapsedMs = (sysTime() - scope.started) * 1000
+    local stats = diffStats(target, scope.startStats)
+    local profileTimes = copyCounts(stats.profileTimes)
+    local profileCounts = copyCounts(stats.profileCounts)
+    accumulateInstanceScope(elapsedMs, stats, profileTimes, profileCounts)
+    local meta = {
+      name = scope.name,
+      kind = scope.kind,
+      callsiteText = scope.callsiteText,
+      stats = stats,
+      profileTimes = profileTimes,
+      profileCounts = profileCounts,
+      profileTop = topRowsFromCounts(profileTimes, profileCounts, 6)
+    }
+    rollBucket(scopeRolling, scope.key, elapsedMs, 1, meta)
+
+    recentScopes[#recentScopes + 1] = {
+      key = scope.key,
+      name = "[" .. instanceName .. "] " .. scope.name,
+      localName = scope.name,
+      instance = instanceName,
+      instanceId = instanceId,
+      kind = scope.kind,
+      callsite = scope.callsiteText,
+      last = elapsedMs,
+      stats = stats,
+      profileTimes = profileTimes,
+      profileCounts = profileCounts,
+      profileTop = meta.profileTop,
+      frame = frameIndex
+    }
+    while #recentScopes > RECENT_SCOPE_LIMIT {
+      if tableRemove ~= nil {
+        tableRemove(recentScopes, 1)
+      } else {
+        for index = 1, #recentScopes - 1 {
+          recentScopes[index] = recentScopes[index + 1]
+        }
+        recentScopes[#recentScopes] = nil
+      }
+    }
+  }
+
+  api.IsEnabled = () =>
+    isEnabled()
+
+  api.InstanceId = () =>
+    instanceId
+
+  api.InstanceName = () =>
+    instanceName
+
+  api.BeginFrame = (kind = "frame", subject = nil, info = nil) => {
     active = isEnabled()
+    currentScope = nil
     if active {
       frameIndex += 1
+      info = info ?? {}
+      local scopeKind = toString(kind ?? "frame")
+      currentScope = {
+        key = scopeKey(scopeKind, subject, info),
+        kind = scopeKind,
+        name = info.label ?? panelLabel(subject, scopeKind),
+        callsiteText = formatCallsite(info.callsite),
+        started = sysTime(),
+        startStats = snapshotStats(target)
+      }
     }
     active
   }
 
   api.IsActive = () => active
+
+  api._TraceActive = false
+
+  api.BeginTrace = (name = "trace") => {
+    if api._TraceActive {
+      error("MGFX trace already active")
+    }
+    traceRoot = newTraceNode(name)
+    traceStack = {
+      {
+        node = traceRoot,
+        started = sysTime(),
+        childElapsed = 0
+      }
+    }
+    api._TraceActive = true
+    traceRoot
+  }
+
+  api.TraceActive = () =>
+    api._TraceActive
+
+  api.TraceStart = (name) => {
+    if not api._TraceActive or traceStack == nil {
+      return nil
+    }
+    local parent = traceStack[#traceStack]
+    if parent == nil {
+      return nil
+    }
+
+    local token = {
+      node = traceChild(parent.node, name),
+      started = sysTime(),
+      childElapsed = 0
+    }
+    traceStack[#traceStack + 1] = token
+    token
+  }
+
+  api.TraceEnd = (token) => {
+    if token == nil {
+      return
+    }
+    if not api._TraceActive or traceStack == nil {
+      error("MGFX trace span ended with no active trace")
+    }
+    local top = traceStack[#traceStack]
+    if top ~= token {
+      error("MGFX trace span stack mismatch")
+    }
+    local elapsed = finishTraceSpan(token)
+    traceStack[#traceStack] = nil
+    local parent = traceStack[#traceStack]
+    if parent ~= nil {
+      parent.childElapsed = (parent.childElapsed ?? 0) + elapsed
+    }
+  }
+
+  api.EndTrace = () => {
+    if not api._TraceActive {
+      return nil
+    }
+    if traceStack == nil or #traceStack ~= 1 {
+      error("MGFX trace ended with unclosed spans")
+    }
+    local rootToken = traceStack[1]
+    finishTraceSpan(rootToken)
+    local out = copyTraceNode(traceRoot)
+    api._TraceActive = false
+    traceRoot = nil
+    traceStack = nil
+    out
+  }
 
   api.Start = () => active then sysTime() else nil
 
@@ -74,57 +735,30 @@ export client fn create(owner = nil, options = nil) {
       return
     }
 
-    local window = windowSize()
+    finishScope(currentScope)
+    currentScope = nil
     for name, ms in pairs(target.stats?.profileTimes ?? {}) {
-      local bucket = rolling[name]
-      if bucket == nil {
-        bucket = { samples = {}, counts = {}, index = 1, n = 0, sum = 0, countSum = 0, max = 0, last = 0, lastCount = 0 }
-        rolling[name] = bucket
-      }
-
-      local index = bucket.index
-      local oldMs = bucket.samples[index] ?? 0
-      if bucket.n == window {
-        bucket.sum = bucket.sum - oldMs
-        bucket.countSum = bucket.countSum - (bucket.counts[index] ?? 0)
-      } else {
-        bucket.n += 1
-      }
-
       local counts = target.stats?.profileCounts
       local sampleCount = counts ~= nil then (counts[name] ?? 0) else 0
-      bucket.samples[index] = ms
-      bucket.counts[index] = sampleCount
-      bucket.sum += ms
-      bucket.countSum += sampleCount
-      bucket.last = ms
-      bucket.lastCount = sampleCount
-      if ms >= (bucket.max ?? 0) {
-        bucket.max = ms
-      } else if oldMs >= (bucket.max ?? 0) {
-        local maxValue = 0
-        for sampleIndex = 1, bucket.n {
-          local sample = bucket.samples[sampleIndex] ?? 0
-          if sample > maxValue {
-            maxValue = sample
-          }
-        }
-        bucket.max = maxValue
-      }
-      bucket.index = (index % window) + 1
-      bucket.frame = frameIndex
+      rollBucket(rolling, name, ms, sampleCount, { name = name })
     }
+    active = false
   }
 
   api.Reset = () => {
-    if tableEmpty ~= nil {
-      tableEmpty(rolling)
-    } else {
-      for key, _ in pairs(rolling) {
-        rolling[key] = nil
-      }
-    }
+    clearTable(rolling)
+    clearTable(scopeRolling)
+    clearTable(recentScopes)
+    clearTable(instanceRolling)
+    clearTable(instanceProfileRolling)
+    clearTable(instanceCommandRolling)
+    clearTable(instanceImmediateRolling)
+    clearInstanceCurrent()
     frameIndex = 0
+    currentScope = nil
+    traceRoot = nil
+    traceStack = nil
+    api._TraceActive = false
   }
 
   api.Snapshot = (limit = nil) => {
@@ -133,13 +767,16 @@ export client fn create(owner = nil, options = nil) {
     for name, bucket in pairs(rolling) {
       local n = bucket.n > 0 then bucket.n else 1
       rows[#rows + 1] = {
-        name = name,
-          last = bucket.last ?? 0,
-          avg = (bucket.sum ?? 0) / n,
-          max = bucket.max ?? 0,
-          count = bucket.lastCount ?? 0,
-          avgCount = (bucket.countSum ?? 0) / n,
-          samples = bucket.n ?? 0
+        name = "[" .. instanceName .. "] " .. name,
+        localName = name,
+        instance = instanceName,
+        instanceId = instanceId,
+        last = bucket.last ?? 0,
+        avg = (bucket.sum ?? 0) / n,
+        max = bucket.max ?? 0,
+        count = bucket.lastCount ?? 0,
+        avgCount = (bucket.countSum ?? 0) / n,
+        samples = bucket.n ?? 0
       }
     }
 
@@ -150,17 +787,49 @@ export client fn create(owner = nil, options = nil) {
     rows
   }
 
+  api.ScopeRows = (limit = nil) => {
+    limit = limit ?? topLimit()
+    local rows = {}
+    for key, bucket in pairs(scopeRolling) {
+      local row = scopeRowFromBucket(key, bucket)
+      row.localName = row.name
+      row.instance = instanceName
+      row.instanceId = instanceId
+      row.name = "[" .. instanceName .. "] " .. row.name
+      rows[#rows + 1] = row
+    }
+
+    tableSort(rows, (a, b) => a.avg == b.avg then a.last > b.last else a.avg > b.avg)
+    while #rows > limit {
+      rows[#rows] = nil
+    }
+    rows
+  }
+
+  api.RecentScopes = (limit = nil) => {
+    limit = limit ?? topLimit()
+    local rows = {}
+    local first = mathMax(1, #recentScopes - limit + 1)
+    for index = #recentScopes, first, -1 {
+      rows[#rows + 1] = recentScopes[index]
+    }
+    rows
+  }
+
   api.CurrentRows = (limit = nil) => {
     limit = limit ?? topLimit()
     local rows = {}
     for name, ms in pairs(target.stats?.profileTimes ?? {}) {
       rows[#rows + 1] = {
-        name = name,
-          last = ms ?? 0,
-          count = do {
-            local counts = target.stats?.profileCounts
-            counts ~= nil then (counts[name] ?? 0) else 0
-          }
+        name = "[" .. instanceName .. "] " .. name,
+        localName = name,
+        instance = instanceName,
+        instanceId = instanceId,
+        last = ms ?? 0,
+        count = do {
+          local counts = target.stats?.profileCounts
+          counts ~= nil then (counts[name] ?? 0) else 0
+        }
       }
     }
 
@@ -169,6 +838,55 @@ export client fn create(owner = nil, options = nil) {
       rows[#rows] = nil
     }
     rows
+  }
+
+  api.InstanceRows = (limit = nil) => {
+    limit = limit ?? topLimit()
+    if instanceCurrent ~= nil and instanceCurrent.frame ~= currentEngineFrame() {
+      rollInstanceFrame()
+      clearInstanceCurrent()
+    }
+    local bucket = instanceRolling.runtime
+    local current = instanceCurrent
+    if bucket == nil and current == nil {
+      return {}
+    }
+
+    local n = bucket ~= nil and bucket.n > 0 then bucket.n else 1
+    local meta = bucket?.meta ?? {}
+    local rowStats = current ~= nil then current.stats else meta.stats ?? {}
+    local row = {
+      name = "[" .. instanceName .. "] total",
+      localName = "total",
+      instance = instanceName,
+      instanceId = instanceId,
+      last = current ~= nil then current.elapsed else bucket?.last ?? 0,
+      avg = bucket ~= nil then ((bucket.sum ?? 0) / n) else current?.elapsed ?? 0,
+      max = bucket ~= nil then (bucket.max ?? 0) else current?.elapsed ?? 0,
+      count = current ~= nil then current.scopes else bucket?.lastCount ?? 0,
+      avgCount = bucket ~= nil then ((bucket.countSum ?? 0) / n) else current?.scopes ?? 0,
+      samples = bucket?.n ?? 0,
+      stats = rowStats,
+      profileTop = topRowsFromBuckets(instanceProfileRolling, limit, nil, true),
+      apiTop = topRowsFromBuckets(instanceProfileRolling, limit, "api.", false),
+      commandTop = topRowsFromBuckets(instanceCommandRolling, limit),
+      immediateTop = topRowsFromBuckets(instanceImmediateRolling, limit)
+    }
+
+    if #row.profileTop == 0 and current ~= nil {
+      row.profileTop = topRowsFromCounts(current.profileTimes, current.profileCounts, limit, nil, true)
+    }
+    if #row.apiTop == 0 and current ~= nil {
+      row.apiTop = topRowsFromCounts(current.profileTimes, current.profileCounts, limit, "api.", false)
+    }
+    if #row.commandTop == 0 and current ~= nil {
+      row.commandTop = topRowsFromCounts(current.commandCounts, current.commandCounts, limit)
+    }
+    if #row.immediateTop == 0 and current ~= nil {
+      row.immediateTop = topRowsFromCounts(current.immediateCounts, current.immediateCounts, limit)
+    }
+
+    { row }
   }
 
   api.FormatRows = (rows, rollingRows = false) => {
@@ -184,8 +902,93 @@ export client fn create(owner = nil, options = nil) {
     out
   }
 
+  api.FormatScopeRows = (rows, includeBreakdown = false) => {
+    local out = {}
+    for _, row in ipairs(rows ?? {}) {
+      local stats = row.stats ?? {}
+      out[#out + 1] = stringFormat("%s last=%.3f avg=%.3f max=%.3f draws=%d blur=%d text=%d shaderText=%d bakes=%d fallbacks=%d samples=%d call=%s",
+        row.name ?? row.key ?? "scope",
+        row.last ?? 0,
+        row.avg ?? row.last ?? 0,
+        row.max ?? row.last ?? 0,
+        stats.draws ?? 0,
+        stats.blurPasses ?? 0,
+        stats.textDraws ?? 0,
+        stats.textShaderDraws ?? 0,
+        stats.textComposedBakes ?? 0,
+        stats.fallbacks ?? 0,
+        row.samples ?? 1,
+        row.callsite ?? "unknown")
+
+      if includeBreakdown {
+        local top = row.profileTop ?? topRowsFromCounts(row.profileTimes, row.profileCounts, 5)
+        if #top > 0 {
+          local parts = {}
+          for index = 1, #top {
+            local item = top[index]
+            parts[#parts + 1] = stringFormat("%s=%.3fms/%d", item.name, item.last ?? 0, item.count ?? 0)
+          }
+          out[#out + 1] = "  top " .. tableConcat(parts, "  ")
+        }
+
+        local commands = row.commandCounts ?? {}
+        if sumCounts(commands) > 0 {
+          local parts = {}
+          for key, value in pairs(commands) {
+            parts[#parts + 1] = toString(key) .. "=" .. toString(value)
+          }
+          tableSort(parts)
+          out[#out + 1] = "  commands " .. tableConcat(parts, " ")
+        }
+      }
+    }
+    out
+  }
+
   local unwrapApi
   local wrapApi
+
+  local unwrapKnownProfilerWrapper
+  unwrapKnownProfilerWrapper = (fnValue, depth = 0) => {
+    if typeOf(fnValue) ~= "function" or debugLib == nil or debugLib.getupvalue == nil or depth > 8 {
+      return fnValue
+    }
+
+    local original = nil
+    local profilerLabel = false
+    for i = 1, 16 {
+      local name, value = debugLib.getupvalue(fnValue, i)
+      breakif name == nil
+      if name == "original" and typeOf(value) == "function" {
+        original = value
+      } else if name == "label" and typeOf(value) == "string" and stringSub(value, 1, 4) == "api." {
+        profilerLabel = true
+      }
+    }
+
+    if profilerLabel and original ~= nil {
+      return unwrapKnownProfilerWrapper(original, depth + 1)
+    }
+    fnValue
+  }
+
+  local restoreSharedWrappers = (ownerValue, names = nil) => {
+    if ownerValue == nil or names == nil {
+      return
+    }
+
+    local sharedOriginals = ownerValue._mgfxProfileOriginals
+    for _, name in ipairs(names) {
+      local current = ownerValue[name]
+      local unwrapped = unwrapKnownProfilerWrapper(current)
+      if unwrapped ~= current {
+        ownerValue[name] = unwrapped
+      }
+      if sharedOriginals ~= nil {
+        sharedOriginals[name] = nil
+      }
+    }
+  }
 
   unwrapApi = () => {
     if not wrappersInstalled or wrappedOwner == nil {
@@ -194,7 +997,14 @@ export client fn create(owner = nil, options = nil) {
 
     local originalsStore = wrappedOwner._mgfxProfileOriginals
     for name, original in pairs(wrappedOriginals) {
-      wrappedOwner[name] = original
+      if wrappedOwner[name] ~= original {
+        local unwrapped = unwrapKnownProfilerWrapper(wrappedOwner[name])
+        if unwrapped ~= wrappedOwner[name] {
+          wrappedOwner[name] = unwrapped
+        }
+      } else {
+        wrappedOwner[name] = original
+      }
       if originalsStore ~= nil {
         originalsStore[name] = nil
       }
@@ -211,14 +1021,17 @@ export client fn create(owner = nil, options = nil) {
     wrappedOwner._mgfxProfileOriginals = wrappedOwner._mgfxProfileOriginals ?? {}
     local originalsStore = wrappedOwner._mgfxProfileOriginals
     for _, name in ipairs(wrappedNames ?? {}) {
-      local original = wrappedOwner[name]
+      local original = unwrapKnownProfilerWrapper(wrappedOwner[name])
       if typeOf(original) == "function" and wrappedOriginals[name] == nil {
+        local label = "api." .. name
         wrappedOriginals[name] = original
         originalsStore[name] = original
         wrappedOwner[name] = (...) => {
-          local started = api.Start()
+          local started = active and not (typeOf(wrappedSuppress) == "function" and wrappedSuppress()) and sysTime() or nil
           local a, b, c, d, e, f = original(...)
-          api.End(name, started, 1)
+          if started ~= nil {
+            api.Record(label, (sysTime() - started) * 1000, 1)
+          }
           return a, b, c, d, e, f
         }
       } else if wrappedSuppress ~= true {
@@ -229,13 +1042,13 @@ export client fn create(owner = nil, options = nil) {
   }
 
   api.InstallApiWrappers = (owner, names, suppress = false) => {
-    unwrapApi()
+    restoreSharedWrappers(owner, names)
     wrappedOwner = owner
     wrappedNames = names
     wrappedSuppress = suppress
 
     if cvarsLib ~= nil and cvarsLib.RemoveChangeCallback ~= nil {
-      cvarsLib.RemoveChangeCallback("mgfx_profile", "MGFXProfileApiWrappers")
+      cvarsLib.RemoveChangeCallback("mgfx_profile", callbackId)
     }
     if cvarsLib ~= nil and cvarsLib.AddChangeCallback ~= nil {
       cvarsLib.AddChangeCallback("mgfx_profile", (_, _, newValue) => {
@@ -244,12 +1057,22 @@ export client fn create(owner = nil, options = nil) {
         } else {
           unwrapApi()
         }
-      }, "MGFXProfileApiWrappers")
+      }, callbackId)
     }
     if isEnabled() {
       wrapApi()
     }
   }
+
+  registry.items[instanceId] = {
+    id = instanceId,
+    name = instanceName,
+    owner = target,
+    profiler = api,
+    callbackId = callbackId
+  }
+  target._ProfilerInstanceId = instanceId
+  target._ProfilerName = instanceName
 
   api
 }
@@ -264,8 +1087,16 @@ export client fn install(owner) {
   owner.EndProfileFrame = api.EndFrame
   owner.GetProfileRows = api.Snapshot
   owner.GetCurrentProfileRows = api.CurrentRows
+  owner.GetProfileScopeRows = api.ScopeRows
+  owner.GetRecentProfileScopes = api.RecentScopes
+  owner.GetProfileInstanceRows = api.InstanceRows
   owner.FormatProfileRows = api.FormatRows
+  owner.FormatProfileScopeRows = api.FormatScopeRows
   owner.ResetProfile = api.Reset
   owner.InstallApiWrappers = api.InstallApiWrappers
+  owner.BeginTrace = api.BeginTrace
+  owner.EndTrace = api.EndTrace
+  owner.TraceStart = api.TraceStart
+  owner.TraceEnd = api.TraceEnd
   owner
 }

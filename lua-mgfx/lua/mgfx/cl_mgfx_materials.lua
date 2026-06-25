@@ -110,11 +110,11 @@ function MGFX._CreateMaterialState(owner)
 		createMaterial("roundrect_stroke", "mgfx_roundrect_stroke_ps30")
 		createMaterial("roundrect_texture", "mgfx_roundrect_texture_ps30")
 		createMaterial("param_probe", "mgfx_param_probe_ps30")
+		createMaterial("param_probe_inv", "mgfx_param_probe_inv_ps30")
 		createMaterial("chamfer", "mgfx_chamfer_ps30")
 		createMaterial("chamfer_texture", "mgfx_chamfer_texture_ps30")
 		createMaterial("image_mask", "mgfx_image_mask_ps30")
-		createMaterial("image_mask_shadow", "mgfx_image_mask_shadow_ps30")
-		createMaterial("image_mask_outerglow", "mgfx_image_mask_outerglow_ps30")
+		createMaterial("image_mask_shadow_outer", "mgfx_image_mask_shadow_outer_ps30")
 		createMaterial("image_mask_backdrop", "mgfx_image_mask_backdrop_ps30", {
 			["$basetexture"] = blurRT:GetName(),
 			["$texture1"] = "_rt_FullFrameFB",
@@ -127,10 +127,8 @@ function MGFX._CreateMaterialState(owner)
 		})
 		createMaterial("roundrect_innerglow", "mgfx_roundrect_innerglow_ps30")
 		createMaterial("chamfer_innerglow", "mgfx_chamfer_innerglow_ps30")
-		createMaterial("roundrect_shadow", "mgfx_roundrect_shadow_ps30")
-		createMaterial("roundrect_outerglow", "mgfx_roundrect_outerglow_ps30")
-		createMaterial("chamfer_shadow", "mgfx_chamfer_shadow_ps30")
-		createMaterial("chamfer_outerglow", "mgfx_chamfer_outerglow_ps30")
+		createMaterial("roundrect_shadow_outer", "mgfx_roundrect_shadow_outer_ps30")
+		createMaterial("chamfer_shadow_outer", "mgfx_chamfer_shadow_outer_ps30")
 		createMaterial("chamfer_backdrop", "mgfx_chamfer_backdrop_ps30", {
 			["$basetexture"] = blurRT:GetName(),
 			["$texture1"] = "_rt_FullFrameFB",
@@ -156,8 +154,7 @@ function MGFX._CreateMaterialState(owner)
 		})
 		createMaterial("ring_stroke", "mgfx_ring_stroke_ps30")
 		createMaterial("ring_innerglow", "mgfx_ring_innerglow_ps30")
-		createMaterial("ring_shadow", "mgfx_ring_shadow_ps30")
-		createMaterial("ring_outerglow", "mgfx_ring_outerglow_ps30")
+		createMaterial("ring_shadow_outer", "mgfx_ring_shadow_outer_ps30")
 		createMaterial("ring_pattern", "mgfx_ring_pattern_ps30")
 
 		for _, count in ipairs({3, 4, 5, 6, 7, 8}) do
@@ -221,22 +218,20 @@ function MGFX._CreateMaterialState(owner)
 			roundrectSolid = materials.roundrect_solid,
 			roundrectStroke = materials.roundrect_stroke,
 			paramProbe = materials.param_probe,
+			paramProbeInv = materials.param_probe_inv,
 			chamfer = materials.chamfer,
 			blur = materials.roundrect_blur,
 			image = materials.roundrect_texture,
 			chamferImage = materials.chamfer_texture,
 			imageMask = materials.image_mask,
-			imageMaskShadow = materials.image_mask_shadow,
-			imageMaskOuterGlow = materials.image_mask_outerglow,
+			imageMaskShadowOuter = materials.image_mask_shadow_outer,
 			imageMaskBackdrop = materials.image_mask_backdrop,
 			imageMaskBackdropFill = materials.image_mask_backdrop_fill,
 			chamferStroke = materials.chamfer_stroke,
 			innerGlow = materials.roundrect_innerglow,
 			chamferInnerGlow = materials.chamfer_innerglow,
-			shadow = materials.roundrect_shadow,
-			outerGlow = materials.roundrect_outerglow,
-			chamferShadow = materials.chamfer_shadow,
-			chamferOuterGlow = materials.chamfer_outerglow,
+			shadowOuter = materials.roundrect_shadow_outer,
+			chamferShadowOuter = materials.chamfer_shadow_outer,
 			chamferBackdrop = materials.chamfer_backdrop,
 			progress = materials.progress,
 			progressFx = materials.progress_fx,
@@ -251,8 +246,7 @@ function MGFX._CreateMaterialState(owner)
 			ringBackdrop = materials.ring_backdrop,
 			ringStroke = materials.ring_stroke,
 			ringInnerGlow = materials.ring_innerglow,
-			ringShadow = materials.ring_shadow,
-			ringOuterGlow = materials.ring_outerglow,
+			ringShadowOuter = materials.ring_shadow_outer,
 			ringPattern = materials.ring_pattern,
 			poly3Stroke = materials.poly3_stroke,
 			poly3 = materials.poly3,

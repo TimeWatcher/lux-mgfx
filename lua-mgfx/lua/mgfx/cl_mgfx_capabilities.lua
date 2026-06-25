@@ -6,6 +6,7 @@ function MGFX._InstallCapabilities(owner)
 	owner = owner or MGFX
 
 	local TARGET = owner.TARGET or {}
+	local colorStyleCache = setmetatable({}, {__mode = "k"})
 
 	local function set(list)
 		local out = {}
@@ -244,7 +245,9 @@ function MGFX._InstallCapabilities(owner)
 
 	local function normalizePaintSlots(style, target)
 		if not istable(style) then return style end
-		if not isPattern(style.fill) then return style end
+		local fill = style.fill
+		local fillKind = istable(fill) and fill.kind or nil
+		if fillKind ~= "stripe" and fillKind ~= "smoke" then return style end
 
 		if target == TARGET.PROGRESS_BAR or target == TARGET.SEGMENT_BAR then
 			style = table.Copy(style)
@@ -264,6 +267,13 @@ function MGFX._InstallCapabilities(owner)
 	end
 
 	local function normalizeStyle(style, target)
+		if istable(style) and style.r ~= nil and style.g ~= nil and style.b ~= nil then
+			local cached = colorStyleCache[style]
+			if cached then return cached end
+			cached = {fill = style}
+			colorStyleCache[style] = cached
+			return cached
+		end
 		if not istable(style) then return style end
 		return normalizePaintSlots(style, target)
 	end
@@ -276,6 +286,10 @@ function MGFX._InstallCapabilities(owner)
 		local cap = targetCaps(target)
 		return cap and cap.keys and cap.keys[key] == true or false
 	end
+
+	owner.IsPattern = isPattern
+	owner.IsFill = isFill
+	owner.NormalizeStyle = normalizeStyle
 
 	return {
 		caps = caps,

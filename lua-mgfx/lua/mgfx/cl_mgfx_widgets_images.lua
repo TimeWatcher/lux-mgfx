@@ -27,13 +27,15 @@ function MGFX._InstallWidgetImages(C)
 	local normalizedRotation = C.normalizedRotation
 	local imageMaskStyle = C.imageMaskStyle or function(mask) return mask end
 	local setupParamMatrix = C.setupParamMatrix
+	local setupExtraParams = C.setupExtraParams
 	local setupConstants = C.setupConstants
 	local drawTexturedQuad = C.drawTexturedQuad
 	local drawTexturedQuadUV = C.drawTexturedQuadUV
 	local withTransform = C.withTransform or function(_, _, _, _, _, fn) return fn() end
 	local splitStyleTransform = C.splitStyleTransform or function(style) return nil, style end
 	local hasTransform = C.hasTransform or function() return false end
-	local withPanelEffectBleed = assert(C.withPanelEffectBleed, "MGFX panel bleed helper unavailable")
+	local beginPanelEffectBleed = assert(C.beginPanelEffectBleed, "MGFX panel bleed begin helper unavailable")
+	local endPanelEffectBleed = assert(C.endPanelEffectBleed, "MGFX panel bleed end helper unavailable")
 	local drawBlurredCustomQuad = C.drawBlurredCustomQuad
 	local drawCreatedMaterialTexturedRectUV = C.drawCreatedMaterialTexturedRectUV
 	local imageTint = C.imageTint
@@ -53,6 +55,7 @@ function MGFX._InstallWidgetImages(C)
 		return math.max(1, tonumber(spec and spec.spread) or width, sigma * 3.72)
 	end
 	local chamferTuple = C.chamferTuple
+	local drawChamferBoxImmediate = assert(C.drawChamferBoxImmediate, "MGFX chamfer immediate helper unavailable")
 	local drawChamferOuterGlow = C.drawChamferOuterGlow
 	local drawChamferPattern = C.drawChamferPattern
 	local patternStyle = C.patternStyle
@@ -87,6 +90,33 @@ function MGFX._InstallWidgetImages(C)
 	local MASK_TEXTURE_B = 13
 	local MASK_TEXTURE_LUMA = 14
 	local transparentColor = Color(0, 0, 0, 0)
+	local imageRoundEffectStyle = {}
+	local imageChamferEffectStyle = {}
+	local sourceAlphaMaskScratch = {kind = "texture", channel = "alpha", sourceAlpha = true}
+
+	local function drawRoundImageEffect(x, y, w, h, radius, fill, shadow, outerGlow, backdrop, stroke, strokeWidth)
+		local style = imageRoundEffectStyle
+		style.radius = radius
+		style.fill = fill
+		style.shadow = shadow
+		style.outerGlow = outerGlow
+		style.backdrop = backdrop
+		style.stroke = stroke
+		style.strokeWidth = strokeWidth
+		return drawRoundRectImmediate(x, y, w, h, style)
+	end
+
+	local function drawChamferImageEffect(x, y, w, h, cuts, fill, shadow, outerGlow, backdrop, stroke, strokeWidth)
+		local style = imageChamferEffectStyle
+		style.cuts = cuts
+		style.fill = fill
+		style.shadow = shadow
+		style.outerGlow = outerGlow
+		style.backdrop = backdrop
+		style.stroke = stroke
+		style.strokeWidth = strokeWidth
+		return drawChamferBoxImmediate(x, y, w, h, style, cuts)
+	end
 
 local function profileStart()
 	if profiler and profiler.Start then return profiler.Start() end
@@ -168,32 +198,23 @@ local function drawImageFallback(x, y, w, h, source, style)
 	local radius = imageRadius(style.radius, w, h)
 	local background = style.fill or style.background
 	if background and (background.a or 255) > 0 then
-		drawRoundRectImmediate(x, y, w, h, {
-			radius = radius,
-			fill = background,
-		})
+		drawRoundImageEffect(x, y, w, h, radius, background)
 	end
 
 	surface_SetMaterial(material)
 	setDrawColor(imageTint(style))
 	if hasTransform() then
-		drawTexturedQuadUV(x, y, w, h, u0, v0, u1, v1)
+		drawTexturedQuadUV(x, y, w, h, u0, v0, u1, v1, material)
 	elseif createdMaterialFallback then
 		drawCreatedMaterialTexturedRectUV(x, y, w, h, u0, v0, u1, v1)
 		M.stats.draws = M.stats.draws + 1
 	else
-		surface_DrawTexturedRectUV(x, y, w, h, u0, v0, u1, v1)
-		M.stats.draws = M.stats.draws + 1
+		drawTexturedQuadUV(x, y, w, h, u0, v0, u1, v1, material)
 	end
 
 	local strokeWidth = strokeWidthValue(style.strokeWidth, 0)
 	if style.stroke and strokeWidth > 0 then
-		drawRoundRectImmediate(x, y, w, h, {
-			radius = radius,
-			fill = transparentColor,
-			stroke = style.stroke,
-			strokeWidth = math_max(1, math_floor(strokeWidth)),
-		})
+		drawRoundImageEffect(x, y, w, h, radius, transparentColor, nil, nil, nil, style.stroke, math_max(1, math_floor(strokeWidth)))
 	end
 end
 
@@ -243,6 +264,19 @@ local function maskTextureSource(mask)
 	local source = mask.source or mask.material or mask.texture or mask.image
 	if source == nil then return nil end
 	return textureSource(source)
+end
+
+local function resolveMaskTexture(mask, kind)
+	if kind >= MASK_TEXTURE_A then
+		local resolvedKind = maskTextureChannelKind(mask.channel)
+		if not resolvedKind then return nil, nil end
+
+		local texture = maskTextureSource(mask)
+		if not texture then return nil, nil end
+		return resolvedKind, texture
+	end
+
+	return kind, nil
 end
 
 local function maskTextureUV(mask, texture)
@@ -311,7 +345,7 @@ local function drawImageMaskPass(x, y, w, h, texture, u0, v0, u1, v1, tint, stro
 	setupImageMaskConstants(mat, w, h, u0, v0, u1, v1, stroke, strokeWidth, mask, kind, maskTexture, sourceAlphaBase == true)
 	setDrawColor(tint or color_white)
 	surface_SetMaterial(mat)
-	drawTexturedQuad(x, y, w, h)
+	drawTexturedQuad(x, y, w, h, mat)
 	return true
 end
 
@@ -377,7 +411,7 @@ local function drawImageMaskBackdrop(x, y, w, h, mask, kind, maskTexture, backdr
 		surface_SetMaterial(mat)
 		setDrawColor(tint)
 		setupImageMaskBackdropConstants(mat, bw, bh, w, h, mask, kind, maskTexture, false, 0)
-		drawTexturedQuad(bx, by, bw, bh)
+		drawTexturedQuad(bx, by, bw, bh, mat)
 	end
 
 	return spec
@@ -409,32 +443,11 @@ local function drawImageMaskShader(x, y, w, h, texture, u0, v0, u1, v1, style, m
 	return drawImageMaskPass(x, y, w, h, texture, u0, v0, u1, v1, imageTint(style), style.stroke, style.strokeWidth, mask, kind, maskTexture, mask.sourceAlpha == true)
 end
 
-local function drawImageMaskOuterGlow(x, y, w, h, mask, kind, glow)
-	local spec = glow
-	if not spec or not istable(mask) or not matOK(materials.image_mask_outerglow) then return false end
-
-	kind = kind or maskKindValue(mask)
-	if not kind then return false end
-
-	local maskTexture
-	if kind >= MASK_TEXTURE_A then
-		kind = maskTextureChannelKind(mask.channel)
-		if not kind then return false end
-
-		maskTexture = maskTextureSource(mask)
-		if not maskTexture then return false end
-	end
-
-	local width = math_max(0.001, tonumber(spec.width) or 18)
-	local extent = effectExtentFromSpec(spec, 18)
-	local ox = tonumber(spec.x) or tonumber(spec.offsetX) or tonumber(spec.dx) or 0
-	local oy = tonumber(spec.y) or tonumber(spec.offsetY) or tonumber(spec.dy) or 0
-	local mat = materials.image_mask_outerglow
-	local r, g, b, a = color01(spec.color or Color(76, 190, 255, 88))
-	local gr, gg, gb, ga = r, g, b, a
+local function setupImageMaskEffectParams(mat, w, h, mask, kind, maskTexture, shadowSpec, outerSpec, drawW, drawH, shadowX, shadowY, outerX, outerY)
+	if not setupExtraParams then return false end
 
 	local packedKind = kind
-	if mask.invert or mask.inverse then
+	if mask and (mask.invert or mask.inverse) then
 		packedKind = packedKind + 128
 	end
 
@@ -449,113 +462,84 @@ local function drawImageMaskOuterGlow(x, y, w, h, mask, kind, glow)
 	else
 		p0, p1, p2, p3 = 0, 0, 0, 0
 	end
+
+	local shadowColor = shadowSpec and shadowSpec.color or transparentColor
+	local outerColor = outerSpec and outerSpec.color or transparentColor
 	setupParamMatrix(mat,
-		gr, gg, gb, ga,
-		w, h, packedKind, mask and imageRadius(mask.radius, w, h) or 0,
-		width,
-		math_max(0, tonumber(spec.strength) or tonumber(spec.opacity) or 1),
-		math.Clamp(1 / math_max(tonumber(spec.falloff) or 1.8, 0.001), 0.1, 1),
-		extent,
+		drawW, drawH, w, h,
+		packedKind, mask and imageRadius(mask.radius, w, h) or 0, shadowSpec and effectExtentFromSpec(shadowSpec, 18) or 0, outerSpec and effectExtentFromSpec(outerSpec, 18) or 0,
+		(shadowColor.r or 0) / 255, (shadowColor.g or 0) / 255, (shadowColor.b or 0) / 255, shadowSpec and ((shadowColor.a == nil and 255 or shadowColor.a) / 255) or 0,
+		shadowX, shadowY, shadowSpec and math_max(0.001, tonumber(shadowSpec.width) or 18) or 1, shadowSpec and math_max(0, tonumber(shadowSpec.strength) or tonumber(shadowSpec.opacity) or 1) or 0
+	)
+	return setupExtraParams(mat,
+		(outerColor.r or 0) / 255, (outerColor.g or 0) / 255, (outerColor.b or 0) / 255, outerSpec and ((outerColor.a == nil and 255 or outerColor.a) / 255) or 0,
+		outerX, outerY, outerSpec and math_max(0.001, tonumber(outerSpec.width) or 18) or 1, outerSpec and math_max(0, tonumber(outerSpec.strength) or tonumber(outerSpec.opacity) or 1) or 0,
+		shadowSpec and math.Clamp(1 / math_max(tonumber(shadowSpec.falloff) or 1.8, 0.001), 0.1, 1) or 1,
+		outerSpec and math.Clamp(1 / math_max(tonumber(outerSpec.falloff) or 1.8, 0.001), 0.1, 1) or 1,
+		0, 0,
 		p0, p1, p2, p3
 	)
-
-	local sx, sy = x + ox - extent, y + oy - extent
-	local drawW, drawH = w + extent * 2, h + extent * 2
-	local bleedLeft, bleedTop, bleedRight, bleedBottom = effectBleedFromDrawRect(x, y, w, h, sx, sy, drawW, drawH)
-	withPanelEffectBleed(bleedLeft, bleedTop, bleedRight, bleedBottom, function()
-		surface_SetDrawColor(255, 255, 255, 255)
-		surface_SetMaterial(mat)
-		drawTexturedQuad(sx, sy, drawW, drawH)
-	end)
-	return true
 end
 
-local function drawImageMaskShadow(x, y, w, h, mask, kind, shadow)
-	local spec = shadow
-	if not spec or not istable(mask) or not matOK(materials.image_mask_shadow) then return false end
+local function drawImageMaskShadowOuter(x, y, w, h, mask, kind, shadow, outer)
+	if (not shadow and not outer) or not istable(mask) or not shadersActive() or not matOK(materials.image_mask_shadow_outer) then return false end
 
 	kind = kind or maskKindValue(mask)
 	if not kind then return false end
-
 	local maskTexture
-	if kind >= MASK_TEXTURE_A then
-		kind = maskTextureChannelKind(mask.channel)
-		if not kind then return false end
+	kind, maskTexture = resolveMaskTexture(mask, kind)
+	if not kind then return false end
 
-		maskTexture = maskTextureSource(mask)
-		if not maskTexture then return false end
-	end
+	local shadowValid = shadow and shadow.color and (shadow.color.a or 255) > 0
+	local outerValid = outer and outer.color and (outer.color.a or 255) > 0
+	if not shadowValid and not outerValid then return false end
 
-	local width = math_max(0.001, tonumber(spec.width) or 18)
-	local extent = effectExtentFromSpec(spec, 18)
-	local ox = tonumber(spec.x) or tonumber(spec.offsetX) or tonumber(spec.dx) or 0
-	local oy = tonumber(spec.y) or tonumber(spec.offsetY) or tonumber(spec.dy) or 0
-	local mat = materials.image_mask_shadow
-	local r, g, b, a = color01(spec.color or Color(0, 0, 0, 128))
-
-	local packedKind = kind
-	if mask.invert or mask.inverse then
-		packedKind = packedKind + 128
-	end
-
-	local p0, p1, p2, p3
-	if kind == MASK_CHAMFER then
-		local tl, tr, br, bl = chamferMaskTuple(mask, {}, w, h)
-		p0, p1, p2, p3 = tl, tr, br, bl
-	elseif kind >= MASK_TEXTURE_A then
-		local mu0, mv0, mu1, mv1 = maskTextureUV(mask, maskTexture)
-		p0, p1, p2, p3 = mu0, mv0, mu1, mv1
-		mat:SetTexture("$texture1", maskTexture)
-	else
-		p0, p1, p2, p3 = 0, 0, 0, 0
-	end
-	setupParamMatrix(mat,
-		r, g, b, a,
-		w, h, packedKind, mask and imageRadius(mask.radius, w, h) or 0,
-		width,
-		math_max(0, tonumber(spec.strength) or tonumber(spec.opacity) or 1),
-		math.Clamp(1 / math_max(tonumber(spec.falloff) or 1.8, 0.001), 0.1, 1),
-		extent,
-		p0, p1, p2, p3
+	local shadowExtent = shadowValid and effectExtentFromSpec(shadow, 18) or 0
+	local outerExtent = outerValid and effectExtentFromSpec(outer, 18) or 0
+	local shadowX = shadowValid and (x + (tonumber(shadow.x) or tonumber(shadow.offsetX) or tonumber(shadow.dx) or 0) - shadowExtent) or x
+	local shadowY = shadowValid and (y + (tonumber(shadow.y) or tonumber(shadow.offsetY) or tonumber(shadow.dy) or 0) - shadowExtent) or y
+	local outerX = outerValid and (x + (tonumber(outer.x) or tonumber(outer.offsetX) or tonumber(outer.dx) or 0) - outerExtent) or x
+	local outerY = outerValid and (y + (tonumber(outer.y) or tonumber(outer.offsetY) or tonumber(outer.dy) or 0) - outerExtent) or y
+	local sx = math_min(shadowValid and shadowX or outerX, outerValid and outerX or shadowX)
+	local sy = math_min(shadowValid and shadowY or outerY, outerValid and outerY or shadowY)
+	local ex = math_max(
+		shadowValid and (shadowX + w + shadowExtent * 2) or (outerX + w + outerExtent * 2),
+		outerValid and (outerX + w + outerExtent * 2) or (shadowX + w + shadowExtent * 2)
 	)
+	local ey = math_max(
+		shadowValid and (shadowY + h + shadowExtent * 2) or (outerY + h + outerExtent * 2),
+		outerValid and (outerY + h + outerExtent * 2) or (shadowY + h + shadowExtent * 2)
+	)
+	local drawW = ex - sx
+	local drawH = ey - sy
+	local mat = materials.image_mask_shadow_outer
 
-	local sx, sy = x + ox - extent, y + oy - extent
-	local drawW, drawH = w + extent * 2, h + extent * 2
+	if not setupImageMaskEffectParams(mat, w, h, mask, kind, maskTexture, shadowValid and shadow or nil, outerValid and outer or nil, drawW, drawH, x - sx, y - sy, x - sx, y - sy) then
+		return false
+	end
+
 	local bleedLeft, bleedTop, bleedRight, bleedBottom = effectBleedFromDrawRect(x, y, w, h, sx, sy, drawW, drawH)
-	withPanelEffectBleed(bleedLeft, bleedTop, bleedRight, bleedBottom, function()
-		surface_SetDrawColor(255, 255, 255, 255)
-		surface_SetMaterial(mat)
-		drawTexturedQuad(sx, sy, drawW, drawH)
-	end)
+	local bleedToken = beginPanelEffectBleed(bleedLeft, bleedTop, bleedRight, bleedBottom)
+	surface_SetDrawColor(255, 255, 255, 255)
+	surface_SetMaterial(mat)
+	drawTexturedQuad(sx, sy, drawW, drawH, mat)
+	endPanelEffectBleed(bleedToken)
 	return true
 end
 
 local function drawImageChamfer(x, y, w, h, texture, u0, v0, u1, v1, style, cuts)
 	if not matOK(materials.chamfer_texture) then return false end
 
-	if style.shadow then
-		M.ChamferBoxEx(x, y, w, h, {
-			cuts = cuts,
-			fill = transparentColor,
-			shadow = style.shadow,
-		})
+	if style.shadow or style.outerGlow then
+		drawChamferImageEffect(x, y, w, h, cuts, transparentColor, style.shadow, style.outerGlow)
 	end
-
-	drawChamferOuterGlow(x, y, w, h, cuts, style.outerGlow)
 	if style.backdrop then
-		M.ChamferBoxEx(x, y, w, h, {
-			cuts = cuts,
-			backdrop = style.backdrop,
-			fill = transparentColor,
-		})
+		drawChamferImageEffect(x, y, w, h, cuts, transparentColor, nil, nil, style.backdrop)
 	end
 
 	local background = style.fill or style.background
 	if background and (background.a or 255) > 0 then
-		M.ChamferBoxEx(x, y, w, h, {
-			cuts = cuts,
-			fill = background,
-		})
+		drawChamferImageEffect(x, y, w, h, cuts, background)
 	end
 
 	local tl, tr, br, bl = chamferTuple(cuts, w, h)
@@ -570,19 +554,14 @@ local function drawImageChamfer(x, y, w, h, texture, u0, v0, u1, v1, style, cuts
 	)
 	surface_SetMaterial(mat)
 	surface_SetDrawColor(255, 255, 255, 255)
-	drawTexturedQuad(x, y, w, h)
+	drawTexturedQuad(x, y, w, h, mat)
 
 	if style.pattern then
 		drawChamferPattern(x, y, w, h, cuts, style.pattern)
 	end
 
 	if strokeVisible(style.stroke, style.strokeWidth) then
-		M.ChamferBoxEx(x, y, w, h, {
-			cuts = cuts,
-			fill = transparentColor,
-			stroke = style.stroke,
-			strokeWidth = style.strokeWidth,
-		})
+		drawChamferImageEffect(x, y, w, h, cuts, transparentColor, nil, nil, nil, style.stroke, style.strokeWidth)
 	end
 
 	return true
@@ -640,7 +619,12 @@ local function drawImageImmediate(x, y, w, h, source, style)
 	local mask
 	local maskKind
 	if imageUsesSourceAlphaEffectMask(style, shadowSpec, outerSpec, backdropSpec) then
-		mask = {kind = "texture", source = source, channel = "alpha", sourceAlpha = true, u0 = u0, v0 = v0, u1 = u1, v1 = v1}
+		mask = sourceAlphaMaskScratch
+		mask.source = source
+		mask.u0 = u0
+		mask.v0 = v0
+		mask.u1 = u1
+		mask.v1 = v1
 		maskKind = MASK_TEXTURE_A
 	else
 		mask = imageMaskStyle(style.mask, style)
@@ -651,8 +635,9 @@ local function drawImageImmediate(x, y, w, h, source, style)
 		profile = profileStart()
 		local maskTexture = maskTextureSource(mask)
 		local backdropMaskKind = maskTextureChannelKind(mask.channel) or maskKind
-		drawImageMaskShadow(x, y, w, h, mask, maskKind, shadowSpec)
-		drawImageMaskOuterGlow(x, y, w, h, mask, maskKind, outerSpec)
+		if shadowSpec or outerSpec then
+			drawImageMaskShadowOuter(x, y, w, h, mask, maskKind, shadowSpec, outerSpec)
+		end
 		drawImageMaskBackdrop(x, y, w, h, mask, backdropMaskKind, maskTexture, style.backdrop)
 		if drawImageMaskShader(x, y, w, h, texture, u0, v0, u1, v1, style, mask, maskKind) then
 			profileEnd("image.mask", profile)
@@ -681,37 +666,22 @@ local function drawImageImmediate(x, y, w, h, source, style)
 	else
 		radius = imageRadius(style.radius, w, h)
 	end
-	if style.shadow then
+	if style.shadow or style.outerGlow then
 		profile = profileStart()
-		drawRoundRectImmediate(x, y, w, h, {
-			radius = radius,
-			fill = transparentColor,
-			shadow = style.shadow,
-		})
-		profileEnd("image.shadow", profile)
+		drawRoundImageEffect(x, y, w, h, radius, transparentColor, style.shadow, style.outerGlow)
+		profileEnd("image.shadowOuter", profile)
 	end
-
-	profile = profileStart()
-	drawRoundRectOuterGlow(x, y, w, h, radius, outerSpec)
-	profileEnd("image.outerGlow", profile)
 
 	if style.backdrop then
 		profile = profileStart()
-		drawRoundRectImmediate(x, y, w, h, {
-			radius = radius,
-			backdrop = style.backdrop,
-			fill = transparentColor,
-		})
+		drawRoundImageEffect(x, y, w, h, radius, transparentColor, nil, nil, style.backdrop)
 		profileEnd("image.backdrop", profile)
 	end
 
 	local background = style.fill or style.background
 	if background and (background.a or 255) > 0 then
 		profile = profileStart()
-		drawRoundRectImmediate(x, y, w, h, {
-			radius = radius,
-			fill = background,
-		})
+		drawRoundImageEffect(x, y, w, h, radius, background)
 		profileEnd("image.background", profile)
 	end
 
@@ -731,7 +701,7 @@ local function drawImageImmediate(x, y, w, h, source, style)
 	)
 	setDrawColor(tint)
 	surface_SetMaterial(mat)
-	drawTexturedQuad(x, y, w, h)
+	drawTexturedQuad(x, y, w, h, mat)
 	profileEnd("image.base", profile)
 	profileEnd("image.immediate", totalProfile)
 end

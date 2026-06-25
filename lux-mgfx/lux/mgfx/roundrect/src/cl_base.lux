@@ -9,6 +9,7 @@ local style = styleImport
 local drawRoundedBox = _G.draw.RoundedBox
 local getConVar = GetConVar
 local matrixCtor = Matrix
+local mathAbs = math.abs
 local mathClamp = math.Clamp
 local mathCos = math.cos
 local mathFloor = math.floor
@@ -26,19 +27,26 @@ local typeOf = type
 local toNumber = tonumber
 local makeColor = Color
 local realTime = RealTime
+local sysTime = SysTime
 
 local drawTransformedPoly = geometry.drawTransformedPoly
 local drawTexturedQuad = geometry.drawTexturedQuad
 local blurIntensity = geometry.blurIntensity
 local hasTransform = geometry.hasTransform
 local recordDraws = geometry.recordDraws
+local recordFallbacks = geometry.recordFallbacks
 local splitStyleTransform = geometry.splitStyleTransform
 local withTransform = geometry.withTransform
+local beginPanelEffectDraw = frame.beginPanelEffectDraw
+local endPanelEffectBleed = frame.endPanelEffectBleed
 local withPanelEffectBleed = frame.withPanelEffectBleed
 
 local paramMatrixProbe = matrixCtor ~= nil then matrixCtor() else nil
 local paramMatrixSetUnpacked = paramMatrixProbe?.SetUnpacked
 local paramMatrices = {}
+local paramMatrixRawState = {}
+local auxParamMatrices = {}
+local auxParamMatrixRawState = {}
 local roundRectMaterials = {}
 local roundRectBlurRT = nil
 local roundRectMatOK = (material) => material ~= nil and material.IsError ~= nil and not material:IsError()
@@ -49,7 +57,42 @@ local fallbackStrokeVerts = { {}, {}, {}, {} }
 local circleStyle = {}
 local capsuleStyle = {}
 local roundedBoxStyle = {}
+local emptyRoundRectStyle = {}
 local transparentColor = makeColor(0, 0, 0, 0)
+local solidFillScratch = { kind = style.FILL_SOLID, colorA = color_white, colorB = color_white }
+local backdropTintScratch = makeColor(0, 0, 0, 0)
+local backdropFillScratch = { kind = style.FILL_SOLID, colorA = backdropTintScratch, colorB = backdropTintScratch, _mgfxFillVisible = false }
+local roundRectProfiler = nil
+local defaultInnerGlowColor = makeColor(76, 190, 255, 34)
+local defaultOuterGlowColor = makeColor(76, 190, 255, 88)
+local defaultShadowColor = makeColor(0, 0, 0, 132)
+
+export client fn effectExtentFromSpec(spec, defaultWidth = 18) {
+  if spec ~= nil and spec._extent ~= nil {
+    return spec._extent
+  }
+
+  local width = mathMax(0.001, toNumber(spec?.width) ?? defaultWidth)
+  local falloff = mathMax(0.35, toNumber(spec?.falloff) ?? 1.9)
+  local sigma = mathMax(width / mathSqrt(falloff) * 0.72, 0.35)
+  local tail = sigma * 3.72
+  mathMax(1, toNumber(spec?.spread) ?? width, tail)
+}
+
+local defaultInnerGlowSpec = { color = defaultInnerGlowColor, width = 7, strength = 1, falloff = style.glowSoftnessToFalloff(0.55) }
+local defaultOuterGlowSpec = { color = defaultOuterGlowColor, x = 0, y = 0, width = 18, spread = 18, grow = 0, strength = 1, falloff = style.glowSoftnessToFalloff(0.54) }
+local defaultShadowSpec = { color = defaultShadowColor, x = 0, y = 4, width = 12, spread = 12, grow = 0, strength = 1, falloff = style.glowSoftnessToFalloff(0.62) }
+defaultOuterGlowSpec._extent = effectExtentFromSpec(defaultOuterGlowSpec, 18)
+defaultOuterGlowSpec._cullSpread = defaultOuterGlowSpec._extent
+defaultShadowSpec._extent = effectExtentFromSpec(defaultShadowSpec, 12)
+defaultShadowSpec._cullSpread = mathAbs(defaultShadowSpec.x) + mathAbs(defaultShadowSpec.y) + defaultShadowSpec._extent + defaultShadowSpec.grow
+local innerGlowColorCache = setmetatable({}, { __mode = "k" })
+local outerGlowColorCache = setmetatable({}, { __mode = "k" })
+local shadowColorCache = setmetatable({}, { __mode = "k" })
+local innerGlowTableCache = setmetatable({}, { __mode = "k" })
+local outerGlowTableCache = setmetatable({}, { __mode = "k" })
+local shadowTableCache = setmetatable({}, { __mode = "k" })
+local shadowNumberCache = {}
 
 fn configureRoundRect(owner) {
   owner = owner ?? {}
@@ -58,6 +101,7 @@ fn configureRoundRect(owner) {
   roundRectBlurRT = owner._BlurRT ?? materialState.blurRT ?? roundRectBlurRT
   roundRectMatOK = owner.MaterialOK ?? materialState.matOK ?? roundRectMatOK
   roundRectHasShaders = owner.hasShaders ?? roundRectHasShaders
+  roundRectProfiler = owner.Profiler
   true
 }
 
@@ -93,6 +137,164 @@ fn fillColor(fill, fallback = nil) {
   }
 
   fallback ?? color_white
+}
+
+fn hotFillFromStyle(fill, fallback = nil) {
+  if typeOf(fill) == "table" {
+    local kind = fill.kind
+    if kind == style.FILL_SOLID or kind == style.FILL_LINEAR or kind == style.FILL_RADIAL or kind == style.FILL_CONIC {
+      return fill
+    }
+    if kind ~= nil {
+      solidFillScratch.colorA = transparentColor
+      solidFillScratch.colorB = transparentColor
+      solidFillScratch._mgfxFillVisible = false
+      return solidFillScratch
+    }
+    if fill.r ~= nil and fill.g ~= nil and fill.b ~= nil {
+      solidFillScratch.colorA = fill
+      solidFillScratch.colorB = fill
+      solidFillScratch._mgfxFillVisible = fill.a == nil or fill.a > 0
+      return solidFillScratch
+    }
+  }
+
+  local color = style.asColor(fill, fallback ?? color_white)
+  solidFillScratch.colorA = color
+  solidFillScratch.colorB = color
+  solidFillScratch._mgfxFillVisible = color.a == nil or color.a > 0
+  solidFillScratch
+}
+
+fn hotFillVisible(fill) {
+  stopif fill == nil, false
+  stopif typeOf(fill) ~= "table", true
+
+  if style.isColor(fill) {
+    return fill.a == nil or fill.a > 0
+  }
+
+  if fill._mgfxFillVisible ~= nil {
+    return fill._mgfxFillVisible
+  }
+
+  local kind = fill.kind
+  if kind == style.FILL_SOLID {
+    local colorA = fill.colorA ?? color_white
+    local colorB = fill.colorB ?? colorA
+    return (colorA.a == nil or colorA.a > 0) or (colorB.a == nil or colorB.a > 0)
+  }
+
+  if kind == style.FILL_LINEAR or kind == style.FILL_RADIAL or kind == style.FILL_CONIC {
+    return fill.stops ~= nil
+      or (fill.colorA ~= nil and (fill.colorA.a == nil or fill.colorA.a > 0))
+      or (fill.colorB ~= nil and (fill.colorB.a == nil or fill.colorB.a > 0))
+  }
+
+  false
+}
+
+fn roundRectRadiusScalar(radius, w = 0, h = 0) {
+  if typeOf(radius) ~= "table" or style.isColor(radius) {
+    local value = toNumber(radius) ?? 0
+    stopif value <= 0, 0
+
+    local maxRadius = mathMin(mathMax(0, toNumber(w) ?? 0), mathMax(0, toNumber(h) ?? 0)) * 0.5
+    stopif maxRadius <= 0, 0
+    stopif value > maxRadius, maxRadius
+    return value
+  }
+
+  style.radiusScalar(radius, w, h)
+}
+
+fn roundRectProfileActive() =
+  roundRectProfiler ~= nil
+    and roundRectProfiler.IsActive ~= nil
+    and roundRectProfiler.IsActive()
+
+fn roundRectProfileStart() {
+  if roundRectProfiler ~= nil and roundRectProfiler.Start ~= nil {
+    return roundRectProfiler.Start()
+  }
+
+  nil
+}
+
+fn roundRectProfileEnd(name, started) {
+  if started ~= nil and roundRectProfiler ~= nil and roundRectProfiler.End ~= nil {
+    roundRectProfiler.End(name, started)
+  }
+}
+
+fn roundRectProfileRecord(name, elapsed) {
+  if elapsed ~= nil and roundRectProfiler ~= nil and roundRectProfiler.Record ~= nil {
+    roundRectProfiler.Record(name, elapsed)
+  }
+}
+
+fn roundRectTraceStart(name) {
+  if roundRectProfiler ~= nil and roundRectProfiler._TraceActive and roundRectProfiler.TraceStart ~= nil {
+    return roundRectProfiler.TraceStart(name)
+  }
+
+  nil
+}
+
+fn roundRectTraceEnd(token) {
+  if token ~= nil and roundRectProfiler ~= nil and roundRectProfiler.TraceEnd ~= nil {
+    roundRectProfiler.TraceEnd(token)
+  }
+}
+
+fn finishImmediateTrace(trace, profiling, totalProfile) {
+  roundRectTraceEnd(trace)
+  if profiling {
+    roundRectProfileEnd("round.immediate", totalProfile)
+  }
+}
+
+fn roundRectProfileEndBase(kind, started) {
+  stopif started == nil
+
+  local elapsed = (sysTime() - started) * 1000
+  if roundRectProfiler ~= nil and roundRectProfiler.Record ~= nil {
+    roundRectProfiler.Record("round.base", elapsed)
+    if kind ~= nil {
+      roundRectProfiler.Record(kind, elapsed)
+    }
+  }
+}
+
+fn roundRectCullSpread(shadowSpec, outerSpec, backdropSpec, shaderReady) {
+  if not shaderReady {
+    return 0
+  }
+
+  local spread = 0
+  if shadowSpec ~= nil {
+    local shadowSpread = shadowSpec._cullSpread ?? (
+      mathAbs(toNumber(shadowSpec.x) ?? 0)
+        + mathAbs(toNumber(shadowSpec.y) ?? 0)
+        + effectExtentFromSpec(shadowSpec, 12)
+        + (toNumber(shadowSpec.grow) ?? 0)
+    )
+    spread = mathMax(spread, shadowSpread)
+  }
+  if outerSpec ~= nil {
+    local outerSpread = outerSpec._cullSpread ?? (
+      mathAbs(toNumber(outerSpec.x) ?? 0)
+        + mathAbs(toNumber(outerSpec.y) ?? 0)
+        + effectExtentFromSpec(outerSpec, 18)
+        + (toNumber(outerSpec.grow) ?? 0)
+    )
+    spread = mathMax(spread, outerSpread)
+  }
+  if backdropSpec ~= nil {
+    spread = mathMax(spread, mathMax(0, toNumber(backdropSpec.padding) ?? 0))
+  }
+
+  spread
 }
 
 fn setColor(color) =
@@ -176,6 +378,44 @@ fn drawFallbackStroke(points, color, width) {
     verts[4].x = a.x - nx
     verts[4].y = a.y - ny
     drawTransformedPoly(verts)
+  }
+}
+
+fn drawRoundRectFallback(x, y, w, h, drawStyle) {
+  recordFallbacks()
+  local fill = hotFillFromStyle(drawStyle.fill ?? drawStyle.color)
+  local radius = drawStyle.radius ?? drawStyle.r ?? 0
+
+  if hasTransform() {
+    local points = fallbackRoundRectPoints(x, y, w, h, radius)
+    if style.fillVisible(fill) {
+      setColor(fillColor(fill))
+      drawTransformedPoly(points)
+    }
+
+    local strokeWidth = style.strokeWidth(drawStyle.strokeWidth, 1)
+    if style.strokeVisible(drawStyle.stroke, strokeWidth) {
+      drawFallbackStroke(points, drawStyle.stroke, mathMax(1, mathFloor(strokeWidth)))
+    }
+    return
+  }
+
+  if style.fillVisible(fill) {
+    local radiusValue = roundRectRadiusScalar(radius, w, h)
+    if radiusValue <= 0.25 {
+      setColor(fillColor(fill))
+      surfaceDrawRect(x, y, w, h)
+      recordDraws()
+    } else {
+      drawRoundedBox(mathFloor(radiusValue), x, y, w, h, fillColor(fill))
+      recordDraws()
+    }
+  }
+
+  if style.strokeVisible(drawStyle.stroke, drawStyle.strokeWidth) {
+    setColor(drawStyle.stroke)
+    surfaceDrawOutlinedRect(x, y, w, h, mathMax(1, mathFloor(style.strokeWidth(drawStyle.strokeWidth, 1))))
+    recordDraws()
   }
 }
 

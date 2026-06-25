@@ -3,9 +3,9 @@
 
 #include "mgfx_poly_shape_common.hlsl"
 
-#define POLY_STROKE_COLOR Constants0
-#define POLY_STROKE_DRAW_SIZE Constants1.xy
-#define POLY_STROKE_WIDTH Constants1.z
+#define POLY_STROKE_COLOR AUX0
+#define POLY_STROKE_DRAW_SIZE AUX1.xy
+#define POLY_STROKE_WIDTH AUX1.z
 
 float4 main(PS_INPUT i) : COLOR
 {

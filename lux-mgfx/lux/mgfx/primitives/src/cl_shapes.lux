@@ -2,12 +2,15 @@ export client fn polyEx(points, drawStyle = nil) {
   local resolved = drawStyle ?? {}
   local transform, stripped = splitStyleTransform(resolved)
   local poly = normalizePoly(points)
-
-  if transform ~= nil and poly ~= nil {
-    return withTransform(transform, poly.x, poly.y, poly.w, poly.h, () => polyEx(points, stripped))
+  if poly == nil {
+    return
   }
 
-  drawPolyImmediate(points, stripped)
+  if transform ~= nil {
+    return withTransform(transform, poly.x, poly.y, poly.w, poly.h, () => drawPolyImmediateNormalized(points, stripped, poly))
+  }
+
+  drawPolyImmediateNormalized(points, stripped, poly)
 }
 
 export client fn poly(points, fill, stroke = nil, strokeWidth = nil) {

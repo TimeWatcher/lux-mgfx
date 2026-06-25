@@ -7,6 +7,7 @@ function MGFX._CreateGeometryHelpers(deps)
 
 	local owner = deps.M or MGFX
 	local stats = deps.stats or owner.stats or {}
+	local profiler = deps.profiler or owner.Profiler
 	local asColor = deps.asColor or function(value, fallback) return value or fallback or color_white end
 	local copyStyle = deps.copyStyle or function(style) return istable(style) and table.Copy(style) or {} end
 
@@ -25,16 +26,23 @@ function MGFX._CreateGeometryHelpers(deps)
 		return math.Clamp((tonumber(value) or 16) / 16, 0.001, 4)
 	end
 
-	local quadVerts = {
-		{x = 0, y = 0, u = 0, v = 0},
-		{x = 0, y = 0, u = 1, v = 0},
-		{x = 0, y = 0, u = 1, v = 1},
-		{x = 0, y = 0, u = 0, v = 1},
-	}
-
 	local transformStack = {}
 	local transformPolyScratch = {{}, {}, {}, {}, {}, {}, {}, {}}
 	local transformQuadVerts = {{}, {}, {}, {}}
+	local texturedRectUVCache = setmetatable({}, {__mode = "k"})
+
+	local function traceStart(name)
+		if profiler and profiler._TraceActive and profiler.TraceStart then
+			return profiler.TraceStart(name)
+		end
+		return nil
+	end
+
+	local function traceEnd(token)
+		if token and profiler and profiler.TraceEnd then
+			profiler.TraceEnd(token)
+		end
+	end
 
 	local function isPoint(value)
 		return istable(value) and (value.x ~= nil or value[1] ~= nil) and (value.y ~= nil or value[2] ~= nil)
@@ -392,18 +400,64 @@ function MGFX._CreateGeometryHelpers(deps)
 		return untransformPoint(px, py)
 	end
 
-	local function drawTexturedQuadUV(x, y, w, h, u0, v0, u1, v1)
+	local function materialUVCorrection(mat)
+		if not mat or not mat.Width or not mat.Height then return nil end
+
+		local cached = texturedRectUVCache[mat]
+		if cached then
+			return cached.du, cached.dv, cached.denomU, cached.denomV, cached.fullU0, cached.fullV0, cached.fullU1, cached.fullV1
+		end
+
+		local mw = tonumber(mat:Width()) or 0
+		local mh = tonumber(mat:Height()) or 0
+		if mw <= 1 or mh <= 1 then return nil end
+
+		local du = 0.5 / mw
+		local dv = 0.5 / mh
+		local denomU = 1 - 2 * du
+		local denomV = 1 - 2 * dv
+		cached = {
+			du = du,
+			dv = dv,
+			denomU = denomU,
+			denomV = denomV,
+			fullU0 = -du / denomU,
+			fullV0 = -dv / denomV,
+			fullU1 = (1 - du) / denomU,
+			fullV1 = (1 - dv) / denomV,
+		}
+		texturedRectUVCache[mat] = cached
+		return cached.du, cached.dv, cached.denomU, cached.denomV, cached.fullU0, cached.fullV0, cached.fullU1, cached.fullV1
+	end
+
+	local function drawTexturedQuadUV(x, y, w, h, u0, v0, u1, v1, mat)
+		local trace = traceStart("geometry.drawTexturedQuadUV")
 		if not hasTransform() then
-			local verts = quadVerts
-			verts[1].x, verts[1].y, verts[1].u, verts[1].v = x, y, u0, v0
-			verts[2].x, verts[2].y, verts[2].u, verts[2].v = x + w, y, u1, v0
-			verts[3].x, verts[3].y, verts[3].u, verts[3].v = x + w, y + h, u1, v1
-			verts[4].x, verts[4].y, verts[4].u, verts[4].v = x, y + h, u0, v1
-			surface_DrawPoly(verts)
+			local uvTrace = traceStart("geometry.materialUVCorrection")
+			local du, dv, denomU, denomV = materialUVCorrection(mat)
+			traceEnd(uvTrace)
+			if du then
+				local surfaceTrace = traceStart("surface.DrawTexturedRectUV")
+				surface_DrawTexturedRectUV(
+					x, y, w, h,
+					(u0 - du) / denomU, (v0 - dv) / denomV,
+					(u1 - du) / denomU, (v1 - dv) / denomV
+				)
+				traceEnd(surfaceTrace)
+				stats.draws = (stats.draws or 0) + 1
+				traceEnd(trace)
+				return
+			end
+
+			local surfaceTrace = traceStart("surface.DrawTexturedRectUV")
+			surface_DrawTexturedRectUV(x, y, w, h, u0, v0, u1, v1)
+			traceEnd(surfaceTrace)
 			stats.draws = (stats.draws or 0) + 1
+			traceEnd(trace)
 			return
 		end
 
+		local transformTrace = traceStart("geometry.transformedGrid")
 		local steps = transformNeedsGrid() and transformSteps() or 1
 		local draws = 0
 		for gy = 0, steps - 1 do
@@ -425,11 +479,30 @@ function MGFX._CreateGeometryHelpers(deps)
 				draws = draws + 1
 			end
 		end
+		traceEnd(transformTrace)
 		stats.draws = (stats.draws or 0) + draws
+		traceEnd(trace)
 	end
 
-	local function drawTexturedQuad(x, y, w, h)
-		drawTexturedQuadUV(x, y, w, h, 0, 0, 1, 1)
+	local function drawTexturedQuad(x, y, w, h, mat)
+		if hasTransform() then
+			drawTexturedQuadUV(x, y, w, h, 0, 0, 1, 1, mat)
+			return
+		end
+
+		-- Most MGFX shader passes draw a full-material quad. Keep this path
+		-- direct so the hot renderer does not pay the generic UV wrapper cost.
+		local du, _dv, _denomU, _denomV, fullU0, fullV0, fullU1, fullV1 = materialUVCorrection(mat)
+		if du then
+			surface_DrawTexturedRectUV(
+				x, y, w, h,
+				fullU0, fullV0,
+				fullU1, fullV1
+			)
+		else
+			surface_DrawTexturedRectUV(x, y, w, h, 0, 0, 1, 1)
+		end
+		stats.draws = (stats.draws or 0) + 1
 	end
 
 	local function drawCreatedMaterialTexturedRectUV(x, y, w, h, u0, v0, u1, v1)

@@ -38,6 +38,8 @@ fn roundRectFillParams(material, fill) {
   return p0, p1, p2, p3
 }
 
+local inv255 = 1 / 255
+
 fn setupParamMatrix(material,
   a0, a1, a2, a3,
   b0, b1, b2, b3,
@@ -61,29 +63,125 @@ fn setupParamMatrix(material,
     true
   }
 
+fn setupParamMatrixRaw(material,
+  a0, a1, a2, a3,
+  b0, b1, b2, b3,
+  c0, c1, c2, c3,
+  d0, d1, d2, d3) {
+    local state = paramMatrixRawState[material]
+    if state ~= nil
+      and state[1] == a0 and state[2] == a1 and state[3] == a2 and state[4] == a3
+      and state[5] == b0 and state[6] == b1 and state[7] == b2 and state[8] == b3
+      and state[9] == c0 and state[10] == c1 and state[11] == c2 and state[12] == c3
+      and state[13] == d0 and state[14] == d1 and state[15] == d2 and state[16] == d3 {
+      return
+    }
+    if state == nil {
+      state = {}
+      paramMatrixRawState[material] = state
+    }
+    state[1] = a0
+    state[2] = a1
+    state[3] = a2
+    state[4] = a3
+    state[5] = b0
+    state[6] = b1
+    state[7] = b2
+    state[8] = b3
+    state[9] = c0
+    state[10] = c1
+    state[11] = c2
+    state[12] = c3
+    state[13] = d0
+    state[14] = d1
+    state[15] = d2
+    state[16] = d3
+
+    local matrix = paramMatrices[material]
+    if matrix == nil {
+      matrix = matrixCtor()
+      paramMatrices[material] = matrix
+    }
+
+    paramMatrixSetUnpacked(matrix,
+      a0, b0, c0, d0,
+      a1, b1, c1, d1,
+      a2, b2, c2, d2,
+      a3, b3, c3, d3
+    )
+    material:SetMatrix("$viewprojmat", matrix)
+  }
+
 fn setupAuxConstants(material,
   a0, a1, a2, a3,
   b0, b1, b2, b3,
   c0, c1, c2, c3,
   d0, d1, d2, d3) {
-    stopif material == nil, false
+    stopif material == nil or paramMatrixSetUnpacked == nil or matrixCtor == nil, false
 
-    material:SetFloat("$c0_x", a0 ?? 0)
-    material:SetFloat("$c0_y", a1 ?? 0)
-    material:SetFloat("$c0_z", a2 ?? 0)
-    material:SetFloat("$c0_w", a3 ?? 0)
-    material:SetFloat("$c1_x", b0 ?? 0)
-    material:SetFloat("$c1_y", b1 ?? 0)
-    material:SetFloat("$c1_z", b2 ?? 0)
-    material:SetFloat("$c1_w", b3 ?? 0)
-    material:SetFloat("$c2_x", c0 ?? 0)
-    material:SetFloat("$c2_y", c1 ?? 0)
-    material:SetFloat("$c2_z", c2 ?? 0)
-    material:SetFloat("$c2_w", c3 ?? 0)
-    material:SetFloat("$c3_x", d0 ?? 0)
-    material:SetFloat("$c3_y", d1 ?? 0)
-    material:SetFloat("$c3_z", d2 ?? 0)
-    material:SetFloat("$c3_w", d3 ?? 0)
+    local matrix = auxParamMatrices[material]
+    if matrix == nil {
+      matrix = matrixCtor()
+      auxParamMatrices[material] = matrix
+    }
+
+    paramMatrixSetUnpacked(matrix,
+      a0 ?? 0, b0 ?? 0, c0 ?? 0, d0 ?? 0,
+      a1 ?? 0, b1 ?? 0, c1 ?? 0, d1 ?? 0,
+      a2 ?? 0, b2 ?? 0, c2 ?? 0, d2 ?? 0,
+      a3 ?? 0, b3 ?? 0, c3 ?? 0, d3 ?? 0
+    )
+    material:SetMatrix("$invviewprojmat", matrix)
+    true
+  }
+
+fn setupAuxConstantsRaw(material,
+  a0, a1, a2, a3,
+  b0, b1, b2, b3,
+  c0, c1, c2, c3,
+  d0, d1, d2, d3) {
+    local state = auxParamMatrixRawState[material]
+    if state ~= nil
+      and state[1] == a0 and state[2] == a1 and state[3] == a2 and state[4] == a3
+      and state[5] == b0 and state[6] == b1 and state[7] == b2 and state[8] == b3
+      and state[9] == c0 and state[10] == c1 and state[11] == c2 and state[12] == c3
+      and state[13] == d0 and state[14] == d1 and state[15] == d2 and state[16] == d3 {
+      return true
+    }
+    if state == nil {
+      state = {}
+      auxParamMatrixRawState[material] = state
+    }
+    state[1] = a0
+    state[2] = a1
+    state[3] = a2
+    state[4] = a3
+    state[5] = b0
+    state[6] = b1
+    state[7] = b2
+    state[8] = b3
+    state[9] = c0
+    state[10] = c1
+    state[11] = c2
+    state[12] = c3
+    state[13] = d0
+    state[14] = d1
+    state[15] = d2
+    state[16] = d3
+
+    local matrix = auxParamMatrices[material]
+    if matrix == nil {
+      matrix = matrixCtor()
+      auxParamMatrices[material] = matrix
+    }
+
+    paramMatrixSetUnpacked(matrix,
+      a0, b0, c0, d0,
+      a1, b1, c1, d1,
+      a2, b2, c2, d2,
+      a3, b3, c3, d3
+    )
+    material:SetMatrix("$invviewprojmat", matrix)
     true
   }
 
@@ -107,6 +205,44 @@ fn setupConstants(material, w, h, fill, stroke, strokeWidth, radius) {
     sr, sg, sb, sa
   )
   setColor(colorA)
+  true
+}
+
+fn setupRoundRectConstants(material, w, h, fill, stroke, strokeWidth, radius) {
+  stopif material == nil, false
+
+  fill = fill ?? style.solid(color_white)
+  local colorB = fill.colorB ?? fill.colorA ?? color_white
+  local fillKind = fill.kind ?? style.FILL_SOLID
+  local strokePx = stroke ~= nil then strokeWidth else 0
+  if strokePx <= 0 or (stroke ~= nil and stroke.a ~= nil and stroke.a <= 0) {
+    strokePx = 0
+  } else if strokePx > 255 {
+    strokePx = 255
+  }
+
+  local r = (colorB.r ?? 0) * inv255
+  local g = (colorB.g ?? 0) * inv255
+  local b = (colorB.b ?? 0) * inv255
+  local a = (colorB.a ?? 255) * inv255
+  local p0, p1, p2, p3 = roundRectFillParams(material, fill)
+  local sr = 0
+  local sg = 0
+  local sb = 0
+  local sa = 0
+  if strokePx > 0 {
+    sr = (stroke.r ?? 0) * inv255
+    sg = (stroke.g ?? 0) * inv255
+    sb = (stroke.b ?? 0) * inv255
+    sa = (stroke.a ?? 255) * inv255
+  }
+
+  setupParamMatrixRaw(material,
+    r, g, b, a,
+    w, h, strokePx + fillKind * 256, radius,
+    p0, p1, p2, p3,
+    sr, sg, sb, sa
+  )
   true
 }
 
@@ -150,9 +286,55 @@ fn drawRoundRectFillPass(x, y, w, h, radius, fill) {
   local material = roundRectMaterials.roundrect
   stopif not materialOK(material), false
 
-  setupConstants(material, w, h, fill, nil, 0, style.radiusScalar(radius, w, h))
+  local setupTrace = roundRectTraceStart("round.fillPass.setup")
+  setupRoundRectConstants(material, w, h, fill, nil, 0, roundRectRadiusScalar(radius, w, h))
   surfaceSetMaterial(material)
-  drawTexturedQuad(x, y, w, h)
+  surfaceSetDrawColor(255, 255, 255, 255)
+  roundRectTraceEnd(setupTrace)
+  local drawTrace = roundRectTraceStart("round.fillPass.draw")
+  drawTexturedQuad(x, y, w, h, material)
+  roundRectTraceEnd(drawTrace)
+  true
+}
+
+fn drawSolidRectFast(x, y, w, h, fill) {
+  local color = fill.colorA ?? color_white
+  surfaceSetDrawColor(color.r ?? 255, color.g ?? 255, color.b ?? 255, color.a ?? 255)
+  surfaceDrawRect(x, y, w, h)
+  recordDraws()
+  true
+}
+
+fn drawSolidRoundFast(x, y, w, h, radiusValue, fill) {
+  local material = roundRectMaterials.roundrect_solid
+  stopif not materialOK(material), false
+
+  local profiling = roundRectProfileActive()
+  local setupProfile = profiling then roundRectProfileStart() else nil
+  local setupTrace = roundRectTraceStart("round.fast.solidRound.setup")
+  local color = fill.colorA ?? color_white
+  setupParamMatrixRaw(material,
+    (color.r ?? 0) * inv255,
+    (color.g ?? 0) * inv255,
+    (color.b ?? 0) * inv255,
+    (color.a ?? 255) * inv255,
+    w, h, 0, radiusValue,
+    0, 0, 1, 0,
+    0, 0, 0, 0
+  )
+  surfaceSetMaterial(material)
+  surfaceSetDrawColor(255, 255, 255, 255)
+  roundRectTraceEnd(setupTrace)
+  if profiling {
+    roundRectProfileEnd("round.fast.solidRound.setup", setupProfile)
+  }
+  local drawProfile = profiling then roundRectProfileStart() else nil
+  local drawTrace = roundRectTraceStart("round.fast.solidRound.draw")
+  drawTexturedQuad(x, y, w, h, material)
+  roundRectTraceEnd(drawTrace)
+  if profiling {
+    roundRectProfileEnd("round.fast.solidRound.draw", drawProfile)
+  }
   true
 }
 
@@ -164,10 +346,14 @@ fn drawRoundRectPattern(x, y, w, h, radius, pattern) {
   stopif color ~= nil and (color.a ?? 255) <= 0, false
 
   local material = roundRectMaterials.roundrect_pattern
-  setupPatternConstants(material, w, h, style.radiusScalar(radius, w, h), spec)
+  local setupTrace = roundRectTraceStart("round.pattern.setup")
+  setupPatternConstants(material, w, h, roundRectRadiusScalar(radius, w, h), spec)
   surfaceSetMaterial(material)
   surfaceSetDrawColor(255, 255, 255, 255)
-  drawTexturedQuad(x, y, w, h)
+  roundRectTraceEnd(setupTrace)
+  local drawTrace = roundRectTraceStart("round.pattern.draw")
+  drawTexturedQuad(x, y, w, h, material)
+  roundRectTraceEnd(drawTrace)
   true
 }
 
@@ -191,118 +377,144 @@ fn effectExtent(spec, defaultWidth = 18) {
   effectExtentFromSpec(spec, defaultWidth)
 }
 
-fn effectBleedFromDrawRect(x, y, w, h, drawX, drawY, drawW, drawH) {
-  local left = mathMax(0, x - drawX)
-  local top = mathMax(0, y - drawY)
-  local right = mathMax(0, drawX + drawW - (x + w))
-  local bottom = mathMax(0, drawY + drawH - (y + h))
-  return left, top, right, bottom
-}
-
 fn drawRoundRectInnerGlowSpec(x, y, w, h, radius, spec) {
   if spec == nil or spec.color == nil or (spec.color.a ?? 255) <= 0 or not shadersActive() or not materialOK(roundRectMaterials.roundrect_innerglow) {
     return false
   }
 
   local material = roundRectMaterials.roundrect_innerglow
-  local r, g, b, a = style.color01(spec.color)
-  setupParamMatrix(material,
-    r, g, b, a,
-    w, h, 0, style.radiusScalar(radius, w, h),
-    mathMax(0.001, toNumber(spec.width) ?? 8),
-    mathMax(0, toNumber(spec.strength) ?? 1),
-    mathMax(0.001, toNumber(spec.falloff) ?? 1.65),
+  local color = spec.color
+  local glowWidth = spec.width ?? 8
+  local glowStrength = spec.strength ?? 1
+  local glowFalloff = spec.falloff ?? 1.65
+  local setupTrace = roundRectTraceStart("round.innerGlow.setup")
+  setupParamMatrixRaw(material,
+    (color.r ?? 0) * inv255,
+    (color.g ?? 0) * inv255,
+    (color.b ?? 0) * inv255,
+    (color.a ?? 255) * inv255,
+    w, h, 0, roundRectRadiusScalar(radius, w, h),
+    glowWidth,
+    glowStrength,
+    glowFalloff,
     0,
     0, 0, 0, 0
   )
   surfaceSetMaterial(material)
   surfaceSetDrawColor(255, 255, 255, 255)
-  drawTexturedQuad(x, y, w, h)
+  roundRectTraceEnd(setupTrace)
+  local drawTrace = roundRectTraceStart("round.innerGlow.draw")
+  drawTexturedQuad(x, y, w, h, material)
+  roundRectTraceEnd(drawTrace)
   true
 }
 
-fn drawRoundRectOuterGlowSpec(x, y, w, h, radius, spec, biasOffset = false) {
-  if spec == nil or spec.color == nil or (spec.color.a ?? 255) <= 0 or not shadersActive() or not materialOK(roundRectMaterials.roundrect_outerglow) {
+fn drawRoundRectShadowOuterSpec(x, y, w, h, radius, shadowSpec, outerSpec) {
+  if (shadowSpec == nil and outerSpec == nil) or not shadersActive() or not materialOK(roundRectMaterials.roundrect_shadow_outer) {
     return false
   }
 
-  local grow = mathMax(0, toNumber(spec.grow ?? spec.shapeSpread ?? spec.expand) ?? 0)
-  local ox = toNumber(spec.x ?? spec.offsetX ?? spec.dx) ?? 0
-  local oy = toNumber(spec.y ?? spec.offsetY ?? spec.dy) ?? 0
-  local gw = w + grow * 2
-  local gh = h + grow * 2
-  local gr = radiusWithGrow(radius, grow)
-  local spread = effectExtent(spec, 18)
-  local gx = x + ox - grow
-  local gy = y + oy - grow
-  local left = spread
-  local top = spread
-  local right = spread
-  local bottom = spread
-  if biasOffset {
-    left, top, right, bottom = glowBiasPads(spread, ox, oy)
-    gx = x - grow
-    gy = y - grow
-  }
-  local sw = gw + left + right
-  local sh = gh + top + bottom
-  local material = roundRectMaterials.roundrect_outerglow
-  local r, g, b, a = style.color01(spec.color)
-  setupParamMatrix(material,
-    r, g, b, a,
-    sw, sh, 0, 0,
-    left, top, gw, gh,
-    style.radiusScalar(gr, gw, gh),
-    mathMax(0.001, toNumber(spec.width) ?? 18),
-    mathMax(0, toNumber(spec.strength) ?? 1),
-    mathMax(0.001, toNumber(spec.falloff) ?? 1.9)
-  )
-  local sx = gx - left
-  local sy = gy - top
-  local bleedLeft, bleedTop, bleedRight, bleedBottom = effectBleedFromDrawRect(x, y, w, h, sx, sy, sw, sh)
-  withPanelEffectBleed(bleedLeft, bleedTop, bleedRight, bleedBottom, () => {
-    surfaceSetMaterial(material)
-    surfaceSetDrawColor(255, 255, 255, 255)
-    drawTexturedQuad(sx, sy, sw, sh)
-  })
-  true
-}
-
-fn drawRoundRectShadowSpec(x, y, w, h, radius, spec) {
-  if spec == nil or spec.color == nil or (spec.color.a ?? 255) <= 0 or not shadersActive() or not materialOK(roundRectMaterials.roundrect_shadow) {
+  local shadowColor = shadowSpec?.color
+  local outerColor = outerSpec?.color
+  local hasShadow = shadowColor ~= nil and (shadowColor.a ?? 255) > 0
+  local hasOuter = outerColor ~= nil and (outerColor.a ?? 255) > 0
+  if not hasShadow and not hasOuter {
     return false
   }
 
-  local grow = mathMax(0, toNumber(spec.grow ?? spec.shapeSpread ?? spec.expand) ?? 0)
-  local ox = toNumber(spec.x ?? spec.offsetX ?? spec.dx) ?? 0
-  local oy = toNumber(spec.y ?? spec.offsetY ?? spec.dy) ?? 0
-  local gw = w + grow * 2
-  local gh = h + grow * 2
-  local gr = radiusWithGrow(radius, grow)
-  local spread = effectExtent(spec, 18)
-  local gx = x + ox - grow
-  local gy = y + oy - grow
-  local sw = gw + spread * 2
-  local sh = gh + spread * 2
-  local material = roundRectMaterials.roundrect_shadow
-  local r, g, b, a = style.color01(spec.color)
-  setupParamMatrix(material,
-    r, g, b, a,
+  local profiling = roundRectProfileActive()
+  local setupProfile = profiling then roundRectProfileStart() else nil
+  local setupTrace = roundRectTraceStart("round.shadowOuter.setup")
+
+  local shadowSource = shadowSpec ?? outerSpec
+  local outerSource = outerSpec ?? shadowSpec
+  local shadowGrow = shadowSource.grow ?? 0
+  local shadowGw = w + shadowGrow * 2
+  local shadowGh = h + shadowGrow * 2
+  local shadowSpread = shadowSource._extent ?? shadowSource.spread ?? shadowSource.width ?? 18
+  local shadowShapeX = x + (hasShadow then (shadowSource.x ?? 0) else 0) - shadowGrow
+  local shadowShapeY = y + (hasShadow then (shadowSource.y ?? 0) else 0) - shadowGrow
+  local shadowDrawX = shadowShapeX - shadowSpread
+  local shadowDrawY = shadowShapeY - shadowSpread
+  local shadowDrawW = shadowGw + shadowSpread * 2
+  local shadowDrawH = shadowGh + shadowSpread * 2
+
+  local outerGrow = outerSource.grow ?? 0
+  local outerGw = w + outerGrow * 2
+  local outerGh = h + outerGrow * 2
+  local outerSpread = outerSource._extent ?? outerSource.spread ?? outerSource.width ?? 18
+  local outerOx = hasOuter then (outerSource.x ?? 0) else 0
+  local outerOy = hasOuter then (outerSource.y ?? 0) else 0
+  local outerLeft, outerTop, outerRight, outerBottom = glowBiasPads(outerSpread, outerOx, outerOy)
+  local outerShapeX = x - outerGrow
+  local outerShapeY = y - outerGrow
+  local outerDrawX = outerShapeX - outerLeft
+  local outerDrawY = outerShapeY - outerTop
+  local outerDrawW = outerGw + outerLeft + outerRight
+  local outerDrawH = outerGh + outerTop + outerBottom
+
+  local sx = mathMin(shadowDrawX, outerDrawX)
+  local sy = mathMin(shadowDrawY, outerDrawY)
+  local ex = mathMax(shadowDrawX + shadowDrawW, outerDrawX + outerDrawW)
+  local ey = mathMax(shadowDrawY + shadowDrawH, outerDrawY + outerDrawH)
+  local sw = ex - sx
+  local sh = ey - sy
+  local material = roundRectMaterials.roundrect_shadow_outer
+
+  setupParamMatrixRaw(material,
     sw, sh, 0, 0,
-    spread, spread, gw, gh,
-    style.radiusScalar(gr, gw, gh),
-    mathMax(0.001, toNumber(spec.width) ?? 18),
-    mathMax(0, toNumber(spec.strength) ?? 1),
-    mathMax(0.001, toNumber(spec.falloff) ?? 1.9)
+    hasShadow then (shadowColor.r ?? 0) * inv255 else 0,
+    hasShadow then (shadowColor.g ?? 0) * inv255 else 0,
+    hasShadow then (shadowColor.b ?? 0) * inv255 else 0,
+    hasShadow then (shadowColor.a ?? 255) * inv255 else 0,
+    shadowShapeX - sx, shadowShapeY - sy, shadowGw, shadowGh,
+    roundRectRadiusScalar(radiusWithGrow(radius, shadowGrow), shadowGw, shadowGh),
+    hasShadow then (shadowSource.width ?? 18) else 1,
+    hasShadow then (shadowSource.strength ?? 1) else 0,
+    hasShadow then (shadowSource.falloff ?? 1.9) else 1
   )
-  local sx = gx - spread
-  local sy = gy - spread
-  local bleedLeft, bleedTop, bleedRight, bleedBottom = effectBleedFromDrawRect(x, y, w, h, sx, sy, sw, sh)
-  withPanelEffectBleed(bleedLeft, bleedTop, bleedRight, bleedBottom, () => {
-    surfaceSetMaterial(material)
-    surfaceSetDrawColor(255, 255, 255, 255)
-    drawTexturedQuad(sx, sy, sw, sh)
-  })
+  setupAuxConstantsRaw(material,
+    hasOuter then (outerColor.r ?? 0) * inv255 else 0,
+    hasOuter then (outerColor.g ?? 0) * inv255 else 0,
+    hasOuter then (outerColor.b ?? 0) * inv255 else 0,
+    hasOuter then (outerColor.a ?? 255) * inv255 else 0,
+    outerShapeX - sx, outerShapeY - sy, outerGw, outerGh,
+    roundRectRadiusScalar(radiusWithGrow(radius, outerGrow), outerGw, outerGh),
+    hasOuter then (outerSource.width ?? 18) else 1,
+    hasOuter then (outerSource.strength ?? 1) else 0,
+    hasOuter then (outerSource.falloff ?? 1.9) else 1,
+    0, 0, 0, 0
+  )
+  roundRectTraceEnd(setupTrace)
+  if profiling {
+    roundRectProfileEnd("round.shadowOuter.setup", setupProfile)
+  }
+
+  local bleedProfile = profiling then roundRectProfileStart() else nil
+  local bleedTrace = roundRectTraceStart("round.shadowOuter.bleedBegin")
+  local bleedToken = beginPanelEffectDraw(sx, sy, sw, sh)
+  roundRectTraceEnd(bleedTrace)
+  if profiling {
+    roundRectProfileEnd("round.shadowOuter.bleedBegin", bleedProfile)
+  }
+
+  surfaceSetMaterial(material)
+  surfaceSetDrawColor(255, 255, 255, 255)
+  local drawProfile = profiling then roundRectProfileStart() else nil
+  local drawTrace = roundRectTraceStart("round.shadowOuter.draw")
+  drawTexturedQuad(sx, sy, sw, sh, material)
+  roundRectTraceEnd(drawTrace)
+  if profiling {
+    roundRectProfileEnd("round.shadowOuter.draw", drawProfile)
+  }
+
+  bleedProfile = profiling then roundRectProfileStart() else nil
+  bleedTrace = roundRectTraceStart("round.shadowOuter.bleedEnd")
+  endPanelEffectBleed(bleedToken)
+  roundRectTraceEnd(bleedTrace)
+  if profiling {
+    roundRectProfileEnd("round.shadowOuter.bleedEnd", bleedProfile)
+  }
   true
 }
 
@@ -313,47 +525,83 @@ fn backdropTintColor(spec) {
   local alpha = (tint.a ?? 255) * (spec.opacity ?? 1)
   stopif alpha <= 0, nil
 
-  makeColor(tint.r ?? 0, tint.g ?? 0, tint.b ?? 0, mathFloor(mathClamp(alpha, 0, 255) + 0.5))
+  backdropTintScratch.r = tint.r ?? 0
+  backdropTintScratch.g = tint.g ?? 0
+  backdropTintScratch.b = tint.b ?? 0
+  backdropTintScratch.a = mathFloor(mathClamp(alpha, 0, 255) + 0.5)
+  backdropTintScratch
 }
 
-fn drawRoundRectBackdrop(x, y, w, h, radius, backdrop) {
-  local spec = style.backdropStyle(backdrop)
+fn drawRoundRectBackdrop(x, y, w, h, radius, spec) {
   stopif spec == nil, nil
+  local trace = roundRectTraceStart("round.backdrop.pass")
   local pad = mathMax(0, toNumber(spec.padding) ?? 0)
   local bx = x - pad
   local by = y - pad
   local bw = w + pad * 2
   local bh = h + pad * 2
   local br = radiusWithGrow(radius, pad)
+  local tint = backdropTintColor(spec)
+  local blurred = false
 
   if spec.blur > 0 and roundRectBlurRT ~= nil and renderCopyRenderTargetToTexture ~= nil and materialOK(roundRectMaterials.roundrect_blur) {
+    local blurTrace = roundRectTraceStart("round.backdrop.blur")
     local material = roundRectMaterials.roundrect_blur
     local intensity = blurIntensity(spec.blur)
     surfaceSetMaterial(material)
     surfaceSetDrawColor(255, 255, 255, 255)
+    setupAuxConstantsRaw(material,
+      0, 0, 0, 0,
+      0, 0, 0, 0,
+      0, 0, 0, 0,
+      0, 0, 0, 0
+    )
     renderCopyRenderTargetToTexture(roundRectBlurRT)
     setupParamMatrix(material,
       0, intensity, 0, 0,
-      bw, bh, 0, style.radiusScalar(br, bw, bh),
+      bw, bh, 0, roundRectRadiusScalar(br, bw, bh),
       0, 0, 1, 1,
       0, 0, 0, 0
     )
-    drawTexturedQuad(bx, by, bw, bh)
+    drawTexturedQuad(bx, by, bw, bh, material)
+    if tint ~= nil {
+      setupAuxConstantsRaw(material,
+        (tint.r ?? 0) * inv255,
+        (tint.g ?? 0) * inv255,
+        (tint.b ?? 0) * inv255,
+        (tint.a ?? 255) * inv255,
+        1, 0, 0, 0,
+        0, 0, 0, 0,
+        0, 0, 0, 0
+      )
+    } else {
+      setupAuxConstantsRaw(material,
+        0, 0, 0, 0,
+        0, 0, 0, 0,
+        0, 0, 0, 0,
+        0, 0, 0, 0
+      )
+    }
     renderCopyRenderTargetToTexture(roundRectBlurRT)
     setupParamMatrix(material,
       1, intensity, 0, 0,
-      bw, bh, 0, style.radiusScalar(br, bw, bh),
+      bw, bh, 0, roundRectRadiusScalar(br, bw, bh),
       0, 0, 1, 1,
       0, 0, 0, 0
     )
-    drawTexturedQuad(bx, by, bw, bh)
+    drawTexturedQuad(bx, by, bw, bh, material)
+    roundRectTraceEnd(blurTrace)
+    blurred = true
   }
 
-  local tint = backdropTintColor(spec)
-  if tint ~= nil {
-    drawRoundRectFillPass(bx, by, bw, bh, br, style.solid(tint))
+  if tint ~= nil and not blurred {
+    local tintTrace = roundRectTraceStart("round.backdrop.tint")
+    backdropFillScratch._mgfxFillVisible = true
+    drawRoundRectFillPass(bx, by, bw, bh, br, backdropFillScratch)
+    roundRectTraceEnd(tintTrace)
   }
 
+  roundRectTraceEnd(trace)
   spec
 }
 
@@ -363,24 +611,41 @@ fn drawRoundRectStrokePass(x, y, w, h, radius, stroke, strokeWidth) {
   if materialOK(roundRectMaterials.roundrect_stroke) {
     local material = roundRectMaterials.roundrect_stroke
     local r, g, b, a = style.color01(stroke)
+    local setupTrace = roundRectTraceStart("round.strokePass.setup")
     setupParamMatrix(material,
       r, g, b, a,
-      w, h, mathMax(0, style.strokeWidth(strokeWidth, 0)), style.radiusScalar(radius, w, h),
+      w, h, mathMax(0, style.strokeWidth(strokeWidth, 0)), roundRectRadiusScalar(radius, w, h),
       0, 0, 1, 0,
       0, 0, 0, 0
     )
     surfaceSetMaterial(material)
     surfaceSetDrawColor(255, 255, 255, 255)
-    drawTexturedQuad(x, y, w, h)
+    roundRectTraceEnd(setupTrace)
+    local drawTrace = roundRectTraceStart("round.strokePass.draw")
+    drawTexturedQuad(x, y, w, h, material)
+    roundRectTraceEnd(drawTrace)
     return true
   }
 
-  drawRoundRectFillPass(x, y, w, h, radius, style.solid(transparentColor))
+  local material = roundRectMaterials.roundrect
+  stopif not materialOK(material), false
+  local setupTrace = roundRectTraceStart("round.strokePass.setup")
+  setupRoundRectConstants(material, w, h, transparentFill, stroke, strokeWidth, roundRectRadiusScalar(radius, w, h))
+  surfaceSetMaterial(material)
+  surfaceSetDrawColor(255, 255, 255, 255)
+  roundRectTraceEnd(setupTrace)
+  local drawTrace = roundRectTraceStart("round.strokePass.draw")
+  drawTexturedQuad(x, y, w, h, material)
+  roundRectTraceEnd(drawTrace)
+  true
 }
 
 fn drawRoundRectFxPass(x, y, w, h, radius, fill, stroke, strokeWidth, innerSpec) {
   stopif not materialOK(roundRectMaterials.roundrect_fx), false
 
+  local profiling = roundRectProfileActive()
+  local setupProfile = profiling then roundRectProfileStart() else nil
+  local setupTrace = roundRectTraceStart("round.base.fx.setup")
   local material = roundRectMaterials.roundrect_fx
   local gr = 0
   local gg = 0
@@ -390,75 +655,41 @@ fn drawRoundRectFxPass(x, y, w, h, radius, fill, stroke, strokeWidth, innerSpec)
   local glowStrength = 0
   local glowFalloff = 1
   if innerSpec ~= nil {
-    gr, gg, gb, ga = style.color01(innerSpec.color ?? transparentColor)
+    local color = innerSpec.color ?? transparentColor
+    gr = (color.r ?? 0) * inv255
+    gg = (color.g ?? 0) * inv255
+    gb = (color.b ?? 0) * inv255
+    ga = (color.a ?? 255) * inv255
     glowWidth = mathMax(0.001, toNumber(innerSpec.width) ?? 8)
     glowStrength = mathMax(0, toNumber(innerSpec.strength) ?? 1)
     glowFalloff = mathMax(0.001, toNumber(innerSpec.falloff) ?? 1.65)
   }
 
-  setupAuxConstants(material,
+  if not setupAuxConstantsRaw(material,
     gr, gg, gb, ga,
     glowWidth, glowStrength, glowFalloff, 0,
     0, 0, 0, 0,
     0, 0, 0, 0
-  )
-  setupConstants(material, w, h, fill, stroke, strokeWidth, style.radiusScalar(radius, w, h))
+  ) {
+    roundRectTraceEnd(setupTrace)
+    if profiling {
+      roundRectProfileEnd("round.base.fx.setup", setupProfile)
+    }
+    return false
+  }
+  setupRoundRectConstants(material, w, h, fill, stroke, strokeWidth, roundRectRadiusScalar(radius, w, h))
   surfaceSetMaterial(material)
-  drawTexturedQuad(x, y, w, h)
-  true
-}
-
-fn drawRoundRectShader(x, y, w, h, drawStyle) {
-  stopif not shadersActive(), false
-
-  local radius = drawStyle.radius ?? drawStyle.r ?? 0
-  local shadow = shadowStyle(drawStyle.shadow)
-  if shadow ~= nil {
-    drawRoundRectShadowSpec(x, y, w, h, radius, shadow)
+  surfaceSetDrawColor(255, 255, 255, 255)
+  roundRectTraceEnd(setupTrace)
+  if profiling {
+    roundRectProfileEnd("round.base.fx.setup", setupProfile)
   }
-
-  local outer = outerGlowStyle(drawStyle.outerGlow)
-  if outer ~= nil {
-    drawRoundRectOuterGlowSpec(x, y, w, h, radius, outer, true)
+  local drawProfile = profiling then roundRectProfileStart() else nil
+  local drawTrace = roundRectTraceStart("round.base.fx.draw")
+  drawTexturedQuad(x, y, w, h, material)
+  roundRectTraceEnd(drawTrace)
+  if profiling {
+    roundRectProfileEnd("round.base.fx.draw", drawProfile)
   }
-
-  local backdrop = nil
-  if drawStyle.backdrop ~= nil {
-    backdrop = drawRoundRectBackdrop(x, y, w, h, radius, drawStyle.backdrop)
-  }
-
-  local fill = style.fillFromStyle(drawStyle.fill ?? drawStyle.color)
-  local strokeWidth = style.strokeWidth(drawStyle.strokeWidth, 0)
-  local hasFill = style.fillVisible(fill)
-  local hasStroke = style.strokeVisible(drawStyle.stroke, strokeWidth)
-  local inner = innerGlowStyle(drawStyle.innerGlow)
-
-  if backdrop == nil and not hasFill and not hasStroke and drawStyle.pattern == nil and inner == nil {
-    return true
-  }
-
-  if drawStyle.pattern ~= nil {
-    if hasFill {
-      drawRoundRectFillPass(x, y, w, h, radius, fill)
-    }
-    drawRoundRectPattern(x, y, w, h, radius, drawStyle.pattern)
-    if hasStroke {
-      drawRoundRectStrokePass(x, y, w, h, radius, drawStyle.stroke, strokeWidth)
-    }
-  } else if (hasStroke or inner ~= nil) and drawRoundRectFxPass(x, y, w, h, radius, fill, drawStyle.stroke, strokeWidth, inner) {
-    inner = nil
-  } else if hasFill {
-    drawRoundRectFillPass(x, y, w, h, radius, fill)
-    if hasStroke {
-      drawRoundRectStrokePass(x, y, w, h, radius, drawStyle.stroke, strokeWidth)
-    }
-  } else if hasStroke {
-    drawRoundRectStrokePass(x, y, w, h, radius, drawStyle.stroke, strokeWidth)
-  }
-
-  if inner ~= nil {
-    drawRoundRectInnerGlowSpec(x, y, w, h, radius, inner)
-  }
-
   true
 }

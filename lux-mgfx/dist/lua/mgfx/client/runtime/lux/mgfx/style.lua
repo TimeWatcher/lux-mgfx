@@ -42,6 +42,10 @@ return function(__lux_import)
   local solidCache
   local transparentColor
   local gradientLutOwner
+  local backdropTableCache
+  local backdropTrueSpec
+  local backdropNumberCache
+  local backdropColorCache
   local ensureSolidCache
   local isColor
   local byte
@@ -290,6 +294,10 @@ return function(__lux_import)
     solidCache = nil
     transparentColor = nil
     gradientLutOwner = nil
+    backdropTableCache = setmetatable({}, { __mode = "k" })
+    backdropTrueSpec = nil
+    backdropNumberCache = {}
+    backdropColorCache = setmetatable({}, { __mode = "k" })
     ensureSolidCache = function()
       if solidCache == nil then
         solidCache = setmetatable({}, { __mode = "kv" })
@@ -1394,83 +1402,158 @@ return function(__lux_import)
         return nil
       end
       if value == true then
-        value = { blur = 4 }
-      else
-        if typeOf(value) == "number" then
-          value = { blur = value }
-        else
-          if isColor(value) then
-            value = { tint = value }
-          else
-            if typeOf(value) ~= "table" then
-              return nil
-            end
+        if backdropTrueSpec == nil then
+          if transparentColor == nil then
+            transparentColor = makeColor(0, 0, 0, 0)
           end
+          backdropTrueSpec = { blur = 4, tint = transparentColor, opacity = 1, padding = 0 }
+        end
+        return backdropTrueSpec
+      end
+      if typeOf(value) == "number" then
+        local blurKey
+        do
+          local __lux_tmp_value_141 = toNumber(value)
+          if __lux_tmp_value_141 == nil then
+            __lux_tmp_value_141 = 0
+          end
+          blurKey = mathMax(0, __lux_tmp_value_141)
+        end
+        local cached = backdropNumberCache[blurKey]
+        if cached ~= nil then
+          if cached == false then
+            return nil
+          else
+            return cached
+          end
+        end
+        if blurKey <= 0 then
+          backdropNumberCache[blurKey] = false
+          return nil
+        end
+        if transparentColor == nil then
+          transparentColor = makeColor(0, 0, 0, 0)
+        end
+        cached = { blur = blurKey, tint = transparentColor, opacity = 1, padding = 0 }
+        backdropNumberCache[blurKey] = cached
+        return cached
+      end
+      if isColor(value) then
+        local cached = backdropColorCache[value]
+        if cached ~= nil then
+          if cached == false then
+            return nil
+          else
+            return cached
+          end
+        end
+        cached = { blur = 0, tint = value, opacity = 1, padding = 0 }
+        local __lux_cmp_142 = false
+        if alpha(value.a) ~= nil then
+          __lux_cmp_142 = alpha(value.a) <= 0
+        end
+        if __lux_cmp_142 then
+          cached = false
+        end
+        backdropColorCache[value] = cached
+        if cached == false then
+          return nil
+        else
+          return cached
+        end
+      end
+      if typeOf(value) ~= "table" then
+        return nil
+      end
+      local cached = backdropTableCache[value]
+      if cached ~= nil and cached ~= false and cached._blurInput == value.blur and cached._sizeInput == value.size and cached._indexInput == value[1] and cached._tintInput == value.tint and cached._colorInput == value.color and cached._opacityInput == value.opacity and cached._strengthInput == value.strength and cached._paddingInput == value.padding and cached._spreadInput == value.spread then
+        return cached
+      end
+      if cached == false and value.blur == nil and value.size == nil and value[1] == nil and value.tint == nil and value.color == nil and value.opacity == nil and value.strength == nil and value.padding == nil and value.spread == nil then
+        if cached == false then
+          return nil
+        else
+          return cached
         end
       end
       local blur
       do
-        local __lux_tmp_blur_141 = value.blur
-        if __lux_tmp_blur_141 == nil then
-          __lux_tmp_blur_141 = value.size
+        local __lux_tmp_blur_143 = value.blur
+        if __lux_tmp_blur_143 == nil then
+          __lux_tmp_blur_143 = value.size
         end
-        if __lux_tmp_blur_141 == nil then
-          __lux_tmp_blur_141 = value[1]
+        if __lux_tmp_blur_143 == nil then
+          __lux_tmp_blur_143 = value[1]
         end
-        local __lux_tmp_blur_142 = toNumber(__lux_tmp_blur_141)
-        if __lux_tmp_blur_142 == nil then
-          __lux_tmp_blur_142 = 0
+        local __lux_tmp_blur_144 = toNumber(__lux_tmp_blur_143)
+        if __lux_tmp_blur_144 == nil then
+          __lux_tmp_blur_144 = 0
         end
-        blur = mathMax(0, __lux_tmp_blur_142)
+        blur = mathMax(0, __lux_tmp_blur_144)
+      end
+      if transparentColor == nil then
+        transparentColor = makeColor(0, 0, 0, 0)
       end
       local tint
       do
-        local __lux_tmp_tint_143 = value.tint
-        if __lux_tmp_tint_143 == nil then
-          __lux_tmp_tint_143 = value.color
+        local __lux_tmp_tint_145 = value.tint
+        if __lux_tmp_tint_145 == nil then
+          __lux_tmp_tint_145 = value.color
         end
-        tint = colorOr(__lux_tmp_tint_143, makeColor(0, 0, 0, 0))
+        tint = colorOr(__lux_tmp_tint_145, transparentColor)
       end
       local opacity
       do
-        local __lux_tmp_opacity_144 = value.opacity
-        if __lux_tmp_opacity_144 == nil then
-          __lux_tmp_opacity_144 = value.strength
+        local __lux_tmp_opacity_146 = value.opacity
+        if __lux_tmp_opacity_146 == nil then
+          __lux_tmp_opacity_146 = value.strength
         end
-        local __lux_tmp_opacity_145 = toNumber(__lux_tmp_opacity_144)
-        if __lux_tmp_opacity_145 == nil then
-          __lux_tmp_opacity_145 = 1
+        local __lux_tmp_opacity_147 = toNumber(__lux_tmp_opacity_146)
+        if __lux_tmp_opacity_147 == nil then
+          __lux_tmp_opacity_147 = 1
         end
-        opacity = mathClamp(__lux_tmp_opacity_145, 0, 1)
+        opacity = mathClamp(__lux_tmp_opacity_147, 0, 1)
       end
       local padding
       do
-        local __lux_tmp_padding_146 = value.padding
-        if __lux_tmp_padding_146 == nil then
-          __lux_tmp_padding_146 = value.spread
+        local __lux_tmp_padding_148 = value.padding
+        if __lux_tmp_padding_148 == nil then
+          __lux_tmp_padding_148 = value.spread
         end
-        local __lux_tmp_padding_147 = toNumber(__lux_tmp_padding_146)
-        if __lux_tmp_padding_147 == nil then
-          __lux_tmp_padding_147 = 0
+        local __lux_tmp_padding_149 = toNumber(__lux_tmp_padding_148)
+        if __lux_tmp_padding_149 == nil then
+          __lux_tmp_padding_149 = 0
         end
-        padding = mathMax(0, __lux_tmp_padding_147)
+        padding = mathMax(0, __lux_tmp_padding_149)
       end
-      local __lux_tmp_150 = blur <= 0
-      if __lux_tmp_150 then
-        local __lux_cmp_149 = false
+      local __lux_tmp_152 = blur <= 0
+      if __lux_tmp_152 then
+        local __lux_cmp_151 = false
         if alpha(tint.a) ~= nil then
-          __lux_cmp_149 = alpha(tint.a) <= 0
+          __lux_cmp_151 = alpha(tint.a) <= 0
         end
-        __lux_tmp_150 = __lux_cmp_149
+        __lux_tmp_152 = __lux_cmp_151
       end
-      local __lux_tmp_151 = __lux_tmp_150
-      if not __lux_tmp_151 then
-        __lux_tmp_151 = opacity <= 0
+      local __lux_tmp_153 = __lux_tmp_152
+      if not __lux_tmp_153 then
+        __lux_tmp_153 = opacity <= 0
       end
-      if __lux_tmp_151 then
+      if __lux_tmp_153 then
+        backdropTableCache[value] = false
         return nil
       end
-      return { blur = blur, tint = tint, opacity = opacity, padding = padding }
+      cached = { blur = blur, tint = tint, opacity = opacity, padding = padding }
+      cached._blurInput = value.blur
+      cached._sizeInput = value.size
+      cached._indexInput = value[1]
+      cached._tintInput = value.tint
+      cached._colorInput = value.color
+      cached._opacityInput = value.opacity
+      cached._strengthInput = value.strength
+      cached._paddingInput = value.padding
+      cached._spreadInput = value.spread
+      backdropTableCache[value] = cached
+      return cached
     end
     backdrop = function(value)
       return backdropStyle(value)
@@ -1488,13 +1571,13 @@ return function(__lux_import)
     gradientLutSerial = 0
     gradientLutSchema = "lut-alpha-rgb-v3"
     do
-      local __lux_tmp_152
+      local __lux_tmp_154
       if bitBor ~= nil then
-        __lux_tmp_152 = bitBor(2, 256, 4, 8)
+        __lux_tmp_154 = bitBor(2, 256, 4, 8)
       else
-        __lux_tmp_152 = 270
+        __lux_tmp_154 = 270
       end
-      gradientLutFlags = __lux_tmp_152
+      gradientLutFlags = __lux_tmp_154
     end
     setGradientLutOwner = function(owner)
       gradientLutOwner = owner
@@ -1506,47 +1589,47 @@ return function(__lux_import)
       end
       local stats
       do
-        local __lux_obj_gradientLutOwner_153 = gradientLutOwner
-        local __lux_val_stats_154 = nil
-        if __lux_obj_gradientLutOwner_153 ~= nil then
-          __lux_val_stats_154 = __lux_obj_gradientLutOwner_153.stats
+        local __lux_obj_gradientLutOwner_155 = gradientLutOwner
+        local __lux_val_stats_156 = nil
+        if __lux_obj_gradientLutOwner_155 ~= nil then
+          __lux_val_stats_156 = __lux_obj_gradientLutOwner_155.stats
         end
-        stats = __lux_val_stats_154
+        stats = __lux_val_stats_156
       end
       if stats ~= nil then
         do
-          local __lux_tmp_key_155 = stats[key]
-          if __lux_tmp_key_155 == nil then
-            __lux_tmp_key_155 = 0
+          local __lux_tmp_key_157 = stats[key]
+          if __lux_tmp_key_157 == nil then
+            __lux_tmp_key_157 = 0
           end
-          stats[key] = __lux_tmp_key_155 + amount
+          stats[key] = __lux_tmp_key_157 + amount
         end
       end
     end
     lutColorKey = function(color)
       local c = asColor(color, color_white)
-      local __lux_tmp_r_156 = c.r
-      if __lux_tmp_r_156 == nil then
-        __lux_tmp_r_156 = 0
+      local __lux_tmp_r_158 = c.r
+      if __lux_tmp_r_158 == nil then
+        __lux_tmp_r_158 = 0
       end
-      local __lux_tmp_g_157 = c.g
-      if __lux_tmp_g_157 == nil then
-        __lux_tmp_g_157 = 0
+      local __lux_tmp_g_159 = c.g
+      if __lux_tmp_g_159 == nil then
+        __lux_tmp_g_159 = 0
       end
-      local __lux_tmp_b_158 = c.b
-      if __lux_tmp_b_158 == nil then
-        __lux_tmp_b_158 = 0
+      local __lux_tmp_b_160 = c.b
+      if __lux_tmp_b_160 == nil then
+        __lux_tmp_b_160 = 0
       end
-      local __lux_tmp_a_159 = c.a
-      if __lux_tmp_a_159 == nil then
-        __lux_tmp_a_159 = 255
+      local __lux_tmp_a_161 = c.a
+      if __lux_tmp_a_161 == nil then
+        __lux_tmp_a_161 = 255
       end
       return tableConcat(
         {
-          mathFloor(__lux_tmp_r_156),
-          mathFloor(__lux_tmp_g_157),
-          mathFloor(__lux_tmp_b_158),
-          mathFloor(__lux_tmp_a_159),
+          mathFloor(__lux_tmp_r_158),
+          mathFloor(__lux_tmp_g_159),
+          mathFloor(__lux_tmp_b_160),
+          mathFloor(__lux_tmp_a_161),
         },
         ","
       )
@@ -1566,18 +1649,18 @@ return function(__lux_import)
       else
         if typeOf(fill) == "table" then
           do
-            local __lux_tmp_colorA_160 = fill.colorA
-            if __lux_tmp_colorA_160 == nil then
-              __lux_tmp_colorA_160 = fill[1]
+            local __lux_tmp_colorA_162 = fill.colorA
+            if __lux_tmp_colorA_162 == nil then
+              __lux_tmp_colorA_162 = fill[1]
             end
-            colorA = asColor(__lux_tmp_colorA_160, color_white)
+            colorA = asColor(__lux_tmp_colorA_162, color_white)
           end
           do
-            local __lux_tmp_colorB_161 = fill.colorB
-            if __lux_tmp_colorB_161 == nil then
-              __lux_tmp_colorB_161 = fill[2]
+            local __lux_tmp_colorB_163 = fill.colorB
+            if __lux_tmp_colorB_163 == nil then
+              __lux_tmp_colorB_163 = fill[2]
             end
-            colorB = asColor(__lux_tmp_colorB_161, colorA)
+            colorB = asColor(__lux_tmp_colorB_163, colorA)
           end
         else
           colorA = asColor(fill, color_white)
@@ -1615,11 +1698,11 @@ return function(__lux_import)
       end
       local amount
       do
-        local __lux_tmp_t_162 = toNumber(t)
-        if __lux_tmp_t_162 == nil then
-          __lux_tmp_t_162 = 0
+        local __lux_tmp_t_164 = toNumber(t)
+        if __lux_tmp_t_164 == nil then
+          __lux_tmp_t_164 = 0
         end
-        amount = mathClamp(__lux_tmp_t_162, 0, 1)
+        amount = mathClamp(__lux_tmp_t_164, 0, 1)
       end
       for index = 1, #stops - 1 do
         local a = stops[index]
@@ -1629,22 +1712,22 @@ return function(__lux_import)
           return lerpColor((amount - a.pos) / span, a.color, b.color)
         end
       end
-      local __lux_tmp_color_163 = stops[#stops].color
-      if __lux_tmp_color_163 == nil then
-        __lux_tmp_color_163 = color_white
+      local __lux_tmp_color_165 = stops[#stops].color
+      if __lux_tmp_color_165 == nil then
+        __lux_tmp_color_165 = color_white
       end
-      return __lux_tmp_color_163
+      return __lux_tmp_color_165
     end
     gradientLutKey = function(stops)
       local parts = { gradientLutSchema }
       for index = 1, #stops do
         local stop = stops[index]
         do
-          local __lux_tmp_pos_164 = stop.pos
-          if __lux_tmp_pos_164 == nil then
-            __lux_tmp_pos_164 = 0
+          local __lux_tmp_pos_166 = stop.pos
+          if __lux_tmp_pos_166 == nil then
+            __lux_tmp_pos_166 = 0
           end
-          parts[#parts + 1] = stringFormat("%.5f:%s", __lux_tmp_pos_164, lutColorKey(stop.color))
+          parts[#parts + 1] = stringFormat("%.5f:%s", __lux_tmp_pos_166, lutColorKey(stop.color))
         end
       end
       return tableConcat(parts, "|")
@@ -1661,16 +1744,16 @@ return function(__lux_import)
         suffix = toString(gradientLutSerial)
       end
       local name = "MGFXGradLUT_" .. toString(gradientLutSerial) .. "_" .. suffix
-      local __lux_tmp_MATERIAL_RT_DEPTH_NONE_165 = MATERIAL_RT_DEPTH_NONE
-      if __lux_tmp_MATERIAL_RT_DEPTH_NONE_165 == nil then
-        __lux_tmp_MATERIAL_RT_DEPTH_NONE_165 = 0
+      local __lux_tmp_MATERIAL_RT_DEPTH_NONE_167 = MATERIAL_RT_DEPTH_NONE
+      if __lux_tmp_MATERIAL_RT_DEPTH_NONE_167 == nil then
+        __lux_tmp_MATERIAL_RT_DEPTH_NONE_167 = 0
       end
       return getRenderTargetEx(
         name,
         GRADIENT_LUT_W,
         GRADIENT_LUT_H,
         RT_SIZE_LITERAL,
-        __lux_tmp_MATERIAL_RT_DEPTH_NONE_165,
+        __lux_tmp_MATERIAL_RT_DEPTH_NONE_167,
         gradientLutFlags,
         0,
         IMAGE_FORMAT_BGRA8888
@@ -1731,26 +1814,26 @@ return function(__lux_import)
         local color = colorAtNormalizedStops(stops, x / (GRADIENT_LUT_W - 1))
         local alphaByte
         do
-          local __lux_tmp_a_166 = color.a
-          if __lux_tmp_a_166 == nil then
-            __lux_tmp_a_166 = 255
+          local __lux_tmp_a_168 = color.a
+          if __lux_tmp_a_168 == nil then
+            __lux_tmp_a_168 = 255
           end
-          alphaByte = mathClamp(mathFloor(__lux_tmp_a_166), 0, 255)
+          alphaByte = mathClamp(mathFloor(__lux_tmp_a_168), 0, 255)
         end
         do
-          local __lux_tmp_r_167 = color.r
-          if __lux_tmp_r_167 == nil then
-            __lux_tmp_r_167 = 255
+          local __lux_tmp_r_169 = color.r
+          if __lux_tmp_r_169 == nil then
+            __lux_tmp_r_169 = 255
           end
-          local __lux_tmp_g_168 = color.g
-          if __lux_tmp_g_168 == nil then
-            __lux_tmp_g_168 = 255
+          local __lux_tmp_g_170 = color.g
+          if __lux_tmp_g_170 == nil then
+            __lux_tmp_g_170 = 255
           end
-          local __lux_tmp_b_169 = color.b
-          if __lux_tmp_b_169 == nil then
-            __lux_tmp_b_169 = 255
+          local __lux_tmp_b_171 = color.b
+          if __lux_tmp_b_171 == nil then
+            __lux_tmp_b_171 = 255
           end
-          surfaceSetDrawColor(__lux_tmp_r_167, __lux_tmp_g_168, __lux_tmp_b_169, 255)
+          surfaceSetDrawColor(__lux_tmp_r_169, __lux_tmp_g_170, __lux_tmp_b_171, 255)
         end
         surfaceDrawRect(x, 0, 1, 2)
         surfaceSetDrawColor(alphaByte, alphaByte, alphaByte, 255)
@@ -1795,19 +1878,19 @@ return function(__lux_import)
       local oldestKey = nil
       local oldestEntry = nil
       for entryKey, entry in pairs(gradientLutCache) do
-        local __lux_tmp_174 = oldestEntry == nil
-        if not __lux_tmp_174 then
-          local __lux_tmp_tick_172 = entry.tick
-          if __lux_tmp_tick_172 == nil then
-            __lux_tmp_tick_172 = 0
+        local __lux_tmp_176 = oldestEntry == nil
+        if not __lux_tmp_176 then
+          local __lux_tmp_tick_174 = entry.tick
+          if __lux_tmp_tick_174 == nil then
+            __lux_tmp_tick_174 = 0
           end
-          local __lux_tmp_tick_173 = oldestEntry.tick
-          if __lux_tmp_tick_173 == nil then
-            __lux_tmp_tick_173 = 0
+          local __lux_tmp_tick_175 = oldestEntry.tick
+          if __lux_tmp_tick_175 == nil then
+            __lux_tmp_tick_175 = 0
           end
-          __lux_tmp_174 = __lux_tmp_tick_172 < __lux_tmp_tick_173
+          __lux_tmp_176 = __lux_tmp_tick_174 < __lux_tmp_tick_175
         end
-        if __lux_tmp_174 then
+        if __lux_tmp_176 then
           oldestKey = entryKey
           oldestEntry = entry
         end
@@ -1880,6 +1963,7 @@ return function(__lux_import)
       owner.StripePattern = stripePattern
       owner.SmokePattern = smokePattern
       owner.Mask = mask
+      owner.Backdrop = backdrop
       owner.ImageMaskStyle = imageMaskStyle
       owner.FillFromStyle = fillFromStyle
       owner.ColorAtFill = colorAtFill

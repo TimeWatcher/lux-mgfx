@@ -1,9 +1,9 @@
 #include "mgfx_common.hlsl"
 
-#define TEXT_ATLAS_RECT Constants0
-#define TEXT_COLOR_A Constants1
-#define TEXT_COLOR_B Constants2
-#define TEXT_GRADIENT Constants3
+#define TEXT_ATLAS_RECT AUX0
+#define TEXT_COLOR_A AUX1
+#define TEXT_COLOR_B AUX2
+#define TEXT_GRADIENT AUX3
 
 float glyph_coverage(float4 texel)
 {

@@ -140,8 +140,18 @@ fn drawProgressFast(x, y, w, h, value, drawStyle, fill, radius, inset, track, st
     setupProgressConstants(material, w, h, value, radius, inset, track, fill, stroke, strokeWidth)
   }
   surfaceSetMaterial(material)
-  drawTexturedQuad(x, y, w, h)
+  drawTexturedQuad(x, y, w, h, material)
   true
+}
+
+fn setGradientColors(fill, colorA, colorB) {
+  fill.colorA = colorA
+  fill.colorB = colorB
+  fill.stops[1].color = colorA
+  fill.stops[2].color = colorB
+  fill._mgfxFillVisible = (colorA.a == nil or colorA.a > 0) or (colorB.a == nil or colorB.a > 0)
+  fill._mgfxLutCacheSafe = false
+  fill
 }
 
 fn segmentFillEndpoints(fill) {
@@ -212,7 +222,7 @@ fn drawSegmentBarShader(x, y, w, h, value, drawStyle, count, gap, fill, track) {
   style.bindGradientLut(material, fill)
   style.setDrawColor(fillA)
   surfaceSetMaterial(material)
-  drawTexturedQuad(x, y, w, h)
+  drawTexturedQuad(x, y, w, h, material)
   true
 }
 
@@ -238,17 +248,20 @@ export client fn progressBarEx(x, y, w, h, value, drawStyle = nil) {
 
   local glow, sheen, marker, ticks = fxFlags(stripped)
 
-  roundrect.roundedBoxEx(x, y, w, h, {
-    radius = radius,
-    fill = style.linearGradient(0, 0, 0, 1, makeColor(mathFloor((track.r ?? 0) * 0.65), mathFloor((track.g ?? 0) * 0.65), mathFloor((track.b ?? 0) * 0.65), track.a ?? 190), track),
-    stroke = stroke,
-    strokeWidth = strokeWidth,
-    shadow = stripped.shadow,
-    outerGlow = stripped.outerGlow,
-    innerGlow = stripped.innerGlow,
-    backdrop = stripped.backdrop,
-    pattern = stripped.trackPattern
-  })
+  progressTrackDarkColor.r = mathFloor((track.r ?? 0) * 0.65)
+  progressTrackDarkColor.g = mathFloor((track.g ?? 0) * 0.65)
+  progressTrackDarkColor.b = mathFloor((track.b ?? 0) * 0.65)
+  progressTrackDarkColor.a = track.a ?? 190
+  progressTrackStyle.radius = radius
+  progressTrackStyle.fill = setGradientColors(progressTrackGradient, progressTrackDarkColor, track)
+  progressTrackStyle.stroke = stroke
+  progressTrackStyle.strokeWidth = strokeWidth
+  progressTrackStyle.shadow = stripped.shadow
+  progressTrackStyle.outerGlow = stripped.outerGlow
+  progressTrackStyle.innerGlow = stripped.innerGlow
+  progressTrackStyle.backdrop = stripped.backdrop
+  progressTrackStyle.pattern = stripped.trackPattern
+  roundrect.drawRoundRectImmediate(x, y, w, h, progressTrackStyle)
 
   local innerH = h - inset * 2
   local innerW = (w - inset * 2) * frac
@@ -257,13 +270,17 @@ export client fn progressBarEx(x, y, w, h, value, drawStyle = nil) {
   }
 
   if ticks > 1 {
-    local tickColor = makeColor(255, 255, 255, 18)
+    progressTickStyle.shadow = nil
+    progressTickStyle.outerGlow = nil
+    progressTickStyle.innerGlow = nil
+    progressTickStyle.backdrop = nil
+    progressTickStyle.pattern = nil
+    progressTickStyle.stroke = nil
+    progressTickStyle.strokeWidth = nil
+    progressTickStyle.fill = progressTickColor
     for index = 1, ticks - 1 {
       local tx = x + mathFloor(w * index / ticks)
-      roundrect.roundedBoxEx(tx, y + 3, 1, mathMax(1, h - 6), {
-        radius = 0,
-        fill = tickColor
-      })
+      roundrect.drawRoundRectImmediate(tx, y + 3, 1, mathMax(1, h - 6), progressTickStyle)
     }
   }
 
@@ -272,31 +289,53 @@ export client fn progressBarEx(x, y, w, h, value, drawStyle = nil) {
   }
 
   if glow and innerW > 4 {
-    roundrect.roundedBoxEx(x + inset - 2, y + inset - 2, innerW + 4, innerH + 4, {
-      radius = mathMin(radius + 2, (innerH + 4) * 0.5, (innerW + 4) * 0.5),
-      fill = makeColor(80, 190, 255, 38)
-    })
+    progressGlowStyle.radius = mathMin(radius + 2, (innerH + 4) * 0.5, (innerW + 4) * 0.5)
+    progressGlowStyle.fill = progressGlowColor
+    progressGlowStyle.shadow = nil
+    progressGlowStyle.outerGlow = nil
+    progressGlowStyle.innerGlow = nil
+    progressGlowStyle.backdrop = nil
+    progressGlowStyle.pattern = nil
+    progressGlowStyle.stroke = nil
+    progressGlowStyle.strokeWidth = nil
+    roundrect.drawRoundRectImmediate(x + inset - 2, y + inset - 2, innerW + 4, innerH + 4, progressGlowStyle)
   }
 
-  roundrect.roundedBoxEx(x + inset, y + inset, innerW, innerH, {
-    radius = mathMin(mathMax(0, radius - inset), innerH * 0.5, innerW * 0.5),
-    fill = fill,
-    pattern = stripped.fillPattern ?? stripped.pattern
-  })
+  progressFillStyle.radius = mathMin(mathMax(0, radius - inset), innerH * 0.5, innerW * 0.5)
+  progressFillStyle.fill = fill
+  progressFillStyle.pattern = stripped.fillPattern ?? stripped.pattern
+  progressFillStyle.shadow = nil
+  progressFillStyle.outerGlow = nil
+  progressFillStyle.innerGlow = nil
+  progressFillStyle.backdrop = nil
+  progressFillStyle.stroke = nil
+  progressFillStyle.strokeWidth = nil
+  roundrect.drawRoundRectImmediate(x + inset, y + inset, innerW, innerH, progressFillStyle)
 
   if sheen and innerW > 8 {
-    roundrect.roundedBoxEx(x + inset + 1, y + inset + 1, mathMax(1, innerW - 2), mathMax(1, innerH * 0.38), {
-      radius = mathMin(radius, innerH * 0.25),
-      fill = style.linearGradient(0, 0, 0, 1, makeColor(255, 255, 255, 42), makeColor(255, 255, 255, 0))
-    })
+    progressSheenStyle.radius = mathMin(radius, innerH * 0.25)
+    progressSheenStyle.fill = progressSheenGradient
+    progressSheenStyle.shadow = nil
+    progressSheenStyle.outerGlow = nil
+    progressSheenStyle.innerGlow = nil
+    progressSheenStyle.backdrop = nil
+    progressSheenStyle.pattern = nil
+    progressSheenStyle.stroke = nil
+    progressSheenStyle.strokeWidth = nil
+    roundrect.drawRoundRectImmediate(x + inset + 1, y + inset + 1, mathMax(1, innerW - 2), mathMax(1, innerH * 0.38), progressSheenStyle)
   }
 
   if marker and innerW > 5 {
     local mx = x + inset + innerW - 2
-    roundrect.roundedBoxEx(mx, y + 2, 2, h - 4, {
-      radius = 1,
-      fill = makeColor(255, 255, 255, 96)
-    })
+    progressMarkerStyle.fill = progressMarkerColor
+    progressMarkerStyle.shadow = nil
+    progressMarkerStyle.outerGlow = nil
+    progressMarkerStyle.innerGlow = nil
+    progressMarkerStyle.backdrop = nil
+    progressMarkerStyle.pattern = nil
+    progressMarkerStyle.stroke = nil
+    progressMarkerStyle.strokeWidth = nil
+    roundrect.drawRoundRectImmediate(mx, y + 2, 2, h - 4, progressMarkerStyle)
   }
 }
 
@@ -335,16 +374,25 @@ export client fn segmentBarEx(x, y, w, h, value, drawStyle = nil) {
 
   local containerRadius = stripped.backgroundRadius ?? stripped.radius ?? mathMin(3, h * 0.5)
   if stripped.shadow ~= nil or stripped.outerGlow ~= nil or stripped.innerGlow ~= nil or stripped.backdrop ~= nil or stripped.background ~= nil {
-    roundrect.roundedBoxEx(x, y, w, h, {
-      radius = containerRadius,
-      fill = stripped.background ?? transparentColor,
-      shadow = stripped.shadow,
-      outerGlow = stripped.outerGlow,
-      innerGlow = stripped.innerGlow,
-      backdrop = stripped.backdrop
-    })
+    segmentContainerStyle.radius = containerRadius
+    segmentContainerStyle.fill = stripped.background ?? transparentColor
+    segmentContainerStyle.shadow = stripped.shadow
+    segmentContainerStyle.outerGlow = stripped.outerGlow
+    segmentContainerStyle.innerGlow = stripped.innerGlow
+    segmentContainerStyle.backdrop = stripped.backdrop
+    segmentContainerStyle.pattern = nil
+    segmentContainerStyle.stroke = nil
+    segmentContainerStyle.strokeWidth = nil
+    roundrect.drawRoundRectImmediate(x, y, w, h, segmentContainerStyle)
   }
 
+  segmentItemStyle.radius = stripped.radius == nil then mathMin(2, h * 0.35) else stripped.radius
+  segmentItemStyle.stroke = stripped.stroke
+  segmentItemStyle.strokeWidth = stripped.strokeWidth ?? 0
+  segmentItemStyle.shadow = nil
+  segmentItemStyle.outerGlow = nil
+  segmentItemStyle.innerGlow = nil
+  segmentItemStyle.backdrop = nil
   for index = 1, count {
     local t = count == 1 then 1 else (index - 1) / (count - 1)
     local sx = x + (index - 1) * (segmentW + gap)
@@ -352,13 +400,9 @@ export client fn segmentBarEx(x, y, w, h, value, drawStyle = nil) {
     local color = filled then colorAt(fill, t) else track
     local pattern = filled then (stripped.fillPattern ?? stripped.pattern) else stripped.trackPattern
     if color ~= nil or pattern ~= nil {
-      roundrect.roundedBoxEx(sx, y, segmentW, h, {
-        radius = stripped.radius == nil then mathMin(2, h * 0.35) else stripped.radius,
-        fill = color ?? transparentColor,
-        pattern = pattern,
-        stroke = stripped.stroke,
-        strokeWidth = stripped.strokeWidth ?? 0
-      })
+      segmentItemStyle.fill = color ?? transparentColor
+      segmentItemStyle.pattern = pattern
+      roundrect.drawRoundRectImmediate(sx, y, segmentW, h, segmentItemStyle)
     }
   }
 }

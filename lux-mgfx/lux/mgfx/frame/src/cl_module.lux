@@ -9,17 +9,66 @@ local mathCeil = math.ceil
 local mathFloor = math.floor
 local mathMax = math.max
 local mathMin = math.min
+local toNumber = tonumber
+local toString = tostring
+local debugLib = debug
+local getConVar = GetConVar
+local sysTime = SysTime
 
 local state = {
   active = false,
-    screenX = 0,
-    screenY = 0,
-    w = 0,
-    h = 0,
-    clipToFrame = false,
-    clipStack = {},
-    commandStack = nil,
-    replaying = false
+  owner = nil,
+  screenX = 0,
+  screenY = 0,
+  w = 0,
+  h = 0,
+  clipToFrame = false,
+  clipStack = {},
+  commandStack = nil,
+  replaying = false
+}
+local bleedStateStack = {}
+local bleedStateTop = 0
+
+fn profiler() =
+  state.owner?.Profiler
+
+fn profileActive() {
+  local api = profiler()
+  if api ~= nil and api.IsEnabled ~= nil {
+    return api.IsEnabled()
+  }
+
+  local cvar = getConVar ~= nil then getConVar("mgfx_profile") else nil
+  cvar ~= nil and cvar.GetBool ~= nil and cvar:GetBool() or false
+}
+
+fn profileCallsite() {
+  if not profileActive() or debugLib == nil or debugLib.getinfo == nil {
+    return nil
+  }
+
+  debugLib.getinfo(3, "Sln")
+}
+
+fn profileStart() {
+  local api = profiler()
+  if api ~= nil and api.Start ~= nil {
+    return api.Start()
+  }
+
+  nil
+}
+
+fn profileEnd(name, started, count = 1) {
+  if started == nil {
+    return
+  }
+
+  local api = profiler()
+  if api ~= nil and api.Record ~= nil {
+    api.Record(name, (sysTime() - started) * 1000, count)
+  }
 }
 
 export client fn current() =
@@ -40,6 +89,32 @@ export client fn restoreScissor() {
   } else {
     renderSetScissorRect(0, 0, 0, 0, false)
   }
+}
+
+fn beginExpandedScissor(sx, sy, ex, ey) {
+  local token = bleedStateTop + 1
+  bleedStateTop = token
+  local saved = bleedStateStack[token]
+  if saved == nil {
+    saved = {}
+    bleedStateStack[token] = saved
+  }
+
+  if disableClipping ~= nil {
+    saved.prevClipping = disableClipping(true)
+  } else {
+    saved.prevClipping = nil
+  }
+
+  renderSetScissorRect(
+    mathFloor(sx),
+    mathFloor(sy),
+    mathCeil(ex),
+    mathCeil(ey),
+    true
+  )
+
+  token
 }
 
 fn panelClip() {
@@ -96,14 +171,168 @@ fn installFrameClip() {
   local sy = state.screenY ?? 0
   state.clipStack[#state.clipStack + 1] = {
     localX = 0,
-      localY = 0,
-      x = sx,
-      y = sy,
-      w = fw,
-      h = fh,
-      frame = true
+    localY = 0,
+    x = sx,
+    y = sy,
+    w = fw,
+    h = fh,
+    frame = true
   }
   renderSetScissorRect(sx, sy, sx + fw, sy + fh, true)
+}
+
+fn beginCommandFrame() {
+  state.commandStack = {}
+  state.replaying = false
+  state.commandStack
+}
+
+fn flushTextBatch(textBatch, reason = "end") {
+  if #textBatch == 0 {
+    return
+  }
+
+  local started = profileStart()
+  local renderer = state.owner?._TextRenderer
+  if renderer == nil or renderer.Flush == nil {
+    errorFn("MGFX text renderer unavailable during frame text flush", 2)
+  }
+  renderer.Flush(textBatch, reason)
+  profileEnd("textFlush", started)
+
+  clearArray(textBatch)
+}
+
+fn appendTextCommand(command, textBatch) {
+  local renderer = state.owner?._TextRenderer
+  if command.record ~= nil {
+    textBatch[#textBatch + 1] = command.record
+  } else if renderer ~= nil and renderer.MakeRecord ~= nil {
+    textBatch[#textBatch + 1] = renderer.MakeRecord(command.text, command.font, command.x, command.y, command.color, command.ax, command.ay, command.style)
+  } else {
+    textBatch[#textBatch + 1] = command
+  }
+}
+
+fn appendTextBatchCommand(command, textBatch) {
+  local records = command.records
+  if records == nil {
+    return
+  }
+
+  for index = 1, #records {
+    textBatch[#textBatch + 1] = records[index]
+  }
+}
+
+fn drawTextBoxCommand(command) {
+  local ownerStats = state.owner?.stats
+  if ownerStats ~= nil and state.drawCountsActive {
+    ownerStats.drawImmediateCounts = ownerStats.drawImmediateCounts ?? {}
+    ownerStats.drawImmediateCounts.textBox = (ownerStats.drawImmediateCounts.textBox ?? 0) + 1
+  }
+
+  local renderer = state.owner?._TextRenderer
+  if renderer == nil or renderer.DrawTextBoxImmediate == nil {
+    errorFn("MGFX text renderer unavailable during frame textbox flush", 2)
+  }
+  renderer.DrawTextBoxImmediate(command.text, command.font, command.x, command.y, command.w, command.h, command.style)
+}
+
+fn commandName(command) =
+  command?.op ?? command?.[1]
+
+fn flushQueuedCommands() {
+  local stack = state.commandStack
+  if stack == nil {
+    return 0
+  }
+
+  state.commandStack = nil
+  state.replaying = true
+  installFrameClip()
+
+  local textBatch = {}
+  local loopProfile = profileStart()
+  for index = 1, #stack {
+    local command = stack[index]
+    local name = commandName(command)
+    local commandProfile = profileStart()
+    local ownerStats = state.owner?.stats
+    if ownerStats ~= nil and state.drawCountsActive {
+      ownerStats.drawCommandCounts = ownerStats.drawCommandCounts ?? {}
+      local statKey = name ?? "unknown"
+      ownerStats.drawCommandCounts[statKey] = (ownerStats.drawCommandCounts[statKey] ?? 0) + 1
+    }
+    match commandName(command) {
+      "DrawText" => appendTextCommand(command, textBatch)
+      "DrawTextBatch" => appendTextBatchCommand(command, textBatch)
+      "DrawTextBox" => {
+        flushTextBatch(textBatch, "text")
+        drawTextBoxCommand(command)
+      }
+      "PushClip" => {
+        flushTextBatch(textBatch, "clip")
+        pushClip(command.x, command.y, command.w, command.h)
+      }
+      "PopClip" => {
+        flushTextBatch(textBatch, "clip")
+        popClip()
+      }
+      _ => {}
+    }
+    profileEnd("cmd." .. toString(name ?? "unknown"), commandProfile)
+  }
+  profileEnd("commandLoop", loopProfile)
+  flushTextBatch(textBatch, "end")
+
+  local count = #stack
+  clearArray(stack)
+  state.replaying = false
+  count
+}
+
+fn finishFrame() {
+  local frameProfile = state.profileFrameStarted
+  profileEnd("frame", frameProfile)
+  profileEnd("paintTotal", state.profilePaintStarted)
+  state.profileFrameStarted = nil
+  state.profilePaintStarted = nil
+  local api = profiler()
+  if api ~= nil and api.EndFrame ~= nil {
+    api.EndFrame()
+  }
+  clearArray(state.clipStack)
+  renderSetScissorRect(0, 0, 0, 0, false)
+  state.active = false
+  state.w = 0
+  state.h = 0
+  state.screenX = 0
+  state.screenY = 0
+  state.clipToFrame = false
+  state.drawCountsActive = false
+  state.commandStack = nil
+  state.replaying = false
+  state
+}
+
+fn beginFrameProfile(kind, subject, info) {
+  local api = profiler()
+  local active = false
+  if api ~= nil and api.BeginFrame ~= nil {
+    active = api.BeginFrame(kind, subject, info)
+  }
+  state.drawCountsActive = do {
+    local cvar = getConVar ~= nil then getConVar("mgfx_draw_counts") else nil
+    cvar ~= nil and cvar.GetBool ~= nil and cvar:GetBool() or false
+  }
+  if active {
+    state.profilePaintStarted = profileStart()
+    state.profileFrameStarted = nil
+  } else {
+    state.profilePaintStarted = nil
+    state.profileFrameStarted = nil
+  }
 }
 
 export client fn startScreen(w = ScrW(), h = ScrH()) {
@@ -113,22 +342,27 @@ export client fn startScreen(w = ScrW(), h = ScrH()) {
   state.w = w
   state.h = h
   state.clipToFrame = false
+  state.commandStack = nil
+  state.replaying = false
+  beginFrameProfile("screen", nil, {
+    callsite = profileCallsite(),
+    label = "screen"
+  })
   installFrameClip()
   return state
 }
 
 export client fn endScreen() {
-  clearArray(state.clipStack)
-  renderSetScissorRect(0, 0, 0, 0, false)
-  state.active = false
-  state.w = 0
-  state.h = 0
-  state.screenX = 0
-  state.screenY = 0
-  state.clipToFrame = false
-  state.commandStack = nil
-  state.replaying = false
-  return state
+  local frameProfile = profileStart()
+  if frameProfile ~= nil and state.profilePaintStarted ~= nil {
+    local api = profiler()
+    if api ~= nil and api.Record ~= nil {
+      api.Record("paintBuild", (frameProfile - state.profilePaintStarted) * 1000)
+    }
+  }
+  state.profileFrameStarted = frameProfile
+  flushQueuedCommands()
+  finishFrame()
 }
 
 export client fn startPanel(panel, w, h) {
@@ -145,6 +379,11 @@ export client fn startPanel(panel, w, h) {
   state.w = w ?? (panel ~= nil and panel.GetWide ~= nil then panel:GetWide() else 0)
   state.h = h ?? (panel ~= nil and panel.GetTall ~= nil then panel:GetTall() else 0)
   state.clipToFrame = true
+  state.commandStack = nil
+  state.replaying = false
+  beginFrameProfile("panel", panel, {
+    callsite = profileCallsite()
+  })
   installFrameClip()
   return state
 }
@@ -157,6 +396,16 @@ export client fn pushClip(x, y, w, h) {
   y = y ?? 0
   w = w ?? 0
   h = h ?? 0
+
+  if state.commandStack ~= nil and not state.replaying {
+    state.commandStack[#state.commandStack + 1] = {
+      op = "PushClip",
+      x = x,
+      y = y,
+      w = w,
+      h = h
+    }
+  }
 
   local sx, sy = toScreen(x, y)
   local ex = sx + w
@@ -172,11 +421,11 @@ export client fn pushClip(x, y, w, h) {
   if ex <= sx or ey <= sy {
     local clip = {
       localX = x,
-        localY = y,
-        x = sx,
-        y = sy,
-        w = 0,
-        h = 0
+      localY = y,
+      x = sx,
+      y = sy,
+      w = 0,
+      h = 0
     }
     state.clipStack[#state.clipStack + 1] = clip
     renderSetScissorRect(0, 0, 0, 0, true)
@@ -185,11 +434,11 @@ export client fn pushClip(x, y, w, h) {
 
   local clip = {
     localX = sx - (state.screenX ?? 0),
-      localY = sy - (state.screenY ?? 0),
-      x = sx,
-      y = sy,
-      w = ex - sx,
-      h = ey - sy
+    localY = sy - (state.screenY ?? 0),
+    x = sx,
+    y = sy,
+    w = ex - sx,
+    h = ey - sy
   }
 
   state.clipStack[#state.clipStack + 1] = clip
@@ -198,6 +447,10 @@ export client fn pushClip(x, y, w, h) {
 }
 
 export client fn popClip() {
+  if state.commandStack ~= nil and not state.replaying {
+    state.commandStack[#state.commandStack + 1] = { op = "PopClip" }
+  }
+
   if #state.clipStack > 0 {
     state.clipStack[#state.clipStack] = nil
   }
@@ -217,38 +470,88 @@ export client fn withClip(x, y, w, h, callback) {
   return a, b, c, d
 }
 
-export client fn withPanelEffectBleed(left = 0, top = 0, right = 0, bottom = 0, callback) {
-  left = mathMax(0, left ?? 0)
-  top = mathMax(0, top ?? 0)
-  right = mathMax(0, right ?? 0)
-  bottom = mathMax(0, bottom ?? 0)
+export client fn beginPanelEffectBleed(left = 0, top = 0, right = 0, bottom = 0) {
+  left = mathMax(0, toNumber(left) ?? 0)
+  top = mathMax(0, toNumber(top) ?? 0)
+  right = mathMax(0, toNumber(right) ?? 0)
+  bottom = mathMax(0, toNumber(bottom) ?? 0)
   if left <= 0 and top <= 0 and right <= 0 and bottom <= 0 {
-    return callback()
+    return nil
   }
 
   local clip = panelClip()
   if clip == nil {
-    return callback()
+    return nil
   }
 
-  local prevClipping = nil
-  if disableClipping ~= nil {
-    prevClipping = disableClipping(true)
-  }
-
-  renderSetScissorRect(
-    mathFloor(clip.x - left),
-    mathFloor(clip.y - top),
-    mathCeil(clip.x + clip.w + right),
-    mathCeil(clip.y + clip.h + bottom),
-    true
+  beginExpandedScissor(
+    clip.x - left,
+    clip.y - top,
+    clip.x + clip.w + right,
+    clip.y + clip.h + bottom
   )
+}
 
-  local ok, a, b, c, d = pcallFn(callback)
+export client fn beginPanelEffectDraw(drawX, drawY, drawW, drawH) {
+  if drawW <= 0 or drawH <= 0 {
+    return nil
+  }
+
+  local currentClip = state.clipStack[#state.clipStack]
+  if currentClip == nil {
+    return nil
+  }
+
+  local drawRight = drawX + drawW
+  local drawBottom = drawY + drawH
+  local clipRight = (currentClip.localX ?? 0) + (currentClip.w ?? 0)
+  local clipBottom = (currentClip.localY ?? 0) + (currentClip.h ?? 0)
+  if drawX >= (currentClip.localX ?? 0)
+    and drawY >= (currentClip.localY ?? 0)
+    and drawRight <= clipRight
+    and drawBottom <= clipBottom {
+    return nil
+  }
+
+  local clip = panelClip()
+  if clip == nil {
+    return nil
+  }
+
+  local sx = (state.screenX ?? 0) + drawX
+  local sy = (state.screenY ?? 0) + drawY
+  beginExpandedScissor(
+    mathMin(clip.x, sx),
+    mathMin(clip.y, sy),
+    mathMax(clip.x + clip.w, sx + drawW),
+    mathMax(clip.y + clip.h, sy + drawH)
+  )
+}
+
+export client fn endPanelEffectBleed(token) {
+  if token == nil {
+    return
+  }
+  if token ~= bleedStateTop {
+    errorFn("MGFX panel bleed scope mismatch", 2)
+  }
+
+  local saved = bleedStateStack[token]
   restoreScissor()
   if disableClipping ~= nil {
+    local prevClipping = nil
+    if saved ~= nil {
+      prevClipping = saved.prevClipping
+    }
     disableClipping(prevClipping)
   }
+  bleedStateTop = token - 1
+}
+
+export client fn withPanelEffectBleed(left = 0, top = 0, right = 0, bottom = 0, callback) {
+  local token = beginPanelEffectBleed(left, top, right, bottom)
+  local ok, a, b, c, d = pcallFn(callback)
+  endPanelEffectBleed(token)
 
   if not ok {
     errorFn(a, 2)
@@ -258,9 +561,7 @@ export client fn withPanelEffectBleed(left = 0, top = 0, right = 0, bottom = 0, 
 }
 
 export client fn beginCommands() {
-  state.commandStack = {}
-  state.replaying = false
-  return state.commandStack
+  beginCommandFrame()
 }
 
 export client fn queue(command) {
@@ -299,12 +600,18 @@ export client fn debugOverlay(x = 8, y = 8) {
 }
 
 export client fn install(owner) {
+  state.owner = owner
   owner.StartPanel = startPanel
   owner.EndPanel = endPanel
   owner.StartScreen = startScreen
   owner.EndScreen = endScreen
+  owner.BeginCommands = beginCommands
+  owner.FlushCommands = flushCommands
   owner.PushClip = pushClip
   owner.PopClip = popClip
+  owner.BeginPanelEffectBleed = beginPanelEffectBleed
+  owner.BeginPanelEffectDraw = beginPanelEffectDraw
+  owner.EndPanelEffectBleed = endPanelEffectBleed
   owner.WithPanelEffectBleed = withPanelEffectBleed
   owner.DebugOverlay = debugOverlay
   owner._FrameState = state

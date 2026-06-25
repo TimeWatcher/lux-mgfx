@@ -164,8 +164,21 @@ fn drawImageMaskPass(x, y, w, h, texture, u0, v0, u1, v1, tint, stroke, strokeWi
   setupImageMaskConstants(material, w, h, u0, v0, u1, v1, stroke, strokeWidth, mask, kind, maskTexture, sourceAlphaBase)
   style.setDrawColor(tint ?? color_white)
   surfaceSetMaterial(material)
-  drawTexturedQuad(x, y, w, h)
+  drawTexturedQuad(x, y, w, h, material)
   true
+}
+
+fn resolveMaskTexture(mask, kind) {
+  if imageMaskUsesTexture(kind) {
+    local resolvedKind = imageMaskTextureChannelKind(mask.channel)
+    stopif resolvedKind == nil, nil, nil
+
+    local texture = imageMaskTextureSource(mask)
+    stopif texture == nil, nil, nil
+    return resolvedKind, texture
+  }
+
+  return kind, nil
 }
 
 fn imageBackdropTintColor(spec) {
@@ -180,6 +193,81 @@ fn imageBackdropTintColor(spec) {
   }
 
   makeColor(tint.r ?? 0, tint.g ?? 0, tint.b ?? 0, mathFloor(mathClamp(alpha, 0, 255) + 0.5))
+}
+
+fn setupImageMaskEffectParams(material, w, h, mask, kind, maskTexture, shadowSpec, outerSpec, drawX, drawY, shadowX, shadowY, outerX, outerY) {
+  local packedKind = kind
+  if mask ~= nil and (mask.invert or mask.inverse) {
+    packedKind += 128
+  }
+
+  local p0 = 0
+  local p1 = 0
+  local p2 = 0
+  local p3 = 0
+  if kind == ImageMaskKind.Chamfer {
+    p0, p1, p2, p3 = imageChamferMaskTuple(mask, w, h)
+  } else if imageMaskUsesTexture(kind) {
+    p0, p1, p2, p3 = imageMaskTextureUV(mask, maskTexture)
+    material:SetTexture("$texture1", maskTexture)
+  }
+
+  local shadowColor = shadowSpec?.color ?? makeColor(0, 0, 0, 0)
+  local outerColor = outerSpec?.color ?? makeColor(0, 0, 0, 0)
+  setupParamMatrix(material,
+    drawX, drawY, w, h,
+    packedKind, mask ~= nil and geometry.imageRadius(mask.radius, w, h) or 0, shadowSpec ~= nil then roundrect.effectExtentFromSpec(shadowSpec, 18) else 0, outerSpec ~= nil then roundrect.effectExtentFromSpec(outerSpec, 18) else 0,
+    (shadowColor.r ?? 0) / 255, (shadowColor.g ?? 0) / 255, (shadowColor.b ?? 0) / 255, shadowSpec ~= nil then (shadowColor.a ?? 255) / 255 else 0,
+    shadowX, shadowY, shadowSpec ~= nil then mathMax(0.001, toNumber(shadowSpec.width) ?? 18) else 1, shadowSpec ~= nil then mathMax(0, toNumber(shadowSpec.strength ?? shadowSpec.opacity) ?? 1) else 0
+  )
+  setupAuxConstants(material,
+    (outerColor.r ?? 0) / 255, (outerColor.g ?? 0) / 255, (outerColor.b ?? 0) / 255, outerSpec ~= nil then (outerColor.a ?? 255) / 255 else 0,
+    outerX, outerY, outerSpec ~= nil then mathMax(0.001, toNumber(outerSpec.width) ?? 18) else 1, outerSpec ~= nil then mathMax(0, toNumber(outerSpec.strength ?? outerSpec.opacity) ?? 1) else 0,
+    shadowSpec ~= nil then mathClamp(1 / mathMax(toNumber(shadowSpec.falloff) ?? 1.8, 0.001), 0.1, 1) else 1,
+    outerSpec ~= nil then mathClamp(1 / mathMax(toNumber(outerSpec.falloff) ?? 1.8, 0.001), 0.1, 1) else 1,
+    0, 0,
+    p0, p1, p2, p3
+  )
+}
+
+fn drawImageMaskShadowOuter(x, y, w, h, mask, kind, shadow, outer) {
+  stopif (shadow == nil and outer == nil) or typeOf(mask) ~= "table" or not shadersActive() or not materialOK(widgetMaterials.image_mask_shadow_outer), false
+
+  kind = kind ?? imageMaskKindValue(mask)
+  stopif kind == nil, false
+
+  local maskTexture
+  kind, maskTexture = resolveMaskTexture(mask, kind)
+  stopif kind == nil, false
+
+  local shadowValid = shadow ~= nil and shadow.color ~= nil and (shadow.color.a ?? 255) > 0
+  local outerValid = outer ~= nil and outer.color ~= nil and (outer.color.a ?? 255) > 0
+  stopif not shadowValid and not outerValid, false
+
+  local shadowExtent = shadowValid then roundrect.effectExtentFromSpec(shadow, 18) else 0
+  local outerExtent = outerValid then roundrect.effectExtentFromSpec(outer, 18) else 0
+  local shadowX = shadowValid then x + (toNumber(shadow.x ?? shadow.offsetX ?? shadow.dx) ?? 0) - shadowExtent else x
+  local shadowY = shadowValid then y + (toNumber(shadow.y ?? shadow.offsetY ?? shadow.dy) ?? 0) - shadowExtent else y
+  local outerX = outerValid then x + (toNumber(outer.x ?? outer.offsetX ?? outer.dx) ?? 0) - outerExtent else x
+  local outerY = outerValid then y + (toNumber(outer.y ?? outer.offsetY ?? outer.dy) ?? 0) - outerExtent else y
+  local sx = mathMin(shadowValid then shadowX else outerX, outerValid then outerX else shadowX)
+  local sy = mathMin(shadowValid then shadowY else outerY, outerValid then outerY else shadowY)
+  local ex = mathMax(shadowValid then shadowX + w + shadowExtent * 2 else outerX + w + outerExtent * 2, outerValid then outerX + w + outerExtent * 2 else shadowX + w + shadowExtent * 2)
+  local ey = mathMax(shadowValid then shadowY + h + shadowExtent * 2 else outerY + h + outerExtent * 2, outerValid then outerY + h + outerExtent * 2 else shadowY + h + shadowExtent * 2)
+  local drawW = ex - sx
+  local drawH = ey - sy
+  local material = widgetMaterials.image_mask_shadow_outer
+  local shadowArg = shadowValid then shadow else nil
+  local outerArg = outerValid then outer else nil
+  stopifn setupImageMaskEffectParams(material, w, h, mask, kind, maskTexture, shadowArg, outerArg, drawW, drawH, x - sx, y - sy, x - sx, y - sy), false
+
+  local bleedLeft, bleedTop, bleedRight, bleedBottom = effectBleedFromDrawRect(x, y, w, h, sx, sy, drawW, drawH)
+  local bleedToken = beginPanelEffectBleed(bleedLeft, bleedTop, bleedRight, bleedBottom)
+  surfaceSetDrawColor(255, 255, 255, 255)
+  surfaceSetMaterial(material)
+  drawTexturedQuad(sx, sy, drawW, drawH, material)
+  endPanelEffectBleed(bleedToken)
+  true
 }
 
 fn setupImageMaskBackdropConstants(material, drawW, drawH, shapeW, shapeH, mask, kind, maskTexture, vertical, intensity) {
@@ -226,10 +314,10 @@ fn drawImageMaskBackdrop(x, y, w, h, mask, kind, maskTexture, backdrop) {
     surfaceSetDrawColor(255, 255, 255, 255)
     renderCopyRenderTargetToTexture(widgetBlurRT)
     setupImageMaskBackdropConstants(material, bw, bh, w, h, mask, kind, maskTexture, false, intensity)
-    drawTexturedQuad(bx, by, bw, bh)
+    drawTexturedQuad(bx, by, bw, bh, material)
     renderCopyRenderTargetToTexture(widgetBlurRT)
     setupImageMaskBackdropConstants(material, bw, bh, w, h, mask, kind, maskTexture, true, intensity)
-    drawTexturedQuad(bx, by, bw, bh)
+    drawTexturedQuad(bx, by, bw, bh, material)
   }
 
   local tint = imageBackdropTintColor(spec)
@@ -238,7 +326,7 @@ fn drawImageMaskBackdrop(x, y, w, h, mask, kind, maskTexture, backdrop) {
     surfaceSetMaterial(material)
     style.setDrawColor(tint)
     setupImageMaskBackdropConstants(material, bw, bh, w, h, mask, kind, maskTexture, false, 0)
-    drawTexturedQuad(bx, by, bw, bh)
+    drawTexturedQuad(bx, by, bw, bh, material)
   }
 
   spec
@@ -269,131 +357,4 @@ fn drawImageMaskShader(x, y, w, h, texture, u0, v0, u1, v1, drawStyle, mask, kin
   }
 
   drawImageMaskPass(x, y, w, h, texture, u0, v0, u1, v1, geometry.imageTint(drawStyle), drawStyle.stroke, drawStyle.strokeWidth, mask, kind, maskTexture, mask.sourceAlpha == true)
-}
-
-fn drawImageMaskOuterGlow(x, y, w, h, mask, kind, glow) {
-  local spec = glow
-  stopif spec == nil or typeOf(mask) ~= "table" or not materialOK(widgetMaterials.image_mask_outerglow), false
-
-  kind = kind ?? imageMaskKindValue(mask)
-  stopif kind == nil, false
-
-  local maskTexture = nil
-  if imageMaskUsesTexture(kind) {
-    kind = imageMaskTextureChannelKind(mask.channel)
-    stopif kind == nil, false
-
-    maskTexture = imageMaskTextureSource(mask)
-    stopif maskTexture == nil, false
-  }
-
-  local width = mathMax(0.001, toNumber(spec.width) ?? 18)
-  local extent = roundrect.effectExtentFromSpec(spec, 18)
-  local ox = toNumber(spec.x ?? spec.offsetX ?? spec.dx) ?? 0
-  local oy = toNumber(spec.y ?? spec.offsetY ?? spec.dy) ?? 0
-  local material = widgetMaterials.image_mask_outerglow
-  local r, g, b, a = style.color01(spec.color ?? makeColor(76, 190, 255, 88))
-  local glowR = r
-  local glowG = g
-  local glowB = b
-  local glowA = a
-
-  local packedKind = kind
-  if mask.invert or mask.inverse {
-    packedKind += 128
-  }
-
-  local p0 = 0
-  local p1 = 0
-  local p2 = 0
-  local p3 = 0
-  if kind == ImageMaskKind.Chamfer {
-    p0, p1, p2, p3 = imageChamferMaskTuple(mask, w, h)
-  } else if imageMaskUsesTexture(kind) {
-    p0, p1, p2, p3 = imageMaskTextureUV(mask, maskTexture)
-    material:SetTexture("$texture1", maskTexture)
-  }
-
-  setupParamMatrix(material,
-    glowR, glowG, glowB, glowA,
-    w, h, packedKind, mask ~= nil and geometry.imageRadius(mask.radius, w, h) or 0,
-    width,
-    mathMax(0, toNumber(spec.strength ?? spec.opacity) ?? 1),
-    mathClamp(1 / mathMax(toNumber(spec.falloff) ?? 1.8, 0.001), 0.1, 1),
-    extent,
-    p0, p1, p2, p3
-  )
-
-  local sx = x + ox - extent
-  local sy = y + oy - extent
-  local drawW = w + extent * 2
-  local drawH = h + extent * 2
-  local bleedLeft, bleedTop, bleedRight, bleedBottom = effectBleedFromDrawRect(x, y, w, h, sx, sy, drawW, drawH)
-  withPanelEffectBleed(bleedLeft, bleedTop, bleedRight, bleedBottom, () => {
-    surfaceSetDrawColor(255, 255, 255, 255)
-    surfaceSetMaterial(material)
-    drawTexturedQuad(sx, sy, drawW, drawH)
-  })
-  true
-}
-
-fn drawImageMaskShadow(x, y, w, h, mask, kind, shadow) {
-  local spec = shadow
-  stopif spec == nil or typeOf(mask) ~= "table" or not materialOK(widgetMaterials.image_mask_shadow), false
-
-  kind = kind ?? imageMaskKindValue(mask)
-  stopif kind == nil, false
-
-  local maskTexture = nil
-  if imageMaskUsesTexture(kind) {
-    kind = imageMaskTextureChannelKind(mask.channel)
-    stopif kind == nil, false
-
-    maskTexture = imageMaskTextureSource(mask)
-    stopif maskTexture == nil, false
-  }
-
-  local width = mathMax(0.001, toNumber(spec.width) ?? 18)
-  local extent = roundrect.effectExtentFromSpec(spec, 18)
-  local ox = toNumber(spec.x ?? spec.offsetX ?? spec.dx) ?? 0
-  local oy = toNumber(spec.y ?? spec.offsetY ?? spec.dy) ?? 0
-  local material = widgetMaterials.image_mask_shadow
-  local r, g, b, a = style.color01(spec.color ?? makeColor(0, 0, 0, 128))
-  local packedKind = kind
-  if mask.invert or mask.inverse {
-    packedKind += 128
-  }
-
-  local p0 = 0
-  local p1 = 0
-  local p2 = 0
-  local p3 = 0
-  if kind == ImageMaskKind.Chamfer {
-    p0, p1, p2, p3 = imageChamferMaskTuple(mask, w, h)
-  } else if imageMaskUsesTexture(kind) {
-    p0, p1, p2, p3 = imageMaskTextureUV(mask, maskTexture)
-    material:SetTexture("$texture1", maskTexture)
-  }
-
-  setupParamMatrix(material,
-    r, g, b, a,
-    w, h, packedKind, mask ~= nil and geometry.imageRadius(mask.radius, w, h) or 0,
-    width,
-    mathMax(0, toNumber(spec.strength ?? spec.opacity) ?? 1),
-    mathClamp(1 / mathMax(toNumber(spec.falloff) ?? 1.8, 0.001), 0.1, 1),
-    extent,
-    p0, p1, p2, p3
-  )
-
-  local sx = x + ox - extent
-  local sy = y + oy - extent
-  local drawW = w + extent * 2
-  local drawH = h + extent * 2
-  local bleedLeft, bleedTop, bleedRight, bleedBottom = effectBleedFromDrawRect(x, y, w, h, sx, sy, drawW, drawH)
-  withPanelEffectBleed(bleedLeft, bleedTop, bleedRight, bleedBottom, () => {
-    surfaceSetDrawColor(255, 255, 255, 255)
-    surfaceSetMaterial(material)
-    drawTexturedQuad(sx, sy, drawW, drawH)
-  })
-  true
 }

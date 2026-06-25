@@ -1,6 +1,7 @@
 import * as api_mod from "@lux/mgfx/api"
 import * as capabilities_mod from "@lux/mgfx/capabilities"
 import * as commands_mod from "@lux/mgfx/commands"
+import * as console_mod from "@lux/mgfx/console"
 import * as frame_mod from "@lux/mgfx/frame"
 import * as geometry_mod from "@lux/mgfx/geometry"
 import * as materials_mod from "@lux/mgfx/materials"
@@ -16,6 +17,7 @@ import * as widgets_mod from "@lux/mgfx/widgets"
 local api = api_mod
 local capabilities = capabilities_mod
 local commands = commands_mod
+local console = console_mod
 local frame = frame_mod
 local geometry = geometry_mod
 local materials = materials_mod
@@ -44,6 +46,7 @@ export client {
   api,
   capabilities,
     commands,
+    console,
     frame,
     geometry,
     materials,
