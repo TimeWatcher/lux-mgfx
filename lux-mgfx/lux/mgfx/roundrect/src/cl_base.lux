@@ -31,6 +31,7 @@ local sysTime = SysTime
 
 local drawTransformedPoly = geometry.drawTransformedPoly
 local drawTexturedQuad = geometry.drawTexturedQuad
+local drawTexturedQuadUV = geometry.drawTexturedQuadUV
 local blurIntensity = geometry.blurIntensity
 local hasTransform = geometry.hasTransform
 local recordDraws = geometry.recordDraws

@@ -131,41 +131,7 @@ export client fn drawRoundRectImmediate(x, y, w, h, drawStyle = nil) {
     return
   }
 
-  if shadowSpec ~= nil or outerSpec ~= nil {
-    local profile = profiling then roundRectProfileStart() else nil
-    local shadowOuterTrace = roundRectTraceStart("round.shadowOuter")
-    drawRoundRectShadowOuterSpec(x, y, w, h, radius, shadowSpec, outerSpec)
-    roundRectTraceEnd(shadowOuterTrace)
-    if profiling {
-      roundRectProfileEnd("round.shadowOuter", profile)
-    }
-  }
-
-  local backdrop = nil
-  if backdropSpec ~= nil {
-    local profile = profiling then roundRectProfileStart() else nil
-    local backdropPassTrace = roundRectTraceStart("round.backdrop")
-    backdrop = drawRoundRectBackdrop(x, y, w, h, radius, backdropSpec)
-    roundRectTraceEnd(backdropPassTrace)
-    if profiling {
-      roundRectProfileEnd("round.backdrop", profile)
-    }
-  }
-
-  local effectOnly = backdrop == nil
-    and not hasStroke
-    and styleValue.pattern == nil
-    and styleValue.innerGlow == nil
-    and (shadowSpec ~= nil or outerSpec ~= nil)
   local fillInput = styleValue.fill ?? styleValue.color
-  if effectOnly and not hotFillVisible(fillInput) {
-    if profiling {
-      finishImmediateTrace(trace, profiling, totalProfile)
-    } else {
-      finishImmediateTrace(trace, profiling, totalProfile)
-    }
-    return
-  }
 
   if profiling {
     stageProfile = sysTime()
@@ -180,6 +146,62 @@ export client fn drawRoundRectImmediate(x, y, w, h, drawStyle = nil) {
     roundRectProfileRecord("round.fillPrepare", (now - stageProfile) * 1000)
     stageProfile = now
   }
+
+  local profile = nil
+  if backdropSpec == nil
+    and styleValue.pattern == nil
+    and innerSpec == nil
+    and not transformActive
+    and (hasFill or hasStroke)
+    and (shadowSpec ~= nil or outerSpec ~= nil) {
+    profile = profiling then roundRectProfileStart() else nil
+    local fusedTrace = roundRectTraceStart("round.fused")
+    local radiusValue = roundRectRadiusScalar(radius, w, h)
+    if drawRoundRectFusedSpec(x, y, w, h, radius, fill, styleValue.stroke, strokeWidth, shadowSpec, outerSpec, radiusValue) {
+      roundRectTraceEnd(fusedTrace)
+      if profiling {
+        roundRectProfileEnd("round.fused", profile)
+      }
+      finishImmediateTrace(trace, profiling, totalProfile)
+      return
+    }
+    roundRectTraceEnd(fusedTrace)
+    if profiling {
+      roundRectProfileEnd("round.fused.miss", profile)
+    }
+  }
+
+  if shadowSpec ~= nil or outerSpec ~= nil {
+    profile = profiling then roundRectProfileStart() else nil
+    local shadowOuterTrace = roundRectTraceStart("round.shadowOuter")
+    drawRoundRectShadowOuterSpec(x, y, w, h, radius, shadowSpec, outerSpec)
+    roundRectTraceEnd(shadowOuterTrace)
+    if profiling {
+      roundRectProfileEnd("round.shadowOuter", profile)
+    }
+  }
+
+  local backdrop = nil
+  if backdropSpec ~= nil {
+    profile = profiling then roundRectProfileStart() else nil
+    local backdropPassTrace = roundRectTraceStart("round.backdrop")
+    backdrop = drawRoundRectBackdrop(x, y, w, h, radius, backdropSpec)
+    roundRectTraceEnd(backdropPassTrace)
+    if profiling {
+      roundRectProfileEnd("round.backdrop", profile)
+    }
+  }
+
+  local effectOnly = backdrop == nil
+    and not hasStroke
+    and styleValue.pattern == nil
+    and innerSpec == nil
+    and (shadowSpec ~= nil or outerSpec ~= nil)
+  if effectOnly and not hasFill {
+    finishImmediateTrace(trace, profiling, totalProfile)
+    return
+  }
+
   if backdrop == nil and not hasFill and not hasStroke and styleValue.pattern == nil and innerSpec == nil {
     finishImmediateTrace(trace, profiling, totalProfile)
     return
@@ -187,7 +209,7 @@ export client fn drawRoundRectImmediate(x, y, w, h, drawStyle = nil) {
 
   local innerGlowDrawn = false
   if styleValue.pattern ~= nil {
-    local profile = profiling then roundRectProfileStart() else nil
+    profile = profiling then roundRectProfileStart() else nil
     local layeredTrace = roundRectTraceStart("round.layered")
     if hasFill {
       drawRoundRectFillPass(x, y, w, h, radius, fill)
@@ -201,7 +223,7 @@ export client fn drawRoundRectImmediate(x, y, w, h, drawStyle = nil) {
       roundRectProfileEnd("round.layered", profile)
     }
   } else {
-    local profile = profiling then roundRectProfileStart() else nil
+    profile = profiling then roundRectProfileStart() else nil
     local baseTrace = roundRectTraceStart("round.base")
     local radiusTrace = roundRectTraceStart("round.base.radius")
     local radiusValue = roundRectRadiusScalar(radius, w, h)

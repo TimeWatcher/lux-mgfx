@@ -16,7 +16,8 @@ return function(__lux_import)
   local normalizeStyle
   local install
   do
-    local style = __lux_import("lux/mgfx/style#client")
+    local __lux_import_1 = __lux_import("lux/mgfx/style#client")
+    local style = __lux_import_1
     makeColor = Color
     tableCopy = table.Copy
     typeOf = type
@@ -292,23 +293,31 @@ return function(__lux_import)
     end
     supports = function(target, key)
       local entry = get(target)
-      return entry ~= nil and entry.keys ~= nil and entry.keys[key] == true
+      local __lux_tmp_2 = entry ~= nil
+      if __lux_tmp_2 then
+        __lux_tmp_2 = entry.keys ~= nil
+      end
+      local __lux_tmp_3 = __lux_tmp_2
+      if __lux_tmp_3 then
+        __lux_tmp_3 = entry.keys[key] == true
+      end
+      return __lux_tmp_3
     end
     isPattern = function(value)
       local __lux_tmp_4 = typeOf(value) == "table"
       if __lux_tmp_4 then
-        local __lux_tmp_1
-        local __lux_match_2 = value
-        local __lux_tag_3
-        if __lux_match_2 ~= nil then
-          __lux_tag_3 = __lux_match_2.kind
+        local __lux_tmp_5
+        local __lux_match_6 = value
+        local __lux_tag_7
+        if __lux_match_6 ~= nil then
+          __lux_tag_7 = __lux_match_6.kind
         end
-        if __lux_tag_3 == style.PATTERN_STRIPE or __lux_tag_3 == style.PATTERN_SMOKE then
-          __lux_tmp_1 = true
+        if __lux_tag_7 == style.PATTERN_STRIPE or __lux_tag_7 == style.PATTERN_SMOKE then
+          __lux_tmp_5 = true
         else
-          __lux_tmp_1 = false
+          __lux_tmp_5 = false
         end
-        __lux_tmp_4 = __lux_tmp_1
+        __lux_tmp_4 = __lux_tmp_5
       end
       return __lux_tmp_4
     end
@@ -316,12 +325,12 @@ return function(__lux_import)
       if typeOf(value) ~= "table" then
         return true
       end
-      local __lux_match_5 = value
-      local __lux_tag_6
-      if __lux_match_5 ~= nil then
-        __lux_tag_6 = __lux_match_5.kind
+      local __lux_match_8 = value
+      local __lux_tag_9
+      if __lux_match_8 ~= nil then
+        __lux_tag_9 = __lux_match_8.kind
       end
-      if __lux_tag_6 == style.FILL_SOLID or __lux_tag_6 == style.FILL_LINEAR or __lux_tag_6 == style.FILL_RADIAL or __lux_tag_6 == style.FILL_CONIC then
+      if __lux_tag_9 == style.FILL_SOLID or __lux_tag_9 == style.FILL_LINEAR or __lux_tag_9 == style.FILL_RADIAL or __lux_tag_9 == style.FILL_CONIC then
         return true
       else
         return value.r ~= nil
@@ -338,41 +347,58 @@ return function(__lux_import)
       else
         fillKind = nil
       end
-      if fillKind ~= style.PATTERN_STRIPE and fillKind ~= style.PATTERN_SMOKE then
+      local __lux_tmp_10 = fillKind ~= style.PATTERN_STRIPE
+      if __lux_tmp_10 then
+        __lux_tmp_10 = fillKind ~= style.PATTERN_SMOKE
+      end
+      if __lux_tmp_10 then
         return input
       end
-      local __lux_match_7 = target
-      if __lux_match_7 == 9 or __lux_match_7 == 10 then
+      local __lux_match_11 = target
+      if __lux_match_11 == 9 or __lux_match_11 == 10 then
         local out = tableCopy(input)
         if out.fillPattern == nil then
           out.fillPattern = out.fill
         end
         do
-          local __lux_tmp_fillBase_8 = out.fillBase
-          if __lux_tmp_fillBase_8 == nil then
-            __lux_tmp_fillBase_8 = out.baseFill
+          local __lux_tmp_12 = out.fillBase
+          if __lux_tmp_12 == nil then
+            __lux_tmp_12 = out.baseFill
           end
-          out.fill = __lux_tmp_fillBase_8
+          out.fill = __lux_tmp_12
         end
         return out
       else
-        local __lux_unused_9 = nil
+        local __lux_unused_13 = nil
       end
       local cap = get(target)
-      if cap == nil or cap.keys == nil or cap.keys.pattern ~= true or input.pattern ~= nil then
+      local __lux_tmp_14 = cap == nil
+      if not __lux_tmp_14 then
+        __lux_tmp_14 = cap.keys == nil
+      end
+      local __lux_tmp_15 = __lux_tmp_14
+      if not __lux_tmp_15 then
+        __lux_tmp_15 = cap.keys.pattern ~= true
+      end
+      local __lux_tmp_16 = __lux_tmp_15
+      if not __lux_tmp_16 then
+        __lux_tmp_16 = input.pattern ~= nil
+      end
+      if __lux_tmp_16 then
         return input
       end
       local out = tableCopy(input)
       out.pattern = out.fill
       do
-        local __lux_tmp_patternBase_10 = out.patternBase
-        if __lux_tmp_patternBase_10 == nil then
-          __lux_tmp_patternBase_10 = out.baseFill
+        local __lux_tmp_17 = out.patternBase
+        if __lux_tmp_17 == nil then
+          local __lux_tmp_18 = out.baseFill
+          if __lux_tmp_18 == nil then
+            __lux_tmp_18 = makeColor(0, 0, 0, 0)
+          end
+          __lux_tmp_17 = __lux_tmp_18
         end
-        if __lux_tmp_patternBase_10 == nil then
-          __lux_tmp_patternBase_10 = makeColor(0, 0, 0, 0)
-        end
-        out.fill = __lux_tmp_patternBase_10
+        out.fill = __lux_tmp_17
       end
       return out
     end

@@ -58,6 +58,7 @@ local shaderKV =
 local materialKeys = {
   "roundrect",
     "roundrect_fx",
+    "roundrect_fused",
     "roundrect_solid",
     "roundrect_stroke",
     "roundrect_texture",
@@ -127,6 +128,7 @@ local materialKeys = {
 local shaderNames = {
   roundrect = "mgfx_roundrect_ps30",
     roundrect_fx = "mgfx_roundrect_fx_ps30",
+    roundrect_fused = "mgfx_roundrect_fused_ps30",
     roundrect_solid = "mgfx_roundrect_solid_ps30",
     roundrect_stroke = "mgfx_roundrect_stroke_ps30",
     roundrect_texture = "mgfx_roundrect_texture_ps30",

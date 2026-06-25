@@ -106,6 +106,7 @@ function MGFX._CreateMaterialState(owner)
 
 		createMaterial("roundrect", "mgfx_roundrect_ps30")
 		createMaterial("roundrect_fx", "mgfx_roundrect_fx_ps30")
+		createMaterial("roundrect_fused", "mgfx_roundrect_fused_ps30")
 		createMaterial("roundrect_solid", "mgfx_roundrect_solid_ps30")
 		createMaterial("roundrect_stroke", "mgfx_roundrect_stroke_ps30")
 		createMaterial("roundrect_texture", "mgfx_roundrect_texture_ps30")
@@ -215,6 +216,7 @@ function MGFX._CreateMaterialState(owner)
 			mount = shaderMountName or "external/custom",
 			roundrect = materials.roundrect,
 			roundrectFx = materials.roundrect_fx,
+			roundrectFused = materials.roundrect_fused,
 			roundrectSolid = materials.roundrect_solid,
 			roundrectStroke = materials.roundrect_stroke,
 			paramProbe = materials.param_probe,

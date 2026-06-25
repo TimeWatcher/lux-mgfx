@@ -1,6 +1,7 @@
 mgfx_vsxx.hlsl -v-30
 mgfx_roundrect_psxx.hlsl -v-30
 mgfx_roundrect_fx_psxx.hlsl -v-30
+mgfx_roundrect_fused_psxx.hlsl -v-30
 mgfx_roundrect_solid_psxx.hlsl -v-30
 mgfx_roundrect_stroke_psxx.hlsl -v-30
 mgfx_roundrect_texture_psxx.hlsl -v-30

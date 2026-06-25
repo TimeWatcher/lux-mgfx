@@ -549,6 +549,14 @@ local DIRECT_API_OUTER_STYLE = {
 	fill = Color(0, 0, 0, 0),
 	outerGlow = {color = DIRECT_OUTER_COLOR, x = 0, y = 0, width = 14, strength = 0.9, falloff = 1.8},
 }
+local DIRECT_API_FUSED_STYLE = {
+	radius = DIRECT_RADIUS,
+	fill = DIRECT_GRADIENT_FILL,
+	stroke = DIRECT_STROKE_COLOR,
+	strokeWidth = 1.4,
+	shadow = {color = DIRECT_SHADOW_COLOR, x = 2, y = 4, width = 12, strength = 1, falloff = 1.6},
+	outerGlow = {color = DIRECT_OUTER_COLOR, x = 0, y = 0, width = 14, strength = 0.9, falloff = 1.8},
+}
 local DIRECT_API_BACKDROP_STYLE = {
 	radius = DIRECT_RADIUS,
 	fill = Color(20, 36, 46, 120),
@@ -935,6 +943,13 @@ local function workloadDirectApiRoundedOuter(panel, count, w, h, ox, oy)
 	end
 end
 
+local function workloadDirectApiRoundedFused(panel, count, w, h, ox, oy)
+	for i = 1, count do
+		local x, y = directCell(i, w, h, ox, oy)
+		MGFX.RoundedBoxEx(x, y, DIRECT_BOX_W, DIRECT_BOX_H, DIRECT_API_FUSED_STYLE)
+	end
+end
+
 local function workloadDirectApiRoundedBackdrop(panel, count, w, h, ox, oy)
 	local capped = math.min(count, 42)
 	for i = 1, capped do
@@ -999,6 +1014,14 @@ local function workloadDirectImmediateOuter(panel, count, w, h, ox, oy)
 	for i = 1, count do
 		local x, y = directCell(i, w, h, ox, oy)
 		drawImmediate(x, y, DIRECT_BOX_W, DIRECT_BOX_H, DIRECT_API_OUTER_STYLE)
+	end
+end
+
+local function workloadDirectImmediateFused(panel, count, w, h, ox, oy)
+	local drawImmediate = directRoundImmediate()
+	for i = 1, count do
+		local x, y = directCell(i, w, h, ox, oy)
+		drawImmediate(x, y, DIRECT_BOX_W, DIRECT_BOX_H, DIRECT_API_FUSED_STYLE)
 	end
 end
 
@@ -1233,6 +1256,7 @@ local workloads = {
 	{name = "direct.immediate.stroke", group = "direct", title = "drawRoundRectImmediate stroke only", baseline = "direct.mgfx.empty", color = COLORS.green, fn = workloadDirectImmediateStroke, hiddenFromAll = true},
 	{name = "direct.immediate.shadow", group = "direct", title = "drawRoundRectImmediate shadow only", baseline = "direct.mgfx.empty", color = COLORS.muted, fn = workloadDirectImmediateShadow, hiddenFromAll = true},
 	{name = "direct.immediate.outer", group = "direct", title = "drawRoundRectImmediate outerGlow only", baseline = "direct.mgfx.empty", color = COLORS.cyan, fn = workloadDirectImmediateOuter, hiddenFromAll = true},
+	{name = "direct.immediate.fused", group = "direct", title = "drawRoundRectImmediate fill+stroke+shadow+outer", baseline = "direct.mgfx.empty", color = COLORS.blue, fn = workloadDirectImmediateFused, hiddenFromAll = true},
 	{name = "direct.immediate.backdrop", group = "direct", title = "drawRoundRectImmediate backdrop blur capped", baseline = "direct.mgfx.empty", color = COLORS.gold, fn = workloadDirectImmediateBackdrop, hiddenFromAll = true},
 	{name = "direct.api.rounded", group = "direct", title = "MGFX.RoundedBoxEx same geometry/style", baseline = "direct.mgfx.empty", color = COLORS.red, fn = workloadDirectApiRoundedBox, hiddenFromAll = true},
 	{name = "direct.api.gradient", group = "direct", title = "MGFX.RoundedBoxEx gradient style", baseline = "direct.mgfx.empty", color = COLORS.blue, fn = workloadDirectApiRoundedGradient, hiddenFromAll = true},
@@ -1240,6 +1264,7 @@ local workloads = {
 	{name = "direct.api.stroke", group = "direct", title = "MGFX.RoundedBoxEx stroke only", baseline = "direct.mgfx.empty", color = COLORS.green, fn = workloadDirectApiRoundedStroke, hiddenFromAll = true},
 	{name = "direct.api.shadow", group = "direct", title = "MGFX.RoundedBoxEx shadow only", baseline = "direct.mgfx.empty", color = COLORS.muted, fn = workloadDirectApiRoundedShadow, hiddenFromAll = true},
 	{name = "direct.api.outer", group = "direct", title = "MGFX.RoundedBoxEx outerGlow only", baseline = "direct.mgfx.empty", color = COLORS.cyan, fn = workloadDirectApiRoundedOuter, hiddenFromAll = true},
+	{name = "direct.api.fused", group = "direct", title = "MGFX.RoundedBoxEx fill+stroke+shadow+outer", baseline = "direct.mgfx.empty", color = COLORS.blue, fn = workloadDirectApiRoundedFused, hiddenFromAll = true},
 	{name = "direct.api.backdrop", group = "direct", title = "MGFX.RoundedBoxEx backdrop blur capped", baseline = "direct.mgfx.empty", color = COLORS.gold, fn = workloadDirectApiRoundedBackdrop, hiddenFromAll = true},
 	{name = "round.fill", group = "round", title = "RoundedBox fill only", baseline = "empty", color = COLORS.blue, fn = workloadRoundFill},
 	{name = "round.fx", group = "round", title = "RoundedBox fill+stroke+innerGlow", baseline = "round.fill", color = COLORS.cyan, fn = workloadRoundFx},

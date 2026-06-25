@@ -1006,6 +1006,7 @@ local roundRectApi = assert(M._InstallRoundRect and M._InstallRoundRect({
 	setupExtraParams = setupExtraParams,
 	setupExtraParamsRaw = setupAuxConstantsRaw,
 	drawTexturedQuad = drawTexturedQuad,
+	drawTexturedQuadUV = drawTexturedQuadUV,
 	drawTransformedPoly = drawTransformedPoly,
 	withTransform = withTransform,
 	splitStyleTransform = splitStyleTransform,

@@ -33,6 +33,7 @@ function MGFX._InstallRoundRect(C)
 	local setupExtraParams = C.setupExtraParams
 	local setupExtraParamsRaw = C.setupExtraParamsRaw or C.setupExtraParams
 	local drawTexturedQuad = C.drawTexturedQuad
+	local drawTexturedQuadUV = C.drawTexturedQuadUV
 	local drawTransformedPoly = C.drawTransformedPoly or surface.DrawPoly
 	local withTransform = C.withTransform or function(_, _, _, _, _, fn) return fn() end
 	local splitStyleTransform = C.splitStyleTransform or function(style) return nil, style end
@@ -899,6 +900,122 @@ local function drawRoundRectShadowOuterSpec(x, y, w, h, radius, shadowSpec, oute
 	return true
 end
 
+local function effectColorPacked(spec)
+	if not spec then return 0, 0, 0, 0 end
+	local color = spec.color
+	if not color then return 0, 0, 0, 0 end
+	local alpha = (color.a == nil and 255 or color.a) * inv255
+	if alpha <= 0 then return 0, 0, 0, 0 end
+	local strength = math_max(0, tonumber(spec.strength) or 1)
+	if strength <= 0 then return 0, 0, 0, 0 end
+	return (color.r or 0) * inv255,
+		(color.g or 0) * inv255,
+		(color.b or 0) * inv255,
+		alpha * strength
+end
+
+local function drawRoundRectFusedSpec(x, y, w, h, radius, fill, stroke, strokeWidth, shadowSpec, outerSpec, radiusValue)
+	if w <= 0 or h <= 0 then return false end
+	if (not shadowSpec and not outerSpec) or not drawTexturedQuadUV then return false end
+	if not shadersActive() or not matOK(materials.roundrect_fused) then return false end
+
+	local shadowColor = shadowSpec and shadowSpec.color or nil
+	local outerColor = outerSpec and outerSpec.color or nil
+	local hasShadow = shadowColor ~= nil and (shadowColor.a or 255) > 0 and (shadowSpec.strength or 1) > 0
+	local hasOuter = outerColor ~= nil and (outerColor.a or 255) > 0 and (outerSpec.strength or 1) > 0
+	if not hasShadow and not hasOuter then return false end
+
+	local profiling = profiler and profiler.IsActive and profiler.IsActive()
+	local setupProfile = profiling and profileStart() or nil
+	local setupTrace = traceStart("round.fused.setup")
+
+	local sx = x
+	local sy = y
+	local ex = x + w
+	local ey = y + h
+
+	local shadowGrow, shadowWidth, shadowFalloff, shadowX, shadowY = 0, 1, 1, 0, 0
+	if hasShadow then
+		shadowGrow = shadowSpec.grow or 0
+		shadowWidth = shadowSpec.width or 18
+		shadowFalloff = shadowSpec.falloff or 1.9
+		shadowX = shadowSpec.x or 0
+		shadowY = shadowSpec.y or 0
+		local spread = shadowSpec._extent or shadowSpec.spread or shadowWidth
+		local drawX = x + shadowX - shadowGrow - spread
+		local drawY = y + shadowY - shadowGrow - spread
+		local drawW = w + shadowGrow * 2 + spread * 2
+		local drawH = h + shadowGrow * 2 + spread * 2
+		sx = math_min(sx, drawX)
+		sy = math_min(sy, drawY)
+		ex = math_max(ex, drawX + drawW)
+		ey = math_max(ey, drawY + drawH)
+	end
+
+	local outerGrow, outerWidth, outerFalloff = 0, 1, 1
+	if hasOuter then
+		outerGrow = outerSpec.grow or 0
+		outerWidth = outerSpec.width or 18
+		outerFalloff = outerSpec.falloff or 1.9
+		local spread = outerSpec._extent or outerSpec.spread or outerWidth
+		local left, top, right, bottom = glowBiasPads(spread, outerSpec.x or 0, outerSpec.y or 0)
+		local drawX = x - outerGrow - left
+		local drawY = y - outerGrow - top
+		local drawW = w + outerGrow * 2 + left + right
+		local drawH = h + outerGrow * 2 + top + bottom
+		sx = math_min(sx, drawX)
+		sy = math_min(sy, drawY)
+		ex = math_max(ex, drawX + drawW)
+		ey = math_max(ey, drawY + drawH)
+	end
+
+	local sw = ex - sx
+	local sh = ey - sy
+	if sw <= 0 or sh <= 0 then
+		traceEnd(setupTrace)
+		if profiling then profileEnd("round.fused.setup", setupProfile) end
+		return false
+	end
+
+	local mat = materials.roundrect_fused
+	setupRoundRectConstants(mat, w, h, fill, stroke, strokeWidth, radiusValue or roundRectRadiusScalar(radius, w, h))
+	local sr, sg, sb, sa = effectColorPacked(hasShadow and shadowSpec or nil)
+	local orr, og, ob, oa = effectColorPacked(hasOuter and outerSpec or nil)
+	setupExtraParamsRaw(mat,
+		sr, sg, sb, sa,
+		shadowX, shadowY, shadowGrow, shadowWidth,
+		orr, og, ob, oa,
+		shadowFalloff, outerGrow, outerWidth, outerFalloff
+	)
+	surface_SetMaterial(mat)
+	surface_SetDrawColor(255, 255, 255, 255)
+	traceEnd(setupTrace)
+	if profiling then profileEnd("round.fused.setup", setupProfile) end
+
+	local bleedProfile = profiling and profileStart() or nil
+	local bleedTrace = traceStart("round.fused.bleedBegin")
+	local bleedToken = beginPanelEffectDraw(sx, sy, sw, sh)
+	traceEnd(bleedTrace)
+	if profiling then profileEnd("round.fused.bleedBegin", bleedProfile) end
+
+	local u0 = (sx - x) / w
+	local v0 = (sy - y) / h
+	local u1 = (ex - x) / w
+	local v1 = (ey - y) / h
+	local drawProfile = profiling and profileStart() or nil
+	local drawTrace = traceStart("round.fused.draw")
+	drawTexturedQuadUV(sx, sy, sw, sh, u0, v0, u1, v1, mat)
+	traceEnd(drawTrace)
+	if profiling then profileEnd("round.fused.draw", drawProfile) end
+
+	bleedProfile = profiling and profileStart() or nil
+	bleedTrace = traceStart("round.fused.bleedEnd")
+	endPanelEffectBleed(bleedToken)
+	traceEnd(bleedTrace)
+	if profiling then profileEnd("round.fused.bleedEnd", bleedProfile) end
+	return true
+end
+
 local function drawRoundRectOuterGlow(x, y, w, h, radius, glow)
 	return drawRoundRectShadowOuterSpec(x, y, w, h, radius, nil, outerGlowStyle(glow))
 end
@@ -1177,7 +1294,41 @@ drawRoundRectImmediate = function(x, y, w, h, style)
 		return
 	end
 
+	local fillInput = style.fill
+	if fillInput == nil then fillInput = style.color end
+
+	if profiling then stageProfile = SysTime() end
+	local fillPrepareTrace = traceStart("round.fillPrepare")
+	local fill = hotFillFromStyle(fillInput)
+	local hasFill = fillVisible(fill)
+	local innerSpec = innerGlowStyle(style.innerGlow)
+	traceEnd(fillPrepareTrace)
+	if profiling then
+		local now = SysTime()
+		profileRecord("round.fillPrepare", (now - stageProfile) * 1000)
+		stageProfile = now
+	end
+
 	local profile
+	if backdropSpec == nil
+		and style.pattern == nil
+		and innerSpec == nil
+		and not transformActive
+		and (hasFill or hasStroke)
+		and (shadowSpec ~= nil or outerSpec ~= nil) then
+		profile = profiling and profileStart() or nil
+		local fusedTrace = traceStart("round.fused")
+		local radiusValue = roundRectRadiusScalar(radius, w, h)
+		if drawRoundRectFusedSpec(x, y, w, h, radius, fill, style.stroke, strokeWidth, shadowSpec, outerSpec, radiusValue) then
+			traceEnd(fusedTrace)
+			if profiling then profileEnd("round.fused", profile) end
+			finishImmediateTrace(trace, profiling, totalProfile)
+			return
+		end
+		traceEnd(fusedTrace)
+		if profiling then profileEnd("round.fused.miss", profile) end
+	end
+
 	if shadowSpec or outerSpec then
 		local shadowOuterProfile = profiling and profileStart() or nil
 		local shadowOuterTrace = traceStart("round.shadowOuter")
@@ -1202,28 +1353,13 @@ drawRoundRectImmediate = function(x, y, w, h, style)
 	local effectOnly = not backdrop
 		and not hasStroke
 		and style.pattern == nil
-		and style.innerGlow == nil
+		and innerSpec == nil
 		and (shadowSpec ~= nil or outerSpec ~= nil)
-	local fillInput = style.fill
-	if fillInput == nil then fillInput = style.color end
-	if effectOnly then
-		if not hotFillVisible(fillInput) then
-			finishImmediateTrace(trace, profiling, totalProfile)
-			return
-		end
+	if effectOnly and not hasFill then
+		finishImmediateTrace(trace, profiling, totalProfile)
+		return
 	end
 
-	if profiling then stageProfile = SysTime() end
-	local fillPrepareTrace = traceStart("round.fillPrepare")
-	local fill = hotFillFromStyle(fillInput)
-	local hasFill = fillVisible(fill)
-	local innerSpec = innerGlowStyle(style.innerGlow)
-	traceEnd(fillPrepareTrace)
-	if profiling then
-		local now = SysTime()
-		profileRecord("round.fillPrepare", (now - stageProfile) * 1000)
-		stageProfile = now
-	end
 	if not backdrop and not hasFill and not hasStroke and style.pattern == nil and not innerSpec then
 		finishImmediateTrace(trace, profiling, totalProfile)
 		return

@@ -17,6 +17,7 @@ export client fn shaderStatus(state) {
       mount = state?.shaderMountName ?? "external/custom",
       roundrect = materials.roundrect,
       roundrectFx = materials.roundrect_fx,
+      roundrectFused = materials.roundrect_fused,
       roundrectSolid = materials.roundrect_solid,
       roundrectStroke = materials.roundrect_stroke,
       paramProbe = materials.param_probe,
