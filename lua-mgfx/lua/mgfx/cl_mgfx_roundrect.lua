@@ -54,9 +54,7 @@ function MGFX._InstallRoundRect(C)
 	local surface_DrawRect = surface.DrawRect
 
 local drawRoundRectImmediate
-local innerGlowStyle
-local outerGlowStyle
-local shadowStyle
+local drawRoundRectRaw
 
 local function profileStart()
 	if profiler and profiler.Start then return profiler.Start() end
@@ -99,16 +97,6 @@ local function glowBiasPads(base, x, y, minPad)
 		math_max(minPad, pad - oy),
 		math_max(minPad, pad + ox),
 		math_max(minPad, pad + oy)
-end
-
-local function effectExtentFromSpec(spec, defaultWidth)
-	defaultWidth = defaultWidth or 18
-	if spec and spec._extent ~= nil then return spec._extent end
-	local width = math_max(0.001, tonumber(spec and spec.width) or defaultWidth)
-	local falloff = math_max(0.35, tonumber(spec and spec.falloff) or 1.9)
-	local sigma = math_max(width / math.sqrt(falloff) * 0.72, 0.35)
-	local tail = sigma * 3.72
-	return math_max(1, tonumber(spec and spec.spread) or width, tail)
 end
 
 local inv255 = 1 / 255
@@ -217,39 +205,24 @@ local emptyRoundRectStyle = {}
 local solidFillScratch = {kind = FILL_SOLID, colorA = color_white, colorB = color_white}
 local fallbackRoundRectVerts = {}
 local fallbackStrokeVerts = {{}, {}, {}, {}}
-local circleExStyle = {}
-local capsuleExStyle = {}
+local roundRaw = {}
 local defaultInnerGlowColor = Color(76, 190, 255, 34)
 local defaultOuterGlowColor = Color(76, 190, 255, 88)
 local defaultShadowColor = Color(0, 0, 0, 132)
-local defaultInnerGlowSpec = {color = defaultInnerGlowColor, width = 7, strength = 1, falloff = glowSoftnessToFalloff(0.55)}
-local defaultOuterGlowSpec = {color = defaultOuterGlowColor, x = 0, y = 0, width = 18, spread = 18, grow = 0, strength = 1, falloff = glowSoftnessToFalloff(0.54)}
-local defaultShadowSpec = {color = defaultShadowColor, x = 0, y = 4, width = 12, spread = 12, grow = 0, strength = 1, falloff = glowSoftnessToFalloff(0.62)}
-defaultOuterGlowSpec._extent = effectExtentFromSpec(defaultOuterGlowSpec, 18)
-defaultOuterGlowSpec._cullSpread = defaultOuterGlowSpec._extent
-defaultShadowSpec._extent = effectExtentFromSpec(defaultShadowSpec, 12)
-defaultShadowSpec._cullSpread = math_abs(defaultShadowSpec.x) + math_abs(defaultShadowSpec.y) + defaultShadowSpec._extent + defaultShadowSpec.grow
-local innerGlowColorCache = setmetatable({}, {__mode = "k"})
-local outerGlowColorCache = setmetatable({}, {__mode = "k"})
-local shadowColorCache = setmetatable({}, {__mode = "k"})
-local innerGlowTableCache = setmetatable({}, {__mode = "k"})
-local outerGlowTableCache = setmetatable({}, {__mode = "k"})
-local shadowTableCache = setmetatable({}, {__mode = "k"})
-local shadowNumberCache = {}
-
-local function copyStyleInto(out, style)
-	for k in pairs(out) do
-		out[k] = nil
-	end
-
-	if istable(style) then
-		for k, v in pairs(style) do
-			out[k] = v
-		end
-	end
-
-	return out
+local defaultInnerGlowFalloff = glowSoftnessToFalloff(0.55)
+local defaultOuterGlowFalloff = glowSoftnessToFalloff(0.54)
+local defaultShadowFalloff = glowSoftnessToFalloff(0.62)
+function roundRaw.effectExtent(width, falloff, spread, defaultWidth)
+	width = math_max(0.001, tonumber(width) or defaultWidth or 18)
+	falloff = math_max(0.35, tonumber(falloff) or 1.9)
+	local sigma = math_max(width / math.sqrt(falloff) * 0.72, 0.35)
+	local tail = sigma * 3.72
+	return math_max(1, tonumber(spread) or width, tail)
 end
+local defaultOuterGlowExtent = roundRaw.effectExtent(18, defaultOuterGlowFalloff, 18, 18)
+local defaultOuterGlowCullSpread = defaultOuterGlowExtent
+local defaultShadowExtent = roundRaw.effectExtent(12, defaultShadowFalloff, 12, 12)
+local defaultShadowCullSpread = 4 + defaultShadowExtent
 
 local function hotFillFromStyle(fill, fallback)
 	if istable(fill) then
@@ -375,13 +348,10 @@ local function drawFallbackStroke(points, color, width)
 	end
 end
 
-local function drawRoundRectFallback(x, y, w, h, style)
+local function drawRoundRectFallbackRaw(x, y, w, h, radius, fillInput, stroke, strokeWidthInput)
 	M.stats.fallbacks = M.stats.fallbacks + 1
-	local fillInput = style.fill
-	if fillInput == nil then fillInput = style.color end
 	local fill = hotFillFromStyle(fillInput)
-	local radius = style.radius
-	if radius == nil then radius = style.r or 0 end
+	radius = radius or 0
 	if hasTransform() then
 		local points = fallbackRoundRectPoints(x, y, w, h, radius)
 		if fillVisible(fill) then
@@ -390,9 +360,9 @@ local function drawRoundRectFallback(x, y, w, h, style)
 			M.stats.draws = M.stats.draws + 1
 		end
 
-		local strokeWidth = strokeWidthValue(style.strokeWidth, 1)
-		if strokeVisible(style.stroke, strokeWidth) then
-			drawFallbackStroke(points, style.stroke, math_max(1, math_floor(strokeWidth)))
+		local strokeWidth = strokeWidthValue(strokeWidthInput, 1)
+		if strokeVisible(stroke, strokeWidth) then
+			drawFallbackStroke(points, stroke, math_max(1, math_floor(strokeWidth)))
 		end
 		return
 	end
@@ -402,293 +372,221 @@ local function drawRoundRectFallback(x, y, w, h, style)
 		M.stats.draws = M.stats.draws + 1
 	end
 
-	if strokeVisible(style.stroke, style.strokeWidth) then
-		setDrawColor(style.stroke)
-		surface.DrawOutlinedRect(x, y, w, h, math_max(1, math_floor(strokeWidthValue(style.strokeWidth, 1))))
+	if strokeVisible(stroke, strokeWidthInput) then
+		setDrawColor(stroke)
+		surface.DrawOutlinedRect(x, y, w, h, math_max(1, math_floor(strokeWidthValue(strokeWidthInput, 1))))
 		M.stats.draws = M.stats.draws + 1
 	end
 end
 
-innerGlowStyle = function(glow)
-	if not glow then return nil end
-	if glow == true then return defaultInnerGlowSpec end
-
-	if istable(glow) and glow.r and glow.g and glow.b then
-		local cached = innerGlowColorCache[glow]
-		if cached then return cached end
-		cached = {
-			color = glow,
-			width = 7,
-			strength = 1,
-			falloff = glowSoftnessToFalloff(0.55),
-		}
-		innerGlowColorCache[glow] = cached
-		return cached
+function roundRaw.innerGlow(glow)
+	if not glow then
+		return false, 0, 0, 0, 0, 0, 0, 1
 	end
 
-	if not istable(glow) then return nil end
+	if glow == true then
+		return true,
+			(defaultInnerGlowColor.r or 0) * inv255,
+			(defaultInnerGlowColor.g or 0) * inv255,
+			(defaultInnerGlowColor.b or 0) * inv255,
+			(defaultInnerGlowColor.a == nil and 255 or defaultInnerGlowColor.a) * inv255,
+			7,
+			1,
+			defaultInnerGlowFalloff
+	end
 
-	-- Cache normalized specs, but guard on raw inputs so mutating a style table
-	-- still takes effect without paying color/number normalization on hits.
-	local cached = innerGlowTableCache[glow]
-	if cached
-		and cached._colorInput == glow.color
-		and cached._tintInput == glow.tint
-		and cached._sizeInput == glow.size
-		and cached._widthInput == glow.width
-		and cached._opacityInput == glow.opacity
-		and cached._strengthInput == glow.strength
-		and cached._falloffInput == glow.falloff
-		and cached._softnessInput == glow.softness then
-		return cached
+	if istable(glow) and glow.r and glow.g and glow.b then
+		return (glow.a == nil or glow.a > 0),
+			(glow.r or 0) * inv255,
+			(glow.g or 0) * inv255,
+			(glow.b or 0) * inv255,
+			(glow.a == nil and 255 or glow.a) * inv255,
+			7,
+			1,
+			defaultInnerGlowFalloff
+	end
+
+	if not istable(glow) then
+		return false, 0, 0, 0, 0, 0, 0, 1
 	end
 
 	local color = asColor(glow.color or glow.tint, defaultInnerGlowColor)
 	local width = math_max(1, tonumber(glow.size) or tonumber(glow.width) or 7)
 	local strength = tonumber(glow.opacity) or tonumber(glow.strength) or 1
 	local falloff = tonumber(glow.falloff) or glowSoftnessToFalloff(glow.softness, 0.55)
-
-	cached = {}
-	cached.color = color
-	cached.width = width
-	cached.strength = strength
-	cached.falloff = falloff
-	cached._colorInput = glow.color
-	cached._tintInput = glow.tint
-	cached._sizeInput = glow.size
-	cached._widthInput = glow.width
-	cached._opacityInput = glow.opacity
-	cached._strengthInput = glow.strength
-	cached._falloffInput = glow.falloff
-	cached._softnessInput = glow.softness
-	innerGlowTableCache[glow] = cached
-	return cached
+	local alpha = (color.a == nil and 255 or color.a) * inv255
+	return alpha > 0 and strength > 0,
+		(color.r or 0) * inv255,
+		(color.g or 0) * inv255,
+		(color.b or 0) * inv255,
+		alpha,
+		width,
+		strength,
+		falloff
 end
 
-outerGlowStyle = function(glow)
-	if not glow then return nil end
-	if glow == true then return defaultOuterGlowSpec end
-
-	if istable(glow) and glow.r and glow.g and glow.b then
-		local cached = outerGlowColorCache[glow]
-		if cached then return cached end
-		cached = {
-			color = glow,
-			x = 0,
-			y = 0,
-			width = 18,
-			spread = 18,
-			grow = 0,
-			strength = 1,
-			falloff = glowSoftnessToFalloff(0.54),
-		}
-		cached._extent = effectExtentFromSpec(cached, 18)
-		cached._cullSpread = cached._extent
-		outerGlowColorCache[glow] = cached
-		return cached
+function roundRaw.outerGlow(glow)
+	if not glow then
+		return false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0
 	end
 
-	if not istable(glow) then return nil end
+	if glow == true then
+		return true,
+			(defaultOuterGlowColor.r or 0) * inv255,
+			(defaultOuterGlowColor.g or 0) * inv255,
+			(defaultOuterGlowColor.b or 0) * inv255,
+			(defaultOuterGlowColor.a == nil and 255 or defaultOuterGlowColor.a) * inv255,
+			0,
+			0,
+			18,
+			18,
+			0,
+			1,
+			defaultOuterGlowFalloff,
+			defaultOuterGlowExtent,
+			defaultOuterGlowCullSpread
+	end
 
-	local cacheable = not istable(glow.offset)
-	local cached = cacheable and outerGlowTableCache[glow] or nil
-	if cached
-		and cached._xInput == glow.x
-		and cached._offsetXInput == glow.offsetX
-		and cached._dxInput == glow.dx
-		and cached._indexXInput == glow[1]
-		and cached._yInput == glow.y
-		and cached._offsetYInput == glow.offsetY
-		and cached._dyInput == glow.dy
-		and cached._indexYInput == glow[2]
-		and cached._sizeInput == glow.size
-		and cached._widthInput == glow.width
-		and cached._blurInput == glow.blur
-		and cached._radiusInput == glow.radius
-		and cached._spreadInput == glow.spread
-		and cached._colorInput == glow.color
-		and cached._tintInput == glow.tint
-		and cached._growInput == glow.grow
-		and cached._expandInput == glow.expand
-		and cached._shapeSpreadInput == glow.shapeSpread
-		and cached._opacityInput == glow.opacity
-		and cached._strengthInput == glow.strength
-		and cached._falloffInput == glow.falloff
-		and cached._softnessInput == glow.softness then
-		return cached
+	if istable(glow) and glow.r and glow.g and glow.b then
+		local width = 18
+		local falloff = defaultOuterGlowFalloff
+		local extent = roundRaw.effectExtent(width, falloff, width, 18)
+		local alpha = (glow.a == nil and 255 or glow.a) * inv255
+		return alpha > 0,
+			(glow.r or 0) * inv255,
+			(glow.g or 0) * inv255,
+			(glow.b or 0) * inv255,
+			alpha,
+			0,
+			0,
+			width,
+			width,
+			0,
+			1,
+			falloff,
+			extent,
+			extent
+	end
+
+	if not istable(glow) then
+		return false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0
 	end
 
 	local offset = istable(glow.offset) and glow.offset or nil
 	local ox = tonumber(glow.x) or tonumber(glow.offsetX) or tonumber(glow.dx) or tonumber(glow[1]) or (offset and (tonumber(offset.x) or tonumber(offset[1]))) or 0
 	local oy = tonumber(glow.y) or tonumber(glow.offsetY) or tonumber(glow.dy) or tonumber(glow[2]) or (offset and (tonumber(offset.y) or tonumber(offset[2]))) or 0
 	local width = math_max(1, tonumber(glow.size) or tonumber(glow.width) or tonumber(glow.blur) or tonumber(glow.radius) or tonumber(glow.spread) or 18)
-	local color = asColor(glow.color or glow.tint, defaultOuterGlowColor)
 	local spread = math_max(1, tonumber(glow.spread) or width)
 	local grow = math_max(0, tonumber(glow.grow) or tonumber(glow.expand) or tonumber(glow.shapeSpread) or 0)
 	local strength = tonumber(glow.opacity) or tonumber(glow.strength) or 1
 	local falloff = tonumber(glow.falloff) or glowSoftnessToFalloff(glow.softness, 0.54)
-
-	cached = {}
-	cached.color = color
-	cached.x = ox
-	cached.y = oy
-	cached.width = width
-	cached.spread = spread
-	cached.grow = grow
-	cached.strength = strength
-	cached.falloff = falloff
-	cached._extent = effectExtentFromSpec(cached, 18)
-	cached._cullSpread = math_abs(ox) + math_abs(oy) + cached._extent + grow
-	if cacheable then
-		cached._xInput = glow.x
-		cached._offsetXInput = glow.offsetX
-		cached._dxInput = glow.dx
-		cached._indexXInput = glow[1]
-		cached._yInput = glow.y
-		cached._offsetYInput = glow.offsetY
-		cached._dyInput = glow.dy
-		cached._indexYInput = glow[2]
-		cached._sizeInput = glow.size
-		cached._widthInput = glow.width
-		cached._blurInput = glow.blur
-		cached._radiusInput = glow.radius
-		cached._spreadInput = glow.spread
-		cached._colorInput = glow.color
-		cached._tintInput = glow.tint
-		cached._growInput = glow.grow
-		cached._expandInput = glow.expand
-		cached._shapeSpreadInput = glow.shapeSpread
-		cached._opacityInput = glow.opacity
-		cached._strengthInput = glow.strength
-		cached._falloffInput = glow.falloff
-		cached._softnessInput = glow.softness
-		outerGlowTableCache[glow] = cached
-	end
-	return cached
+	local extent = roundRaw.effectExtent(width, falloff, spread, 18)
+	local color = asColor(glow.color or glow.tint, defaultOuterGlowColor)
+	local alpha = (color.a == nil and 255 or color.a) * inv255
+	return alpha > 0 and strength > 0,
+		(color.r or 0) * inv255,
+		(color.g or 0) * inv255,
+		(color.b or 0) * inv255,
+		alpha,
+		ox,
+		oy,
+		width,
+		spread,
+		grow,
+		strength,
+		falloff,
+		extent,
+		math_abs(ox) + math_abs(oy) + extent + grow
 end
 
-shadowStyle = function(shadow)
-	if not shadow then return nil end
-	if shadow == true then return defaultShadowSpec end
+function roundRaw.shadow(shadow)
+	if not shadow then
+		return false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0
+	end
+
+	if shadow == true then
+		return true,
+			(defaultShadowColor.r or 0) * inv255,
+			(defaultShadowColor.g or 0) * inv255,
+			(defaultShadowColor.b or 0) * inv255,
+			(defaultShadowColor.a == nil and 255 or defaultShadowColor.a) * inv255,
+			0,
+			4,
+			12,
+			12,
+			0,
+			1,
+			defaultShadowFalloff,
+			defaultShadowExtent,
+			defaultShadowCullSpread
+	end
 
 	if istable(shadow) and shadow.r and shadow.g and shadow.b then
-		local cached = shadowColorCache[shadow]
-		if cached then return cached end
-		cached = {
-			color = shadow,
-			x = 0,
-			y = 4,
-			width = 12,
-			spread = 12,
-			grow = 0,
-			strength = 1,
-			falloff = glowSoftnessToFalloff(0.62),
-		}
-		cached._extent = effectExtentFromSpec(cached, 12)
-		cached._cullSpread = math_abs(cached.x) + math_abs(cached.y) + cached._extent + cached.grow
-		shadowColorCache[shadow] = cached
-		return cached
+		local width = 12
+		local falloff = defaultShadowFalloff
+		local extent = roundRaw.effectExtent(width, falloff, width, 12)
+		local alpha = (shadow.a == nil and 255 or shadow.a) * inv255
+		return alpha > 0,
+			(shadow.r or 0) * inv255,
+			(shadow.g or 0) * inv255,
+			(shadow.b or 0) * inv255,
+			alpha,
+			0,
+			4,
+			width,
+			width,
+			0,
+			1,
+			falloff,
+			extent,
+			4 + extent
 	end
 
 	if not istable(shadow) then
-		local blur = math_max(0.001, tonumber(shadow) or 12)
-		local cached = shadowNumberCache[blur]
-		if cached then return cached end
-		cached = {
-			color = defaultShadowColor,
-			x = 0,
-			y = 4,
-			width = blur,
-			spread = math_max(1, blur),
-			grow = 0,
-			strength = 1,
-			falloff = glowSoftnessToFalloff(0.62),
-		}
-		cached._extent = effectExtentFromSpec(cached, 12)
-		cached._cullSpread = math_abs(cached.x) + math_abs(cached.y) + cached._extent + cached.grow
-		shadowNumberCache[blur] = cached
-		return cached
-	end
-
-	local cacheable = not istable(shadow.offset)
-	local cached = cacheable and shadowTableCache[shadow] or nil
-	if cached
-		and cached._xInput == shadow.x
-		and cached._offsetXInput == shadow.offsetX
-		and cached._dxInput == shadow.dx
-		and cached._indexXInput == shadow[1]
-		and cached._yInput == shadow.y
-		and cached._offsetYInput == shadow.offsetY
-		and cached._dyInput == shadow.dy
-		and cached._indexYInput == shadow[2]
-		and cached._blurInput == shadow.blur
-		and cached._radiusInput == shadow.radius
-		and cached._sizeInput == shadow.size
-		and cached._widthInput == shadow.width
-		and cached._spreadInput == shadow.spread
-		and cached._growInput == shadow.grow
-		and cached._expandInput == shadow.expand
-		and cached._shapeSpreadInput == shadow.shapeSpread
-		and cached._colorInput == shadow.color
-		and cached._tintInput == shadow.tint
-		and cached._extentInput == shadow.extent
-		and cached._paddingInput == shadow.padding
-		and cached._opacityInput == shadow.opacity
-		and cached._strengthInput == shadow.strength
-		and cached._falloffInput == shadow.falloff
-		and cached._softnessInput == shadow.softness then
-		return cached
+		local width = math_max(0.001, tonumber(shadow) or 12)
+		local falloff = defaultShadowFalloff
+		local extent = roundRaw.effectExtent(width, falloff, math_max(1, width), 12)
+		return true,
+			(defaultShadowColor.r or 0) * inv255,
+			(defaultShadowColor.g or 0) * inv255,
+			(defaultShadowColor.b or 0) * inv255,
+			(defaultShadowColor.a == nil and 255 or defaultShadowColor.a) * inv255,
+			0,
+			4,
+			width,
+			math_max(1, width),
+			0,
+			1,
+			falloff,
+			extent,
+			4 + extent
 	end
 
 	local offset = istable(shadow.offset) and shadow.offset or nil
 	local ox = tonumber(shadow.x) or tonumber(shadow.offsetX) or tonumber(shadow.dx) or tonumber(shadow[1]) or (offset and (tonumber(offset.x) or tonumber(offset[1]))) or 0
 	local oy = tonumber(shadow.y) or tonumber(shadow.offsetY) or tonumber(shadow.dy) or tonumber(shadow[2]) or (offset and (tonumber(offset.y) or tonumber(offset[2]))) or 4
-	local blur = math_max(0.001, tonumber(shadow.blur) or tonumber(shadow.radius) or tonumber(shadow.size) or tonumber(shadow.width) or 12)
+	local width = math_max(0.001, tonumber(shadow.blur) or tonumber(shadow.radius) or tonumber(shadow.size) or tonumber(shadow.width) or 12)
 	local grow = math_max(0, tonumber(shadow.spread) or tonumber(shadow.grow) or tonumber(shadow.expand) or tonumber(shadow.shapeSpread) or 0)
-	local color = asColor(shadow.color or shadow.tint, defaultShadowColor)
-	local spread = math_max(1, tonumber(shadow.extent) or tonumber(shadow.padding) or blur)
+	local spread = math_max(1, tonumber(shadow.extent) or tonumber(shadow.padding) or width)
 	local strength = tonumber(shadow.opacity) or tonumber(shadow.strength) or 1
 	local falloff = tonumber(shadow.falloff) or glowSoftnessToFalloff(shadow.softness, 0.62)
-
-	cached = {}
-	cached.color = color
-	cached.x = ox
-	cached.y = oy
-	cached.width = blur
-	cached.spread = spread
-	cached.grow = grow
-	cached.strength = strength
-	cached.falloff = falloff
-	cached._extent = effectExtentFromSpec(cached, 12)
-	cached._cullSpread = math_abs(ox) + math_abs(oy) + cached._extent + grow
-	if cacheable then
-		cached._xInput = shadow.x
-		cached._offsetXInput = shadow.offsetX
-		cached._dxInput = shadow.dx
-		cached._indexXInput = shadow[1]
-		cached._yInput = shadow.y
-		cached._offsetYInput = shadow.offsetY
-		cached._dyInput = shadow.dy
-		cached._indexYInput = shadow[2]
-		cached._blurInput = shadow.blur
-		cached._radiusInput = shadow.radius
-		cached._sizeInput = shadow.size
-		cached._widthInput = shadow.width
-		cached._spreadInput = shadow.spread
-		cached._growInput = shadow.grow
-		cached._expandInput = shadow.expand
-		cached._shapeSpreadInput = shadow.shapeSpread
-		cached._colorInput = shadow.color
-		cached._tintInput = shadow.tint
-		cached._extentInput = shadow.extent
-		cached._paddingInput = shadow.padding
-		cached._opacityInput = shadow.opacity
-		cached._strengthInput = shadow.strength
-		cached._falloffInput = shadow.falloff
-		cached._softnessInput = shadow.softness
-		shadowTableCache[shadow] = cached
-	end
-	return cached
+	local extent = roundRaw.effectExtent(width, falloff, spread, 12)
+	local color = asColor(shadow.color or shadow.tint, defaultShadowColor)
+	local alpha = (color.a == nil and 255 or color.a) * inv255
+	return alpha > 0 and strength > 0,
+		(color.r or 0) * inv255,
+		(color.g or 0) * inv255,
+		(color.b or 0) * inv255,
+		alpha,
+		ox,
+		oy,
+		width,
+		spread,
+		grow,
+		strength,
+		falloff,
+		extent,
+		math_abs(ox) + math_abs(oy) + extent + grow
 end
 
 local function patternStyle(pattern)
@@ -748,23 +646,14 @@ local function drawRoundRectPattern(x, y, w, h, radius, pattern)
 	traceEnd(drawTrace)
 end
 
-local function drawRoundRectInnerGlowSpec(x, y, w, h, radius, spec)
-	if not spec then return end
-
-	local color = spec.color
-	if (color.a or 255) <= 0 then return end
+function roundRaw.drawInnerGlow(x, y, w, h, radius, enabled, gr, gg, gb, ga, glowWidth, glowStrength, glowFalloff)
+	if not enabled or ga <= 0 or glowStrength <= 0 then return false end
 	if not shadersActive() or not matOK(materials.roundrect_innerglow) then return end
 
 	local setupTrace = traceStart("round.innerGlow.setup")
 	local mat = materials.roundrect_innerglow
-	local glowWidth = spec.width or 8
-	local glowStrength = spec.strength or 1
-	local glowFalloff = spec.falloff or 1.65
 	setupParamMatrixRaw(mat,
-		(color.r or 0) * inv255,
-		(color.g or 0) * inv255,
-		(color.b or 0) * inv255,
-		(color.a == nil and 255 or color.a) * inv255,
+		gr, gg, gb, ga,
 		w, h, 0, roundRectRadiusScalar(radius, w, h),
 		glowWidth,
 		glowStrength,
@@ -778,10 +667,12 @@ local function drawRoundRectInnerGlowSpec(x, y, w, h, radius, spec)
 	local drawTrace = traceStart("round.innerGlow.draw")
 	drawTexturedQuad(x, y, w, h, mat)
 	traceEnd(drawTrace)
+	return true
 end
 
 local function drawRoundRectInnerGlow(x, y, w, h, radius, glow)
-	return drawRoundRectInnerGlowSpec(x, y, w, h, radius, innerGlowStyle(glow))
+	local enabled, gr, gg, gb, ga, glowWidth, glowStrength, glowFalloff = roundRaw.innerGlow(glow)
+	return roundRaw.drawInnerGlow(x, y, w, h, radius, enabled, gr, gg, gb, ga, glowWidth, glowStrength, glowFalloff)
 end
 
 local function radiusWithGrow(radius, grow)
@@ -798,44 +689,47 @@ local function radiusWithGrow(radius, grow)
 	return (tonumber(radius) or 0) + grow
 end
 
-local function effectExtent(spec, defaultWidth)
-	return effectExtentFromSpec(spec, defaultWidth)
-end
-
-local function drawRoundRectShadowOuterSpec(x, y, w, h, radius, shadowSpec, outerSpec)
-	if not shadowSpec and not outerSpec then return false end
-	if not shadersActive() or not matOK(materials.roundrect_shadow_outer) then return false end
-
-	local shadowColor = shadowSpec and shadowSpec.color or nil
-	local outerColor = outerSpec and outerSpec.color or nil
-	local hasShadow = shadowColor ~= nil and (shadowColor.a or 255) > 0
-	local hasOuter = outerColor ~= nil and (outerColor.a or 255) > 0
+function roundRaw.drawShadowOuter(
+	x, y, w, h, radius,
+	hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowExtent, shadowGrow, shadowStrength, shadowFalloff,
+	hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerExtent, outerGrow, outerStrength, outerFalloff
+)
+	hasShadow = hasShadow and sa > 0 and shadowStrength > 0
+	hasOuter = hasOuter and oa > 0 and outerStrength > 0
 	if not hasShadow and not hasOuter then return false end
+	if not shadersActive() or not matOK(materials.roundrect_shadow_outer) then return false end
 
 	local profiling = profiler and profiler.IsActive and profiler.IsActive()
 	local setupProfile = profiling and profileStart() or nil
 	local setupTrace = traceStart("round.shadowOuter.setup")
 
-	local shadowSource = shadowSpec or outerSpec
-	local outerSource = outerSpec or shadowSpec
-	local shadowGrow = shadowSource.grow or 0
+	shadowGrow = math_max(0, shadowGrow or 0)
+	outerGrow = math_max(0, outerGrow or 0)
+	shadowX = shadowX or 0
+	shadowY = shadowY or 0
+	outerX = outerX or 0
+	outerY = outerY or 0
+	shadowWidth = math_max(0.001, shadowWidth or 1)
+	outerWidth = math_max(0.001, outerWidth or 1)
+	shadowExtent = math_max(1, shadowExtent or shadowWidth)
+	outerExtent = math_max(1, outerExtent or outerWidth)
+	shadowStrength = math_max(0, shadowStrength or 0)
+	outerStrength = math_max(0, outerStrength or 0)
+	shadowFalloff = math_max(0.001, shadowFalloff or 1)
+	outerFalloff = math_max(0.001, outerFalloff or 1)
+
 	local shadowGw = w + shadowGrow * 2
 	local shadowGh = h + shadowGrow * 2
-	local shadowSpread = shadowSource._extent or shadowSource.spread or shadowSource.width or 18
-	local shadowShapeX = x + (hasShadow and (shadowSource.x or 0) or 0) - shadowGrow
-	local shadowShapeY = y + (hasShadow and (shadowSource.y or 0) or 0) - shadowGrow
-	local shadowDrawX = shadowShapeX - shadowSpread
-	local shadowDrawY = shadowShapeY - shadowSpread
-	local shadowDrawW = shadowGw + shadowSpread * 2
-	local shadowDrawH = shadowGh + shadowSpread * 2
+	local shadowShapeX = x + shadowX - shadowGrow
+	local shadowShapeY = y + shadowY - shadowGrow
+	local shadowDrawX = shadowShapeX - shadowExtent
+	local shadowDrawY = shadowShapeY - shadowExtent
+	local shadowDrawW = shadowGw + shadowExtent * 2
+	local shadowDrawH = shadowGh + shadowExtent * 2
 
-	local outerGrow = outerSource.grow or 0
 	local outerGw = w + outerGrow * 2
 	local outerGh = h + outerGrow * 2
-	local outerSpread = outerSource._extent or outerSource.spread or outerSource.width or 18
-	local outerOx = hasOuter and (outerSource.x or 0) or 0
-	local outerOy = hasOuter and (outerSource.y or 0) or 0
-	local outerLeft, outerTop, outerRight, outerBottom = glowBiasPads(outerSpread, outerOx, outerOy)
+	local outerLeft, outerTop, outerRight, outerBottom = glowBiasPads(outerExtent, outerX, outerY)
 	local outerShapeX = x - outerGrow
 	local outerShapeY = y - outerGrow
 	local outerDrawX = outerShapeX - outerLeft
@@ -843,36 +737,52 @@ local function drawRoundRectShadowOuterSpec(x, y, w, h, radius, shadowSpec, oute
 	local outerDrawW = outerGw + outerLeft + outerRight
 	local outerDrawH = outerGh + outerTop + outerBottom
 
-	local sx = math_min(shadowDrawX, outerDrawX)
-	local sy = math_min(shadowDrawY, outerDrawY)
-	local ex = math_max(shadowDrawX + shadowDrawW, outerDrawX + outerDrawW)
-	local ey = math_max(shadowDrawY + shadowDrawH, outerDrawY + outerDrawH)
+	local sx, sy, ex, ey
+	if hasShadow then
+		sx = shadowDrawX
+		sy = shadowDrawY
+		ex = shadowDrawX + shadowDrawW
+		ey = shadowDrawY + shadowDrawH
+	end
+	if hasOuter then
+		if sx == nil then
+			sx = outerDrawX
+			sy = outerDrawY
+			ex = outerDrawX + outerDrawW
+			ey = outerDrawY + outerDrawH
+		else
+			sx = math_min(sx, outerDrawX)
+			sy = math_min(sy, outerDrawY)
+			ex = math_max(ex, outerDrawX + outerDrawW)
+			ey = math_max(ey, outerDrawY + outerDrawH)
+		end
+	end
 	local sw = ex - sx
 	local sh = ey - sy
 	local mat = materials.roundrect_shadow_outer
 
 	setupParamMatrixRaw(mat,
 		sw, sh, 0, 0,
-		hasShadow and (shadowColor.r or 0) * inv255 or 0,
-		hasShadow and (shadowColor.g or 0) * inv255 or 0,
-		hasShadow and (shadowColor.b or 0) * inv255 or 0,
-		hasShadow and (shadowColor.a == nil and 255 or shadowColor.a) * inv255 or 0,
+		hasShadow and sr or 0,
+		hasShadow and sg or 0,
+		hasShadow and sb or 0,
+		hasShadow and sa or 0,
 		shadowShapeX - sx, shadowShapeY - sy, shadowGw, shadowGh,
 		roundRectRadiusScalar(radiusWithGrow(radius, shadowGrow), shadowGw, shadowGh),
-		hasShadow and (shadowSource.width or 18) or 1,
-		hasShadow and (shadowSource.strength or 1) or 0,
-		hasShadow and (shadowSource.falloff or 1.9) or 1
+		hasShadow and shadowWidth or 1,
+		hasShadow and shadowStrength or 0,
+		hasShadow and shadowFalloff or 1
 	)
 	setupExtraParamsRaw(mat,
-		hasOuter and (outerColor.r or 0) * inv255 or 0,
-		hasOuter and (outerColor.g or 0) * inv255 or 0,
-		hasOuter and (outerColor.b or 0) * inv255 or 0,
-		hasOuter and (outerColor.a == nil and 255 or outerColor.a) * inv255 or 0,
+		hasOuter and orr or 0,
+		hasOuter and og or 0,
+		hasOuter and ob or 0,
+		hasOuter and oa or 0,
 		outerShapeX - sx, outerShapeY - sy, outerGw, outerGh,
 		roundRectRadiusScalar(radiusWithGrow(radius, outerGrow), outerGw, outerGh),
-		hasOuter and (outerSource.width or 18) or 1,
-		hasOuter and (outerSource.strength or 1) or 0,
-		hasOuter and (outerSource.falloff or 1.9) or 1,
+		hasOuter and outerWidth or 1,
+		hasOuter and outerStrength or 0,
+		hasOuter and outerFalloff or 1,
 		0, 0, 0, 0
 	)
 	traceEnd(setupTrace)
@@ -900,48 +810,37 @@ local function drawRoundRectShadowOuterSpec(x, y, w, h, radius, shadowSpec, oute
 	return true
 end
 
-local function effectColorPacked(spec)
-	if not spec then return 0, 0, 0, 0 end
-	local color = spec.color
-	if not color then return 0, 0, 0, 0 end
-	local alpha = (color.a == nil and 255 or color.a) * inv255
-	if alpha <= 0 then return 0, 0, 0, 0 end
-	local strength = math_max(0, tonumber(spec.strength) or 1)
-	if strength <= 0 then return 0, 0, 0, 0 end
-	return (color.r or 0) * inv255,
-		(color.g or 0) * inv255,
-		(color.b or 0) * inv255,
-		alpha * strength
-end
-
-local function drawRoundRectFusedSpec(x, y, w, h, radius, fill, stroke, strokeWidth, shadowSpec, outerSpec, radiusValue)
+function roundRaw.drawFused(
+	x, y, w, h, radius, fill, stroke, strokeWidth, radiusValue,
+	hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowExtent, shadowGrow, shadowStrength, shadowFalloff,
+	hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerExtent, outerGrow, outerStrength, outerFalloff
+)
 	if w <= 0 or h <= 0 then return false end
-	if (not shadowSpec and not outerSpec) or not drawTexturedQuadUV then return false end
+	if not drawTexturedQuadUV then return false end
 	if not shadersActive() or not matOK(materials.roundrect_fused) then return false end
 
-	local shadowColor = shadowSpec and shadowSpec.color or nil
-	local outerColor = outerSpec and outerSpec.color or nil
-	local hasShadow = shadowColor ~= nil and (shadowColor.a or 255) > 0 and (shadowSpec.strength or 1) > 0
-	local hasOuter = outerColor ~= nil and (outerColor.a or 255) > 0 and (outerSpec.strength or 1) > 0
+	hasShadow = hasShadow and sa > 0 and shadowStrength > 0
+	hasOuter = hasOuter and oa > 0 and outerStrength > 0
 	if not hasShadow and not hasOuter then return false end
 
 	local profiling = profiler and profiler.IsActive and profiler.IsActive()
 	local setupProfile = profiling and profileStart() or nil
 	local setupTrace = traceStart("round.fused.setup")
 
+	shadowX = shadowX or 0
+	shadowY = shadowY or 0
+	outerX = outerX or 0
+	outerY = outerY or 0
 	local sx = x
 	local sy = y
 	local ex = x + w
 	local ey = y + h
 
-	local shadowGrow, shadowWidth, shadowFalloff, shadowX, shadowY = 0, 1, 1, 0, 0
+	shadowGrow = hasShadow and math_max(0, shadowGrow or 0) or 0
+	shadowWidth = hasShadow and math_max(0.001, shadowWidth or 1) or 1
+	shadowFalloff = hasShadow and math_max(0.001, shadowFalloff or 1) or 1
 	if hasShadow then
-		shadowGrow = shadowSpec.grow or 0
-		shadowWidth = shadowSpec.width or 18
-		shadowFalloff = shadowSpec.falloff or 1.9
-		shadowX = shadowSpec.x or 0
-		shadowY = shadowSpec.y or 0
-		local spread = shadowSpec._extent or shadowSpec.spread or shadowWidth
+		local spread = math_max(1, shadowExtent or shadowWidth)
 		local drawX = x + shadowX - shadowGrow - spread
 		local drawY = y + shadowY - shadowGrow - spread
 		local drawW = w + shadowGrow * 2 + spread * 2
@@ -952,13 +851,12 @@ local function drawRoundRectFusedSpec(x, y, w, h, radius, fill, stroke, strokeWi
 		ey = math_max(ey, drawY + drawH)
 	end
 
-	local outerGrow, outerWidth, outerFalloff = 0, 1, 1
+	outerGrow = hasOuter and math_max(0, outerGrow or 0) or 0
+	outerWidth = hasOuter and math_max(0.001, outerWidth or 1) or 1
+	outerFalloff = hasOuter and math_max(0.001, outerFalloff or 1) or 1
 	if hasOuter then
-		outerGrow = outerSpec.grow or 0
-		outerWidth = outerSpec.width or 18
-		outerFalloff = outerSpec.falloff or 1.9
-		local spread = outerSpec._extent or outerSpec.spread or outerWidth
-		local left, top, right, bottom = glowBiasPads(spread, outerSpec.x or 0, outerSpec.y or 0)
+		local spread = math_max(1, outerExtent or outerWidth)
+		local left, top, right, bottom = glowBiasPads(spread, outerX, outerY)
 		local drawX = x - outerGrow - left
 		local drawY = y - outerGrow - top
 		local drawW = w + outerGrow * 2 + left + right
@@ -979,12 +877,16 @@ local function drawRoundRectFusedSpec(x, y, w, h, radius, fill, stroke, strokeWi
 
 	local mat = materials.roundrect_fused
 	setupRoundRectConstants(mat, w, h, fill, stroke, strokeWidth, radiusValue or roundRectRadiusScalar(radius, w, h))
-	local sr, sg, sb, sa = effectColorPacked(hasShadow and shadowSpec or nil)
-	local orr, og, ob, oa = effectColorPacked(hasOuter and outerSpec or nil)
 	setupExtraParamsRaw(mat,
-		sr, sg, sb, sa,
+		hasShadow and sr or 0,
+		hasShadow and sg or 0,
+		hasShadow and sb or 0,
+		hasShadow and (sa * shadowStrength) or 0,
 		shadowX, shadowY, shadowGrow, shadowWidth,
-		orr, og, ob, oa,
+		hasOuter and orr or 0,
+		hasOuter and og or 0,
+		hasOuter and ob or 0,
+		hasOuter and (oa * outerStrength) or 0,
 		shadowFalloff, outerGrow, outerWidth, outerFalloff
 	)
 	surface_SetMaterial(mat)
@@ -1017,7 +919,12 @@ local function drawRoundRectFusedSpec(x, y, w, h, radius, fill, stroke, strokeWi
 end
 
 local function drawRoundRectOuterGlow(x, y, w, h, radius, glow)
-	return drawRoundRectShadowOuterSpec(x, y, w, h, radius, nil, outerGlowStyle(glow))
+	local hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, _, outerGrow, outerStrength, outerFalloff, outerExtent = roundRaw.outerGlow(glow)
+	return roundRaw.drawShadowOuter(
+		x, y, w, h, radius,
+		false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1,
+		hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerExtent, outerGrow, outerStrength, outerFalloff
+	)
 end
 
 local drawRoundRectFillPass
@@ -1109,24 +1016,20 @@ local function drawRoundRectStrokePass(x, y, w, h, radius, stroke, strokeWidth)
 	traceEnd(drawTrace)
 end
 
-local function drawRoundRectFxPass(x, y, w, h, radius, fill, stroke, strokeWidth, innerSpec)
+function roundRaw.drawFxPass(x, y, w, h, radius, fill, stroke, strokeWidth, innerEnabled, gr, gg, gb, ga, glowWidth, glowStrength, glowFalloff)
 	if not setupExtraParams or not matOK(materials.roundrect_fx) then return false end
 
 	local profiling = profiler and profiler.IsActive and profiler.IsActive()
 	local setupProfile = profiling and profileStart() or nil
 	local setupTrace = traceStart("round.base.fx.setup")
 	local mat = materials.roundrect_fx
-	local gr, gg, gb, ga = 0, 0, 0, 0
-	local glowWidth, glowStrength, glowFalloff = 0, 0, 1
-	if innerSpec then
-		local color = innerSpec.color or transparentFillColor
-		gr = (color.r or 0) * inv255
-		gg = (color.g or 0) * inv255
-		gb = (color.b or 0) * inv255
-		ga = (color.a == nil and 255 or color.a) * inv255
-		glowWidth = math_max(0.001, tonumber(innerSpec.width) or 8)
-		glowStrength = math_max(0, tonumber(innerSpec.strength) or 1)
-		glowFalloff = math_max(0.001, tonumber(innerSpec.falloff) or 1.65)
+	if not innerEnabled then
+		gr, gg, gb, ga = 0, 0, 0, 0
+		glowWidth, glowStrength, glowFalloff = 0, 0, 1
+	else
+		glowWidth = math_max(0.001, tonumber(glowWidth) or 8)
+		glowStrength = math_max(0, tonumber(glowStrength) or 1)
+		glowFalloff = math_max(0.001, tonumber(glowFalloff) or 1.65)
 	end
 
 	if not setupExtraParamsRaw(mat,
@@ -1153,37 +1056,40 @@ local function drawRoundRectFxPass(x, y, w, h, radius, fill, stroke, strokeWidth
 	return true
 end
 
-drawRoundRectImmediate = function(x, y, w, h, style)
-	-- API wrappers accept friendly call shapes; the draw core keeps field reads
-	-- explicit so hot paths do not rebuild cached style records every frame.
+drawRoundRectRaw = function(x, y, w, h, radius, fillInput, stroke, strokeWidthInput, shadow, outerGlow, innerGlow, backdropInput, pattern)
+	-- Public APIs still accept friendly style tables. Internal callers use this
+	-- raw entry so composite widgets do not rebuild temporary style records.
 	local profiling = profiler and profiler.IsActive and profiler.IsActive()
 	local trace = traceStart("round.immediate")
 	local totalProfile = profiling and profileStart() or nil
 	local stageProfile = totalProfile
-	style = style or emptyRoundRectStyle
 	local initTrace = traceStart("round.init")
+	local shaderTrace = traceStart("round.init.shader")
 	local shaderReady = shadersActive()
+	traceEnd(shaderTrace)
+	local transformTrace = traceStart("round.init.transform")
 	local transformActive = hasTransform()
-	local radius = style.radius
-	if radius == nil then radius = style.r or 0 end
-	local stroke = style.stroke
+	traceEnd(transformTrace)
+	local radiusTrace = traceStart("round.init.radius")
+	if radius == nil then radius = 0 end
+	traceEnd(radiusTrace)
+	local strokeTrace = traceStart("round.init.stroke")
 	local strokeWidth = 0
 	local hasStroke = false
 	if stroke then
-		strokeWidth = strokeWidthValue(style.strokeWidth, 0)
+		strokeWidth = strokeWidthValue(strokeWidthInput, 0)
 		hasStroke = strokeWidth > 0 and (stroke.a == nil or stroke.a > 0)
 	end
+	traceEnd(strokeTrace)
 	traceEnd(initTrace)
 
-	if style.shadow == nil
-		and style.outerGlow == nil
-		and style.innerGlow == nil
-		and style.backdrop == nil
-		and style.pattern == nil
+	if shadow == nil
+		and outerGlow == nil
+		and innerGlow == nil
+		and backdropInput == nil
+		and pattern == nil
 		and not hasStroke
 		and not transformActive then
-		local fillInput = style.fill
-		if fillInput == nil then fillInput = style.color end
 		local fastPrepareTrace = traceStart("round.fast.prepare")
 		local fill = hotFillFromStyle(fillInput)
 		local hasFill = fillVisible(fill)
@@ -1238,12 +1144,11 @@ drawRoundRectImmediate = function(x, y, w, h, style)
 
 	local effectTrace = traceStart("round.normalizeEffects")
 	local shadowTrace = traceStart("style.shadow")
-	local shadowSpec = shadowStyle(style.shadow)
+	local hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpreadUnused, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread = roundRaw.shadow(shadow)
 	traceEnd(shadowTrace)
 	local outerTrace = traceStart("style.outerGlow")
-	local outerSpec = outerGlowStyle(style.outerGlow)
+	local hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpreadUnused, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread = roundRaw.outerGlow(outerGlow)
 	traceEnd(outerTrace)
-	local backdropInput = style.backdrop
 	local backdropTrace = traceStart("style.backdrop")
 	local backdropSpec = backdropInput ~= nil and backdropInput ~= false and backdropStyle(backdropInput) or nil
 	traceEnd(backdropTrace)
@@ -1256,14 +1161,20 @@ drawRoundRectImmediate = function(x, y, w, h, style)
 	local cullSpreadTrace = traceStart("round.cullSpread")
 	local cullSpread = 0
 	if shaderReady then
-		if shadowSpec then
-			cullSpread = math_max(cullSpread, shadowSpec._cullSpread or (math_abs(tonumber(shadowSpec.x) or 0) + math_abs(tonumber(shadowSpec.y) or 0) + effectExtentFromSpec(shadowSpec, 12) + (tonumber(shadowSpec.grow) or 0)))
+		if hasShadow then
+			local shadowCullTrace = traceStart("round.cullSpread.shadow")
+			cullSpread = math_max(cullSpread, shadowCullSpread)
+			traceEnd(shadowCullTrace)
 		end
-		if outerSpec then
-			cullSpread = math_max(cullSpread, outerSpec._cullSpread or (math_abs(tonumber(outerSpec.x) or 0) + math_abs(tonumber(outerSpec.y) or 0) + effectExtentFromSpec(outerSpec, 18) + (tonumber(outerSpec.grow) or 0)))
+		if hasOuter then
+			local outerCullTrace = traceStart("round.cullSpread.outer")
+			cullSpread = math_max(cullSpread, outerCullSpread)
+			traceEnd(outerCullTrace)
 		end
 		if backdropSpec then
+			local backdropCullTrace = traceStart("round.cullSpread.backdrop")
 			cullSpread = math_max(cullSpread, math_max(0, tonumber(backdropSpec.padding) or 0))
+			traceEnd(backdropCullTrace)
 		end
 	end
 	traceEnd(cullSpreadTrace)
@@ -1284,8 +1195,8 @@ drawRoundRectImmediate = function(x, y, w, h, style)
 	if not shaderReady then
 		local profile = profiling and profileStart() or nil
 		local fallbackTrace = traceStart("round.fallback")
-		drawRoundRectFallback(x, y, w, h, style)
-		drawRoundRectInnerGlow(x, y, w, h, style.radius or 0, style.innerGlow)
+		drawRoundRectFallbackRaw(x, y, w, h, radius, fillInput, stroke, strokeWidthInput)
+		drawRoundRectInnerGlow(x, y, w, h, radius, innerGlow)
 		traceEnd(fallbackTrace)
 		if profiling then
 			profileEnd("round.fallback", profile)
@@ -1294,14 +1205,17 @@ drawRoundRectImmediate = function(x, y, w, h, style)
 		return
 	end
 
-	local fillInput = style.fill
-	if fillInput == nil then fillInput = style.color end
-
 	if profiling then stageProfile = SysTime() end
 	local fillPrepareTrace = traceStart("round.fillPrepare")
+	local fillTrace = traceStart("style.fill")
 	local fill = hotFillFromStyle(fillInput)
+	traceEnd(fillTrace)
+	local fillVisibleTrace = traceStart("round.fillPrepare.visible")
 	local hasFill = fillVisible(fill)
-	local innerSpec = innerGlowStyle(style.innerGlow)
+	traceEnd(fillVisibleTrace)
+	local innerTrace = traceStart("style.innerGlow")
+	local hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff = roundRaw.innerGlow(innerGlow)
+	traceEnd(innerTrace)
 	traceEnd(fillPrepareTrace)
 	if profiling then
 		local now = SysTime()
@@ -1311,15 +1225,19 @@ drawRoundRectImmediate = function(x, y, w, h, style)
 
 	local profile
 	if backdropSpec == nil
-		and style.pattern == nil
-		and innerSpec == nil
+		and pattern == nil
+		and not hasInner
 		and not transformActive
 		and (hasFill or hasStroke)
-		and (shadowSpec ~= nil or outerSpec ~= nil) then
+		and (hasShadow or hasOuter) then
 		profile = profiling and profileStart() or nil
 		local fusedTrace = traceStart("round.fused")
 		local radiusValue = roundRectRadiusScalar(radius, w, h)
-		if drawRoundRectFusedSpec(x, y, w, h, radius, fill, style.stroke, strokeWidth, shadowSpec, outerSpec, radiusValue) then
+		if roundRaw.drawFused(
+			x, y, w, h, radius, fill, stroke, strokeWidth, radiusValue,
+			hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowExtent, shadowGrow, shadowStrength, shadowFalloff,
+			hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerExtent, outerGrow, outerStrength, outerFalloff
+		) then
 			traceEnd(fusedTrace)
 			if profiling then profileEnd("round.fused", profile) end
 			finishImmediateTrace(trace, profiling, totalProfile)
@@ -1329,10 +1247,14 @@ drawRoundRectImmediate = function(x, y, w, h, style)
 		if profiling then profileEnd("round.fused.miss", profile) end
 	end
 
-	if shadowSpec or outerSpec then
+	if hasShadow or hasOuter then
 		local shadowOuterProfile = profiling and profileStart() or nil
 		local shadowOuterTrace = traceStart("round.shadowOuter")
-		drawRoundRectShadowOuterSpec(x, y, w, h, radius, shadowSpec, outerSpec)
+		roundRaw.drawShadowOuter(
+			x, y, w, h, radius,
+			hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowExtent, shadowGrow, shadowStrength, shadowFalloff,
+			hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerExtent, outerGrow, outerStrength, outerFalloff
+		)
 		traceEnd(shadowOuterTrace)
 		if profiling then profileEnd("round.shadowOuter", shadowOuterProfile) end
 	end
@@ -1352,21 +1274,21 @@ drawRoundRectImmediate = function(x, y, w, h, style)
 
 	local effectOnly = not backdrop
 		and not hasStroke
-		and style.pattern == nil
-		and innerSpec == nil
-		and (shadowSpec ~= nil or outerSpec ~= nil)
+		and pattern == nil
+		and not hasInner
+		and (hasShadow or hasOuter)
 	if effectOnly and not hasFill then
 		finishImmediateTrace(trace, profiling, totalProfile)
 		return
 	end
 
-	if not backdrop and not hasFill and not hasStroke and style.pattern == nil and not innerSpec then
+	if not backdrop and not hasFill and not hasStroke and pattern == nil and not hasInner then
 		finishImmediateTrace(trace, profiling, totalProfile)
 		return
 	end
 
 	local mat = materials.roundrect
-	local useLayered = style.pattern ~= nil
+	local useLayered = pattern ~= nil
 	local innerGlowDrawn = false
 	if useLayered then
 		profile = profiling and profileStart() or nil
@@ -1374,9 +1296,9 @@ drawRoundRectImmediate = function(x, y, w, h, style)
 		if hasFill then
 			drawRoundRectFillPass(x, y, w, h, radius, fill)
 		end
-		drawRoundRectPattern(x, y, w, h, radius, style.pattern)
+		drawRoundRectPattern(x, y, w, h, radius, pattern)
 		if hasStroke then
-			drawRoundRectStrokePass(x, y, w, h, radius, style.stroke, strokeWidth)
+			drawRoundRectStrokePass(x, y, w, h, radius, stroke, strokeWidth)
 		end
 		traceEnd(layeredTrace)
 		if profiling then profileEnd("round.layered", profile) end
@@ -1396,14 +1318,14 @@ drawRoundRectImmediate = function(x, y, w, h, style)
 		else
 			baseKind = "round.base.solidRound"
 		end
-		if innerSpec and drawRoundRectFxPass(x, y, w, h, radius, fill, style.stroke, strokeWidth, innerSpec) then
+		if hasInner and roundRaw.drawFxPass(x, y, w, h, radius, fill, stroke, strokeWidth, true, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff) then
 			baseKind = "round.base.fx"
 			innerGlowDrawn = true
 		elseif baseKind == "round.base.solidRect"
 			and fill.kind == FILL_SOLID
-			and style.shadow == nil
-			and style.outerGlow == nil
-			and style.innerGlow == nil
+			and shadow == nil
+			and outerGlow == nil
+			and innerGlow == nil
 			and backdrop == nil
 			and not hasTransform() then
 			local drawProfile = profiling and profileStart() or nil
@@ -1414,16 +1336,16 @@ drawRoundRectImmediate = function(x, y, w, h, style)
 			baseKind = "round.base.solidRectFast"
 		elseif baseKind == "round.base.solidRound"
 			and fill.kind == FILL_SOLID
-			and style.shadow == nil
-			and style.outerGlow == nil
-			and style.innerGlow == nil
+			and shadow == nil
+			and outerGlow == nil
+			and innerGlow == nil
 			and backdrop == nil
 			and drawSolidRoundFast(x, y, w, h, radiusValue, fill) then
 			baseKind = "round.base.solidRoundFast"
 		else
 			local setupProfile = profiling and profileStart() or nil
 			local setupTrace = traceStart("round.base.setup")
-			setupRoundRectConstants(mat, w, h, fill, style.stroke, strokeWidth, radiusValue)
+			setupRoundRectConstants(mat, w, h, fill, stroke, strokeWidth, radiusValue)
 			surface_SetMaterial(mat)
 			surface_SetDrawColor(255, 255, 255, 255)
 			traceEnd(setupTrace)
@@ -1438,14 +1360,23 @@ drawRoundRectImmediate = function(x, y, w, h, style)
 		if profiling then profileEndBase(baseKind, profile) end
 	end
 
-	if innerSpec and not innerGlowDrawn then
+	if hasInner and not innerGlowDrawn then
 		profile = profiling and profileStart() or nil
 		local innerTrace = traceStart("round.innerGlow")
-		drawRoundRectInnerGlowSpec(x, y, w, h, radius, innerSpec)
+		roundRaw.drawInnerGlow(x, y, w, h, radius, true, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff)
 		traceEnd(innerTrace)
 		if profiling then profileEnd("round.innerGlow", profile) end
 	end
 	finishImmediateTrace(trace, profiling, totalProfile)
+end
+
+drawRoundRectImmediate = function(x, y, w, h, style)
+	style = style or emptyRoundRectStyle
+	local fillInput = style.fill
+	if fillInput == nil then fillInput = style.color end
+	local radius = style.radius
+	if radius == nil then radius = style.r or 0 end
+	return drawRoundRectRaw(x, y, w, h, radius, fillInput, style.stroke, style.strokeWidth, style.shadow, style.outerGlow, style.innerGlow, style.backdrop, style.pattern)
 end
 
 function M.RoundedBoxEx(x, y, w, h, style)
@@ -1474,16 +1405,10 @@ function M.RoundedBoxEx(x, y, w, h, style)
 	return result
 end
 
-local roundedBoxArgStyle = {}
-
 function M.RoundedBox(x, y, w, h, radius, fill, stroke, strokeWidth)
 	local trace = traceStart("api.RoundedBox")
-	roundedBoxArgStyle.radius = radius
-	roundedBoxArgStyle.fill = fill
-	roundedBoxArgStyle.stroke = stroke
-	roundedBoxArgStyle.strokeWidth = strokeWidth
 	recordDirectImmediate("DrawRoundedBox", "round")
-	local result = drawRoundRectImmediate(x, y, w, h, roundedBoxArgStyle)
+	local result = drawRoundRectRaw(x, y, w, h, radius, fill, stroke, strokeWidth, nil, nil, nil, nil, nil)
 	traceEnd(trace)
 	return result
 end
@@ -1496,49 +1421,38 @@ function M.CircleEx(cx, cy, radius, style)
 	style = resolveDrawStyle(style, M.TARGET.CIRCLE)
 	local transform
 	transform, style = splitStyleTransform(style)
-	style = copyStyleInto(circleExStyle, style)
-	style.radius = radius
 	recordDirectImmediate("DrawRoundedBox", "round")
 	local x, y, size = cx - radius, cy - radius, radius * 2
 	if not transform then
-		return drawRoundRectImmediate(x, y, size, size, style)
+		return drawRoundRectRaw(x, y, size, size, radius, style.fill or style.color, style.stroke, style.strokeWidth, style.shadow, style.outerGlow, style.innerGlow, style.backdrop, style.pattern)
 	end
 	return withTransform(transform, x, y, size, size, function()
-		return drawRoundRectImmediate(x, y, size, size, style)
+		return drawRoundRectRaw(x, y, size, size, radius, style.fill or style.color, style.stroke, style.strokeWidth, style.shadow, style.outerGlow, style.innerGlow, style.backdrop, style.pattern)
 	end)
 end
 
-local capsuleArgStyle = {}
-
 function M.Capsule(x, y, w, h, fill, stroke, strokeWidth)
-	capsuleArgStyle.radius = math_min(w, h) * 0.5
-	capsuleArgStyle.fill = fill
-	capsuleArgStyle.stroke = stroke
-	capsuleArgStyle.strokeWidth = strokeWidth
 	recordDirectImmediate("DrawRoundedBox", "round")
-	return drawRoundRectImmediate(x, y, w, h, capsuleArgStyle)
+	return drawRoundRectRaw(x, y, w, h, math_min(w, h) * 0.5, fill, stroke, strokeWidth, nil, nil, nil, nil, nil)
 end
 
 function M.CapsuleEx(x, y, w, h, style)
 	style = resolveDrawStyle(style, M.TARGET.CAPSULE)
 	local transform
 	transform, style = splitStyleTransform(style)
-	if style.radius == nil then
-		style = copyStyleInto(capsuleExStyle, style)
-		style.radius = math_min(w, h) * 0.5
-	end
+	local radius = style.radius or math_min(w, h) * 0.5
 	recordDirectImmediate("DrawRoundedBox", "round")
 	if not transform then
-		return drawRoundRectImmediate(x, y, w, h, style)
+		return drawRoundRectRaw(x, y, w, h, radius, style.fill or style.color, style.stroke, style.strokeWidth, style.shadow, style.outerGlow, style.innerGlow, style.backdrop, style.pattern)
 	end
 	return withTransform(transform, x, y, w, h, function()
-		return drawRoundRectImmediate(x, y, w, h, style)
+		return drawRoundRectRaw(x, y, w, h, radius, style.fill or style.color, style.stroke, style.strokeWidth, style.shadow, style.outerGlow, style.innerGlow, style.backdrop, style.pattern)
 	end)
 end
 
 
 	return {
-		drawRoundRectFallback = drawRoundRectFallback,
+		drawRoundRectFallback = drawRoundRectFallbackRaw,
 		patternStyle = patternStyle,
 		patternOffset = patternOffset,
 		setupPatternConstants = setupPatternConstants,
@@ -1547,11 +1461,9 @@ end
 		drawRoundRectOuterGlow = drawRoundRectOuterGlow,
 		drawRoundRectFillPass = drawRoundRectFillPass,
 		drawRoundRectStrokePass = drawRoundRectStrokePass,
+		drawRoundRectRaw = drawRoundRectRaw,
 		drawRoundRectImmediate = drawRoundRectImmediate,
-		innerGlowStyle = innerGlowStyle,
-		outerGlowStyle = outerGlowStyle,
-		shadowStyle = shadowStyle,
+		roundRaw = roundRaw,
 		glowBiasPads = glowBiasPads,
-		effectExtentFromSpec = effectExtentFromSpec,
 	}
 end

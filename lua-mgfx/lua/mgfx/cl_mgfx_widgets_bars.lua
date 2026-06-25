@@ -37,10 +37,8 @@ function MGFX._InstallWidgetBars(C)
 	local imageRadius = C.imageRadius
 	local imageUV = C.imageUV
 	local imageFitRect = C.imageFitRect
-	local drawRoundRectImmediate = C.drawRoundRectImmediate
+	local drawRoundRectRaw = C.drawRoundRectRaw
 	local drawRoundRectOuterGlow = C.drawRoundRectOuterGlow
-	local innerGlowStyle = C.innerGlowStyle
-	local outerGlowStyle = C.outerGlowStyle
 	local chamferTuple = C.chamferTuple
 	local drawChamferOuterGlow = C.drawChamferOuterGlow
 	local drawChamferPattern = C.drawChamferPattern
@@ -80,14 +78,6 @@ function MGFX._InstallWidgetBars(C)
 	local defaultProgressStroke = Color(255, 255, 255, 18)
 	local defaultSegmentFill = Color(255, 120, 72, 230)
 	local defaultSegmentTrack = Color(255, 255, 255, 22)
-	local progressTrackStyle = {}
-	local progressTickStyle = {radius = 0}
-	local progressGlowStyle = {}
-	local progressFillStyle = {}
-	local progressSheenStyle = {}
-	local progressMarkerStyle = {radius = 1}
-	local segmentContainerStyle = {}
-	local segmentItemStyle = {}
 	local progressTrackGradient = M.LinearGradient(0, 0, 0, 1, Color(0, 0, 0, 0), color_white)
 	local progressSheenGradient = M.LinearGradient(0, 0, 0, 1, Color(255, 255, 255, 42), Color(255, 255, 255, 0))
 	local progressTrackDarkColor = Color(0, 0, 0, 0)
@@ -106,8 +96,8 @@ function MGFX._InstallWidgetBars(C)
 	end
 
 
-	local function progressFx(style)
-		local fx = istable(style.fx) and style.fx or nil
+	local function progressFx(fxInput)
+		local fx = istable(fxInput) and fxInput or nil
 		if not fx then return 0, 0 end
 
 		local flags = 0
@@ -130,11 +120,10 @@ function MGFX._InstallWidgetBars(C)
 		return math_floor(flags / bit) % 2 == 1
 	end
 
-local function canDrawProgressFast(fill, style, inset, strokeWidth)
+local function canDrawProgressFast(fill, flags, ticks, inset, strokeWidth, shadow, backdrop, outerGlow, innerGlow, pattern, fillPattern, trackPattern)
 	if not shadersActive() or not matOK(materials.progress) then return false end
-	local flags, ticks = progressFx(style)
 	if flags ~= 0 or ticks > 1 then return false end
-	if style.shadow or style.backdrop or style.outerGlow or style.innerGlow or style.pattern or style.fillPattern or style.trackPattern then return false end
+	if shadow or backdrop or outerGlow or innerGlow or pattern or fillPattern or trackPattern then return false end
 	if inset ~= math_floor(inset) or strokeWidth ~= math_floor(strokeWidth) then return false end
 	if inset < 0 or inset > 31 or strokeWidth < 0 or strokeWidth > 15 then return false end
 	if fill.kind == FILL_SOLID then return true end
@@ -146,9 +135,9 @@ local function canDrawProgressFast(fill, style, inset, strokeWidth)
 		and (fill.y2 or 0) == 0
 end
 
-local function canDrawProgressFxFast(fill, style, inset, strokeWidth)
+local function canDrawProgressFxFast(fill, inset, strokeWidth, shadow, backdrop, outerGlow, innerGlow, pattern, fillPattern, trackPattern)
 	if not shadersActive() or not matOK(materials.progress_fx) then return false end
-	if style.shadow or style.backdrop or style.outerGlow or style.innerGlow or style.pattern or style.fillPattern or style.trackPattern then return false end
+	if shadow or backdrop or outerGlow or innerGlow or pattern or fillPattern or trackPattern then return false end
 	if inset ~= math_floor(inset) or strokeWidth ~= math_floor(strokeWidth) then return false end
 	if inset < 0 or inset > 31 or strokeWidth < 0 or strokeWidth > 15 then return false end
 	if fill.kind == FILL_SOLID then return true end
@@ -216,7 +205,7 @@ local function setupProgressFxConstants(mat, w, h, value, radius, inset, track, 
 	setDrawColor(track)
 end
 
-local function drawProgressBarFast(x, y, w, h, value, style, fill, radius, inset, track, stroke, strokeWidth)
+local function drawProgressBarFast(x, y, w, h, value, fill, radius, inset, track, stroke, strokeWidth)
 	if not hasTransform() and isCulled(x, y, w, h) then return end
 
 	local mat = materials.progress
@@ -225,7 +214,7 @@ local function drawProgressBarFast(x, y, w, h, value, style, fill, radius, inset
 	drawTexturedQuad(x, y, w, h, mat)
 end
 
-local function drawProgressBarFxFast(x, y, w, h, value, style, fill, radius, inset, track, stroke, strokeWidth, flags, ticks)
+local function drawProgressBarFxFast(x, y, w, h, value, fill, radius, inset, track, stroke, strokeWidth, flags, ticks)
 	if not hasTransform() and isCulled(x, y, w, h) then return end
 
 	local mat = materials.progress_fx
@@ -234,40 +223,30 @@ local function drawProgressBarFxFast(x, y, w, h, value, style, fill, radius, ins
 	drawTexturedQuad(x, y, w, h, mat)
 end
 
-local function drawProgressBarImmediate(x, y, w, h, value, style)
+local function drawProgressBarRaw(x, y, w, h, value, radiusInput, trackInput, fillInput, strokeInput, strokeWidthInput, paddingInput, fxInput, shadow, outerGlow, innerGlow, backdrop, pattern, fillPattern, trackPattern)
 	local frac = math.Clamp(tonumber(value) or 0, 0, 1)
-	local radius = style.radius or math_min(4, h * 0.5)
-	local inset = math_max(0, tonumber(style.padding) or 0)
-	local track = style.track or defaultProgressTrack
-	local fill = fillFromStyle(style.fill or color_white)
-	local stroke = style.stroke or defaultProgressStroke
-	local strokeWidth = strokeWidthValue(style.strokeWidth, 1)
-	local flags, ticks = progressFx(style)
+	local radius = radiusInput or math_min(4, h * 0.5)
+	local inset = math_max(0, tonumber(paddingInput) or 0)
+	local track = trackInput or defaultProgressTrack
+	local fill = fillFromStyle(fillInput or color_white)
+	local stroke = strokeInput or defaultProgressStroke
+	local strokeWidth = strokeWidthValue(strokeWidthInput, 1)
+	local flags, ticks = progressFx(fxInput)
 	local hasFx = flags ~= 0 or ticks > 1
+	recordDirectImmediate("DrawProgressBar", "progress")
 
-	if hasFx and canDrawProgressFxFast(fill, style, inset, strokeWidth) then
-		recordDirectImmediate("DrawProgressBar", "progress")
-		return drawProgressBarFxFast(x, y, w, h, frac, style, fill, radius, inset, track, stroke, strokeWidth, flags, ticks)
-	elseif canDrawProgressFast(fill, style, inset, strokeWidth) then
-		recordDirectImmediate("DrawProgressBar", "progress")
-		return drawProgressBarFast(x, y, w, h, frac, style, fill, radius, inset, track, stroke, strokeWidth)
+	if hasFx and canDrawProgressFxFast(fill, inset, strokeWidth, shadow, backdrop, outerGlow, innerGlow, pattern, fillPattern, trackPattern) then
+		return drawProgressBarFxFast(x, y, w, h, frac, fill, radius, inset, track, stroke, strokeWidth, flags, ticks)
+	elseif canDrawProgressFast(fill, flags, ticks, inset, strokeWidth, shadow, backdrop, outerGlow, innerGlow, pattern, fillPattern, trackPattern) then
+		return drawProgressBarFast(x, y, w, h, frac, fill, radius, inset, track, stroke, strokeWidth)
 	end
 
-	recordDirectImmediate("DrawProgressBar", "progress")
 	progressTrackDarkColor.r = math_floor(track.r * 0.65)
 	progressTrackDarkColor.g = math_floor(track.g * 0.65)
 	progressTrackDarkColor.b = math_floor(track.b * 0.65)
 	progressTrackDarkColor.a = track.a or 190
-	progressTrackStyle.radius = radius
-	progressTrackStyle.fill = setGradientColors(progressTrackGradient, progressTrackDarkColor, track)
-	progressTrackStyle.stroke = stroke
-	progressTrackStyle.strokeWidth = strokeWidth
-	progressTrackStyle.shadow = style.shadow
-	progressTrackStyle.outerGlow = style.outerGlow
-	progressTrackStyle.innerGlow = style.innerGlow
-	progressTrackStyle.backdrop = style.backdrop
-	progressTrackStyle.pattern = style.trackPattern
-	drawRoundRectImmediate(x, y, w, h, progressTrackStyle)
+	local trackFill = setGradientColors(progressTrackGradient, progressTrackDarkColor, track)
+	drawRoundRectRaw(x, y, w, h, radius, trackFill, stroke, strokeWidth, shadow, outerGlow, innerGlow, backdrop, trackPattern)
 
 	local ih = h - inset * 2
 	local iw = (w - inset * 2) * frac
@@ -275,70 +254,30 @@ local function drawProgressBarImmediate(x, y, w, h, value, style)
 	if ih <= 0 then return end
 
 	if ticks and ticks > 1 then
-		progressTickStyle.shadow = nil
-		progressTickStyle.outerGlow = nil
-		progressTickStyle.innerGlow = nil
-		progressTickStyle.backdrop = nil
-		progressTickStyle.pattern = nil
-		progressTickStyle.stroke = nil
-		progressTickStyle.strokeWidth = nil
-		progressTickStyle.fill = tickColor
 		for i = 1, ticks - 1 do
 			local tx = x + math_floor(w * i / ticks)
-			drawRoundRectImmediate(tx, y + 3, 1, math_max(1, h - 6), progressTickStyle)
+			drawRoundRectRaw(tx, y + 3, 1, math_max(1, h - 6), 0, tickColor, nil, nil, nil, nil, nil, nil, nil)
 		end
 	end
 
 	if iw <= 0 then return end
 
 	if fxFlag(flags, FX_GLOW) and iw > 4 then
-		progressGlowStyle.radius = math_min(radius + 2, (ih + 4) * 0.5, (iw + 4) * 0.5)
-		progressGlowStyle.fill = glowColor
-		progressGlowStyle.shadow = nil
-		progressGlowStyle.outerGlow = nil
-		progressGlowStyle.innerGlow = nil
-		progressGlowStyle.backdrop = nil
-		progressGlowStyle.pattern = nil
-		progressGlowStyle.stroke = nil
-		progressGlowStyle.strokeWidth = nil
-		drawRoundRectImmediate(x + inset - 2, y + inset - 2, iw + 4, ih + 4, progressGlowStyle)
+		local glowRadius = math_min(radius + 2, (ih + 4) * 0.5, (iw + 4) * 0.5)
+		drawRoundRectRaw(x + inset - 2, y + inset - 2, iw + 4, ih + 4, glowRadius, glowColor, nil, nil, nil, nil, nil, nil, nil)
 	end
 
-	progressFillStyle.radius = math_min(math_max(0, radius - inset), ih * 0.5, iw * 0.5)
-	progressFillStyle.fill = fill
-	progressFillStyle.pattern = style.fillPattern or style.pattern
-	progressFillStyle.shadow = nil
-	progressFillStyle.outerGlow = nil
-	progressFillStyle.innerGlow = nil
-	progressFillStyle.backdrop = nil
-	progressFillStyle.stroke = nil
-	progressFillStyle.strokeWidth = nil
-	drawRoundRectImmediate(x + inset, y + inset, iw, ih, progressFillStyle)
+	local fillRadius = math_min(math_max(0, radius - inset), ih * 0.5, iw * 0.5)
+	drawRoundRectRaw(x + inset, y + inset, iw, ih, fillRadius, fill, nil, nil, nil, nil, nil, nil, fillPattern or pattern)
 
 	if fxFlag(flags, FX_SHEEN) and iw > 8 then
-		progressSheenStyle.radius = math_min(radius, ih * 0.25)
-		progressSheenStyle.fill = progressSheenGradient
-		progressSheenStyle.shadow = nil
-		progressSheenStyle.outerGlow = nil
-		progressSheenStyle.innerGlow = nil
-		progressSheenStyle.backdrop = nil
-		progressSheenStyle.pattern = nil
-		progressSheenStyle.stroke = nil
-		progressSheenStyle.strokeWidth = nil
-		drawRoundRectImmediate(x + inset + 1, y + inset + 1, math_max(1, iw - 2), math_max(1, ih * 0.38), progressSheenStyle)
+		local sheenRadius = math_min(radius, ih * 0.25)
+		drawRoundRectRaw(x + inset + 1, y + inset + 1, math_max(1, iw - 2), math_max(1, ih * 0.38), sheenRadius, progressSheenGradient, nil, nil, nil, nil, nil, nil, nil)
 	end
 
 	if fxFlag(flags, FX_MARKER) and iw > 5 then
 		local mx = x + inset + iw - 2
-		progressMarkerStyle.fill = markerColor
-		progressMarkerStyle.shadow = nil
-		progressMarkerStyle.outerGlow = nil
-		progressMarkerStyle.innerGlow = nil
-		progressMarkerStyle.backdrop = nil
-		progressMarkerStyle.pattern = nil
-		progressMarkerStyle.stroke = nil
-		progressMarkerStyle.strokeWidth = nil
-		drawRoundRectImmediate(mx, y + 2, 2, h - 4, progressMarkerStyle)
+		drawRoundRectRaw(mx, y + 2, 2, h - 4, 1, markerColor, nil, nil, nil, nil, nil, nil, nil)
 	end
 end
 
@@ -348,25 +287,16 @@ function M.ProgressBarEx(x, y, w, h, value, style)
 	transform, style = splitStyleTransform(style)
 
 	if not transform then
-		return drawProgressBarImmediate(x, y, w, h, value, style)
+		return drawProgressBarRaw(x, y, w, h, value, style.radius, style.track, style.fill or style.color, style.stroke, style.strokeWidth, style.padding, style.fx, style.shadow, style.outerGlow, style.innerGlow, style.backdrop, style.pattern, style.fillPattern, style.trackPattern)
 	end
 
 	return withTransform(transform, x, y, w, h, function()
-		return drawProgressBarImmediate(x, y, w, h, value, style)
+		return drawProgressBarRaw(x, y, w, h, value, style.radius, style.track, style.fill or style.color, style.stroke, style.strokeWidth, style.padding, style.fx, style.shadow, style.outerGlow, style.innerGlow, style.backdrop, style.pattern, style.fillPattern, style.trackPattern)
 	end)
 end
 
-local progressBarArgStyle = {}
-
 function M.ProgressBar(x, y, w, h, value, radius, track, fill, stroke, strokeWidth)
-	progressBarArgStyle.radius = radius
-	progressBarArgStyle.track = track
-	progressBarArgStyle.fill = fill
-	progressBarArgStyle.stroke = stroke
-	progressBarArgStyle.strokeWidth = strokeWidth
-	progressBarArgStyle.padding = nil
-	progressBarArgStyle.fx = nil
-	return M.ProgressBarEx(x, y, w, h, value, progressBarArgStyle)
+	return drawProgressBarRaw(x, y, w, h, value, radius, track, fill, stroke, strokeWidth, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 end
 
 local function segmentFillEndpoints(fill)
@@ -387,66 +317,48 @@ local function segmentFillEndpoints(fill)
 	return fill.colorA or color_white, fill.colorB or fill.colorA or color_white
 end
 
-local function drawSegmentBarFallback(x, y, w, h, value, style)
-	style = style or {}
-	local count = math.Clamp(math_floor(tonumber(style.segments) or 10), 1, 128)
-	local gap = math_max(0, tonumber(style.gap) or 2)
+local function drawSegmentBarFallbackRaw(x, y, w, h, value, segments, fillInput, colorInput, trackInput, radiusInput, gapInput, backgroundRadius, background, stroke, strokeWidthInput, shadow, outerGlow, innerGlow, backdrop, pattern, fillPattern, trackPattern)
+	local count = math.Clamp(math_floor(tonumber(segments) or 10), 1, 128)
+	local gap = math_max(0, tonumber(gapInput) or 2)
 	local frac = math.Clamp(tonumber(value) or 0, 0, 1)
 	local active = math_floor(frac * count + 0.0001)
-	local fill = fillFromStyle(style.fill or style.color or defaultSegmentFill)
-	local track = style.track or defaultSegmentTrack
+	local fill = fillFromStyle(fillInput or colorInput or defaultSegmentFill)
+	local track = trackInput or defaultSegmentTrack
 	local totalGap = gap * (count - 1)
 	local segW = (w - totalGap) / count
 	if segW <= 0 or h <= 0 then return end
-	local containerRadius = style.backgroundRadius or style.radius or math_min(3, h * 0.5)
+	local containerRadius = backgroundRadius or radiusInput or math_min(3, h * 0.5)
 
-	if style.shadow or style.outerGlow or style.innerGlow or style.backdrop or style.background then
-		segmentContainerStyle.radius = containerRadius
-		segmentContainerStyle.fill = style.background or transparentColor
-		segmentContainerStyle.shadow = style.shadow
-		segmentContainerStyle.outerGlow = style.outerGlow
-		segmentContainerStyle.innerGlow = style.innerGlow
-		segmentContainerStyle.backdrop = style.backdrop
-		segmentContainerStyle.pattern = nil
-		segmentContainerStyle.stroke = nil
-		segmentContainerStyle.strokeWidth = nil
-		drawRoundRectImmediate(x, y, w, h, segmentContainerStyle)
+	if shadow or outerGlow or innerGlow or backdrop or background then
+		drawRoundRectRaw(x, y, w, h, containerRadius, background or transparentColor, nil, nil, shadow, outerGlow, innerGlow, backdrop, nil)
 	end
 
-	segmentItemStyle.radius = style.radius == nil and math_min(2, h * 0.35) or style.radius
-	segmentItemStyle.stroke = style.stroke
-	segmentItemStyle.strokeWidth = style.strokeWidth or 0
-	segmentItemStyle.shadow = nil
-	segmentItemStyle.outerGlow = nil
-	segmentItemStyle.innerGlow = nil
-	segmentItemStyle.backdrop = nil
+	local itemRadius = radiusInput == nil and math_min(2, h * 0.35) or radiusInput
 	for i = 1, count do
 		local t = count == 1 and 1 or (i - 1) / (count - 1)
 		local sx = x + (i - 1) * (segW + gap)
 		local color = i <= active and colorAtFill(fill, t) or track
-		local pattern = i <= active and (style.fillPattern or style.pattern) or style.trackPattern
-		if (color and (color.a or 255) > 0) or pattern then
-			segmentItemStyle.fill = color or transparentColor
-			segmentItemStyle.pattern = pattern
-			drawRoundRectImmediate(sx, y, segW, h, segmentItemStyle)
+		local itemPattern = i <= active and (fillPattern or pattern) or trackPattern
+		if (color and (color.a or 255) > 0) or itemPattern then
+			drawRoundRectRaw(sx, y, segW, h, itemRadius, color or transparentColor, stroke, strokeWidthInput or 0, nil, nil, nil, nil, itemPattern)
 		end
 	end
 end
 
-local function drawSegmentBarShader(x, y, w, h, value, style)
+local function drawSegmentBarShaderRaw(x, y, w, h, value, segments, fillInput, colorInput, trackInput, radiusInput, gapInput, background, stroke, strokeWidthInput, shadow, outerGlow, innerGlow, backdrop, pattern, fillPattern, trackPattern)
 	if not shadersActive() or not matOK(materials.segmentbar) then return false end
-	if style.background or style.shadow or style.backdrop then return false end
-	if strokeVisible(style.stroke, style.strokeWidth) then return false end
-	if style.outerGlow or style.innerGlow or style.pattern or style.fillPattern or style.trackPattern then return false end
+	if background or shadow or backdrop then return false end
+	if strokeVisible(stroke, strokeWidthInput) then return false end
+	if outerGlow or innerGlow or pattern or fillPattern or trackPattern then return false end
 
-	local count = math.Clamp(math_floor(tonumber(style.segments) or 10), 1, 128)
-	local gap = math_max(0, tonumber(style.gap) or 2)
+	local count = math.Clamp(math_floor(tonumber(segments) or 10), 1, 128)
+	local gap = math_max(0, tonumber(gapInput) or 2)
 	local totalGap = gap * (count - 1)
 	local segW = (w - totalGap) / count
 	if segW <= 0 or h <= 0 then return true end
 
-	local fill = fillFromStyle(style.fill or style.color or defaultSegmentFill)
-	local track = asColor(style.track or defaultSegmentTrack, defaultSegmentTrack)
+	local fill = fillFromStyle(fillInput or colorInput or defaultSegmentFill)
+	local track = asColor(trackInput or defaultSegmentTrack, defaultSegmentTrack)
 	local fillA, fillB = segmentFillEndpoints(fill)
 	local hasFill = fillVisible(fill)
 	local hasTrack = track.a == nil or track.a > 0
@@ -462,7 +374,7 @@ local function drawSegmentBarShader(x, y, w, h, value, style)
 		r, g, b, a,
 		w, h, count, gap,
 		math.Clamp(tonumber(value) or 0, 0, 1),
-		math_max(0, tonumber(style.radius == nil and math_min(2, h * 0.35) or style.radius) or 0),
+		math_max(0, tonumber(radiusInput == nil and math_min(2, h * 0.35) or radiusInput) or 0),
 		0, 0
 	)
 
@@ -473,10 +385,9 @@ local function drawSegmentBarShader(x, y, w, h, value, style)
 	return true
 end
 
-local function drawSegmentBarImmediate(x, y, w, h, value, style)
-	style = style or {}
-	if drawSegmentBarShader(x, y, w, h, value, style) then return end
-	return drawSegmentBarFallback(x, y, w, h, value, style)
+local function drawSegmentBarRaw(x, y, w, h, value, segments, fill, color, track, radius, gap, backgroundRadius, background, stroke, strokeWidth, shadow, outerGlow, innerGlow, backdrop, pattern, fillPattern, trackPattern)
+	if drawSegmentBarShaderRaw(x, y, w, h, value, segments, fill, color, track, radius, gap, background, stroke, strokeWidth, shadow, outerGlow, innerGlow, backdrop, pattern, fillPattern, trackPattern) then return end
+	return drawSegmentBarFallbackRaw(x, y, w, h, value, segments, fill, color, track, radius, gap, backgroundRadius, background, stroke, strokeWidth, shadow, outerGlow, innerGlow, backdrop, pattern, fillPattern, trackPattern)
 end
 
 function M.SegmentBarEx(x, y, w, h, value, style)
@@ -486,27 +397,19 @@ function M.SegmentBarEx(x, y, w, h, value, style)
 
 	recordDirectImmediate("DrawSegmentBar", "segment")
 	if not transform then
-		return drawSegmentBarImmediate(x, y, w, h, value, style)
+		return drawSegmentBarRaw(x, y, w, h, value, style.segments, style.fill, style.color, style.track, style.radius, style.gap, style.backgroundRadius, style.background, style.stroke, style.strokeWidth, style.shadow, style.outerGlow, style.innerGlow, style.backdrop, style.pattern, style.fillPattern, style.trackPattern)
 	end
 	return withTransform(transform, x, y, w, h, function()
-		return drawSegmentBarImmediate(x, y, w, h, value, style)
+		return drawSegmentBarRaw(x, y, w, h, value, style.segments, style.fill, style.color, style.track, style.radius, style.gap, style.backgroundRadius, style.background, style.stroke, style.strokeWidth, style.shadow, style.outerGlow, style.innerGlow, style.backdrop, style.pattern, style.fillPattern, style.trackPattern)
 	end)
 end
 
-local segmentBarArgStyle = {}
-
 function M.SegmentBar(x, y, w, h, value, segments, fill, track)
-	segmentBarArgStyle.segments = segments
-	segmentBarArgStyle.fill = fill
-	segmentBarArgStyle.track = track
-	segmentBarArgStyle.radius = nil
-	segmentBarArgStyle.gap = nil
-	segmentBarArgStyle.stroke = nil
-	segmentBarArgStyle.strokeWidth = nil
-	return M.SegmentBarEx(x, y, w, h, value, segmentBarArgStyle)
+	recordDirectImmediate("DrawSegmentBar", "segment")
+	return drawSegmentBarRaw(x, y, w, h, value, segments, fill, nil, track, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 end
 
 
 	C.drawProgressBarImmediate = M.ProgressBarEx
-	C.drawSegmentBarImmediate = drawSegmentBarImmediate
+	C.drawSegmentBarImmediate = drawSegmentBarRaw
 end

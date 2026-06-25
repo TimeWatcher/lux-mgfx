@@ -88,15 +88,17 @@ fn drawPolyBackdrop(poly, backdrop) {
   spec
 }
 
-fn polyShadowBounds(poly, shadow, biasOffset = false) {
-  stopif shadow == nil or shadow.color == nil or (shadow.color.a ?? 255) <= 0, nil
+fn polyEffectBounds(poly, enabled, alpha, ox, oy, width, extent, grow, strength, falloff, biasOffset = false) {
+  stopif not enabled or alpha <= 0 or strength <= 0, nil
 
-  local width = mathMax(0.001, toNumber(shadow.width) ?? 12)
-  local grow = mathMax(0, toNumber(shadow.grow) ?? 0)
-  local spread = roundrect.effectExtentFromSpec(shadow, 12)
-  local padding = grow + mathMax(spread, width)
-  local ox = toNumber(shadow.x) ?? 0
-  local oy = toNumber(shadow.y) ?? 0
+  width = mathMax(0.001, toNumber(width) ?? 12)
+  grow = mathMax(0, toNumber(grow) ?? 0)
+  extent = mathMax(1, toNumber(extent) ?? width)
+  local padding = grow + mathMax(extent, width)
+  ox = toNumber(ox) ?? 0
+  oy = toNumber(oy) ?? 0
+  falloff = mathMax(0.001, toNumber(falloff) ?? 1.7)
+  strength = mathMax(0, toNumber(strength) ?? 1)
 
   if biasOffset {
     local left, top, right, bottom = roundrect.glowBiasPads(padding, ox, oy, 0.001)
@@ -109,8 +111,8 @@ fn polyShadowBounds(poly, shadow, biasOffset = false) {
         oy = 0,
         width = width,
         grow = grow,
-        falloff = mathMax(0.001, toNumber(shadow.falloff) ?? 1.7),
-        strength = mathMax(0, toNumber(shadow.strength) ?? 1)
+        falloff = falloff,
+        strength = strength
     }
   }
 
@@ -123,8 +125,8 @@ fn polyShadowBounds(poly, shadow, biasOffset = false) {
       oy = oy,
       width = width,
       grow = grow,
-      falloff = mathMax(0.001, toNumber(shadow.falloff) ?? 1.7),
-      strength = mathMax(0, toNumber(shadow.strength) ?? 1)
+      falloff = falloff,
+      strength = strength
   }
 }
 
@@ -170,7 +172,7 @@ fn setupPolyShadowAuxConstants(material,
     true
   }
 
-fn setupPolyShadowConstants(material, poly, shadow, bounds) {
+fn setupPolyEffectConstants(material, poly, bounds, r, g, b, a) {
   local points = poly.points
   local x1, y1 = shadowVertex(poly, points[1], bounds)
   local x2, y2 = shadowVertex(poly, points[2], bounds)
@@ -180,8 +182,6 @@ fn setupPolyShadowConstants(material, poly, shadow, bounds) {
   local x6, y6 = shadowVertex(poly, points[6], bounds)
   local x7, y7 = shadowVertex(poly, points[7], bounds)
   local x8, y8 = shadowVertex(poly, points[8], bounds)
-  local r, g, b, a = style.color01(shadow.color)
-
   setupParamMatrix(material,
     x1, y1, x2, y2,
     x3, y3, x4, y4,
@@ -196,13 +196,13 @@ fn setupPolyShadowConstants(material, poly, shadow, bounds) {
   )
 }
 
-fn drawPolyShadow(poly, shadow, bounds) {
+fn drawPolyShadow(poly, bounds, r, g, b, a) {
   stopif bounds == nil, false
 
   local material = primitiveMaterials[polyMaterialKey(poly, "_shadow")]
   stopif not materialOK(material), false
 
-  setupPolyShadowConstants(material, poly, shadow, bounds)
+  setupPolyEffectConstants(material, poly, bounds, r, g, b, a)
   local bleedLeft, bleedTop, bleedRight, bleedBottom = effectBleedFromDrawRect(poly.x, poly.y, poly.w, poly.h, bounds.x, bounds.y, bounds.w, bounds.h)
   local bleedToken = beginPanelEffectBleed(bleedLeft, bleedTop, bleedRight, bleedBottom)
   surfaceSetMaterial(material)
@@ -212,13 +212,13 @@ fn drawPolyShadow(poly, shadow, bounds) {
   true
 }
 
-fn drawPolyOuterGlow(poly, glow, bounds) {
+fn drawPolyOuterGlow(poly, bounds, r, g, b, a) {
   stopif bounds == nil, false
 
   local material = primitiveMaterials[polyMaterialKey(poly, "_outerglow")]
   stopif not materialOK(material), false
 
-  setupPolyShadowConstants(material, poly, glow, bounds)
+  setupPolyEffectConstants(material, poly, bounds, r, g, b, a)
   local bleedLeft, bleedTop, bleedRight, bleedBottom = effectBleedFromDrawRect(poly.x, poly.y, poly.w, poly.h, bounds.x, bounds.y, bounds.w, bounds.h)
   local bleedToken = beginPanelEffectBleed(bleedLeft, bleedTop, bleedRight, bleedBottom)
   surfaceSetMaterial(material)
@@ -341,21 +341,18 @@ fn drawPolyStroke(poly, color, strokeWidth) {
     return
   }
 
-  local lineStyle = polyLineStrokeStyle
-  lineStyle.width = style.strokeWidthValue(strokeWidth, 1)
-  lineStyle.fill = color
   for index = 1, #poly.points {
     local a = poly.points[index]
     local b = poly.points[index % #poly.points + 1]
-    drawLineImmediate(poly.x + a.x, poly.y + a.y, poly.x + b.x, poly.y + b.y, nil, nil, lineStyle)
+    drawLineRaw(poly.x + a.x, poly.y + a.y, poly.x + b.x, poly.y + b.y, color, style.strokeWidthValue(strokeWidth, 1), nil, nil, nil, nil, true)
   }
 }
 
-fn drawPolyFallback(points, drawStyle) {
-  local fill = style.fillFromStyle(drawStyle.fill ?? drawStyle.color)
+fn drawPolyFallbackRaw(points, fillInput, stroke, strokeWidthInput) {
+  local fill = style.fillFromStyle(fillInput)
   local hasFill = style.fillVisible(fill)
-  local strokeWidth = style.strokeWidthValue(drawStyle.strokeWidth, 0)
-  local hasStroke = style.strokeVisible(drawStyle.stroke, strokeWidth)
+  local strokeWidth = style.strokeWidthValue(strokeWidthInput, 0)
+  local hasStroke = style.strokeVisible(stroke, strokeWidth)
 
   if hasFill {
     style.setDrawColor(fillColor(fill))
@@ -363,25 +360,20 @@ fn drawPolyFallback(points, drawStyle) {
   }
 
   if hasStroke {
-    local lineStyle = polyFallbackLineStyle
-    lineStyle.width = strokeWidth
-    lineStyle.fill = drawStyle.stroke
     for index = 1, #points {
       local a = points[index]
       local b = points[index % #points + 1]
-      drawLineImmediate(a.x ?? a[1], a.y ?? a[2], b.x ?? b[1], b.y ?? b[2], nil, nil, lineStyle)
+      drawLineRaw(a.x ?? a[1], a.y ?? a[2], b.x ?? b[1], b.y ?? b[2], stroke, strokeWidth, nil, nil, nil, nil, true)
     }
   }
 }
 
-fn drawPolyImmediateNormalized(points, drawStyle = nil, poly) {
-  local resolved = drawStyle ?? {}
-
-  local shadow = roundrect.shadowStyle(resolved.shadow)
-  local shadowBounds = polyShadowBounds(poly, shadow)
-  local outer = roundrect.outerGlowStyle(resolved.outerGlow)
-  local outerBounds = polyShadowBounds(poly, outer, true)
-  local backdrop = style.backdropStyle(resolved.backdrop)
+fn drawPolyRawNormalized(points, poly, fillInput = nil, stroke = nil, strokeWidthInput = nil, shadow = nil, outerGlow = nil, backdropInput = nil, pattern = nil) {
+  local hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpreadUnused, shadowGrow, shadowStrength, shadowFalloff, shadowExtent = roundrect.shadowRaw(shadow)
+  local shadowBounds = polyEffectBounds(poly, hasShadow, sa, shadowX, shadowY, shadowWidth, shadowExtent, shadowGrow, shadowStrength, shadowFalloff)
+  local hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpreadUnused, outerGrow, outerStrength, outerFalloff, outerExtent = roundrect.outerGlowRaw(outerGlow)
+  local outerBounds = polyEffectBounds(poly, hasOuter, oa, outerX, outerY, outerWidth, outerExtent, outerGrow, outerStrength, outerFalloff, true)
+  local backdrop = style.backdropStyle(backdropInput)
   local cullX = poly.x
   local cullY = poly.y
   local cullW = poly.w
@@ -404,34 +396,48 @@ fn drawPolyImmediateNormalized(points, drawStyle = nil, poly) {
   }
 
   if not shadersActive() {
-    return drawPolyFallback(points, resolved)
+    return drawPolyFallbackRaw(points, fillInput, stroke, strokeWidthInput)
   }
 
-  drawPolyShadow(poly, shadow, shadowBounds)
-  drawPolyOuterGlow(poly, outer, outerBounds)
-  drawPolyBackdrop(poly, resolved.backdrop)
+  drawPolyShadow(poly, shadowBounds, sr, sg, sb, sa)
+  drawPolyOuterGlow(poly, outerBounds, orr, og, ob, oa)
+  drawPolyBackdrop(poly, backdropInput)
 
   local material = primitiveMaterials[polyMaterialKey(poly)]
-  local fill = style.fillFromStyle(resolved.fill ?? resolved.color)
+  local fill = style.fillFromStyle(fillInput)
   local hasFill = style.fillVisible(fill)
-  local strokeWidth = style.strokeWidthValue(resolved.strokeWidth, 0)
-  local hasStroke = style.strokeVisible(resolved.stroke, strokeWidth)
+  local strokeWidth = style.strokeWidthValue(strokeWidthInput, 0)
+  local hasStroke = style.strokeVisible(stroke, strokeWidth)
 
   if hasFill and materialOK(material) {
     local drawRect = setupPolyFillConstants(material, poly, fill)
     surfaceSetMaterial(material)
     drawTexturedQuadUV(drawRect.x, drawRect.y, drawRect.w, drawRect.h, drawRect.u0, drawRect.v0, drawRect.u1, drawRect.v1, material)
   } else if hasFill {
-    drawPolyFallback(points, {
-      fill = fill
-    })
+    drawPolyFallbackRaw(points, fill, nil, 0)
   }
 
-  drawPolyPattern(poly, resolved.pattern)
+  drawPolyPattern(poly, pattern)
 
   if hasStroke {
-    drawPolyStroke(poly, resolved.stroke, strokeWidth)
+    drawPolyStroke(poly, stroke, strokeWidth)
   }
+}
+
+fn drawPolyImmediateNormalized(points, drawStyle = nil, poly) {
+  local resolved = drawStyle ?? {}
+  drawPolyRawNormalized(points, poly, resolved.fill ?? resolved.color, resolved.stroke, resolved.strokeWidth, resolved.shadow, resolved.outerGlow, resolved.backdrop, resolved.pattern)
+}
+
+export client fn drawPolyRaw(points, poly = nil, fill = nil, stroke = nil, strokeWidth = nil, shadow = nil, outerGlow = nil, backdrop = nil, pattern = nil) {
+  if poly == nil {
+    poly = normalizePoly(points)
+    if poly == nil {
+      return
+    }
+  }
+
+  drawPolyRawNormalized(points, poly, fill, stroke, strokeWidth, shadow, outerGlow, backdrop, pattern)
 }
 
 fn drawPolyImmediate(points, drawStyle = nil) {

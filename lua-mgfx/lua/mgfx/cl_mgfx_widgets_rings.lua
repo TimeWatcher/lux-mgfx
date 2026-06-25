@@ -44,15 +44,7 @@ function MGFX._InstallWidgetRings(C)
 	local setupExtraParams = C.setupExtraParams
 	local drawRoundRectImmediate = C.drawRoundRectImmediate
 	local drawRoundRectOuterGlow = C.drawRoundRectOuterGlow
-	local innerGlowStyle = C.innerGlowStyle
-	local outerGlowStyle = C.outerGlowStyle
-	local shadowStyle = C.shadowStyle or function() return nil end
-	local effectExtentFromSpec = C.effectExtentFromSpec or function(spec, defaultWidth)
-		local width = math.max(0.001, tonumber(spec and spec.width) or defaultWidth or 18)
-		local falloff = math.max(0.35, tonumber(spec and spec.falloff) or 1.9)
-		local sigma = math.max(width / math.sqrt(falloff) * 0.72, 0.35)
-		return math.max(1, tonumber(spec and spec.spread) or width, sigma * 3.72)
-	end
+	local roundRaw = assert(C.roundRaw, "MGFX raw effect helper unavailable")
 	local chamferTuple = C.chamferTuple
 	local drawChamferOuterGlow = C.drawChamferOuterGlow
 	local drawChamferPattern = C.drawChamferPattern
@@ -213,19 +205,18 @@ local function drawRingStrokePass(x, y, w, h, innerRadius, outerRadius, startDeg
 	drawTexturedQuad(x, y, w, h, mat)
 end
 
-local function drawRingFxPass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, fill, stroke, strokeWidth, innerSpec)
+local function drawRingFxPass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, fill, stroke, strokeWidth, innerEnabled, gr, gg, gb, ga, glowWidth, glowStrength, glowFalloff)
 	local width = strokeWidthValue(strokeWidth, 0)
 	local hasStroke = strokeVisible(stroke, width)
 
-	local gr, gg, gb, ga = 0, 0, 0, 0
-	local glowWidth, glowStrength, glowFalloff = 0, 0, 1
-	local hasGlow = false
-	if innerSpec then
-		gr, gg, gb, ga = color01(innerSpec.color or transparentColor)
-		glowWidth = math_max(0.001, tonumber(innerSpec.width) or 8)
-		glowStrength = math_max(0, tonumber(innerSpec.strength) or 1)
-		glowFalloff = math_max(0.001, tonumber(innerSpec.falloff) or 1.65)
-		hasGlow = ga > 0 and glowWidth > 0 and glowStrength > 0
+	local hasGlow = innerEnabled and ga > 0 and glowStrength > 0
+	if hasGlow then
+		glowWidth = math_max(0.001, tonumber(glowWidth) or 8)
+		glowStrength = math_max(0, tonumber(glowStrength) or 1)
+		glowFalloff = math_max(0.001, tonumber(glowFalloff) or 1.65)
+	else
+		gr, gg, gb, ga = 0, 0, 0, 0
+		glowWidth, glowStrength, glowFalloff = 0, 0, 1
 	end
 
 	if not hasStroke and not hasGlow then return false end
@@ -261,22 +252,18 @@ local function drawRingFxPass(x, y, w, h, innerRadius, outerRadius, startDeg, en
 	return true
 end
 
-local function drawRingInnerGlowPass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, spec)
-	if not spec then return end
+local function drawRingInnerGlowPass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, enabled, gr, gg, gb, ga, glowWidth, glowStrength, glowFalloff)
+	if not enabled or ga <= 0 or glowStrength <= 0 then return end
 	if not shadersActive() or not matOK(materials.ring_innerglow) then return end
 
-	local color = spec.color
-	if (color.a or 255) <= 0 then return end
-
 	local mat = materials.ring_innerglow
-	local r, g, b, a = color01(color)
 	local sw, sh, ir, orad, sr, er, modeValue = setupRingShapeConstants(mat, w, h, innerRadius, outerRadius, startDeg, endDeg, mode)
 	setupParamMatrix(mat,
-		r, g, b, a,
+		gr, gg, gb, ga,
 		sw, sh, ir, orad,
-		sr, er, modeValue, math_max(0.001, tonumber(spec.width) or 8),
-		math_max(0, tonumber(spec.strength) or 1),
-		math_max(0.001, tonumber(spec.falloff) or 1.65),
+		sr, er, modeValue, math_max(0.001, tonumber(glowWidth) or 8),
+		math_max(0, tonumber(glowStrength) or 1),
+		math_max(0.001, tonumber(glowFalloff) or 1.65),
 		0, 0
 	)
 	surface_SetMaterial(mat)
@@ -284,21 +271,23 @@ local function drawRingInnerGlowPass(x, y, w, h, innerRadius, outerRadius, start
 	drawTexturedQuad(x, y, w, h, mat)
 end
 
-local function ringEffectBounds(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, spec)
-	if not spec then return nil end
-	local color = spec.color
-	if not color or (color.a or 255) <= 0 then return nil end
+local function ringEffectBounds(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, enabled, alpha, ox, oy, width, extent, grow, strength, falloff)
+	if not enabled or alpha <= 0 or strength <= 0 then return nil end
 
-	local grow = math_max(0, tonumber(spec.grow) or tonumber(spec.shapeSpread) or tonumber(spec.expand) or 0)
-	local ox = tonumber(spec.x) or tonumber(spec.offsetX) or tonumber(spec.dx) or 0
-	local oy = tonumber(spec.y) or tonumber(spec.offsetY) or tonumber(spec.dy) or 0
+	grow = math_max(0, tonumber(grow) or 0)
+	ox = tonumber(ox) or 0
+	oy = tonumber(oy) or 0
+	width = math_max(0.001, tonumber(width) or 18)
+	extent = math_max(1, tonumber(extent) or width)
+	strength = math_max(0, tonumber(strength) or 1)
+	falloff = math_max(0.001, tonumber(falloff) or 1.9)
 	local gx = x + ox - grow
 	local gy = y + oy - grow
 	local gw = w + grow * 2
 	local gh = h + grow * 2
 	local gi = math_max(0, (tonumber(innerRadius) or 0) - grow)
 	local go = math_max(0.001, (tonumber(outerRadius) or math_min(w, h) * 0.5) + grow)
-	local spread = effectExtentFromSpec(spec, 18)
+	local spread = extent
 
 	return {
 		x = gx - spread,
@@ -312,18 +301,22 @@ local function ringEffectBounds(x, y, w, h, innerRadius, outerRadius, startDeg, 
 		start = math_rad(tonumber(startDeg) or 0),
 		finish = math_rad(tonumber(endDeg) or 360),
 		mode = ringModeValue(mode),
-		width = math_max(0.001, tonumber(spec.width) or 18),
-		strength = math_max(0, tonumber(spec.strength) or 1),
-		falloff = math_max(0.001, tonumber(spec.falloff) or 1.9),
+		width = width,
+		strength = strength,
+		falloff = falloff,
 	}
 end
 
-local function drawRingShadowOuterPass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, shadowSpec, outerSpec)
-	if (not shadowSpec and not outerSpec) or not setupExtraParams then return false end
+local function drawRingShadowOuterPass(
+	x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode,
+	hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowExtent, shadowGrow, shadowStrength, shadowFalloff,
+	hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerExtent, outerGrow, outerStrength, outerFalloff
+)
+	if (not hasShadow and not hasOuter) or not setupExtraParams then return false end
 	if not shadersActive() or not matOK(materials.ring_shadow_outer) then return false end
 
-	local shadowBounds = ringEffectBounds(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, shadowSpec)
-	local outerBounds = ringEffectBounds(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, outerSpec)
+	local shadowBounds = ringEffectBounds(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, hasShadow, sa, shadowX, shadowY, shadowWidth, shadowExtent, shadowGrow, shadowStrength, shadowFalloff)
+	local outerBounds = ringEffectBounds(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, hasOuter, oa, outerX, outerY, outerWidth, outerExtent, outerGrow, outerStrength, outerFalloff)
 	if not shadowBounds and not outerBounds then return false end
 
 	local baseBounds = shadowBounds or outerBounds
@@ -347,12 +340,10 @@ local function drawRingShadowOuterPass(x, y, w, h, innerRadius, outerRadius, sta
 	local drawW = ex - sx
 	local drawH = ey - sy
 	local mat = materials.ring_shadow_outer
-	local shadowColor = shadowSpec and shadowSpec.color or transparentColor
-	local outerColor = outerSpec and outerSpec.color or transparentColor
 
 	setupParamMatrix(mat,
 		drawW, drawH, 0, 0,
-		(shadowColor.r or 0) / 255, (shadowColor.g or 0) / 255, (shadowColor.b or 0) / 255, shadowBounds and ((shadowColor.a == nil and 255 or shadowColor.a) / 255) or 0,
+		shadowBounds and sr or 0, shadowBounds and sg or 0, shadowBounds and sb or 0, shadowBounds and sa or 0,
 		(shadowBounds and shadowBounds.x or x) + (shadowBounds and shadowBounds.shapeX or 0) + (shadowBounds and shadowBounds.outer or 0) - sx,
 		(shadowBounds and shadowBounds.y or y) + (shadowBounds and shadowBounds.shapeY or 0) + (shadowBounds and shadowBounds.outer or 0) - sy,
 		shadowBounds and shadowBounds.inner or 0,
@@ -364,7 +355,7 @@ local function drawRingShadowOuterPass(x, y, w, h, innerRadius, outerRadius, sta
 	)
 
 	if not setupExtraParams(mat,
-		(outerColor.r or 0) / 255, (outerColor.g or 0) / 255, (outerColor.b or 0) / 255, outerBounds and ((outerColor.a == nil and 255 or outerColor.a) / 255) or 0,
+		outerBounds and orr or 0, outerBounds and og or 0, outerBounds and ob or 0, outerBounds and oa or 0,
 		(outerBounds and outerBounds.x or x) + (outerBounds and outerBounds.shapeX or 0) + (outerBounds and outerBounds.outer or 0) - sx,
 		(outerBounds and outerBounds.y or y) + (outerBounds and outerBounds.shapeY or 0) + (outerBounds and outerBounds.outer or 0) - sy,
 		outerBounds and outerBounds.inner or 0,
@@ -467,19 +458,18 @@ local function drawRingBackdropPass(x, y, w, h, innerRadius, outerRadius, startD
 	return spec
 end
 
-local function drawRingBox(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, style)
-	style = style or {}
-	local shadowSpec = shadowStyle(style.shadow)
-	local outerSpec = outerGlowStyle(style.outerGlow)
-	local backdropSpec = backdropStyle(style.backdrop)
+local function drawRingBoxRaw(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, fillInput, colorInput, stroke, strokeWidthInput, shadow, outerGlow, innerGlow, backdrop, pattern)
+	local hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, _, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread = roundRaw.shadow(shadow)
+	local hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, _, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread = roundRaw.outerGlow(outerGlow)
+	local backdropSpec = backdropStyle(backdrop)
 	local shaderReady = shadersActive()
 	local cullSpread = 0
 	if shaderReady then
-		if shadowSpec then
-			cullSpread = math_max(cullSpread, math_abs(tonumber(shadowSpec.x) or 0) + math_abs(tonumber(shadowSpec.y) or 0) + effectExtentFromSpec(shadowSpec, 12) + (tonumber(shadowSpec.grow) or 0))
+		if hasShadow then
+			cullSpread = math_max(cullSpread, shadowCullSpread)
 		end
-		if outerSpec then
-			cullSpread = math_max(cullSpread, math_abs(tonumber(outerSpec.x) or 0) + math_abs(tonumber(outerSpec.y) or 0) + effectExtentFromSpec(outerSpec, 18) + (tonumber(outerSpec.grow) or 0))
+		if hasOuter then
+			cullSpread = math_max(cullSpread, outerCullSpread)
 		end
 		if backdropSpec then
 			cullSpread = math_max(cullSpread, math_max(0, tonumber(backdropSpec.padding) or 0))
@@ -487,29 +477,33 @@ local function drawRingBox(x, y, w, h, innerRadius, outerRadius, startDeg, endDe
 	end
 	if not hasTransform() and isCulled(x - cullSpread, y - cullSpread, w + cullSpread * 2, h + cullSpread * 2) then return end
 
-	if shadowSpec or outerSpec then
-		drawRingShadowOuterPass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, shadowSpec, outerSpec)
+	if hasShadow or hasOuter then
+		drawRingShadowOuterPass(
+			x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode,
+			hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowExtent, shadowGrow, shadowStrength, shadowFalloff,
+			hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerExtent, outerGrow, outerStrength, outerFalloff
+		)
 	end
-	if style.backdrop ~= nil then
-		drawRingBackdropPass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, style.backdrop)
+	if backdrop ~= nil then
+		drawRingBackdropPass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, backdrop)
 	end
-	local fill = hotFillFromStyle(style.fill or style.color, defaultRingFillColor)
-	local innerSpec = innerGlowStyle(style.innerGlow)
-	local strokeWidth = strokeWidthValue(style.strokeWidth, 0)
-	local hasStroke = strokeVisible(style.stroke, strokeWidth)
-	if style.pattern == nil and (hasStroke or innerSpec) and drawRingFxPass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, fill, style.stroke, strokeWidth, innerSpec) then
+	local fill = hotFillFromStyle(fillInput or colorInput, defaultRingFillColor)
+	local hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff = roundRaw.innerGlow(innerGlow)
+	local strokeWidth = strokeWidthValue(strokeWidthInput, 0)
+	local hasStroke = strokeVisible(stroke, strokeWidth)
+	if pattern == nil and (hasStroke or hasInner) and drawRingFxPass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, fill, stroke, strokeWidth, hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff) then
 		return
 	end
 
 	drawRingFillPass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, fill)
-	if style.pattern ~= nil then
-		drawRingPatternPass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, style.pattern)
+	if pattern ~= nil then
+		drawRingPatternPass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, pattern)
 	end
-	if innerSpec then
-		drawRingInnerGlowPass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, innerSpec)
+	if hasInner then
+		drawRingInnerGlowPass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, true, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff)
 	end
 	if hasStroke then
-		drawRingStrokePass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, style.stroke, strokeWidth)
+		drawRingStrokePass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, stroke, strokeWidth)
 	end
 end
 
@@ -524,18 +518,20 @@ function M.RingEx(x, y, radius, width, style)
 
 	recordDirectImmediate("DrawRing", "ring")
 	if not transform then
-		return drawRingBox(bx, by, size, size, innerRadius, outerRadius, 0, 360, RING_MODE_FULL, style)
+		return drawRingBoxRaw(bx, by, size, size, innerRadius, outerRadius, 0, 360, RING_MODE_FULL, style.fill, style.color, style.stroke, style.strokeWidth, style.shadow, style.outerGlow, style.innerGlow, style.backdrop, style.pattern)
 	end
 	return withTransform(transform, bx, by, size, size, function()
-		return drawRingBox(bx, by, size, size, innerRadius, outerRadius, 0, 360, RING_MODE_FULL, style)
+		return drawRingBoxRaw(bx, by, size, size, innerRadius, outerRadius, 0, 360, RING_MODE_FULL, style.fill, style.color, style.stroke, style.strokeWidth, style.shadow, style.outerGlow, style.innerGlow, style.backdrop, style.pattern)
 	end)
 end
 
-local ringArgStyle = {}
-
 function M.Ring(x, y, radius, width, fill)
-	ringArgStyle.fill = fill
-	return M.RingEx(x, y, radius, width, ringArgStyle)
+	local outerRadius = math_max(0.001, tonumber(radius) or 0)
+	local ringWidth = math_max(0.001, tonumber(width) or math_max(1, outerRadius * 0.18))
+	local innerRadius = math_max(0, outerRadius - ringWidth)
+	local bx, by, size = x - outerRadius, y - outerRadius, outerRadius * 2
+	recordDirectImmediate("DrawRing", "ring")
+	return drawRingBoxRaw(bx, by, size, size, innerRadius, outerRadius, 0, 360, RING_MODE_FULL, fill, nil, nil, nil, nil, nil, nil, nil, nil)
 end
 
 function M.ArcEx(x, y, radius, width, startDeg, endDeg, style)
@@ -549,18 +545,20 @@ function M.ArcEx(x, y, radius, width, startDeg, endDeg, style)
 
 	recordDirectImmediate("DrawArc", "arc")
 	if not transform then
-		return drawRingBox(bx, by, size, size, innerRadius, outerRadius, startDeg, endDeg, RING_MODE_ARC, style)
+		return drawRingBoxRaw(bx, by, size, size, innerRadius, outerRadius, startDeg, endDeg, RING_MODE_ARC, style.fill, style.color, style.stroke, style.strokeWidth, style.shadow, style.outerGlow, style.innerGlow, style.backdrop, style.pattern)
 	end
 	return withTransform(transform, bx, by, size, size, function()
-		return drawRingBox(bx, by, size, size, innerRadius, outerRadius, startDeg, endDeg, RING_MODE_ARC, style)
+		return drawRingBoxRaw(bx, by, size, size, innerRadius, outerRadius, startDeg, endDeg, RING_MODE_ARC, style.fill, style.color, style.stroke, style.strokeWidth, style.shadow, style.outerGlow, style.innerGlow, style.backdrop, style.pattern)
 	end)
 end
 
-local arcArgStyle = {}
-
 function M.Arc(x, y, radius, startDeg, endDeg, width, fill)
-	arcArgStyle.fill = fill
-	return M.ArcEx(x, y, radius, width, startDeg, endDeg, arcArgStyle)
+	local outerRadius = math_max(0.001, tonumber(radius) or 0)
+	local arcWidth = math_max(0.001, tonumber(width) or math_max(1, outerRadius * 0.18))
+	local innerRadius = math_max(0, outerRadius - arcWidth)
+	local bx, by, size = x - outerRadius, y - outerRadius, outerRadius * 2
+	recordDirectImmediate("DrawArc", "arc")
+	return drawRingBoxRaw(bx, by, size, size, innerRadius, outerRadius, startDeg, endDeg, RING_MODE_ARC, fill, nil, nil, nil, nil, nil, nil, nil, nil)
 end
 
 function M.SectorEx(x, y, innerRadius, outerRadius, startDeg, endDeg, style)
@@ -573,20 +571,21 @@ function M.SectorEx(x, y, innerRadius, outerRadius, startDeg, endDeg, style)
 
 	recordDirectImmediate("DrawSector", "sector")
 	if not transform then
-		return drawRingBox(bx, by, size, size, innerRadius, outerRadius, startDeg, endDeg, RING_MODE_SECTOR, style)
+		return drawRingBoxRaw(bx, by, size, size, innerRadius, outerRadius, startDeg, endDeg, RING_MODE_SECTOR, style.fill, style.color, style.stroke, style.strokeWidth, style.shadow, style.outerGlow, style.innerGlow, style.backdrop, style.pattern)
 	end
 	return withTransform(transform, bx, by, size, size, function()
-		return drawRingBox(bx, by, size, size, innerRadius, outerRadius, startDeg, endDeg, RING_MODE_SECTOR, style)
+		return drawRingBoxRaw(bx, by, size, size, innerRadius, outerRadius, startDeg, endDeg, RING_MODE_SECTOR, style.fill, style.color, style.stroke, style.strokeWidth, style.shadow, style.outerGlow, style.innerGlow, style.backdrop, style.pattern)
 	end)
 end
 
-local sectorArgStyle = {}
-
 function M.Sector(x, y, innerRadius, outerRadius, startDeg, endDeg, fill)
-	sectorArgStyle.fill = fill
-	return M.SectorEx(x, y, innerRadius, outerRadius, startDeg, endDeg, sectorArgStyle)
+	outerRadius = math_max(0.001, tonumber(outerRadius) or 0)
+	innerRadius = math.Clamp(tonumber(innerRadius) or 0, 0, outerRadius)
+	local bx, by, size = x - outerRadius, y - outerRadius, outerRadius * 2
+	recordDirectImmediate("DrawSector", "sector")
+	return drawRingBoxRaw(bx, by, size, size, innerRadius, outerRadius, startDeg, endDeg, RING_MODE_SECTOR, fill, nil, nil, nil, nil, nil, nil, nil, nil)
 end
 
 
-	C.drawRingBox = drawRingBox
+	C.drawRingBox = drawRingBoxRaw
 end

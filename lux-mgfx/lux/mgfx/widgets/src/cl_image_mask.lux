@@ -195,7 +195,11 @@ fn imageBackdropTintColor(spec) {
   makeColor(tint.r ?? 0, tint.g ?? 0, tint.b ?? 0, mathFloor(mathClamp(alpha, 0, 255) + 0.5))
 }
 
-fn setupImageMaskEffectParams(material, w, h, mask, kind, maskTexture, shadowSpec, outerSpec, drawX, drawY, shadowX, shadowY, outerX, outerY) {
+fn setupImageMaskEffectParams(
+  material, w, h, mask, kind, maskTexture, drawW, drawH, shadowX, shadowY, outerX, outerY,
+  hasShadow, sr, sg, sb, sa, shadowWidth, shadowStrength, shadowFalloff, shadowExtent,
+  hasOuter, orr, og, ob, oa, outerWidth, outerStrength, outerFalloff, outerExtent
+) {
   local packedKind = kind
   if mask ~= nil and (mask.invert or mask.inverse) {
     packedKind += 128
@@ -212,26 +216,28 @@ fn setupImageMaskEffectParams(material, w, h, mask, kind, maskTexture, shadowSpe
     material:SetTexture("$texture1", maskTexture)
   }
 
-  local shadowColor = shadowSpec?.color ?? makeColor(0, 0, 0, 0)
-  local outerColor = outerSpec?.color ?? makeColor(0, 0, 0, 0)
   setupParamMatrix(material,
-    drawX, drawY, w, h,
-    packedKind, mask ~= nil and geometry.imageRadius(mask.radius, w, h) or 0, shadowSpec ~= nil then roundrect.effectExtentFromSpec(shadowSpec, 18) else 0, outerSpec ~= nil then roundrect.effectExtentFromSpec(outerSpec, 18) else 0,
-    (shadowColor.r ?? 0) / 255, (shadowColor.g ?? 0) / 255, (shadowColor.b ?? 0) / 255, shadowSpec ~= nil then (shadowColor.a ?? 255) / 255 else 0,
-    shadowX, shadowY, shadowSpec ~= nil then mathMax(0.001, toNumber(shadowSpec.width) ?? 18) else 1, shadowSpec ~= nil then mathMax(0, toNumber(shadowSpec.strength ?? shadowSpec.opacity) ?? 1) else 0
+    drawW, drawH, w, h,
+    packedKind, mask ~= nil and geometry.imageRadius(mask.radius, w, h) or 0, hasShadow then shadowExtent else 0, hasOuter then outerExtent else 0,
+    hasShadow then sr else 0, hasShadow then sg else 0, hasShadow then sb else 0, hasShadow then sa else 0,
+    shadowX, shadowY, hasShadow then mathMax(0.001, toNumber(shadowWidth) ?? 18) else 1, hasShadow then mathMax(0, toNumber(shadowStrength) ?? 1) else 0
   )
   setupAuxConstants(material,
-    (outerColor.r ?? 0) / 255, (outerColor.g ?? 0) / 255, (outerColor.b ?? 0) / 255, outerSpec ~= nil then (outerColor.a ?? 255) / 255 else 0,
-    outerX, outerY, outerSpec ~= nil then mathMax(0.001, toNumber(outerSpec.width) ?? 18) else 1, outerSpec ~= nil then mathMax(0, toNumber(outerSpec.strength ?? outerSpec.opacity) ?? 1) else 0,
-    shadowSpec ~= nil then mathClamp(1 / mathMax(toNumber(shadowSpec.falloff) ?? 1.8, 0.001), 0.1, 1) else 1,
-    outerSpec ~= nil then mathClamp(1 / mathMax(toNumber(outerSpec.falloff) ?? 1.8, 0.001), 0.1, 1) else 1,
+    hasOuter then orr else 0, hasOuter then og else 0, hasOuter then ob else 0, hasOuter then oa else 0,
+    outerX, outerY, hasOuter then mathMax(0.001, toNumber(outerWidth) ?? 18) else 1, hasOuter then mathMax(0, toNumber(outerStrength) ?? 1) else 0,
+    hasShadow then mathClamp(1 / mathMax(toNumber(shadowFalloff) ?? 1.8, 0.001), 0.1, 1) else 1,
+    hasOuter then mathClamp(1 / mathMax(toNumber(outerFalloff) ?? 1.8, 0.001), 0.1, 1) else 1,
     0, 0,
     p0, p1, p2, p3
   )
 }
 
-fn drawImageMaskShadowOuter(x, y, w, h, mask, kind, shadow, outer) {
-  stopif (shadow == nil and outer == nil) or typeOf(mask) ~= "table" or not shadersActive() or not materialOK(widgetMaterials.image_mask_shadow_outer), false
+fn drawImageMaskShadowOuter(
+  x, y, w, h, mask, kind,
+  hasShadow, sr, sg, sb, sa, shadowOffsetX, shadowOffsetY, shadowWidth, shadowExtent, shadowGrow, shadowStrength, shadowFalloff,
+  hasOuter, orr, og, ob, oa, outerOffsetX, outerOffsetY, outerWidth, outerExtent, outerGrow, outerStrength, outerFalloff
+) {
+  stopif (not hasShadow and not hasOuter) or typeOf(mask) ~= "table" or not shadersActive() or not materialOK(widgetMaterials.image_mask_shadow_outer), false
 
   kind = kind ?? imageMaskKindValue(mask)
   stopif kind == nil, false
@@ -240,26 +246,28 @@ fn drawImageMaskShadowOuter(x, y, w, h, mask, kind, shadow, outer) {
   kind, maskTexture = resolveMaskTexture(mask, kind)
   stopif kind == nil, false
 
-  local shadowValid = shadow ~= nil and shadow.color ~= nil and (shadow.color.a ?? 255) > 0
-  local outerValid = outer ~= nil and outer.color ~= nil and (outer.color.a ?? 255) > 0
-  stopif not shadowValid and not outerValid, false
+  hasShadow = hasShadow and sa > 0 and shadowStrength > 0
+  hasOuter = hasOuter and oa > 0 and outerStrength > 0
+  stopif not hasShadow and not hasOuter, false
 
-  local shadowExtent = shadowValid then roundrect.effectExtentFromSpec(shadow, 18) else 0
-  local outerExtent = outerValid then roundrect.effectExtentFromSpec(outer, 18) else 0
-  local shadowX = shadowValid then x + (toNumber(shadow.x ?? shadow.offsetX ?? shadow.dx) ?? 0) - shadowExtent else x
-  local shadowY = shadowValid then y + (toNumber(shadow.y ?? shadow.offsetY ?? shadow.dy) ?? 0) - shadowExtent else y
-  local outerX = outerValid then x + (toNumber(outer.x ?? outer.offsetX ?? outer.dx) ?? 0) - outerExtent else x
-  local outerY = outerValid then y + (toNumber(outer.y ?? outer.offsetY ?? outer.dy) ?? 0) - outerExtent else y
-  local sx = mathMin(shadowValid then shadowX else outerX, outerValid then outerX else shadowX)
-  local sy = mathMin(shadowValid then shadowY else outerY, outerValid then outerY else shadowY)
-  local ex = mathMax(shadowValid then shadowX + w + shadowExtent * 2 else outerX + w + outerExtent * 2, outerValid then outerX + w + outerExtent * 2 else shadowX + w + shadowExtent * 2)
-  local ey = mathMax(shadowValid then shadowY + h + shadowExtent * 2 else outerY + h + outerExtent * 2, outerValid then outerY + h + outerExtent * 2 else shadowY + h + shadowExtent * 2)
+  shadowExtent = mathMax(0, toNumber(shadowExtent) ?? 0)
+  outerExtent = mathMax(0, toNumber(outerExtent) ?? 0)
+  local shadowX = hasShadow then x + (toNumber(shadowOffsetX) ?? 0) - shadowExtent else x
+  local shadowY = hasShadow then y + (toNumber(shadowOffsetY) ?? 0) - shadowExtent else y
+  local outerX = hasOuter then x + (toNumber(outerOffsetX) ?? 0) - outerExtent else x
+  local outerY = hasOuter then y + (toNumber(outerOffsetY) ?? 0) - outerExtent else y
+  local sx = mathMin(hasShadow then shadowX else outerX, hasOuter then outerX else shadowX)
+  local sy = mathMin(hasShadow then shadowY else outerY, hasOuter then outerY else shadowY)
+  local ex = mathMax(hasShadow then shadowX + w + shadowExtent * 2 else outerX + w + outerExtent * 2, hasOuter then outerX + w + outerExtent * 2 else shadowX + w + shadowExtent * 2)
+  local ey = mathMax(hasShadow then shadowY + h + shadowExtent * 2 else outerY + h + outerExtent * 2, hasOuter then outerY + h + outerExtent * 2 else shadowY + h + shadowExtent * 2)
   local drawW = ex - sx
   local drawH = ey - sy
   local material = widgetMaterials.image_mask_shadow_outer
-  local shadowArg = shadowValid then shadow else nil
-  local outerArg = outerValid then outer else nil
-  stopifn setupImageMaskEffectParams(material, w, h, mask, kind, maskTexture, shadowArg, outerArg, drawW, drawH, x - sx, y - sy, x - sx, y - sy), false
+  stopifn setupImageMaskEffectParams(
+    material, w, h, mask, kind, maskTexture, drawW, drawH, x - sx, y - sy, x - sx, y - sy,
+    hasShadow, sr, sg, sb, sa, shadowWidth, shadowStrength, shadowFalloff, shadowExtent,
+    hasOuter, orr, og, ob, oa, outerWidth, outerStrength, outerFalloff, outerExtent
+  ), false
 
   local bleedLeft, bleedTop, bleedRight, bleedBottom = effectBleedFromDrawRect(x, y, w, h, sx, sy, drawW, drawH)
   local bleedToken = beginPanelEffectBleed(bleedLeft, bleedTop, bleedRight, bleedBottom)

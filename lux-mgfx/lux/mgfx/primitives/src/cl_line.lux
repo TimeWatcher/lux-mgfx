@@ -71,14 +71,9 @@ fn lineQuadVertsInto(out, x1, y1, x2, y2, strokeWidth, noCaps, fringeOverride = 
   out
 }
 
-fn drawLineRect(x, y, w, h, fill, resolved) {
-  if resolved.radius ~= nil or resolved.shadow ~= nil or resolved.outerGlow ~= nil or resolved.backdrop ~= nil {
-    lineRoundRectStyle.radius = resolved.radius ?? 0
-    lineRoundRectStyle.backdrop = resolved.backdrop
-    lineRoundRectStyle.fill = fill
-    lineRoundRectStyle.shadow = resolved.shadow
-    lineRoundRectStyle.outerGlow = resolved.outerGlow
-    return roundrect.drawRoundRectImmediate(x, y, w, h, lineRoundRectStyle)
+fn drawLineRectRaw(x, y, w, h, fill, radius = nil, shadow = nil, outerGlow = nil, backdrop = nil) {
+  if radius ~= nil or shadow ~= nil or outerGlow ~= nil or backdrop ~= nil {
+    return roundrect.drawRoundRectRaw(x, y, w, h, radius ?? 0, fill, nil, nil, shadow, outerGlow, nil, backdrop)
   }
 
   local points = linePolyPointsScratch
@@ -90,11 +85,7 @@ fn drawLineRect(x, y, w, h, fill, resolved) {
   points[3].y = y + h
   points[4].x = x
   points[4].y = y + h
-  linePolyStyle.backdrop = resolved.backdrop
-  linePolyStyle.fill = fill
-  linePolyStyle.shadow = nil
-  linePolyStyle.outerGlow = nil
-  drawPolyImmediate(points, linePolyStyle)
+  drawPolyRaw(points, nil, fill, nil, 0)
 }
 
 fn drawLineFallbackVerts(verts, fill, backdrop = nil, shadow = nil, outerGlow = nil) {
@@ -107,38 +98,33 @@ fn drawLineFallbackVerts(verts, fill, backdrop = nil, shadow = nil, outerGlow = 
   points[3].y = verts[3].y
   points[4].x = verts[4].x
   points[4].y = verts[4].y
-  linePolyStyle.backdrop = backdrop
-  linePolyStyle.fill = fill
-  linePolyStyle.shadow = shadow
-  linePolyStyle.outerGlow = outerGlow
-  drawPolyImmediate(points, linePolyStyle)
+  drawPolyRaw(points, nil, fill, nil, 0, shadow, outerGlow, backdrop)
 }
 
-fn drawLineQuad(x1, y1, x2, y2, strokeWidth, noCaps, verts, fill, resolved) {
-  if resolved.backdrop ~= nil {
+fn drawLineQuadRaw(x1, y1, x2, y2, strokeWidth, noCaps, verts, fill, shadow = nil, outerGlow = nil, backdrop = nil) {
+  if backdrop ~= nil {
     local backdropVerts = lineQuadVertsInto(lineFallbackVertsScratch, x1, y1, x2, y2, strokeWidth, noCaps, 0)
     if backdropVerts ~= nil {
-      drawLineFallbackVerts(backdropVerts, style.solid(makeColor(0, 0, 0, 0)), resolved.backdrop)
+      drawLineFallbackVerts(backdropVerts, style.solid(makeColor(0, 0, 0, 0)), backdrop)
     }
   }
 
-  if resolved.radius == nil and resolved.shadow == nil and resolved.outerGlow == nil and drawLineShaderVerts(verts, fill) {
+  if shadow == nil and outerGlow == nil and drawLineShaderVerts(verts, fill) {
     return
   }
 
   local fallbackVerts = lineQuadVertsInto(lineFallbackVertsScratch, x1, y1, x2, y2, strokeWidth, noCaps, 0)
-  drawLineFallbackVerts(fallbackVerts ?? verts, fill, nil, resolved.shadow, resolved.outerGlow)
+  drawLineFallbackVerts(fallbackVerts ?? verts, fill, nil, shadow, outerGlow)
 }
 
-export client fn drawLineImmediate(x1, y1, x2, y2, color = nil, width = nil, drawStyle = nil) {
-  local resolved = drawStyle ?? {}
-  local strokeWidth = mathMax(0, style.strokeWidth(width ?? resolved.width ?? resolved.strokeWidth, 1))
+export client fn drawLineRaw(x1, y1, x2, y2, fillInput = nil, widthInput = nil, radius = nil, shadow = nil, outerGlow = nil, backdrop = nil, noCaps = false) {
+  local strokeWidth = mathMax(0, style.strokeWidth(widthInput, 1))
   if strokeWidth <= 0 {
     return
   }
 
-  local fill = style.fillFromStyle(resolved.fill ?? resolved.color ?? color ?? defaultLineColor)
-  if not style.fillVisible(fill) and resolved.backdrop == nil {
+  local fill = style.fillFromStyle(fillInput ?? defaultLineColor)
+  if not style.fillVisible(fill) and backdrop == nil {
     return
   }
 
@@ -149,8 +135,8 @@ export client fn drawLineImmediate(x1, y1, x2, y2, color = nil, width = nil, dra
       return
     }
     local y = y1 - strokeWidth * 0.5
-    if resolved.radius ~= nil or resolved.shadow ~= nil or resolved.outerGlow ~= nil {
-      return drawLineRect(x, y, w, strokeWidth, fill, resolved)
+    if radius ~= nil or shadow ~= nil or outerGlow ~= nil {
+      return drawLineRectRaw(x, y, w, strokeWidth, fill, radius, shadow, outerGlow, backdrop)
     }
   }
 
@@ -161,25 +147,38 @@ export client fn drawLineImmediate(x1, y1, x2, y2, color = nil, width = nil, dra
       return
     }
     local x = x1 - strokeWidth * 0.5
-    if resolved.radius ~= nil or resolved.shadow ~= nil or resolved.outerGlow ~= nil {
-      return drawLineRect(x, y, strokeWidth, h, fill, resolved)
+    if radius ~= nil or shadow ~= nil or outerGlow ~= nil {
+      return drawLineRectRaw(x, y, strokeWidth, h, fill, radius, shadow, outerGlow, backdrop)
     }
   }
 
-  local noCaps = resolved.noCaps == true or resolved.caps == false
   local verts = lineQuadVertsInto(lineVertsScratch, x1, y1, x2, y2, strokeWidth, noCaps)
   if verts == nil {
     return
   }
 
-  drawLineQuad(x1, y1, x2, y2, strokeWidth, noCaps, verts, fill, resolved)
+  drawLineQuadRaw(x1, y1, x2, y2, strokeWidth, noCaps, verts, fill, shadow, outerGlow, backdrop)
+}
+
+export client fn drawLineImmediate(x1, y1, x2, y2, color = nil, width = nil, drawStyle = nil) {
+  local resolved = drawStyle ?? {}
+  drawLineRaw(
+    x1, y1, x2, y2,
+    resolved.fill ?? resolved.color ?? color,
+    width ?? resolved.width ?? resolved.strokeWidth,
+    resolved.radius,
+    resolved.shadow,
+    resolved.outerGlow,
+    resolved.backdrop,
+    resolved.noCaps == true or resolved.caps == false
+  )
 }
 
 export client fn lineEx(x1, y1, x2, y2, drawStyle = nil) {
   local resolved = drawStyle ?? {}
   local transform, stripped = splitStyleTransform(resolved)
   if transform == nil {
-    return drawLineImmediate(x1, y1, x2, y2, nil, nil, stripped)
+    return drawLineRaw(x1, y1, x2, y2, stripped.fill ?? stripped.color, stripped.width ?? stripped.strokeWidth, stripped.radius, stripped.shadow, stripped.outerGlow, stripped.backdrop, stripped.noCaps == true or stripped.caps == false)
   }
 
   local width = mathMax(1, style.strokeWidth(stripped.width ?? stripped.strokeWidth, 1))
@@ -188,11 +187,9 @@ export client fn lineEx(x1, y1, x2, y2, drawStyle = nil) {
   local by = mathMin(y1, y2) - pad
   local bw = mathAbs(x2 - x1) + pad * 2
   local bh = mathAbs(y2 - y1) + pad * 2
-  withTransform(transform, bx, by, bw, bh, () => drawLineImmediate(x1, y1, x2, y2, nil, nil, stripped))
+  withTransform(transform, bx, by, bw, bh, () => drawLineRaw(x1, y1, x2, y2, stripped.fill ?? stripped.color, stripped.width ?? stripped.strokeWidth, stripped.radius, stripped.shadow, stripped.outerGlow, stripped.backdrop, stripped.noCaps == true or stripped.caps == false))
 }
 
 export client fn line(x1, y1, x2, y2, width = 1, fill = nil) {
-  lineStyle.width = width
-  lineStyle.fill = fill
-  drawLineImmediate(x1, y1, x2, y2, nil, nil, lineStyle)
+  drawLineRaw(x1, y1, x2, y2, fill, width, nil, nil, nil, nil, false)
 }

@@ -1,5 +1,3 @@
-local chamferFillFallbackStyle = {}
-local chamferStrokeFallbackStyle = { fill = transparentColor }
 local transparentFill = { kind = style.FILL_SOLID, colorA = transparentColor, colorB = transparentColor }
 
 enum ChamferFillView repr existing(kind = "kind") {
@@ -88,22 +86,18 @@ fn setupPrimitiveFillConstants(material, w, h, fill, stroke, strokeWidth, radius
   true
 }
 
-fn drawChamferInnerGlowSpec(x, y, w, h, cuts, spec) {
-  stopif spec == nil or not shadersActive() or not materialOK(primitiveMaterials.chamfer_innerglow), false
-
-  local color = spec.color
-  stopif color == nil or (color.a ?? 255) <= 0, false
+fn drawChamferInnerGlowRaw(x, y, w, h, cuts, enabled, gr, gg, gb, ga, glowWidth, glowStrength, glowFalloff) {
+  stopif not enabled or ga <= 0 or glowStrength <= 0 or not shadersActive() or not materialOK(primitiveMaterials.chamfer_innerglow), false
 
   local tl, tr, br, bl = chamferTuple(cuts, w, h)
   local material = primitiveMaterials.chamfer_innerglow
-  local r, g, b, a = style.color01(color)
   setupParamMatrix(material,
-    r, g, b, a,
+    gr, gg, gb, ga,
     w, h, 0, 0,
     tl, tr, br, bl,
-    mathMax(0.001, toNumber(spec.width) ?? 8),
-    mathMax(0, toNumber(spec.strength) ?? 1),
-    mathMax(0.001, toNumber(spec.falloff) ?? 1.65),
+    mathMax(0.001, toNumber(glowWidth) ?? 8),
+    mathMax(0, toNumber(glowStrength) ?? 1),
+    mathMax(0.001, toNumber(glowFalloff) ?? 1.65),
     0
   )
   surfaceSetMaterial(material)
@@ -128,18 +122,22 @@ fn cutsWithGrow(cuts, grow) {
   (toNumber(cuts) ?? 0) + grow
 }
 
-fn chamferEffectBounds(x, y, w, h, cuts, spec, biasOffset = false) {
-  stopif spec == nil or spec.color == nil or (spec.color.a ?? 255) <= 0, nil
+fn chamferEffectBounds(x, y, w, h, cuts, enabled, alpha, ox, oy, width, extent, grow, strength, falloff, biasOffset = false) {
+  stopif not enabled or alpha <= 0 or strength <= 0, nil
 
-  local grow = mathMax(0, toNumber(spec.grow ?? spec.shapeSpread ?? spec.expand) ?? 0)
-  local ox = toNumber(spec.x ?? spec.offsetX ?? spec.dx) ?? 0
-  local oy = toNumber(spec.y ?? spec.offsetY ?? spec.dy) ?? 0
+  grow = mathMax(0, toNumber(grow) ?? 0)
+  ox = toNumber(ox) ?? 0
+  oy = toNumber(oy) ?? 0
+  width = mathMax(0.001, toNumber(width) ?? 18)
+  extent = mathMax(1, toNumber(extent) ?? width)
+  strength = mathMax(0, toNumber(strength) ?? 1)
+  falloff = mathMax(0.001, toNumber(falloff) ?? 1.9)
   local gx = x + ox - grow
   local gy = y + oy - grow
   local gw = w + grow * 2
   local gh = h + grow * 2
   local gcuts = cutsWithGrow(cuts, grow)
-  local spread = roundrect.effectExtentFromSpec(spec, 18)
+  local spread = extent
   local left = spread
   local top = spread
   local right = spread
@@ -167,17 +165,21 @@ fn chamferEffectBounds(x, y, w, h, cuts, spec, biasOffset = false) {
     tr = tr,
     br = br,
     bl = bl,
-    width = mathMax(0.001, toNumber(spec.width) ?? 18),
-    strength = mathMax(0, toNumber(spec.strength) ?? 1),
-    falloff = mathMax(0.001, toNumber(spec.falloff) ?? 1.9)
+    width = width,
+    strength = strength,
+    falloff = falloff
   }
 }
 
-fn drawChamferShadowOuterSpec(x, y, w, h, cuts, shadowSpec, outerSpec) {
-  stopif (shadowSpec == nil and outerSpec == nil) or not shadersActive() or not materialOK(primitiveMaterials.chamfer_shadow_outer), false
+fn drawChamferShadowOuterRaw(
+  x, y, w, h, cuts,
+  hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowExtent, shadowGrow, shadowStrength, shadowFalloff,
+  hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerExtent, outerGrow, outerStrength, outerFalloff
+) {
+  stopif (not hasShadow and not hasOuter) or not shadersActive() or not materialOK(primitiveMaterials.chamfer_shadow_outer), false
 
-  local shadowBounds = chamferEffectBounds(x, y, w, h, cuts, shadowSpec, false)
-  local outerBounds = chamferEffectBounds(x, y, w, h, cuts, outerSpec, true)
+  local shadowBounds = chamferEffectBounds(x, y, w, h, cuts, hasShadow, sa, shadowX, shadowY, shadowWidth, shadowExtent, shadowGrow, shadowStrength, shadowFalloff, false)
+  local outerBounds = chamferEffectBounds(x, y, w, h, cuts, hasOuter, oa, outerX, outerY, outerWidth, outerExtent, outerGrow, outerStrength, outerFalloff, true)
   stopif shadowBounds == nil and outerBounds == nil, false
 
   local baseBounds = shadowBounds ?? outerBounds
@@ -200,17 +202,15 @@ fn drawChamferShadowOuterSpec(x, y, w, h, cuts, shadowSpec, outerSpec) {
   local sw = ex - sx
   local sh = ey - sy
   local material = primitiveMaterials.chamfer_shadow_outer
-  local shadowColor = shadowSpec?.color ?? transparentColor
-  local outerColor = outerSpec?.color ?? transparentColor
 
   setupParamMatrix(material,
     sw, sh, shadowBounds ~= nil then shadowBounds.width else 1, shadowBounds ~= nil then shadowBounds.strength else 0,
-    (shadowColor.r ?? 0) / 255, (shadowColor.g ?? 0) / 255, (shadowColor.b ?? 0) / 255, shadowBounds ~= nil then (shadowColor.a ?? 255) / 255 else 0,
+    shadowBounds ~= nil then sr else 0, shadowBounds ~= nil then sg else 0, shadowBounds ~= nil then sb else 0, shadowBounds ~= nil then sa else 0,
     (shadowBounds?.shapeX ?? x) - sx, (shadowBounds?.shapeY ?? y) - sy, shadowBounds?.shapeW ?? w, shadowBounds?.shapeH ?? h,
     shadowBounds?.tl ?? 0, shadowBounds?.tr ?? 0, shadowBounds?.br ?? 0, shadowBounds?.bl ?? 0
   )
   setupPrimitiveAuxConstants(material,
-    (outerColor.r ?? 0) / 255, (outerColor.g ?? 0) / 255, (outerColor.b ?? 0) / 255, outerBounds ~= nil then (outerColor.a ?? 255) / 255 else 0,
+    outerBounds ~= nil then orr else 0, outerBounds ~= nil then og else 0, outerBounds ~= nil then ob else 0, outerBounds ~= nil then oa else 0,
     (outerBounds?.shapeX ?? x) - sx, (outerBounds?.shapeY ?? y) - sy, outerBounds?.shapeW ?? w, outerBounds?.shapeH ?? h,
     outerBounds?.tl ?? 0, outerBounds?.tr ?? 0, outerBounds?.br ?? 0, outerBounds?.bl ?? 0,
     shadowBounds ~= nil then shadowBounds.falloff else 1,
@@ -274,7 +274,7 @@ fn drawChamferBackdrop(x, y, w, h, cuts, backdrop) {
 
   local tint = chamferBackdropTintColor(spec)
   if tint ~= nil {
-    drawChamferBasePass(bx, by, bw, bh, bcuts, style.solid(tint), nil, 0, nil)
+    drawChamferBasePass(bx, by, bw, bh, bcuts, style.solid(tint), nil, 0, false)
   }
 
   true
@@ -338,28 +338,28 @@ fn drawChamferStroke(x, y, w, h, cuts, stroke, strokeWidth) {
   true
 }
 
-fn drawChamferBasePass(x, y, w, h, cuts, fill, stroke, strokeWidth, innerSpec) {
+fn drawChamferBasePass(x, y, w, h, cuts, fill, stroke, strokeWidth, innerEnabled, gr, gg, gb, ga, glowWidth, glowStrength, glowFalloff) {
   stopif not shadersActive() or not materialOK(primitiveMaterials.chamfer), false
 
   local tl, tr, br, bl = chamferTuple(cuts, w, h)
   local material = primitiveMaterials.chamfer
-  local glowR = 0
-  local glowG = 0
-  local glowB = 0
-  local glowA = 0
-  local glowWidth = 0
-  local glowStrength = 0
-  local glowFalloff = 1
-  if innerSpec ~= nil {
-    glowR, glowG, glowB, glowA = style.color01(innerSpec.color ?? transparentColor)
-    glowWidth = mathMax(0.001, toNumber(innerSpec.width) ?? 8)
-    glowStrength = mathMax(0, toNumber(innerSpec.strength) ?? 1)
-    glowFalloff = mathMax(0.001, toNumber(innerSpec.falloff) ?? 1.65)
+  if not innerEnabled {
+    gr = 0
+    gg = 0
+    gb = 0
+    ga = 0
+    glowWidth = 0
+    glowStrength = 0
+    glowFalloff = 1
+  } else {
+    glowWidth = mathMax(0.001, toNumber(glowWidth) ?? 8)
+    glowStrength = mathMax(0, toNumber(glowStrength) ?? 1)
+    glowFalloff = mathMax(0.001, toNumber(glowFalloff) ?? 1.65)
   }
 
   setupPrimitiveAuxConstants(material,
     tl, tr, br, bl,
-    glowR, glowG, glowB, glowA,
+    gr, gg, gb, ga,
     glowWidth, glowStrength, glowFalloff, 0
   )
   setupPrimitiveFillConstants(material, w, h, fill ?? transparentFill, stroke, strokeWidth, 0)
@@ -368,71 +368,43 @@ fn drawChamferBasePass(x, y, w, h, cuts, fill, stroke, strokeWidth, innerSpec) {
   true
 }
 
-fn copyChamferStyleInto(out, source, fillOnly) {
-  for key, _ in pairs(out) {
-    out[key] = nil
-  }
-
-  for key, value in pairs(source ?? {}) {
-    out[key] = value
-  }
-
-  if fillOnly {
-    out.stroke = nil
-    out.strokeWidth = 0
-    out.pattern = nil
-  }
-
-  out
-}
-
-fn drawChamferFallback(x, y, w, h, cuts, drawStyle, fillOnly = false) {
-  local fallback = copyChamferStyleInto(chamferFillFallbackStyle, drawStyle, fillOnly)
-  polyEx(chamferPoints(x, y, w, h, cuts), fallback)
-}
-
-fn drawChamferStrokeFallback(x, y, w, h, cuts, stroke, strokeWidth) {
-  chamferStrokeFallbackStyle.stroke = stroke
-  chamferStrokeFallbackStyle.strokeWidth = strokeWidth
-  polyEx(chamferPoints(x, y, w, h, cuts), chamferStrokeFallbackStyle)
-}
-
-export client fn drawChamferBoxImmediate(x, y, w, h, drawStyle = nil, resolvedCuts = nil) {
-  local resolved = drawStyle ?? {}
-  local cuts = resolvedCuts ?? resolved.cuts ?? 0
-  local shadow = roundrect.shadowStyle(resolved.shadow)
-  local outer = roundrect.outerGlowStyle(resolved.outerGlow)
-  if shadow ~= nil or outer ~= nil {
-    drawChamferShadowOuterSpec(x, y, w, h, cuts, shadow, outer)
+export client fn drawChamferBoxRaw(x, y, w, h, cuts = 0, fillInput = nil, stroke = nil, strokeWidthInput = nil, shadow = nil, outerGlow = nil, innerGlow = nil, backdropInput = nil, pattern = nil) {
+  local hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpreadUnused, shadowGrow, shadowStrength, shadowFalloff, shadowExtent = roundrect.shadowRaw(shadow)
+  local hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpreadUnused, outerGrow, outerStrength, outerFalloff, outerExtent = roundrect.outerGlowRaw(outerGlow)
+  if hasShadow or hasOuter {
+    drawChamferShadowOuterRaw(
+      x, y, w, h, cuts,
+      hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowExtent, shadowGrow, shadowStrength, shadowFalloff,
+      hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerExtent, outerGrow, outerStrength, outerFalloff
+    )
   }
 
   local backdrop = nil
-  if resolved.backdrop ~= nil {
-    backdrop = drawChamferBackdrop(x, y, w, h, cuts, resolved.backdrop)
+  if backdropInput ~= nil {
+    backdrop = drawChamferBackdrop(x, y, w, h, cuts, backdropInput)
   }
 
-  local fill = style.fillFromStyle(resolved.fill ?? resolved.color)
-  local strokeWidth = style.strokeWidthValue(resolved.strokeWidth, 0)
+  local fill = style.fillFromStyle(fillInput)
+  local strokeWidth = style.strokeWidthValue(strokeWidthInput, 0)
   local fillVisible = style.fillVisible(fill)
-  local strokeVisible = style.strokeVisible(resolved.stroke, strokeWidth)
-  local inner = roundrect.innerGlowStyle(resolved.innerGlow)
-  local pattern = resolved.pattern
+  local strokeVisible = style.strokeVisible(stroke, strokeWidth)
+  local hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff = roundrect.innerGlowRaw(innerGlow)
   local baseDrawn = false
   local baseDrewStroke = false
   local baseDrewInner = false
 
-  if fillVisible or strokeVisible or inner ~= nil {
+  if fillVisible or strokeVisible or hasInner {
     if pattern == nil {
-      baseDrawn = drawChamferBasePass(x, y, w, h, cuts, fill, resolved.stroke, strokeWidth, inner)
+      baseDrawn = drawChamferBasePass(x, y, w, h, cuts, fill, stroke, strokeWidth, hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff)
       baseDrewStroke = baseDrawn and strokeVisible
-      baseDrewInner = baseDrawn and inner ~= nil
+      baseDrewInner = baseDrawn and hasInner
     } else if fillVisible {
-      baseDrawn = drawChamferBasePass(x, y, w, h, cuts, fill, nil, 0, nil)
+      baseDrawn = drawChamferBasePass(x, y, w, h, cuts, fill, nil, 0, false)
     }
   }
 
   if not baseDrawn and fillVisible {
-    drawChamferFallback(x, y, w, h, cuts, resolved, true)
+    drawPolyRaw(chamferPoints(x, y, w, h, cuts), nil, fillInput, nil, 0, shadow, outerGlow, backdropInput)
   }
 
   if pattern ~= nil {
@@ -440,12 +412,17 @@ export client fn drawChamferBoxImmediate(x, y, w, h, drawStyle = nil, resolvedCu
   }
 
   if strokeVisible and not baseDrewStroke {
-    if not drawChamferStroke(x, y, w, h, cuts, resolved.stroke, strokeWidth) {
-      drawChamferStrokeFallback(x, y, w, h, cuts, resolved.stroke, strokeWidth)
+    if not drawChamferStroke(x, y, w, h, cuts, stroke, strokeWidth) {
+      drawPolyRaw(chamferPoints(x, y, w, h, cuts), nil, transparentColor, stroke, strokeWidth)
     }
   }
 
-  if inner ~= nil and not baseDrewInner {
-    drawChamferInnerGlowSpec(x, y, w, h, cuts, inner)
+  if hasInner and not baseDrewInner {
+    drawChamferInnerGlowRaw(x, y, w, h, cuts, true, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff)
   }
+}
+
+export client fn drawChamferBoxImmediate(x, y, w, h, drawStyle = nil, resolvedCuts = nil) {
+  local resolved = drawStyle ?? {}
+  drawChamferBoxRaw(x, y, w, h, resolvedCuts ?? resolved.cuts ?? 0, resolved.fill ?? resolved.color, resolved.stroke, resolved.strokeWidth, resolved.shadow, resolved.outerGlow, resolved.innerGlow, resolved.backdrop, resolved.pattern)
 }

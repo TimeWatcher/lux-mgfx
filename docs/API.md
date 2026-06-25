@@ -61,9 +61,7 @@ client fn drawPanel() {
 }
 ```
 
-`mgfx.api` initializes the default runtime. You do not need to import primitive/widget internals or call `installGlobal` for normal Lux code.
-
-The subpackages such as `@lux/mgfx/paint`, `@lux/mgfx/primitives`, and `@lux/mgfx/widgets` still exist, but they are mainly useful for internals, tools, or narrow dependencies. Application code should prefer `@lux/mgfx` and `mgfx.api`.
+`mgfx.api` initializes the default runtime. You do not need to import primitive/widget internals or call `installGlobal` for normal Lux code. The old `@lux/mgfx/paint` package has been removed; paint records such as gradients and patterns are created through `mgfx.api` helpers and passed as `fill` or `pattern` values.
 
 ## Plain GLua Usage
 

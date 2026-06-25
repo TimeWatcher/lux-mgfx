@@ -21,11 +21,7 @@ export client fn roundedBoxEx(x, y, w, h, drawStyle = nil) {
 
 export client fn roundedBox(x, y, w, h, radius, fill, stroke = nil, strokeWidth = nil) {
   local trace = roundRectTraceStart("api.RoundedBox")
-  roundedBoxStyle.radius = radius
-  roundedBoxStyle.fill = fill
-  roundedBoxStyle.stroke = stroke
-  roundedBoxStyle.strokeWidth = strokeWidth
-  local result = drawRoundRectImmediate(x, y, w, h, roundedBoxStyle)
+  local result = drawRoundRectRaw(x, y, w, h, radius, fill, stroke, strokeWidth)
   roundRectTraceEnd(trace)
   return result
 }
@@ -34,20 +30,28 @@ export client fn circle(cx, cy, radius, fill, stroke = nil, strokeWidth = nil) =
   roundedBox(cx - radius, cy - radius, radius * 2, radius * 2, radius, fill, stroke, strokeWidth)
 
 export client fn circleEx(cx, cy, radius, drawStyle = nil) {
-  local resolved = copyInto(circleStyle, drawStyle ?? {})
-  resolved.radius = radius
-  roundedBoxEx(cx - radius, cy - radius, radius * 2, radius * 2, resolved)
+  local resolved = drawStyle ?? {}
+  local transform, stripped = splitStyleTransform(resolved)
+  local x = cx - radius
+  local y = cy - radius
+  local size = radius * 2
+  if transform ~= nil {
+    return withTransform(transform, x, y, size, size, () => drawRoundRectRaw(x, y, size, size, radius, stripped.fill ?? stripped.color, stripped.stroke, stripped.strokeWidth, stripped.shadow, stripped.outerGlow, stripped.innerGlow, stripped.backdrop, stripped.pattern))
+  }
+
+  drawRoundRectRaw(x, y, size, size, radius, stripped.fill ?? stripped.color, stripped.stroke, stripped.strokeWidth, stripped.shadow, stripped.outerGlow, stripped.innerGlow, stripped.backdrop, stripped.pattern)
 }
 
 export client fn capsule(x, y, w, h, fill, stroke = nil, strokeWidth = nil) =
-  roundedBox(x, y, w, h, mathMin(w, h) * 0.5, fill, stroke, strokeWidth)
+  drawRoundRectRaw(x, y, w, h, mathMin(w, h) * 0.5, fill, stroke, strokeWidth)
 
 export client fn capsuleEx(x, y, w, h, drawStyle = nil) {
-  local resolved = drawStyle
-  if resolved == nil or resolved.radius == nil {
-    resolved = copyInto(capsuleStyle, drawStyle ?? {})
-    resolved.radius = mathMin(w, h) * 0.5
+  local resolved = drawStyle ?? {}
+  local transform, stripped = splitStyleTransform(resolved)
+  local radius = stripped.radius ?? mathMin(w, h) * 0.5
+  if transform ~= nil {
+    return withTransform(transform, x, y, w, h, () => drawRoundRectRaw(x, y, w, h, radius, stripped.fill ?? stripped.color, stripped.stroke, stripped.strokeWidth, stripped.shadow, stripped.outerGlow, stripped.innerGlow, stripped.backdrop, stripped.pattern))
   }
 
-  roundedBoxEx(x, y, w, h, resolved)
+  drawRoundRectRaw(x, y, w, h, radius, stripped.fill ?? stripped.color, stripped.stroke, stripped.strokeWidth, stripped.shadow, stripped.outerGlow, stripped.innerGlow, stripped.backdrop, stripped.pattern)
 }

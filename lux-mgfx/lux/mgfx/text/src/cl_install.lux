@@ -101,11 +101,11 @@ export client fn install(owner) {
     return renderer.DrawRecordImmediate(record)
   }
   owner.TextBox = (value, font, x, y, w, h, color = nil, alignX = TEXT_ALIGN_LEFT, alignY = TEXT_ALIGN_TOP) =>
-    owner.TextBoxEx(value, font, x, y, w, h, {
+    owner.TextBoxEx(value, font, x, y, w, h, renderer.ResolveStyle({
       color = color,
       alignX = alignX,
       alignY = alignY
-    })
+    }))
   owner.TextBoxEx = (value, font, x, y, w, h, textStyle = nil) => {
     local resolved = renderer.ResolveStyle(textStyle ?? {})
     if queuedTextBox(owner, value, font, x, y, w, h, resolved) {

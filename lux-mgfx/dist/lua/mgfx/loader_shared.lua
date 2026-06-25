@@ -19,7 +19,6 @@ if SERVER then
   AddCSLuaFile("mgfx/client/runtime/lux/mgfx/console.lua")
   AddCSLuaFile("mgfx/client/runtime/lux/mgfx/frame.lua")
   AddCSLuaFile("mgfx/client/runtime/lux/mgfx/geometry.lua")
-  AddCSLuaFile("mgfx/client/runtime/lux/mgfx/paint.lua")
   AddCSLuaFile("mgfx/client/runtime/lux/mgfx/roundrect.lua")
   AddCSLuaFile("mgfx/client/runtime/lux/mgfx/primitives.lua")
   AddCSLuaFile("mgfx/client/runtime/lux/mgfx/profiler.lua")

@@ -50,18 +50,8 @@ local primitiveHasShaders = () => false
 local forceFallbackCvar = nil
 local lineVertsScratch = { {}, {}, {}, {} }
 local lineFallbackVertsScratch = { {}, {}, {}, {} }
-local lineRoundRectStyle = { radius = 0 }
-local linePolyStyle = {}
 local linePolyPointsScratch = { {}, {}, {}, {} }
-local polyLineStrokeStyle = { noCaps = true }
-local polyFallbackLineStyle = { noCaps = true }
 local polyDrawRectScratch = {}
-local chamferStyle = {}
-local lineStyle = {}
-local polyStyle = {}
-local regularPolyStyle = {}
-local diamondStyle = {}
-local caretStyle = {}
 local defaultLineColor = makeColor(255, 255, 255, 32)
 local transparentColor = makeColor(0, 0, 0, 0)
 local LINE_AA_FRINGE = 1

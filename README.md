@@ -40,7 +40,7 @@ luxc install @lux/mgfx --from C:\Development\gmod\lux-mgfx
 ```
 
 The root `lux.package.toml` points to `lux-mgfx/lux/mgfx`, so existing Lux install commands can keep using the repository root.
-Lux code should use `@lux/mgfx` and its unified `mgfx.api` facade instead of choosing between paint/primitives/widgets modules. The Lux facade initializes its default runtime automatically; `installGlobal("MGFX")` is only needed when you want to expose a global GLua-style table.
+Lux code should use `@lux/mgfx` and its unified `mgfx.api` facade; the old paint-layer module is gone, and internal primitive/widget packages are not application entry points. The Lux facade initializes its default runtime automatically; `installGlobal("MGFX")` is only needed when you want to expose a global GLua-style table.
 
 ## Effects
 
@@ -81,6 +81,9 @@ The generated site is written to `docs-site/`.
 
 #### Rendering Fixes
 
+- 2026-06-25 (pending) Replaced the old internal effect style/spec table pipeline with direct raw parameters across the hot drawing layers. Public `NameEx(..., style)` calls still accept style tables, but rounded boxes, chamfers, progress/segment widgets, line-backed rectangles, and round/chamfer image effect paths now expand style fields at the boundary and pass scalar effect parameters internally.
+- 2026-06-25 (pending) Removed internal shadow/outerGlow/innerGlow spec caches from the shader path. The measured cost was not GPU work; it was Lua-side table normalization, cache-key checking, repeated field lookups, and unnecessary pass forwarding.
+- 2026-06-25 (pending) Added raw `roundrect` and `chamfer` draw entries for composite widgets so internal callers no longer construct temporary style tables just to call another MGFX shape renderer.
 - 2026-06-25 (`7096062`) Merged compatible `shadow` and `outerGlow` rendering for rounded boxes, chamfers, rings, and image masks into focused shader passes. The effects remain separate style fields, but matching draw bounds now share one material setup and one draw.
 - 2026-06-25 (`7096062`) Moved hot-path auxiliary shader parameters from repeated `$c0..$c3` float uploads to the `$invviewprojmat` / `c15` matrix page where possible. `$viewprojmat` / `c11` remains the main 16-float page.
 - 2026-06-25 (`7096062`) Added real profiler-driven round-rect chain tracing and cleaned the performance demo so hot sections can measure API resolve, setup, effect preparation, pass execution, and draw cost directly.
@@ -100,7 +103,7 @@ The generated site is written to `docs-site/`.
 
 #### Features And API
 
-- 2026-06-19 (`dab15db`, `205be62`) Initialized and fixed the unified `MGFX.api` facade runtime for Lux. Lux users can call the unified API surface without choosing between paint, primitives, widgets, text, or style modules.
+- 2026-06-19 (`dab15db`, `205be62`) Initialized and fixed the unified `MGFX.api` facade runtime for Lux. Lux users can call the unified API surface without choosing between primitive, widget, text, or style internals.
 - 2026-06-19 (`d0018ae`) Unified the MGFX API facade and polygon helper APIs across Lua and Lux, including dedicated helpers for common polygon construction and shader-backed polygon effects.
 - 2026-06-19 (`bacf4fd`) Loaded Lua MGFX demo commands by default so plain GLua users can run demo and inspection commands without manual includes.
 - 2026-06-19 (`0b5e3b3`) Restructured the repository into `lua-mgfx/` and `lux-mgfx/`, with the plain Lua addon and the Lux package maintained side by side.

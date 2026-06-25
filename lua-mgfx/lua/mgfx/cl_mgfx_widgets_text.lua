@@ -35,8 +35,6 @@ function MGFX._InstallWidgetText(C)
 	local imageFitRect = C.imageFitRect
 	local drawRoundRectImmediate = C.drawRoundRectImmediate
 	local drawRoundRectOuterGlow = C.drawRoundRectOuterGlow
-	local innerGlowStyle = C.innerGlowStyle
-	local outerGlowStyle = C.outerGlowStyle
 	local chamferTuple = C.chamferTuple
 	local drawChamferOuterGlow = C.drawChamferOuterGlow
 	local drawChamferPattern = C.drawChamferPattern
@@ -241,18 +239,18 @@ function M.TextBoxEx(textValue, font, x, y, w, h, style)
 	draw.SimpleText(tostring(textValue or ""), font or "DermaDefault", x or 0, y or 0, styleFallback.color or styleFallback.fill or color_white, styleFallback.alignX or TEXT_ALIGN_LEFT, styleFallback.alignY or TEXT_ALIGN_TOP)
 end
 
-local textBoxArgStyle = {}
-
 function M.TextBox(textValue, font, x, y, w, h, color, alignX, alignY)
-	textBoxArgStyle.color = color
-	textBoxArgStyle.fill = nil
-	textBoxArgStyle.alignX = alignX
-	textBoxArgStyle.alignY = alignY
-	textBoxArgStyle.valign = nil
-	textBoxArgStyle.shadow = nil
-	textBoxArgStyle.stroke = nil
-	textBoxArgStyle.glow = nil
-	return M.TextBoxEx(textValue, font, x, y, w, h, textBoxArgStyle)
+	if textRenderer and textRenderer.DrawTextBoxImmediate then
+		local resolvedStyle = textRenderer.ResolveStyle({
+			color = color,
+			alignX = alignX,
+			alignY = alignY,
+		})
+		if queueCommand({op = "DrawTextBox", text = textValue, font = font, x = x, y = y, w = w, h = h, style = resolvedStyle}) then return end
+		return textRenderer.DrawTextBoxImmediate(textValue, font, x, y, w, h, resolvedStyle)
+	end
+
+	draw.SimpleText(tostring(textValue or ""), font or "DermaDefault", x or 0, y or 0, color or color_white, alignX or TEXT_ALIGN_LEFT, alignY or TEXT_ALIGN_TOP)
 end
 
 end

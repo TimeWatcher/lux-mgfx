@@ -17,6 +17,7 @@ export client fn install(owner) {
       chamferPoints = chamferPoints,
       growConvexPoly = growConvexPoly,
       normalizePoly = normalizePoly,
+      drawChamferBoxRaw = drawChamferBoxRaw,
       drawChamferBoxImmediate = drawChamferBoxImmediate,
       drawLineImmediate = drawLineImmediate
   }

@@ -220,11 +220,21 @@ export client fn drawEx(value, font, x, y, color, ax = 0, ay = 0, textStyle = ni
 }
 
 export client fn box(value, font, x, y, w, h, color, alignX = TEXT_ALIGN_LEFT, alignY = TEXT_ALIGN_TOP) =
-  boxEx(value, font, x, y, w, h, {
+  boxExRaw(value, font, x, y, w, h, color, alignX, alignY)
+
+fn boxExRaw(value, font, x, y, w, h, color = nil, alignX = TEXT_ALIGN_LEFT, alignY = TEXT_ALIGN_TOP) {
+  local renderer = sharedTextRenderer()
+  local textStyle = {
     color = color,
-      alignX = alignX,
-      alignY = alignY
-  })
+    alignX = alignX,
+    alignY = alignY
+  }
+  if renderer?.DrawTextBoxImmediate ~= nil {
+    return renderer.DrawTextBoxImmediate(value, font, x, y, w, h, textStyle)
+  }
+
+  boxEx(value, font, x, y, w, h, textStyle)
+}
 
 fn textBoxLineStyle(textStyle) {
   local out = copyValue(textStyle ?? {})

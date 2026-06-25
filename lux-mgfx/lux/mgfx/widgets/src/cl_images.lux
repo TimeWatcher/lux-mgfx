@@ -9,23 +9,7 @@ export client fn imageEx(x, y, w, h, source, drawStyle = nil) {
 }
 
 export client fn image(x, y, w, h, source, radius = nil, tint = nil) {
-  imageStyleScratch.radius = radius
-  imageStyleScratch.tint = tint
-  imageStyleScratch.alpha = nil
-  imageStyleScratch.fit = nil
-  imageStyleScratch.objectFit = nil
-  imageStyleScratch.uv = nil
-  imageStyleScratch.crop = nil
-  imageStyleScratch.stroke = nil
-  imageStyleScratch.strokeWidth = nil
-  imageStyleScratch.fill = nil
-  imageStyleScratch.background = nil
-  imageStyleScratch.mask = nil
-  imageStyleScratch.outerGlow = nil
-  imageStyleScratch.innerGlow = nil
-  imageStyleScratch.backdrop = nil
-  imageStyleScratch.shadow = nil
-  imageEx(x, y, w, h, source, imageStyleScratch)
+  imageRaw(x, y, w, h, source, radius, tint)
 }
 
 export client fn iconEx(x, y, w, h, source, drawStyle = nil) {
@@ -38,21 +22,5 @@ export client fn iconEx(x, y, w, h, source, drawStyle = nil) {
 }
 
 export client fn icon(x, y, w, h, source, tint = nil) {
-  iconStyleScratch.tint = tint
-  iconStyleScratch.fit = "contain"
-  iconStyleScratch.radius = nil
-  iconStyleScratch.alpha = nil
-  iconStyleScratch.objectFit = nil
-  iconStyleScratch.uv = nil
-  iconStyleScratch.crop = nil
-  iconStyleScratch.stroke = nil
-  iconStyleScratch.strokeWidth = nil
-  iconStyleScratch.fill = nil
-  iconStyleScratch.background = nil
-  iconStyleScratch.mask = nil
-  iconStyleScratch.outerGlow = nil
-  iconStyleScratch.innerGlow = nil
-  iconStyleScratch.backdrop = nil
-  iconStyleScratch.shadow = nil
-  iconEx(x, y, w, h, source, iconStyleScratch)
+  imageRaw(x, y, w, h, source, nil, tint, "contain")
 }

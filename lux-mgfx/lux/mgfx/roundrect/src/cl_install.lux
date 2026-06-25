@@ -1,5 +1,22 @@
 export client fn install(owner) {
   configureRoundRect(owner)
+  owner._internal = owner._internal ?? {}
+  owner._internal.drawRoundRectRaw = drawRoundRectRaw
+  owner._internal.drawRoundRectImmediate = drawRoundRectImmediate
+  owner._internal.setupParamMatrix = setupParamMatrix
+  owner._internal.setupParamMatrixRaw = setupParamMatrixRaw
+  owner._internal.setupExtraParams = setupAuxConstants
+  owner._internal.setupExtraParamsRaw = setupAuxConstantsRaw
+  owner._internal.roundRaw = {
+    effectExtent = effectExtentRaw,
+    innerGlow = innerGlowRaw,
+    outerGlow = outerGlowRaw,
+    shadow = shadowRaw,
+    drawInnerGlow = drawRoundRectInnerGlowRaw,
+    drawShadowOuter = drawRoundRectShadowOuterRaw,
+    drawFused = drawRoundRectFusedRaw,
+    drawFxPass = drawRoundRectFxPassRaw
+  }
   owner.RoundedBox = roundedBox
   owner.RoundedBoxEx = roundedBoxEx
   owner.Circle = circle
@@ -7,13 +24,12 @@ export client fn install(owner) {
   owner.Capsule = capsule
   owner.CapsuleEx = capsuleEx
   owner._RoundRect = {
+    drawRoundRectRaw = drawRoundRectRaw,
     drawRoundRectImmediate = drawRoundRectImmediate,
-      fallbackRoundRectPoints = fallbackRoundRectPoints,
-      innerGlowStyle = innerGlowStyle,
-      outerGlowStyle = outerGlowStyle,
-      shadowStyle = shadowStyle,
-      patternStyle = patternStyle,
-      patternOffset = patternOffset
+    fallbackRoundRectPoints = fallbackRoundRectPoints,
+    roundRaw = owner._internal.roundRaw,
+    patternStyle = patternStyle,
+    patternOffset = patternOffset
   }
   owner
 }

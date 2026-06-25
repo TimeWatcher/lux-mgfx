@@ -57,12 +57,6 @@ do
   end
 end
 do
-  if __lux_registry["lux/mgfx/paint#client"] == nil then
-    local __lux_factory = include("mgfx/client/runtime/lux/mgfx/paint.lua")
-    __lux_registry["lux/mgfx/paint#client"] = __lux_factory(__lux_import) or {}
-  end
-end
-do
   if __lux_registry["lux/mgfx/roundrect#client"] == nil then
     local __lux_factory = include("mgfx/client/runtime/lux/mgfx/roundrect.lua")
     __lux_registry["lux/mgfx/roundrect#client"] = __lux_factory(__lux_import) or {}

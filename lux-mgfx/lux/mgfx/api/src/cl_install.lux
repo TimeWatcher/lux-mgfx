@@ -4,7 +4,6 @@ import * as console from "@lux/mgfx/console"
 import * as frame from "@lux/mgfx/frame"
 import * as geometry from "@lux/mgfx/geometry"
 import * as materials from "@lux/mgfx/materials"
-import * as paint from "@lux/mgfx/paint"
 import * as primitives from "@lux/mgfx/primitives"
 import * as profiler from "@lux/mgfx/profiler"
 import * as roundrect from "@lux/mgfx/roundrect"
@@ -301,7 +300,6 @@ export client fn install(owner = nil) {
   frame.install(out)
   geometry.install(out)
   materials.install(out)
-  paint.install(out)
   textModule.install(out)
   roundrect.install(out)
   primitives.install(out)

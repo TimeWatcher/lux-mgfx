@@ -38,24 +38,17 @@ function MGFX._InstallWidgetImages(C)
 	local endPanelEffectBleed = assert(C.endPanelEffectBleed, "MGFX panel bleed end helper unavailable")
 	local drawBlurredCustomQuad = C.drawBlurredCustomQuad
 	local drawCreatedMaterialTexturedRectUV = C.drawCreatedMaterialTexturedRectUV
+	local textureSize = C.textureSize
 	local imageTint = C.imageTint
 	local imageStyle = C.imageStyle
 	local imageRadius = C.imageRadius
 	local imageUV = C.imageUV
 	local imageFitRect = C.imageFitRect
-	local drawRoundRectImmediate = C.drawRoundRectImmediate
+	local drawRoundRectRaw = C.drawRoundRectRaw
 	local drawRoundRectOuterGlow = C.drawRoundRectOuterGlow
-	local innerGlowStyle = C.innerGlowStyle
-	local outerGlowStyle = C.outerGlowStyle
-	local shadowStyle = C.shadowStyle or function() return nil end
-	local effectExtentFromSpec = C.effectExtentFromSpec or function(spec, defaultWidth)
-		local width = math.max(0.001, tonumber(spec and spec.width) or defaultWidth or 18)
-		local falloff = math.max(0.35, tonumber(spec and spec.falloff) or 1.9)
-		local sigma = math.max(width / math.sqrt(falloff) * 0.72, 0.35)
-		return math.max(1, tonumber(spec and spec.spread) or width, sigma * 3.72)
-	end
+	local roundRaw = assert(C.roundRaw, "MGFX raw effect helper unavailable")
 	local chamferTuple = C.chamferTuple
-	local drawChamferBoxImmediate = assert(C.drawChamferBoxImmediate, "MGFX chamfer immediate helper unavailable")
+	local drawChamferBoxRaw = assert(C.drawChamferBoxRaw, "MGFX chamfer raw helper unavailable")
 	local drawChamferOuterGlow = C.drawChamferOuterGlow
 	local drawChamferPattern = C.drawChamferPattern
 	local patternStyle = C.patternStyle
@@ -90,32 +83,14 @@ function MGFX._InstallWidgetImages(C)
 	local MASK_TEXTURE_B = 13
 	local MASK_TEXTURE_LUMA = 14
 	local transparentColor = Color(0, 0, 0, 0)
-	local imageRoundEffectStyle = {}
-	local imageChamferEffectStyle = {}
 	local sourceAlphaMaskScratch = {kind = "texture", channel = "alpha", sourceAlpha = true}
 
 	local function drawRoundImageEffect(x, y, w, h, radius, fill, shadow, outerGlow, backdrop, stroke, strokeWidth)
-		local style = imageRoundEffectStyle
-		style.radius = radius
-		style.fill = fill
-		style.shadow = shadow
-		style.outerGlow = outerGlow
-		style.backdrop = backdrop
-		style.stroke = stroke
-		style.strokeWidth = strokeWidth
-		return drawRoundRectImmediate(x, y, w, h, style)
+		return drawRoundRectRaw(x, y, w, h, radius, fill, stroke, strokeWidth, shadow, outerGlow, nil, backdrop, nil)
 	end
 
 	local function drawChamferImageEffect(x, y, w, h, cuts, fill, shadow, outerGlow, backdrop, stroke, strokeWidth)
-		local style = imageChamferEffectStyle
-		style.cuts = cuts
-		style.fill = fill
-		style.shadow = shadow
-		style.outerGlow = outerGlow
-		style.backdrop = backdrop
-		style.stroke = stroke
-		style.strokeWidth = strokeWidth
-		return drawChamferBoxImmediate(x, y, w, h, style, cuts)
+		return drawChamferBoxRaw(x, y, w, h, cuts, fill, stroke, strokeWidth, shadow, outerGlow, nil, backdrop, nil)
 	end
 
 local function profileStart()
@@ -218,6 +193,72 @@ local function drawImageFallback(x, y, w, h, source, style)
 	end
 end
 
+local function imageFitRectRaw(x, y, w, h, texture, fit, u0, v0, u1, v1)
+	if not isstring(fit) then fit = "fill" end
+	fit = string.lower(fit)
+	if fit == "stretch" then fit = "fill" end
+	if fit == "fill" then
+		return x, y, w, h, u0, v0, u1, v1
+	end
+
+	local tw, th = textureSize(texture)
+	local spanU, spanV = u1 - u0, v1 - v0
+	local sourceW, sourceH = math_max(1, tw * spanU), math_max(1, th * spanV)
+	local sourceAspect = sourceW / sourceH
+	local destAspect = math_max(1, w) / math_max(1, h)
+	local ax, ay = 0.5, 0.5
+
+	if fit == "cover" then
+		if sourceAspect > destAspect then
+			local newSpanU = spanV * th * destAspect / tw
+			local extra = spanU - newSpanU
+			u0 = u0 + extra * ax
+			u1 = u0 + newSpanU
+		elseif sourceAspect < destAspect then
+			local newSpanV = spanU * tw / destAspect / th
+			local extra = spanV - newSpanV
+			v0 = v0 + extra * ay
+			v1 = v0 + newSpanV
+		end
+	elseif fit == "contain" then
+		if sourceAspect > destAspect then
+			local newH = w / sourceAspect
+			y = y + (h - newH) * ay
+			h = newH
+		elseif sourceAspect < destAspect then
+			local newW = h * sourceAspect
+			x = x + (w - newW) * ax
+			w = newW
+		end
+	end
+
+	return x, y, w, h, u0, v0, u1, v1
+end
+
+local function drawImageRawFallback(x, y, w, h, source, radius, tint, fit)
+	M.stats.fallbacks = M.stats.fallbacks + 1
+
+	local texture, material = textureSource(source)
+	local createdMaterialFallback = not material
+	material = material or fallbackMaterialForTexture(texture)
+	if not material then return end
+
+	local u0, v0, u1, v1 = 0, 0, 1, 1
+	x, y, w, h, u0, v0, u1, v1 = imageFitRectRaw(x, y, w, h, texture, fit, u0, v0, u1, v1)
+	if w <= 0 or h <= 0 then return end
+
+	surface_SetMaterial(material)
+	setDrawColor(asColor(tint, color_white))
+	if hasTransform() then
+		drawTexturedQuadUV(x, y, w, h, u0, v0, u1, v1, material)
+	elseif createdMaterialFallback then
+		drawCreatedMaterialTexturedRectUV(x, y, w, h, u0, v0, u1, v1)
+		M.stats.draws = M.stats.draws + 1
+	else
+		drawTexturedQuadUV(x, y, w, h, u0, v0, u1, v1, material)
+	end
+end
+
 local function imageChamferCuts(style, mask)
 	if not istable(style) then return nil end
 	mask = mask or imageMaskStyle(style.mask, style)
@@ -227,11 +268,11 @@ local function imageChamferCuts(style, mask)
 	return nil
 end
 
-local function imageUsesSourceAlphaEffectMask(style, shadowSpec, outerSpec, backdropSpec)
+local function imageUsesSourceAlphaEffectMask(style, hasShadow, hasOuter, backdropSpec)
 	if not istable(style) then return false end
 	if style.mask ~= nil then return false end
 	if style.radius ~= nil then return false end
-	return shadowSpec ~= nil or outerSpec ~= nil or backdropSpec ~= nil
+	return hasShadow or hasOuter or backdropSpec ~= nil
 end
 
 local function maskKindValue(mask)
@@ -443,7 +484,11 @@ local function drawImageMaskShader(x, y, w, h, texture, u0, v0, u1, v1, style, m
 	return drawImageMaskPass(x, y, w, h, texture, u0, v0, u1, v1, imageTint(style), style.stroke, style.strokeWidth, mask, kind, maskTexture, mask.sourceAlpha == true)
 end
 
-local function setupImageMaskEffectParams(mat, w, h, mask, kind, maskTexture, shadowSpec, outerSpec, drawW, drawH, shadowX, shadowY, outerX, outerY)
+local function setupImageMaskEffectParams(
+	mat, w, h, mask, kind, maskTexture, drawW, drawH, shadowX, shadowY, outerX, outerY,
+	hasShadow, sr, sg, sb, sa, shadowWidth, shadowStrength, shadowFalloff, shadowExtent,
+	hasOuter, orr, og, ob, oa, outerWidth, outerStrength, outerFalloff, outerExtent
+)
 	if not setupExtraParams then return false end
 
 	local packedKind = kind
@@ -463,26 +508,28 @@ local function setupImageMaskEffectParams(mat, w, h, mask, kind, maskTexture, sh
 		p0, p1, p2, p3 = 0, 0, 0, 0
 	end
 
-	local shadowColor = shadowSpec and shadowSpec.color or transparentColor
-	local outerColor = outerSpec and outerSpec.color or transparentColor
 	setupParamMatrix(mat,
 		drawW, drawH, w, h,
-		packedKind, mask and imageRadius(mask.radius, w, h) or 0, shadowSpec and effectExtentFromSpec(shadowSpec, 18) or 0, outerSpec and effectExtentFromSpec(outerSpec, 18) or 0,
-		(shadowColor.r or 0) / 255, (shadowColor.g or 0) / 255, (shadowColor.b or 0) / 255, shadowSpec and ((shadowColor.a == nil and 255 or shadowColor.a) / 255) or 0,
-		shadowX, shadowY, shadowSpec and math_max(0.001, tonumber(shadowSpec.width) or 18) or 1, shadowSpec and math_max(0, tonumber(shadowSpec.strength) or tonumber(shadowSpec.opacity) or 1) or 0
+		packedKind, mask and imageRadius(mask.radius, w, h) or 0, hasShadow and shadowExtent or 0, hasOuter and outerExtent or 0,
+		hasShadow and sr or 0, hasShadow and sg or 0, hasShadow and sb or 0, hasShadow and sa or 0,
+		shadowX, shadowY, hasShadow and math_max(0.001, tonumber(shadowWidth) or 18) or 1, hasShadow and math_max(0, tonumber(shadowStrength) or 1) or 0
 	)
 	return setupExtraParams(mat,
-		(outerColor.r or 0) / 255, (outerColor.g or 0) / 255, (outerColor.b or 0) / 255, outerSpec and ((outerColor.a == nil and 255 or outerColor.a) / 255) or 0,
-		outerX, outerY, outerSpec and math_max(0.001, tonumber(outerSpec.width) or 18) or 1, outerSpec and math_max(0, tonumber(outerSpec.strength) or tonumber(outerSpec.opacity) or 1) or 0,
-		shadowSpec and math.Clamp(1 / math_max(tonumber(shadowSpec.falloff) or 1.8, 0.001), 0.1, 1) or 1,
-		outerSpec and math.Clamp(1 / math_max(tonumber(outerSpec.falloff) or 1.8, 0.001), 0.1, 1) or 1,
+		hasOuter and orr or 0, hasOuter and og or 0, hasOuter and ob or 0, hasOuter and oa or 0,
+		outerX, outerY, hasOuter and math_max(0.001, tonumber(outerWidth) or 18) or 1, hasOuter and math_max(0, tonumber(outerStrength) or 1) or 0,
+		hasShadow and math.Clamp(1 / math_max(tonumber(shadowFalloff) or 1.8, 0.001), 0.1, 1) or 1,
+		hasOuter and math.Clamp(1 / math_max(tonumber(outerFalloff) or 1.8, 0.001), 0.1, 1) or 1,
 		0, 0,
 		p0, p1, p2, p3
 	)
 end
 
-local function drawImageMaskShadowOuter(x, y, w, h, mask, kind, shadow, outer)
-	if (not shadow and not outer) or not istable(mask) or not shadersActive() or not matOK(materials.image_mask_shadow_outer) then return false end
+local function drawImageMaskShadowOuter(
+	x, y, w, h, mask, kind,
+	hasShadow, sr, sg, sb, sa, shadowOffsetX, shadowOffsetY, shadowWidth, shadowExtent, shadowGrow, shadowStrength, shadowFalloff,
+	hasOuter, orr, og, ob, oa, outerOffsetX, outerOffsetY, outerWidth, outerExtent, outerGrow, outerStrength, outerFalloff
+)
+	if (not hasShadow and not hasOuter) or not istable(mask) or not shadersActive() or not matOK(materials.image_mask_shadow_outer) then return false end
 
 	kind = kind or maskKindValue(mask)
 	if not kind then return false end
@@ -490,31 +537,35 @@ local function drawImageMaskShadowOuter(x, y, w, h, mask, kind, shadow, outer)
 	kind, maskTexture = resolveMaskTexture(mask, kind)
 	if not kind then return false end
 
-	local shadowValid = shadow and shadow.color and (shadow.color.a or 255) > 0
-	local outerValid = outer and outer.color and (outer.color.a or 255) > 0
-	if not shadowValid and not outerValid then return false end
+	hasShadow = hasShadow and sa > 0 and shadowStrength > 0
+	hasOuter = hasOuter and oa > 0 and outerStrength > 0
+	if not hasShadow and not hasOuter then return false end
 
-	local shadowExtent = shadowValid and effectExtentFromSpec(shadow, 18) or 0
-	local outerExtent = outerValid and effectExtentFromSpec(outer, 18) or 0
-	local shadowX = shadowValid and (x + (tonumber(shadow.x) or tonumber(shadow.offsetX) or tonumber(shadow.dx) or 0) - shadowExtent) or x
-	local shadowY = shadowValid and (y + (tonumber(shadow.y) or tonumber(shadow.offsetY) or tonumber(shadow.dy) or 0) - shadowExtent) or y
-	local outerX = outerValid and (x + (tonumber(outer.x) or tonumber(outer.offsetX) or tonumber(outer.dx) or 0) - outerExtent) or x
-	local outerY = outerValid and (y + (tonumber(outer.y) or tonumber(outer.offsetY) or tonumber(outer.dy) or 0) - outerExtent) or y
-	local sx = math_min(shadowValid and shadowX or outerX, outerValid and outerX or shadowX)
-	local sy = math_min(shadowValid and shadowY or outerY, outerValid and outerY or shadowY)
+	shadowExtent = math_max(0, tonumber(shadowExtent) or 0)
+	outerExtent = math_max(0, tonumber(outerExtent) or 0)
+	local shadowX = hasShadow and (x + (tonumber(shadowOffsetX) or 0) - shadowExtent) or x
+	local shadowY = hasShadow and (y + (tonumber(shadowOffsetY) or 0) - shadowExtent) or y
+	local outerX = hasOuter and (x + (tonumber(outerOffsetX) or 0) - outerExtent) or x
+	local outerY = hasOuter and (y + (tonumber(outerOffsetY) or 0) - outerExtent) or y
+	local sx = math_min(hasShadow and shadowX or outerX, hasOuter and outerX or shadowX)
+	local sy = math_min(hasShadow and shadowY or outerY, hasOuter and outerY or shadowY)
 	local ex = math_max(
-		shadowValid and (shadowX + w + shadowExtent * 2) or (outerX + w + outerExtent * 2),
-		outerValid and (outerX + w + outerExtent * 2) or (shadowX + w + shadowExtent * 2)
+		hasShadow and (shadowX + w + shadowExtent * 2) or (outerX + w + outerExtent * 2),
+		hasOuter and (outerX + w + outerExtent * 2) or (shadowX + w + shadowExtent * 2)
 	)
 	local ey = math_max(
-		shadowValid and (shadowY + h + shadowExtent * 2) or (outerY + h + outerExtent * 2),
-		outerValid and (outerY + h + outerExtent * 2) or (shadowY + h + shadowExtent * 2)
+		hasShadow and (shadowY + h + shadowExtent * 2) or (outerY + h + outerExtent * 2),
+		hasOuter and (outerY + h + outerExtent * 2) or (shadowY + h + shadowExtent * 2)
 	)
 	local drawW = ex - sx
 	local drawH = ey - sy
 	local mat = materials.image_mask_shadow_outer
 
-	if not setupImageMaskEffectParams(mat, w, h, mask, kind, maskTexture, shadowValid and shadow or nil, outerValid and outer or nil, drawW, drawH, x - sx, y - sy, x - sx, y - sy) then
+	if not setupImageMaskEffectParams(
+		mat, w, h, mask, kind, maskTexture, drawW, drawH, x - sx, y - sy, x - sx, y - sy,
+		hasShadow, sr, sg, sb, sa, shadowWidth, shadowStrength, shadowFalloff, shadowExtent,
+		hasOuter, orr, og, ob, oa, outerWidth, outerStrength, outerFalloff, outerExtent
+	) then
 		return false
 	end
 
@@ -570,17 +621,17 @@ end
 local function drawImageImmediate(x, y, w, h, source, style)
 	local totalProfile = profileStart()
 	if not istable(style) then style = imageStyle(style) end
-	local shadowSpec = shadowStyle(style.shadow)
-	local outerSpec = outerGlowStyle(style.outerGlow)
+	local hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, _, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread = roundRaw.shadow(style.shadow)
+	local hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, _, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread = roundRaw.outerGlow(style.outerGlow)
 	local backdropSpec = backdropStyle(style.backdrop)
 	local shaderReady = shadersActive()
 	local cullSpread = 0
 	if shaderReady then
-		if shadowSpec then
-			cullSpread = math_max(cullSpread, math_abs(tonumber(shadowSpec.x) or 0) + math_abs(tonumber(shadowSpec.y) or 0) + effectExtentFromSpec(shadowSpec, 12) + (tonumber(shadowSpec.grow) or 0))
+		if hasShadow then
+			cullSpread = math_max(cullSpread, shadowCullSpread)
 		end
-		if outerSpec then
-			cullSpread = math_max(cullSpread, math_abs(tonumber(outerSpec.x) or 0) + math_abs(tonumber(outerSpec.y) or 0) + effectExtentFromSpec(outerSpec, 18) + (tonumber(outerSpec.grow) or 0))
+		if hasOuter then
+			cullSpread = math_max(cullSpread, outerCullSpread)
 		end
 		if backdropSpec then
 			cullSpread = math_max(cullSpread, math_max(0, tonumber(backdropSpec.padding) or 0))
@@ -618,7 +669,7 @@ local function drawImageImmediate(x, y, w, h, source, style)
 
 	local mask
 	local maskKind
-	if imageUsesSourceAlphaEffectMask(style, shadowSpec, outerSpec, backdropSpec) then
+	if imageUsesSourceAlphaEffectMask(style, hasShadow, hasOuter, backdropSpec) then
 		mask = sourceAlphaMaskScratch
 		mask.source = source
 		mask.u0 = u0
@@ -635,8 +686,12 @@ local function drawImageImmediate(x, y, w, h, source, style)
 		profile = profileStart()
 		local maskTexture = maskTextureSource(mask)
 		local backdropMaskKind = maskTextureChannelKind(mask.channel) or maskKind
-		if shadowSpec or outerSpec then
-			drawImageMaskShadowOuter(x, y, w, h, mask, maskKind, shadowSpec, outerSpec)
+		if hasShadow or hasOuter then
+			drawImageMaskShadowOuter(
+				x, y, w, h, mask, maskKind,
+				hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowExtent, shadowGrow, shadowStrength, shadowFalloff,
+				hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerExtent, outerGrow, outerStrength, outerFalloff
+			)
 		end
 		drawImageMaskBackdrop(x, y, w, h, mask, backdropMaskKind, maskTexture, style.backdrop)
 		if drawImageMaskShader(x, y, w, h, texture, u0, v0, u1, v1, style, mask, maskKind) then
@@ -706,6 +761,33 @@ local function drawImageImmediate(x, y, w, h, source, style)
 	profileEnd("image.immediate", totalProfile)
 end
 
+local function drawImageRaw(x, y, w, h, source, radius, tint, fit)
+	local texture = textureSource(source)
+	if not texture then return end
+
+	if not shadersActive() or not matOK(materials.roundrect_texture) then
+		drawImageRawFallback(x, y, w, h, source, radius, tint, fit)
+		return
+	end
+
+	local u0, v0, u1, v1 = 0, 0, 1, 1
+	x, y, w, h, u0, v0, u1, v1 = imageFitRectRaw(x, y, w, h, texture, fit, u0, v0, u1, v1)
+	if w <= 0 or h <= 0 then return end
+
+	local mat = materials.roundrect_texture
+	local resolvedRadius = imageRadius(radius, w, h)
+	mat:SetTexture("$basetexture", texture)
+	setupParamMatrix(mat,
+		0, 0, 0, 0,
+		w, h, 0, resolvedRadius,
+		u0, v0, u1, v1,
+		0, 0, 0, 0
+	)
+	setDrawColor(asColor(tint, color_white))
+	surface_SetMaterial(mat)
+	drawTexturedQuad(x, y, w, h, mat)
+end
+
 function M.ImageEx(x, y, w, h, source, style)
 	style = resolveDrawStyle(style, M.TARGET.IMAGE)
 	local transform
@@ -720,23 +802,9 @@ function M.ImageEx(x, y, w, h, source, style)
 	end)
 end
 
-local imageArgStyle = {}
-
 function M.Image(x, y, w, h, source, radius, tint)
-	imageArgStyle.radius = radius
-	imageArgStyle.tint = tint
-	imageArgStyle.alpha = nil
-	imageArgStyle.fit = nil
-	imageArgStyle.objectFit = nil
-	imageArgStyle.uv = nil
-	imageArgStyle.stroke = nil
-	imageArgStyle.strokeWidth = nil
-	imageArgStyle.fill = nil
-	imageArgStyle.background = nil
-	imageArgStyle.mask = nil
-	imageArgStyle.outerGlow = nil
 	recordDirectImmediate("DrawImage", "image")
-	return drawImageImmediate(x, y, w, h, source, imageArgStyle)
+	return drawImageRaw(x, y, w, h, source, radius, tint)
 end
 
 function M.IconEx(x, y, w, h, source, style)
@@ -756,23 +824,9 @@ function M.IconEx(x, y, w, h, source, style)
 	end)
 end
 
-local iconArgStyle = {}
-
 function M.Icon(x, y, w, h, source, tint)
-	iconArgStyle.tint = tint
-	iconArgStyle.fit = "contain"
-	iconArgStyle.radius = nil
-	iconArgStyle.alpha = nil
-	iconArgStyle.objectFit = nil
-	iconArgStyle.uv = nil
-	iconArgStyle.stroke = nil
-	iconArgStyle.strokeWidth = nil
-	iconArgStyle.fill = nil
-	iconArgStyle.background = nil
-	iconArgStyle.mask = nil
-	iconArgStyle.outerGlow = nil
 	recordDirectImmediate("DrawImage", "image")
-	return drawImageImmediate(x, y, w, h, source, iconArgStyle)
+	return drawImageRaw(x, y, w, h, source, nil, tint, "contain")
 end
 
 

@@ -55,9 +55,6 @@ local roundRectHasShaders = () => false
 local forceFallbackCvar = nil
 local fallbackRoundRectVerts = {}
 local fallbackStrokeVerts = { {}, {}, {}, {} }
-local circleStyle = {}
-local capsuleStyle = {}
-local roundedBoxStyle = {}
 local emptyRoundRectStyle = {}
 local transparentColor = makeColor(0, 0, 0, 0)
 local solidFillScratch = { kind = style.FILL_SOLID, colorA = color_white, colorB = color_white }
@@ -67,33 +64,23 @@ local roundRectProfiler = nil
 local defaultInnerGlowColor = makeColor(76, 190, 255, 34)
 local defaultOuterGlowColor = makeColor(76, 190, 255, 88)
 local defaultShadowColor = makeColor(0, 0, 0, 132)
+local inv255 = 1 / 255
 
-export client fn effectExtentFromSpec(spec, defaultWidth = 18) {
-  if spec ~= nil and spec._extent ~= nil {
-    return spec._extent
-  }
-
-  local width = mathMax(0.001, toNumber(spec?.width) ?? defaultWidth)
-  local falloff = mathMax(0.35, toNumber(spec?.falloff) ?? 1.9)
+export client fn effectExtentRaw(width, falloff, spread, defaultWidth = 18) {
+  width = mathMax(0.001, toNumber(width) ?? defaultWidth)
+  falloff = mathMax(0.35, toNumber(falloff) ?? 1.9)
   local sigma = mathMax(width / mathSqrt(falloff) * 0.72, 0.35)
   local tail = sigma * 3.72
-  mathMax(1, toNumber(spec?.spread) ?? width, tail)
+  mathMax(1, toNumber(spread) ?? width, tail)
 }
 
-local defaultInnerGlowSpec = { color = defaultInnerGlowColor, width = 7, strength = 1, falloff = style.glowSoftnessToFalloff(0.55) }
-local defaultOuterGlowSpec = { color = defaultOuterGlowColor, x = 0, y = 0, width = 18, spread = 18, grow = 0, strength = 1, falloff = style.glowSoftnessToFalloff(0.54) }
-local defaultShadowSpec = { color = defaultShadowColor, x = 0, y = 4, width = 12, spread = 12, grow = 0, strength = 1, falloff = style.glowSoftnessToFalloff(0.62) }
-defaultOuterGlowSpec._extent = effectExtentFromSpec(defaultOuterGlowSpec, 18)
-defaultOuterGlowSpec._cullSpread = defaultOuterGlowSpec._extent
-defaultShadowSpec._extent = effectExtentFromSpec(defaultShadowSpec, 12)
-defaultShadowSpec._cullSpread = mathAbs(defaultShadowSpec.x) + mathAbs(defaultShadowSpec.y) + defaultShadowSpec._extent + defaultShadowSpec.grow
-local innerGlowColorCache = setmetatable({}, { __mode = "k" })
-local outerGlowColorCache = setmetatable({}, { __mode = "k" })
-local shadowColorCache = setmetatable({}, { __mode = "k" })
-local innerGlowTableCache = setmetatable({}, { __mode = "k" })
-local outerGlowTableCache = setmetatable({}, { __mode = "k" })
-local shadowTableCache = setmetatable({}, { __mode = "k" })
-local shadowNumberCache = {}
+local defaultInnerGlowFalloff = style.glowSoftnessToFalloff(0.55)
+local defaultOuterGlowFalloff = style.glowSoftnessToFalloff(0.54)
+local defaultShadowFalloff = style.glowSoftnessToFalloff(0.62)
+local defaultOuterGlowExtent = effectExtentRaw(18, defaultOuterGlowFalloff, 18, 18)
+local defaultOuterGlowCullSpread = defaultOuterGlowExtent
+local defaultShadowExtent = effectExtentRaw(12, defaultShadowFalloff, 12, 12)
+local defaultShadowCullSpread = 4 + defaultShadowExtent
 
 fn configureRoundRect(owner) {
   owner = owner ?? {}
@@ -267,53 +254,8 @@ fn roundRectProfileEndBase(kind, started) {
   }
 }
 
-fn roundRectCullSpread(shadowSpec, outerSpec, backdropSpec, shaderReady) {
-  if not shaderReady {
-    return 0
-  }
-
-  local spread = 0
-  if shadowSpec ~= nil {
-    local shadowSpread = shadowSpec._cullSpread ?? (
-      mathAbs(toNumber(shadowSpec.x) ?? 0)
-        + mathAbs(toNumber(shadowSpec.y) ?? 0)
-        + effectExtentFromSpec(shadowSpec, 12)
-        + (toNumber(shadowSpec.grow) ?? 0)
-    )
-    spread = mathMax(spread, shadowSpread)
-  }
-  if outerSpec ~= nil {
-    local outerSpread = outerSpec._cullSpread ?? (
-      mathAbs(toNumber(outerSpec.x) ?? 0)
-        + mathAbs(toNumber(outerSpec.y) ?? 0)
-        + effectExtentFromSpec(outerSpec, 18)
-        + (toNumber(outerSpec.grow) ?? 0)
-    )
-    spread = mathMax(spread, outerSpread)
-  }
-  if backdropSpec ~= nil {
-    spread = mathMax(spread, mathMax(0, toNumber(backdropSpec.padding) ?? 0))
-  }
-
-  spread
-}
-
 fn setColor(color) =
   style.setDrawColor(color)
-
-fn copyInto(out, value) {
-  for key, _ in pairs(out) {
-    out[key] = nil
-  }
-
-  if typeOf(value) == "table" {
-    for key, item in pairs(value) {
-      out[key] = item
-    }
-  }
-
-  out
-}
 
 fn appendPoint(verts, x, y) {
   local index = #verts + 1
@@ -382,10 +324,9 @@ fn drawFallbackStroke(points, color, width) {
   }
 }
 
-fn drawRoundRectFallback(x, y, w, h, drawStyle) {
+fn drawRoundRectFallbackRaw(x, y, w, h, radius = 0, fillInput = nil, stroke = nil, strokeWidthInput = nil) {
   recordFallbacks()
-  local fill = hotFillFromStyle(drawStyle.fill ?? drawStyle.color)
-  local radius = drawStyle.radius ?? drawStyle.r ?? 0
+  local fill = hotFillFromStyle(fillInput)
 
   if hasTransform() {
     local points = fallbackRoundRectPoints(x, y, w, h, radius)
@@ -394,9 +335,9 @@ fn drawRoundRectFallback(x, y, w, h, drawStyle) {
       drawTransformedPoly(points)
     }
 
-    local strokeWidth = style.strokeWidth(drawStyle.strokeWidth, 1)
-    if style.strokeVisible(drawStyle.stroke, strokeWidth) {
-      drawFallbackStroke(points, drawStyle.stroke, mathMax(1, mathFloor(strokeWidth)))
+    local strokeWidth = style.strokeWidth(strokeWidthInput, 1)
+    if style.strokeVisible(stroke, strokeWidth) {
+      drawFallbackStroke(points, stroke, mathMax(1, mathFloor(strokeWidth)))
     }
     return
   }
@@ -413,9 +354,9 @@ fn drawRoundRectFallback(x, y, w, h, drawStyle) {
     }
   }
 
-  if style.strokeVisible(drawStyle.stroke, drawStyle.strokeWidth) {
-    setColor(drawStyle.stroke)
-    surfaceDrawOutlinedRect(x, y, w, h, mathMax(1, mathFloor(style.strokeWidth(drawStyle.strokeWidth, 1))))
+  if style.strokeVisible(stroke, strokeWidthInput) {
+    setColor(stroke)
+    surfaceDrawOutlinedRect(x, y, w, h, mathMax(1, mathFloor(style.strokeWidth(strokeWidthInput, 1))))
     recordDraws()
   }
 }

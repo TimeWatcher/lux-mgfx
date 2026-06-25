@@ -12,7 +12,6 @@ depends = [
   "@lux/mgfx/frame >=0.1 <0.2",
   "@lux/mgfx/geometry >=0.1 <0.2",
   "@lux/mgfx/materials >=0.1 <0.2",
-  "@lux/mgfx/paint >=0.1 <0.2",
   "@lux/mgfx/primitives >=0.1 <0.2",
   "@lux/mgfx/profiler >=0.1 <0.2",
   "@lux/mgfx/roundrect >=0.1 <0.2",
@@ -33,7 +32,6 @@ depends = [
   "@lux/mgfx/frame >=0.1 <0.2",
   "@lux/mgfx/geometry >=0.1 <0.2",
   "@lux/mgfx/materials >=0.1 <0.2",
-  "@lux/mgfx/paint >=0.1 <0.2",
   "@lux/mgfx/primitives >=0.1 <0.2",
   "@lux/mgfx/profiler >=0.1 <0.2",
   "@lux/mgfx/roundrect >=0.1 <0.2",
@@ -96,17 +94,6 @@ license = "Lux-MGFX-NC"
 depends = ["@lux/mgfx/shaderpack >=0.1 <0.2"]
 
 [[package]]
-id = "@lux/mgfx/paint"
-version = "0.1.0"
-path = "lux-mgfx/lux/mgfx/paint"
-license = "Lux-MGFX-NC"
-depends = [
-  "@lux/mgfx/frame >=0.1 <0.2",
-  "@lux/mgfx/geometry >=0.1 <0.2",
-  "@lux/mgfx/style >=0.1 <0.2",
-]
-
-[[package]]
 id = "@lux/mgfx/primitives"
 version = "0.1.0"
 path = "lux-mgfx/lux/mgfx/primitives"
@@ -162,7 +149,6 @@ path = "lux-mgfx/lux/mgfx/widgets"
 license = "Lux-MGFX-NC"
 depends = [
   "@lux/mgfx/geometry >=0.1 <0.2",
-  "@lux/mgfx/paint >=0.1 <0.2",
   "@lux/mgfx/primitives >=0.1 <0.2",
   "@lux/mgfx/roundrect >=0.1 <0.2",
   "@lux/mgfx/style >=0.1 <0.2",

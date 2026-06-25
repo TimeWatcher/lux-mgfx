@@ -234,6 +234,13 @@ local compactProfileNames = {
 	["round.shadowOuter.bleedBegin"] = "shadowOuter.bleedB",
 	["round.shadowOuter.bleedEnd"] = "shadowOuter.bleedE",
 	["round.backdrop"] = "backdrop",
+	["round.normalizeEffects"] = "normalize",
+	["style.shadow"] = "style.shadow",
+	["style.outerGlow"] = "style.outer",
+	["style.backdrop"] = "style.backdrop",
+	["style.innerGlow"] = "style.inner",
+	["round.cullSpread"] = "cullSpread",
+	["round.fillPrepare"] = "fillPrepare",
 }
 
 local function profileLabel(row, compact)
@@ -562,6 +569,23 @@ local DIRECT_API_BACKDROP_STYLE = {
 	fill = Color(20, 36, 46, 120),
 	backdrop = {blur = 9, padding = 8, tint = DIRECT_BACKDROP_TINT, opacity = 1},
 }
+local cpu = {
+	repeatCount = 64,
+	sink = 0,
+	shadowProbe = {color = DIRECT_SHADOW_COLOR, x = 2, y = 4, width = 12, strength = 1, falloff = 1.6},
+	outerProbe = {color = DIRECT_OUTER_COLOR, x = 0, y = 0, width = 14, strength = 0.9, falloff = 1.8},
+	innerProbe = {color = DIRECT_GLOW_COLOR, width = 9, strength = 1.15, falloff = 1.7},
+	callProbe = {},
+}
+
+function cpu.leaf(a, b, c, d)
+	return a + b + c + d
+end
+
+function cpu.wrapper(a, b, c, d)
+	return cpu.leaf(a, b, c, d)
+end
+cpu.callProbe.leaf = cpu.leaf
 local directMatrix = Matrix and Matrix() or nil
 local directAuxMatrix = Matrix and Matrix() or nil
 local directMatrixSetUnpacked = directMatrix and directMatrix.SetUnpacked or nil
@@ -1034,6 +1058,290 @@ local function workloadDirectImmediateBackdrop(panel, count, w, h, ox, oy)
 	end
 end
 
+function cpu.loops(count)
+	return math.max(1, math.floor(tonumber(count) or 1) * cpu.repeatCount)
+end
+
+function cpu.internal(name)
+	local internal = assert(MGFX._internal, "MGFX internal probe table unavailable")
+	return assert(internal[name], "MGFX internal probe unavailable: " .. tostring(name))
+end
+
+function cpu.matrixMaterial()
+	return assert(directStatusMaterial("roundrectSolid"), "MGFX roundrectSolid material unavailable for CPU probe")
+end
+
+function cpu.empty(panel, count, w, h, ox, oy)
+	local loops = cpu.loops(count)
+	for i = 1, loops do
+	end
+	cpu.sink = cpu.sink + loops
+end
+
+function cpu.matrixDirect(panel, count, w, h, ox, oy)
+	local mat = cpu.matrixMaterial()
+	local loops = cpu.loops(count)
+	for i = 1, loops do
+		if not setDirectMatrix(mat,
+			0.282, 0.776, 0.921, 0.878,
+			DIRECT_BOX_W, DIRECT_BOX_H, 0, DIRECT_RADIUS,
+			0, 0, 1, 0,
+			0, 0, 0, 0
+		) then
+			error("MGFX direct matrix probe failed")
+		end
+	end
+	cpu.sink = cpu.sink + loops
+end
+
+function cpu.matrixCore(panel, count, w, h, ox, oy)
+	local mat = cpu.matrixMaterial()
+	local setup = cpu.internal("setupParamMatrix")
+	local loops = cpu.loops(count)
+	for i = 1, loops do
+		setup(mat,
+			0.282, 0.776, 0.921, 0.878,
+			DIRECT_BOX_W, DIRECT_BOX_H, 0, DIRECT_RADIUS,
+			0, 0, 1, 0,
+			0, 0, 0, 0
+		)
+	end
+	cpu.sink = cpu.sink + loops
+end
+
+function cpu.matrixRawHit(panel, count, w, h, ox, oy)
+	local mat = cpu.matrixMaterial()
+	local setup = cpu.internal("setupParamMatrixRaw")
+	local loops = cpu.loops(count)
+	setup(mat,
+		0.282, 0.776, 0.921, 0.878,
+		DIRECT_BOX_W, DIRECT_BOX_H, 0, DIRECT_RADIUS,
+		0, 0, 1, 0,
+		0, 0, 0, 0
+	)
+	for i = 1, loops do
+		setup(mat,
+			0.282, 0.776, 0.921, 0.878,
+			DIRECT_BOX_W, DIRECT_BOX_H, 0, DIRECT_RADIUS,
+			0, 0, 1, 0,
+			0, 0, 0, 0
+		)
+	end
+	cpu.sink = cpu.sink + loops
+end
+
+function cpu.matrixRawMiss(panel, count, w, h, ox, oy)
+	local mat = cpu.matrixMaterial()
+	local setup = cpu.internal("setupParamMatrixRaw")
+	local loops = cpu.loops(count)
+	for i = 1, loops do
+		local wobble = (i % 2) * 0.001
+		setup(mat,
+			0.282 + wobble, 0.776, 0.921, 0.878,
+			DIRECT_BOX_W, DIRECT_BOX_H, 0, DIRECT_RADIUS,
+			0, 0, 1, 0,
+			0, 0, 0, 0
+		)
+	end
+	cpu.sink = cpu.sink + loops
+end
+
+function cpu.matrixRawMissLast(panel, count, w, h, ox, oy)
+	local mat = cpu.matrixMaterial()
+	local setup = cpu.internal("setupParamMatrixRaw")
+	local loops = cpu.loops(count)
+	for i = 1, loops do
+		local wobble = (i % 2) * 0.001
+		setup(mat,
+			0.282, 0.776, 0.921, 0.878,
+			DIRECT_BOX_W, DIRECT_BOX_H, 0, DIRECT_RADIUS,
+			0, 0, 1, 0,
+			0, 0, 0, wobble
+		)
+	end
+	cpu.sink = cpu.sink + loops
+end
+
+function cpu.auxRawHit(panel, count, w, h, ox, oy)
+	local mat = cpu.matrixMaterial()
+	local setup = cpu.internal("setupExtraParamsRaw")
+	local loops = cpu.loops(count)
+	setup(mat,
+		0.416, 0.886, 1, 0.361,
+		9, 1.15, 1.7, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0
+	)
+	for i = 1, loops do
+		setup(mat,
+			0.416, 0.886, 1, 0.361,
+			9, 1.15, 1.7, 0,
+			0, 0, 0, 0,
+			0, 0, 0, 0
+		)
+	end
+	cpu.sink = cpu.sink + loops
+end
+
+function cpu.auxRawMiss(panel, count, w, h, ox, oy)
+	local mat = cpu.matrixMaterial()
+	local setup = cpu.internal("setupExtraParamsRaw")
+	local loops = cpu.loops(count)
+	for i = 1, loops do
+		local wobble = (i % 2) * 0.001
+		setup(mat,
+			0.416 + wobble, 0.886, 1, 0.361,
+			9, 1.15, 1.7, 0,
+			0, 0, 0, 0,
+			0, 0, 0, 0
+		)
+	end
+	cpu.sink = cpu.sink + loops
+end
+
+function cpu.rawShadowStable(panel, count, w, h, ox, oy)
+	local roundRaw = cpu.internal("roundRaw")
+	local normalize = roundRaw.shadow
+	local style = DIRECT_API_FUSED_STYLE.shadow
+	local loops = cpu.loops(count)
+	local enabled, r, g, b, a, sx, sy, width
+	for i = 1, loops do
+		enabled, r, g, b, a, sx, sy, width = normalize(style)
+	end
+	cpu.sink = cpu.sink + (enabled and (r + g + b + a + sx + sy + width) or 0)
+end
+
+function cpu.rawShadowChanging(panel, count, w, h, ox, oy)
+	local roundRaw = cpu.internal("roundRaw")
+	local normalize = roundRaw.shadow
+	local style = cpu.shadowProbe
+	local loops = cpu.loops(count)
+	local enabled, r, g, b, a, sx
+	for i = 1, loops do
+		style.x = 2 + (i % 2)
+		enabled, r, g, b, a, sx = normalize(style)
+	end
+	cpu.sink = cpu.sink + (enabled and (r + g + b + a + sx) or 0)
+end
+
+function cpu.rawOuterStable(panel, count, w, h, ox, oy)
+	local roundRaw = cpu.internal("roundRaw")
+	local normalize = roundRaw.outerGlow
+	local style = DIRECT_API_FUSED_STYLE.outerGlow
+	local loops = cpu.loops(count)
+	local enabled, r, g, b, a, sx, sy, width
+	for i = 1, loops do
+		enabled, r, g, b, a, sx, sy, width = normalize(style)
+	end
+	cpu.sink = cpu.sink + (enabled and (r + g + b + a + sx + sy + width) or 0)
+end
+
+function cpu.rawOuterChanging(panel, count, w, h, ox, oy)
+	local roundRaw = cpu.internal("roundRaw")
+	local normalize = roundRaw.outerGlow
+	local style = cpu.outerProbe
+	local loops = cpu.loops(count)
+	local enabled, r, g, b, a, sx, sy, width
+	for i = 1, loops do
+		style.width = 14 + (i % 2)
+		enabled, r, g, b, a, sx, sy, width = normalize(style)
+	end
+	cpu.sink = cpu.sink + (enabled and (r + g + b + a + sx + sy + width) or 0)
+end
+
+function cpu.rawInnerStable(panel, count, w, h, ox, oy)
+	local roundRaw = cpu.internal("roundRaw")
+	local normalize = roundRaw.innerGlow
+	local style = DIRECT_API_FX_STYLE.innerGlow
+	local loops = cpu.loops(count)
+	local enabled, r, g, b, a, width
+	for i = 1, loops do
+		enabled, r, g, b, a, width = normalize(style)
+	end
+	cpu.sink = cpu.sink + (enabled and (r + g + b + a + width) or 0)
+end
+
+function cpu.rawInnerChanging(panel, count, w, h, ox, oy)
+	local roundRaw = cpu.internal("roundRaw")
+	local normalize = roundRaw.innerGlow
+	local style = cpu.innerProbe
+	local loops = cpu.loops(count)
+	local enabled, r, g, b, a, width
+	for i = 1, loops do
+		style.width = 9 + (i % 2)
+		enabled, r, g, b, a, width = normalize(style)
+	end
+	cpu.sink = cpu.sink + (enabled and (r + g + b + a + width) or 0)
+end
+
+function cpu.styleTableReads(panel, count, w, h, ox, oy)
+	local style = DIRECT_API_FUSED_STYLE
+	local loops = cpu.loops(count)
+	local sum = 0
+	for i = 1, loops do
+		local shadow = style.shadow
+		local outer = style.outerGlow
+		sum = sum
+			+ (style.radius or 0)
+			+ (style.strokeWidth or 0)
+			+ (shadow and shadow.width or 0)
+			+ (shadow and shadow.x or 0)
+			+ (shadow and shadow.y or 0)
+			+ (outer and outer.width or 0)
+			+ (outer and outer.strength or 0)
+	end
+	cpu.sink = cpu.sink + sum
+end
+
+function cpu.styleLocalReads(panel, count, w, h, ox, oy)
+	local style = DIRECT_API_FUSED_STYLE
+	local radius = style.radius or 0
+	local strokeWidth = style.strokeWidth or 0
+	local shadow = style.shadow
+	local outer = style.outerGlow
+	local shadowWidth = shadow and shadow.width or 0
+	local shadowX = shadow and shadow.x or 0
+	local shadowY = shadow and shadow.y or 0
+	local outerWidth = outer and outer.width or 0
+	local outerStrength = outer and outer.strength or 0
+	local loops = cpu.loops(count)
+	local sum = 0
+	for i = 1, loops do
+		sum = sum + radius + strokeWidth + shadowWidth + shadowX + shadowY + outerWidth + outerStrength
+	end
+	cpu.sink = cpu.sink + sum
+end
+
+function cpu.callLocal(panel, count, w, h, ox, oy)
+	local fn = cpu.leaf
+	local loops = cpu.loops(count)
+	local sum = 0
+	for i = 1, loops do
+		sum = sum + fn(1, 2, 3, 4)
+	end
+	cpu.sink = cpu.sink + sum
+end
+
+function cpu.callTable(panel, count, w, h, ox, oy)
+	local probe = cpu.callProbe
+	local loops = cpu.loops(count)
+	local sum = 0
+	for i = 1, loops do
+		sum = sum + probe.leaf(1, 2, 3, 4)
+	end
+	cpu.sink = cpu.sink + sum
+end
+
+function cpu.callWrapper(panel, count, w, h, ox, oy)
+	local fn = cpu.wrapper
+	local loops = cpu.loops(count)
+	local sum = 0
+	for i = 1, loops do
+		sum = sum + fn(1, 2, 3, 4)
+	end
+	cpu.sink = cpu.sink + sum
+end
+
 local function workloadRoundFill(panel, count, w, h, ox, oy)
 	local columns = 12
 	for i = 1, count do
@@ -1266,6 +1574,25 @@ local workloads = {
 	{name = "direct.api.outer", group = "direct", title = "MGFX.RoundedBoxEx outerGlow only", baseline = "direct.mgfx.empty", color = COLORS.cyan, fn = workloadDirectApiRoundedOuter, hiddenFromAll = true},
 	{name = "direct.api.fused", group = "direct", title = "MGFX.RoundedBoxEx fill+stroke+shadow+outer", baseline = "direct.mgfx.empty", color = COLORS.blue, fn = workloadDirectApiRoundedFused, hiddenFromAll = true},
 	{name = "direct.api.backdrop", group = "direct", title = "MGFX.RoundedBoxEx backdrop blur capped", baseline = "direct.mgfx.empty", color = COLORS.gold, fn = workloadDirectApiRoundedBackdrop, hiddenFromAll = true},
+	{name = "cpu.empty", group = "cpu", title = "Lua empty baseline; count x64 iterations", baseline = nil, color = COLORS.muted, fn = cpu.empty, profileTop = false, hiddenFromAll = true, rawSurface = true, countScale = cpu.repeatCount},
+	{name = "cpu.matrix.direct", group = "cpu", title = "Direct Matrix:SetUnpacked + SetMatrix", baseline = "cpu.empty", color = COLORS.green, fn = cpu.matrixDirect, profileTop = false, hiddenFromAll = true, rawSurface = true, countScale = cpu.repeatCount},
+	{name = "cpu.matrix.core", group = "cpu", title = "MGFX setupParamMatrix no raw-state cache", baseline = "cpu.empty", color = COLORS.cyan, fn = cpu.matrixCore, profileTop = false, hiddenFromAll = true, rawSurface = true, countScale = cpu.repeatCount},
+	{name = "cpu.matrix.raw.hit", group = "cpu", title = "MGFX setupParamMatrixRaw same values", baseline = "cpu.empty", color = COLORS.blue, fn = cpu.matrixRawHit, profileTop = false, hiddenFromAll = true, rawSurface = true, countScale = cpu.repeatCount},
+	{name = "cpu.matrix.raw.miss1", group = "cpu", title = "MGFX setupParamMatrixRaw mismatch at first slot", baseline = "cpu.empty", color = COLORS.gold, fn = cpu.matrixRawMiss, profileTop = false, hiddenFromAll = true, rawSurface = true, countScale = cpu.repeatCount},
+	{name = "cpu.matrix.raw.miss16", group = "cpu", title = "MGFX setupParamMatrixRaw mismatch at final slot", baseline = "cpu.empty", color = COLORS.red, fn = cpu.matrixRawMissLast, profileTop = false, hiddenFromAll = true, rawSurface = true, countScale = cpu.repeatCount},
+	{name = "cpu.aux.raw.hit", group = "cpu", title = "MGFX setupExtraParamsRaw same values", baseline = "cpu.empty", color = COLORS.blue, fn = cpu.auxRawHit, profileTop = false, hiddenFromAll = true, rawSurface = true, countScale = cpu.repeatCount},
+	{name = "cpu.aux.raw.miss", group = "cpu", title = "MGFX setupExtraParamsRaw alternating values", baseline = "cpu.empty", color = COLORS.gold, fn = cpu.auxRawMiss, profileTop = false, hiddenFromAll = true, rawSurface = true, countScale = cpu.repeatCount},
+	{name = "cpu.style.table", group = "cpu", title = "Repeated nested table reads from style", baseline = "cpu.empty", color = COLORS.red, fn = cpu.styleTableReads, profileTop = false, hiddenFromAll = true, rawSurface = true, countScale = cpu.repeatCount},
+	{name = "cpu.style.locals", group = "cpu", title = "Same values hoisted into locals", baseline = "cpu.empty", color = COLORS.green, fn = cpu.styleLocalReads, profileTop = false, hiddenFromAll = true, rawSurface = true, countScale = cpu.repeatCount},
+	{name = "cpu.call.local", group = "cpu", title = "Local function call per iteration", baseline = "cpu.empty", color = COLORS.green, fn = cpu.callLocal, profileTop = false, hiddenFromAll = true, rawSurface = true, countScale = cpu.repeatCount},
+	{name = "cpu.call.table", group = "cpu", title = "Table function lookup + call per iteration", baseline = "cpu.empty", color = COLORS.gold, fn = cpu.callTable, profileTop = false, hiddenFromAll = true, rawSurface = true, countScale = cpu.repeatCount},
+	{name = "cpu.call.wrapper", group = "cpu", title = "One wrapper layer around local function", baseline = "cpu.empty", color = COLORS.red, fn = cpu.callWrapper, profileTop = false, hiddenFromAll = true, rawSurface = true, countScale = cpu.repeatCount},
+	{name = "cpu.raw.shadow.stable", group = "cpu", title = "roundRaw.shadow stable style table", baseline = "cpu.empty", color = COLORS.muted, fn = cpu.rawShadowStable, profileTop = false, hiddenFromAll = true, rawSurface = true, countScale = cpu.repeatCount},
+	{name = "cpu.raw.shadow.changing", group = "cpu", title = "roundRaw.shadow changing table values", baseline = "cpu.empty", color = COLORS.red, fn = cpu.rawShadowChanging, profileTop = false, hiddenFromAll = true, rawSurface = true, countScale = cpu.repeatCount},
+	{name = "cpu.raw.outer.stable", group = "cpu", title = "roundRaw.outerGlow stable style table", baseline = "cpu.empty", color = COLORS.cyan, fn = cpu.rawOuterStable, profileTop = false, hiddenFromAll = true, rawSurface = true, countScale = cpu.repeatCount},
+	{name = "cpu.raw.outer.changing", group = "cpu", title = "roundRaw.outerGlow changing table values", baseline = "cpu.empty", color = COLORS.red, fn = cpu.rawOuterChanging, profileTop = false, hiddenFromAll = true, rawSurface = true, countScale = cpu.repeatCount},
+	{name = "cpu.raw.inner.stable", group = "cpu", title = "roundRaw.innerGlow stable style table", baseline = "cpu.empty", color = COLORS.purple, fn = cpu.rawInnerStable, profileTop = false, hiddenFromAll = true, rawSurface = true, countScale = cpu.repeatCount},
+	{name = "cpu.raw.inner.changing", group = "cpu", title = "roundRaw.innerGlow changing table values", baseline = "cpu.empty", color = COLORS.red, fn = cpu.rawInnerChanging, profileTop = false, hiddenFromAll = true, rawSurface = true, countScale = cpu.repeatCount},
 	{name = "round.fill", group = "round", title = "RoundedBox fill only", baseline = "empty", color = COLORS.blue, fn = workloadRoundFill},
 	{name = "round.fx", group = "round", title = "RoundedBox fill+stroke+innerGlow", baseline = "round.fill", color = COLORS.cyan, fn = workloadRoundFx},
 	{name = "round.layered", group = "round", title = "RoundedBox same FX split into 3 calls", baseline = "round.fill", color = COLORS.purple, fn = workloadRoundLayered},
@@ -1356,6 +1683,7 @@ function PANEL:MakeModeButtons()
 		{"all", "ALL"},
 		{"chain", "CHAIN"},
 		{"direct", "DIRECT"},
+		{"cpu", "CPU"},
 		{"round", "ROUND"},
 		{"ring", "RING"},
 		{"poly", "POLY"},
@@ -1445,7 +1773,7 @@ function PANEL:ActiveWorkloads()
 		out[#out + 1] = item
 	end
 
-	if mode ~= "all" and mode ~= "direct" then
+	if mode ~= "all" and mode ~= "direct" and mode ~= "cpu" then
 		addItem(workloads[1])
 	end
 
@@ -1457,7 +1785,9 @@ function PANEL:ActiveWorkloads()
 	return out
 end
 
-function PANEL:RecordSample(name, elapsedMs, netMs, profileRows, statRows, count)
+function PANEL:RecordSample(item, elapsedMs, netMs, profileRows, statRows, count)
+	local name = item and item.name
+	if not name then return end
 	local sample = self.samples[name]
 	if not sample then
 		sample = {
@@ -1477,7 +1807,7 @@ function PANEL:RecordSample(name, elapsedMs, netMs, profileRows, statRows, count
 
 	sample.last = elapsedMs
 	sample.net = netMs
-	sample.count = count or sample.count
+	sample.count = (count or sample.count or 0) * (item and item.countScale or 1)
 	sample.profileRows = profileRows or sample.profileRows or {}
 	sample.statRows = statRows or sample.statRows or {}
 	if self.frameIndex <= self.warmupFrames then
@@ -1709,7 +2039,7 @@ function PANEL:Paint(w, h)
 	local active = self:ActiveWorkloads()
 	local stageX, stageY = 30, 108
 	local stageW = math.max(360, w - 60)
-	local stageH = self.activeMode == "text" and 178 or 238
+	local stageH = (self.activeMode == "text" or self.activeMode == "cpu") and 178 or 238
 
 	surface.SetDrawColor(COLORS.panel)
 	surface.DrawRect(22, stageY - 8, stageW + 16, stageH + 16)
@@ -1723,7 +2053,7 @@ function PANEL:Paint(w, h)
 		baselineElapsed[item.name] = elapsed
 		local base = item.baseline and baselineElapsed[item.baseline]
 		local net = base and (elapsed - base) or elapsed
-		self:RecordSample(item.name, elapsed, net, profileRows, statRows, count)
+		self:RecordSample(item, elapsed, net, profileRows, statRows, count)
 	end
 
 	drawText("measurement stage", "MGFXPerfSmall", 30, stageY + stageH + 14, COLORS.muted)
@@ -1825,7 +2155,11 @@ function PANEL:PaintRow(item, sample, x, y, w)
 	local profileW = layout.profileW or 300
 
 	drawCell(item.name, "MGFXPerfMono", nameX, y - 1, math.min(250, nameW), color)
-	drawCell(item.title, "MGFXPerfSmall", nameX, y + 16, nameW, COLORS.muted)
+	local title = item.title
+	if item.countScale then
+		title = title .. "  n=" .. tostring(sample.count or 0)
+	end
+	drawCell(title, "MGFXPerfSmall", nameX, y + 16, nameW, COLORS.muted)
 	drawCell(fmt(sample.last), "MGFXPerfMono", layout.lastX or x + 300, y - 1, numW, COLORS.text, TEXT_ALIGN_RIGHT)
 	drawCell(sample.n > 0 and fmt(sample.avg) or "--", "MGFXPerfMono", layout.avgX or x + 390, y - 1, numW, sample.n > 0 and COLORS.cyan or COLORS.muted, TEXT_ALIGN_RIGHT)
 	drawCell(sample.n > 0 and fmt(sample.netAvg) or "--", "MGFXPerfMono", layout.netX or x + 486, y - 1, numW, sample.netAvg > 0 and COLORS.gold or COLORS.green, TEXT_ALIGN_RIGHT)

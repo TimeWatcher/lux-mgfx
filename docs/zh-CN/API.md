@@ -27,7 +27,7 @@ fill, stroke, strokeWidth
 
 ## 先按需求选 API
 
-多数 UI 不需要先想“primitive、widget、paint 该去哪一页”。先按要画的东西选入口：
+多数 UI 不需要先想内部到底属于 primitive、widget 还是别的模块。先按要画的东西选入口：
 
 | 需求 | 首选 API | 何时换成 Ex 或专用 API |
 | --- | --- | --- |
@@ -48,7 +48,7 @@ fill, stroke, strokeWidth
 
 ## Lux 入口
 
-Lux 用户不需要关心某个函数内部属于 paint、primitive 还是 widget。推荐入口是统一门面：
+Lux 用户不需要关心某个函数内部属于 primitive、widget 还是其他实现模块。推荐入口是统一门面：
 
 ```lux
 import * as mgfx from "@lux/mgfx"
@@ -69,7 +69,7 @@ client fn drawPanel() {
 mgfx.api.roundedBoxEx(16, 16, 220, 48, { radius = 8, fill = Color(28, 34, 46) })
 ```
 
-`@lux/mgfx/paint`、`@lux/mgfx/primitives`、`@lux/mgfx/widgets` 等子包仍可导入，但它们现在更适合内部维护、工具或很窄的依赖面；普通 UI 代码优先使用 `@lux/mgfx` / `mgfx.api`。
+旧的 `@lux/mgfx/paint` 包已经移除；gradient、pattern 这类 paint record 通过 `mgfx.api` helper 创建，再作为 `fill` 或 `pattern` 传给具体绘制 API。普通 UI 代码优先使用 `@lux/mgfx` / `mgfx.api`，不要直接依赖内部 primitive/widget 包。
 
 ## 帧作用域
 

@@ -5,7 +5,6 @@ import * as console_mod from "@lux/mgfx/console"
 import * as frame_mod from "@lux/mgfx/frame"
 import * as geometry_mod from "@lux/mgfx/geometry"
 import * as materials_mod from "@lux/mgfx/materials"
-import * as paint_mod from "@lux/mgfx/paint"
 import * as primitives_mod from "@lux/mgfx/primitives"
 import * as profiler_mod from "@lux/mgfx/profiler"
 import * as roundrect_mod from "@lux/mgfx/roundrect"
@@ -21,7 +20,6 @@ local console = console_mod
 local frame = frame_mod
 local geometry = geometry_mod
 local materials = materials_mod
-local paint = paint_mod
 local primitives = primitives_mod
 local profiler = profiler_mod
 local roundrect = roundrect_mod
@@ -50,7 +48,6 @@ export client {
     frame,
     geometry,
     materials,
-    paint,
     primitives,
     profiler,
     roundrect,

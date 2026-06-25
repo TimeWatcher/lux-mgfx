@@ -1,6 +1,5 @@
 import * as frameImport from "@lux/mgfx/frame"
 import * as geometryImport from "@lux/mgfx/geometry"
-import * as paintImport from "@lux/mgfx/paint"
 import * as primitivesImport from "@lux/mgfx/primitives"
 import * as roundrectImport from "@lux/mgfx/roundrect"
 import * as styleImport from "@lux/mgfx/style"
@@ -8,7 +7,6 @@ import * as textImport from "@lux/mgfx/text"
 
 local frame = frameImport
 local geometry = geometryImport
-local paint = paintImport
 local primitives = primitivesImport
 local roundrect = roundrectImport
 local style = styleImport
@@ -46,29 +44,12 @@ local widgetBlurRT = nil
 local widgetMatOK = (material) => material ~= nil and material.IsError ~= nil and not material:IsError()
 local widgetHasShaders = () => false
 local forceFallbackCvar = nil
-local progressStyle = {}
-local segmentStyle = {}
-local ringStyle = {}
-local arcStyle = {}
-local sectorStyle = {}
-local imageStyleScratch = {}
-local iconStyleScratch = {}
-local progressTrackStyle = {}
-local progressTickStyle = { radius = 0 }
-local progressGlowStyle = {}
-local progressFillStyle = {}
-local progressSheenStyle = {}
-local progressMarkerStyle = { radius = 1 }
-local segmentContainerStyle = {}
-local segmentItemStyle = {}
 local progressTrackDarkColor = makeColor(0, 0, 0, 0)
 local progressTickColor = makeColor(255, 255, 255, 18)
 local progressGlowColor = makeColor(80, 190, 255, 38)
 local progressMarkerColor = makeColor(255, 255, 255, 96)
 local progressTrackGradient = style.linearGradient(0, 0, 0, 1, makeColor(0, 0, 0, 0), color_white)
 local progressSheenGradient = style.linearGradient(0, 0, 0, 1, makeColor(255, 255, 255, 42), makeColor(255, 255, 255, 0))
-local imageRoundEffectStyle = {}
-local imageChamferEffectStyle = {}
 local sourceAlphaMaskScratch = { kind = "texture", channel = "alpha", sourceAlpha = true }
 
 local defaultProgressTrack = makeColor(10, 18, 24, 190)
@@ -169,8 +150,8 @@ fn copyInto(out, value) {
 fn colorAt(fill, t) =
   style.colorAtFill(fill, t)
 
-fn fxFlags(drawStyle) {
-  local fx = typeOf(drawStyle.fx) == "table" and drawStyle.fx or nil
+fn fxFlagsFromInput(fxInput) {
+  local fx = typeOf(fxInput) == "table" and fxInput or nil
   if fx == nil {
     return false, false, false, 0
   }

@@ -1,25 +1,9 @@
 fn drawRoundImageEffect(x, y, w, h, radius, fill, shadow = nil, outerGlow = nil, backdrop = nil, stroke = nil, strokeWidth = nil) {
-  local resolved = imageRoundEffectStyle
-  resolved.radius = radius
-  resolved.fill = fill
-  resolved.shadow = shadow
-  resolved.outerGlow = outerGlow
-  resolved.backdrop = backdrop
-  resolved.stroke = stroke
-  resolved.strokeWidth = strokeWidth
-  roundrect.drawRoundRectImmediate(x, y, w, h, resolved)
+  roundrect.drawRoundRectRaw(x, y, w, h, radius, fill, stroke, strokeWidth, shadow, outerGlow, nil, backdrop)
 }
 
 fn drawChamferImageEffect(x, y, w, h, cuts, fill, shadow = nil, outerGlow = nil, backdrop = nil, stroke = nil, strokeWidth = nil) {
-  local resolved = imageChamferEffectStyle
-  resolved.cuts = cuts
-  resolved.fill = fill
-  resolved.shadow = shadow
-  resolved.outerGlow = outerGlow
-  resolved.backdrop = backdrop
-  resolved.stroke = stroke
-  resolved.strokeWidth = strokeWidth
-  primitives.drawChamferBoxImmediate(x, y, w, h, resolved, cuts)
+  primitives.drawChamferBoxRaw(x, y, w, h, cuts, fill, stroke, strokeWidth, shadow, outerGlow, nil, backdrop)
 }
 
 fn drawImageFallback(x, y, w, h, source, drawStyle) {
@@ -55,6 +39,82 @@ fn drawImageFallback(x, y, w, h, source, drawStyle) {
   local strokeWidth = style.strokeWidthValue(drawStyle.strokeWidth, 0)
   if style.strokeVisible(drawStyle.stroke, strokeWidth) {
     drawRoundImageEffect(x, y, w, h, radius, transparentColor, nil, nil, nil, drawStyle.stroke, mathMax(1, mathFloor(strokeWidth)))
+  }
+}
+
+fn imageFitRectRaw(x, y, w, h, texture, fit, u0, v0, u1, v1) {
+  if typeOf(fit) ~= "string" {
+    fit = "fill"
+  }
+
+  fit = string.lower(fit)
+  if fit == "stretch" {
+    fit = "fill"
+  }
+
+  if fit == "fill" {
+    return x, y, w, h, u0, v0, u1, v1
+  }
+
+  local tw, th = geometry.textureSize(texture)
+  local spanU = u1 - u0
+  local spanV = v1 - v0
+  local sourceW = mathMax(1, tw * spanU)
+  local sourceH = mathMax(1, th * spanV)
+  local sourceAspect = sourceW / sourceH
+  local destAspect = mathMax(1, w) / mathMax(1, h)
+  local ax = 0.5
+  local ay = 0.5
+
+  if fit == "cover" {
+    if sourceAspect > destAspect {
+      local newSpanU = spanV * th * destAspect / tw
+      local extra = spanU - newSpanU
+      u0 = u0 + extra * ax
+      u1 = u0 + newSpanU
+    } else if sourceAspect < destAspect {
+      local newSpanV = spanU * tw / destAspect / th
+      local extra = spanV - newSpanV
+      v0 = v0 + extra * ay
+      v1 = v0 + newSpanV
+    }
+  } else if fit == "contain" {
+    if sourceAspect > destAspect {
+      local newH = w / sourceAspect
+      y = y + (h - newH) * ay
+      h = newH
+    } else if sourceAspect < destAspect {
+      local newW = h * sourceAspect
+      x = x + (w - newW) * ax
+      w = newW
+    }
+  }
+
+  return x, y, w, h, u0, v0, u1, v1
+}
+
+fn imageTintRaw(tint) {
+  style.asColor(tint, color_white)
+}
+
+fn drawImageRawFallback(x, y, w, h, source, radius, tint, fit) {
+  local texture, material = imageTextureSource(source)
+  local createdMaterialFallback = material == nil
+  material = material ?? imageFallbackMaterialForTexture(texture)
+  stopif material == nil
+
+  local u0, v0, u1, v1 = 0, 0, 1, 1
+  x, y, w, h, u0, v0, u1, v1 = imageFitRectRaw(x, y, w, h, texture, fit, u0, v0, u1, v1)
+  stopif w <= 0 or h <= 0
+
+  surfaceSetMaterial(material)
+  style.setDrawColor(imageTintRaw(tint))
+  if hasTransform() {
+    geometry.drawTexturedQuadUV(x, y, w, h, u0, v0, u1, v1, material)
+  } else if createdMaterialFallback {
+    geometry.drawCreatedMaterialTexturedRectUV(x, y, w, h, u0, v0, u1, v1)
+  } else {
+    geometry.drawTexturedQuadUV(x, y, w, h, u0, v0, u1, v1, material)
   }
 }
 
@@ -115,11 +175,11 @@ fn imageRoundedRadius(drawStyle, mask, maskKind, w, h) {
   }
 }
 
-fn imageUsesSourceAlphaEffectMask(drawStyle, shadow, outer, backdrop) {
+fn imageUsesSourceAlphaEffectMask(drawStyle, hasShadow, hasOuter, backdrop) {
   stopif typeOf(drawStyle) ~= "table", false
   stopif drawStyle.mask ~= nil, false
   stopif drawStyle.radius ~= nil, false
-  shadow ~= nil or outer ~= nil or backdrop ~= nil
+  hasShadow or hasOuter or backdrop ~= nil
 }
 
 fn drawImageRoundRectShader(x, y, w, h, texture, u0, v0, u1, v1, drawStyle, radius) {
@@ -163,12 +223,12 @@ fn imageImmediate(x, y, w, h, source, drawStyle) {
     return
   }
 
-  local shadow = roundrect.shadowStyle(resolved.shadow)
-  local outer = roundrect.outerGlowStyle(resolved.outerGlow)
+  local hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpreadUnused, shadowGrow, shadowStrength, shadowFalloff, shadowExtent = roundrect.shadowRaw(resolved.shadow)
+  local hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpreadUnused, outerGrow, outerStrength, outerFalloff, outerExtent = roundrect.outerGlowRaw(resolved.outerGlow)
   local backdrop = style.backdropStyle(resolved.backdrop)
   local mask
   local maskKind
-  if imageUsesSourceAlphaEffectMask(resolved, shadow, outer, backdrop) {
+  if imageUsesSourceAlphaEffectMask(resolved, hasShadow, hasOuter, backdrop) {
     mask = sourceAlphaMaskScratch
     mask.source = source
     mask.u0 = u0
@@ -184,8 +244,12 @@ fn imageImmediate(x, y, w, h, source, drawStyle) {
   if imageMaskUsesTexture(maskKind) {
     local maskTexture = imageMaskTextureSource(mask)
     local backdropMaskKind = imageMaskTextureChannelKind(mask.channel) ?? maskKind
-    if shadow ~= nil or outer ~= nil {
-      drawImageMaskShadowOuter(x, y, w, h, mask, maskKind, shadow, outer)
+    if hasShadow or hasOuter {
+      drawImageMaskShadowOuter(
+        x, y, w, h, mask, maskKind,
+        hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowExtent, shadowGrow, shadowStrength, shadowFalloff,
+        hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerExtent, outerGrow, outerStrength, outerFalloff
+      )
     }
     drawImageMaskBackdrop(x, y, w, h, mask, backdropMaskKind, maskTexture, resolved.backdrop)
     if drawImageMaskShader(x, y, w, h, texture, u0, v0, u1, v1, resolved, mask, maskKind) {
@@ -213,4 +277,31 @@ fn imageImmediate(x, y, w, h, source, drawStyle) {
   }
 
   drawImageRoundRectShader(x, y, w, h, texture, u0, v0, u1, v1, resolved, radius)
+}
+
+fn imageRaw(x, y, w, h, source, radius = nil, tint = nil, fit = nil) {
+  local texture = imageTextureSource(source)
+  stopif texture == nil
+
+  if not shadersActive() or not materialOK(widgetMaterials.roundrect_texture) {
+    drawImageRawFallback(x, y, w, h, source, radius, tint, fit)
+    return
+  }
+
+  local u0, v0, u1, v1 = 0, 0, 1, 1
+  x, y, w, h, u0, v0, u1, v1 = imageFitRectRaw(x, y, w, h, texture, fit, u0, v0, u1, v1)
+  stopif w <= 0 or h <= 0
+
+  local material = widgetMaterials.roundrect_texture
+  local resolvedRadius = imageRadius(radius, w, h)
+  material:SetTexture("$basetexture", texture)
+  setupParamMatrix(material,
+    0, 0, 0, 0,
+    w, h, 0, resolvedRadius,
+    u0, v0, u1, v1,
+    0, 0, 0, 0
+  )
+  style.setDrawColor(imageTintRaw(tint))
+  surfaceSetMaterial(material)
+  drawTexturedQuad(x, y, w, h, material)
 }

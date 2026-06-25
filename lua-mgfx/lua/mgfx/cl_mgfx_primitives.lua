@@ -24,21 +24,13 @@ function MGFX._InstallPrimitives(C)
 	local fillFromStyle = C.fillFromStyle
 	local fillVisible = C.fillVisible
 	local backdropStyle = C.backdropStyle or function() return nil end
-	local innerGlowStyle = C.innerGlowStyle
-	local outerGlowStyle = C.outerGlowStyle
-	local shadowStyle = C.shadowStyle or function() return nil end
+	local roundRaw = assert(C.roundRaw, "MGFX raw effect helper unavailable")
 	local glowBiasPads = C.glowBiasPads or function(base, x, y, minPad)
 		minPad = minPad or 1
 		local pad = math.max(minPad, tonumber(base) or minPad)
 		local ox = tonumber(x) or 0
 		local oy = tonumber(y) or 0
 		return math.max(minPad, pad - ox), math.max(minPad, pad - oy), math.max(minPad, pad + ox), math.max(minPad, pad + oy)
-	end
-	local effectExtentFromSpec = C.effectExtentFromSpec or function(spec, defaultWidth)
-		local width = math.max(0.001, tonumber(spec and spec.width) or defaultWidth or 18)
-		local falloff = math.max(0.35, tonumber(spec and spec.falloff) or 1.9)
-		local sigma = math.max(width / math.sqrt(falloff) * 0.72, 0.35)
-		return math.max(1, tonumber(spec and spec.spread) or width, sigma * 3.72)
 	end
 	local patternStyle = C.patternStyle
 	local patternOffset = C.patternOffset
@@ -50,7 +42,7 @@ function MGFX._InstallPrimitives(C)
 	local hasTransform = C.hasTransform or function() return false end
 	local beginPanelEffectBleed = assert(C.beginPanelEffectBleed, "MGFX panel bleed begin helper unavailable")
 	local endPanelEffectBleed = assert(C.endPanelEffectBleed, "MGFX panel bleed end helper unavailable")
-	local drawRoundRectImmediate = C.drawRoundRectImmediate
+	local drawRoundRectRaw = C.drawRoundRectRaw
 	local setupParamMatrix = C.setupParamMatrix
 	local setupConstants = C.setupConstants
 	local setupExtraParams = C.setupExtraParams
@@ -72,17 +64,13 @@ function MGFX._InstallPrimitives(C)
 	local surface_SetMaterial = surface.SetMaterial
 	local transparentColor = Color(0, 0, 0, 0)
 	local transparentFill = {kind = FILL_SOLID, colorA = transparentColor, colorB = transparentColor}
-	local chamferFillFallbackStyle = {}
-	local chamferStrokeFallbackStyle = {fill = transparentColor}
-	local lineRoundRectStyle = {radius = 0}
-	local linePolyStyle = {}
 	local linePolyPointsScratch = {{}, {}, {}, {}}
-	local polyLineStrokeStyle = {noCaps = true}
-	local polyFallbackLineStyle = {noCaps = true}
 	local drawRectScratch = {}
 	local drawMaterialPoly
 	local normalizePoly
+	local drawLineRaw
 	local drawPolyImmediate
+	local drawPolyRaw
 	local drawPolyImmediateNormalized
 local function profileStart()
 	if profiler and profiler.Start then return profiler.Start() end
@@ -150,23 +138,19 @@ local function chamferPoints(x, y, w, h, cuts)
 	return points
 end
 
-local function drawChamferInnerGlowSpec(x, y, w, h, cuts, spec)
-	if not spec then return end
+local function drawChamferInnerGlowRaw(x, y, w, h, cuts, enabled, gr, gg, gb, ga, glowWidth, glowStrength, glowFalloff)
+	if not enabled or ga <= 0 or glowStrength <= 0 then return end
 	if not shadersActive() or not matOK(materials.chamfer_innerglow) then return end
-
-	local color = spec.color
-	if (color.a or 255) <= 0 then return end
 
 	local tl, tr, br, bl = chamferTuple(cuts, w, h)
 	local mat = materials.chamfer_innerglow
-	local r, g, b, a = color01(color)
 	setupParamMatrix(mat,
-		r, g, b, a,
+		gr, gg, gb, ga,
 		w, h, 0, 0,
 		tl, tr, br, bl,
-		math_max(0.001, tonumber(spec.width) or 8),
-		math_max(0, tonumber(spec.strength) or 1),
-		math_max(0.001, tonumber(spec.falloff) or 1.65),
+		math_max(0.001, tonumber(glowWidth) or 8),
+		math_max(0, tonumber(glowStrength) or 1),
+		math_max(0.001, tonumber(glowFalloff) or 1.65),
 		0
 	)
 	surface_SetMaterial(mat)
@@ -175,7 +159,8 @@ local function drawChamferInnerGlowSpec(x, y, w, h, cuts, spec)
 end
 
 local function drawChamferInnerGlow(x, y, w, h, cuts, glow)
-	return drawChamferInnerGlowSpec(x, y, w, h, cuts, innerGlowStyle(glow))
+	local enabled, gr, gg, gb, ga, glowWidth, glowStrength, glowFalloff = roundRaw.innerGlow(glow)
+	return drawChamferInnerGlowRaw(x, y, w, h, cuts, enabled, gr, gg, gb, ga, glowWidth, glowStrength, glowFalloff)
 end
 
 local function cutsWithGrow(cuts, grow)
@@ -192,20 +177,22 @@ local function cutsWithGrow(cuts, grow)
 	return (tonumber(cuts) or 0) + grow
 end
 
-local function chamferEffectBounds(x, y, w, h, cuts, spec, biasOffset)
-	if not spec then return nil end
-	local color = spec.color
-	if not color or (color.a or 255) <= 0 then return nil end
+local function chamferEffectBounds(x, y, w, h, cuts, enabled, alpha, ox, oy, width, extent, grow, strength, falloff, biasOffset)
+	if not enabled or alpha <= 0 or strength <= 0 then return nil end
 
-	local grow = math_max(0, tonumber(spec.grow) or tonumber(spec.shapeSpread) or tonumber(spec.expand) or 0)
-	local ox = tonumber(spec.x) or tonumber(spec.offsetX) or tonumber(spec.dx) or 0
-	local oy = tonumber(spec.y) or tonumber(spec.offsetY) or tonumber(spec.dy) or 0
+	grow = math_max(0, tonumber(grow) or 0)
+	ox = tonumber(ox) or 0
+	oy = tonumber(oy) or 0
+	width = math_max(0.001, tonumber(width) or 18)
+	extent = math_max(1, tonumber(extent) or width)
+	strength = math_max(0, tonumber(strength) or 1)
+	falloff = math_max(0.001, tonumber(falloff) or 1.9)
 	local gx = x + ox - grow
 	local gy = y + oy - grow
 	local gw = w + grow * 2
 	local gh = h + grow * 2
 	local gcuts = cutsWithGrow(cuts, grow)
-	local spread = effectExtentFromSpec(spec, 18)
+	local spread = extent
 	local left, top, right, bottom = spread, spread, spread, spread
 
 	if biasOffset then
@@ -228,18 +215,22 @@ local function chamferEffectBounds(x, y, w, h, cuts, spec, biasOffset)
 		tr = tr,
 		br = br,
 		bl = bl,
-		width = math_max(0.001, tonumber(spec.width) or 18),
-		strength = math_max(0, tonumber(spec.strength) or 1),
-		falloff = math_max(0.001, tonumber(spec.falloff) or 1.9),
+		width = width,
+		strength = strength,
+		falloff = falloff,
 	}
 end
 
-local function drawChamferShadowOuterSpec(x, y, w, h, cuts, shadowSpec, outerSpec)
-	if (not shadowSpec and not outerSpec) or not setupExtraParams then return false end
+local function drawChamferShadowOuterRaw(
+	x, y, w, h, cuts,
+	hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowExtent, shadowGrow, shadowStrength, shadowFalloff,
+	hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerExtent, outerGrow, outerStrength, outerFalloff
+)
+	if (not hasShadow and not hasOuter) or not setupExtraParams then return false end
 	if not shadersActive() or not matOK(materials.chamfer_shadow_outer) then return false end
 
-	local shadowBounds = chamferEffectBounds(x, y, w, h, cuts, shadowSpec, false)
-	local outerBounds = chamferEffectBounds(x, y, w, h, cuts, outerSpec, true)
+	local shadowBounds = chamferEffectBounds(x, y, w, h, cuts, hasShadow, sa, shadowX, shadowY, shadowWidth, shadowExtent, shadowGrow, shadowStrength, shadowFalloff, false)
+	local outerBounds = chamferEffectBounds(x, y, w, h, cuts, hasOuter, oa, outerX, outerY, outerWidth, outerExtent, outerGrow, outerStrength, outerFalloff, true)
 	if not shadowBounds and not outerBounds then return false end
 
 	local baseBounds = shadowBounds or outerBounds
@@ -263,18 +254,16 @@ local function drawChamferShadowOuterSpec(x, y, w, h, cuts, shadowSpec, outerSpe
 	local sw = ex - sx
 	local sh = ey - sy
 	local mat = materials.chamfer_shadow_outer
-	local shadowColor = shadowSpec and shadowSpec.color or transparentColor
-	local outerColor = outerSpec and outerSpec.color or transparentColor
 
 	setupParamMatrix(mat,
 		sw, sh, shadowBounds and shadowBounds.width or 1, shadowBounds and shadowBounds.strength or 0,
-		(shadowColor.r or 0) / 255, (shadowColor.g or 0) / 255, (shadowColor.b or 0) / 255, shadowBounds and ((shadowColor.a == nil and 255 or shadowColor.a) / 255) or 0,
+		shadowBounds and sr or 0, shadowBounds and sg or 0, shadowBounds and sb or 0, shadowBounds and sa or 0,
 		(shadowBounds and shadowBounds.shapeX or x) - sx, (shadowBounds and shadowBounds.shapeY or y) - sy, shadowBounds and shadowBounds.shapeW or w, shadowBounds and shadowBounds.shapeH or h,
 		shadowBounds and shadowBounds.tl or 0, shadowBounds and shadowBounds.tr or 0, shadowBounds and shadowBounds.br or 0, shadowBounds and shadowBounds.bl or 0
 	)
 
 	if not setupExtraParams(mat,
-		(outerColor.r or 0) / 255, (outerColor.g or 0) / 255, (outerColor.b or 0) / 255, outerBounds and ((outerColor.a == nil and 255 or outerColor.a) / 255) or 0,
+		outerBounds and orr or 0, outerBounds and og or 0, outerBounds and ob or 0, outerBounds and oa or 0,
 		(outerBounds and outerBounds.shapeX or x) - sx, (outerBounds and outerBounds.shapeY or y) - sy, outerBounds and outerBounds.shapeW or w, outerBounds and outerBounds.shapeH or h,
 		outerBounds and outerBounds.tl or 0, outerBounds and outerBounds.tr or 0, outerBounds and outerBounds.br or 0, outerBounds and outerBounds.bl or 0,
 		shadowBounds and shadowBounds.falloff or 1,
@@ -341,7 +330,12 @@ local function drawChamferBackdrop(x, y, w, h, cuts, backdrop)
 end
 
 local function drawChamferOuterGlow(x, y, w, h, cuts, glow)
-	return drawChamferShadowOuterSpec(x, y, w, h, cuts, nil, outerGlowStyle(glow))
+	local hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, _, outerGrow, outerStrength, outerFalloff, outerExtent = roundRaw.outerGlow(glow)
+	return drawChamferShadowOuterRaw(
+		x, y, w, h, cuts,
+		false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1,
+		hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerExtent, outerGrow, outerStrength, outerFalloff
+	)
 end
 
 local function drawChamferPattern(x, y, w, h, cuts, pattern)
@@ -401,18 +395,18 @@ local function drawChamferStroke(x, y, w, h, cuts, stroke, strokeWidth)
 	return true
 end
 
-drawChamferBasePass = function(x, y, w, h, cuts, fill, stroke, strokeWidth, innerSpec)
+drawChamferBasePass = function(x, y, w, h, cuts, fill, stroke, strokeWidth, innerEnabled, gr, gg, gb, ga, glowWidth, glowStrength, glowFalloff)
 	if not shadersActive() or not matOK(materials.chamfer) then return false end
 
 	local tl, tr, br, bl = chamferTuple(cuts, w, h)
 	local mat = materials.chamfer
-	local gr, gg, gb, ga = 0, 0, 0, 0
-	local glowWidth, glowStrength, glowFalloff = 0, 0, 1
-	if innerSpec then
-		gr, gg, gb, ga = color01(innerSpec.color or transparentColor)
-		glowWidth = math_max(0.001, tonumber(innerSpec.width) or 8)
-		glowStrength = math_max(0, tonumber(innerSpec.strength) or 1)
-		glowFalloff = math_max(0.001, tonumber(innerSpec.falloff) or 1.65)
+	if not innerEnabled then
+		gr, gg, gb, ga = 0, 0, 0, 0
+		glowWidth, glowStrength, glowFalloff = 0, 0, 1
+	else
+		glowWidth = math_max(0.001, tonumber(glowWidth) or 8)
+		glowStrength = math_max(0, tonumber(glowStrength) or 1)
+		glowFalloff = math_max(0.001, tonumber(glowFalloff) or 1.65)
 	end
 	if not setupExtraParams or not setupExtraParams(mat,
 		tl, tr, br, bl,
@@ -432,18 +426,18 @@ local function chamferPointsProfiled(x, y, w, h, cuts, profiling)
 	return points
 end
 
-local function drawChamferBoxImmediate(x, y, w, h, style, resolvedCuts)
+local function drawChamferBoxRaw(x, y, w, h, resolvedCuts, fillInput, stroke, strokeWidthInput, shadow, outerGlow, innerGlow, backdropInput, pattern)
 	local profiling = profiler and profiler.IsActive and profiler.IsActive()
 	local totalProfile = profiling and profileStart() or nil
-	local shadowSpec = shadowStyle(style.shadow)
-	local outerSpec = outerGlowStyle(style.outerGlow)
-	local backdropSpec = backdropStyle(style.backdrop)
+	local hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, _, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread = roundRaw.shadow(shadow)
+	local hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, _, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread = roundRaw.outerGlow(outerGlow)
+	local backdropSpec = backdropStyle(backdropInput)
 	local cullSpread = 0
-	if shadowSpec then
-		cullSpread = math_max(cullSpread, math_abs(tonumber(shadowSpec.x) or 0) + math_abs(tonumber(shadowSpec.y) or 0) + effectExtentFromSpec(shadowSpec, 12) + (tonumber(shadowSpec.grow) or 0))
+	if hasShadow then
+		cullSpread = math_max(cullSpread, shadowCullSpread)
 	end
-	if outerSpec then
-		cullSpread = math_max(cullSpread, math_abs(tonumber(outerSpec.x) or 0) + math_abs(tonumber(outerSpec.y) or 0) + effectExtentFromSpec(outerSpec, 18) + (tonumber(outerSpec.grow) or 0))
+	if hasOuter then
+		cullSpread = math_max(cullSpread, outerCullSpread)
 	end
 	if backdropSpec then
 		cullSpread = math_max(cullSpread, math_max(0, tonumber(backdropSpec.padding) or 0))
@@ -456,51 +450,44 @@ local function drawChamferBoxImmediate(x, y, w, h, style, resolvedCuts)
 	local points
 
 	local profile
-	if shadowSpec or outerSpec then
+	if hasShadow or hasOuter then
 		profile = profiling and profileStart() or nil
-		drawChamferShadowOuterSpec(x, y, w, h, resolvedCuts, shadowSpec, outerSpec)
+		drawChamferShadowOuterRaw(
+			x, y, w, h, resolvedCuts,
+			hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowExtent, shadowGrow, shadowStrength, shadowFalloff,
+			hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerExtent, outerGrow, outerStrength, outerFalloff
+		)
 		if profiling then profileEnd("chamfer.shadowOuter", profile) end
 	end
 
 	profile = profiling and profileStart() or nil
-	local fill = fillFromStyle(style.fill)
-	local strokeWidth = strokeWidthValue(style.strokeWidth, 0)
-	local pattern = style.pattern
-	local strokeIsVisible = strokeVisible(style.stroke, strokeWidth)
+	local fill = fillFromStyle(fillInput)
+	local strokeWidth = strokeWidthValue(strokeWidthInput, 0)
+	local strokeIsVisible = strokeVisible(stroke, strokeWidth)
 	local fillIsVisible = fillVisible(fill)
-	local innerSpec = innerGlowStyle(style.innerGlow)
+	local hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff = roundRaw.innerGlow(innerGlow)
 	local baseDrawn = false
 	local baseDrewStroke = false
 	local baseDrewInnerGlow = false
-	if fillIsVisible or strokeIsVisible or innerSpec then
+	if fillIsVisible or strokeIsVisible or hasInner then
 		if pattern == nil then
-			baseDrawn = drawChamferBasePass(x, y, w, h, resolvedCuts, fill, style.stroke, strokeWidth, innerSpec)
+			baseDrawn = drawChamferBasePass(x, y, w, h, resolvedCuts, fill, stroke, strokeWidth, hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff)
 			baseDrewStroke = baseDrawn and strokeIsVisible
-			baseDrewInnerGlow = baseDrawn and innerSpec
+			baseDrewInnerGlow = baseDrawn and hasInner
 		elseif fillIsVisible then
-			baseDrawn = drawChamferBasePass(x, y, w, h, resolvedCuts, fill, nil, 0)
+			baseDrawn = drawChamferBasePass(x, y, w, h, resolvedCuts, fill, nil, 0, false)
 		end
 	end
 
-	if style.backdrop ~= nil then
+	if backdropInput ~= nil then
 		profile = profiling and profileStart() or nil
-		drawChamferBackdrop(x, y, w, h, resolvedCuts, style.backdrop)
+		drawChamferBackdrop(x, y, w, h, resolvedCuts, backdropInput)
 		if profiling then profileEnd("chamfer.backdrop", profile) end
 	end
 
 	if not baseDrawn and fillIsVisible then
-		local fillStyle = chamferFillFallbackStyle
-		for k in pairs(fillStyle) do
-			fillStyle[k] = nil
-		end
-		for k, v in pairs(style) do
-			fillStyle[k] = v
-		end
-		fillStyle.stroke = nil
-		fillStyle.strokeWidth = 0
-		fillStyle.pattern = nil
 		points = points or chamferPointsProfiled(x, y, w, h, resolvedCuts, profiling)
-		drawPolyImmediate(points, fillStyle)
+		drawPolyRaw(points, nil, fillInput, nil, 0, shadow, outerGlow, backdropInput, nil)
 	end
 	if profiling then profileEnd(baseDrawn and "chamfer.fillShader" or "chamfer.fillPoly", profile) end
 
@@ -514,21 +501,24 @@ local function drawChamferBoxImmediate(x, y, w, h, style, resolvedCuts)
 	if baseDrewStroke then
 		-- Stroke was composited in the base shader to preserve fill/stroke order.
 	elseif strokeIsVisible then
-		if not drawChamferStroke(x, y, w, h, resolvedCuts, style.stroke, strokeWidth) then
-			chamferStrokeFallbackStyle.stroke = style.stroke
-			chamferStrokeFallbackStyle.strokeWidth = strokeWidth
+		if not drawChamferStroke(x, y, w, h, resolvedCuts, stroke, strokeWidth) then
 			points = points or chamferPointsProfiled(x, y, w, h, resolvedCuts, profiling)
-			drawPolyImmediate(points, chamferStrokeFallbackStyle)
+			drawPolyRaw(points, nil, transparentColor, stroke, strokeWidth, nil, nil, nil, nil)
 		end
 	end
 	if profiling then profileEnd("chamfer.stroke", profile) end
 
-	if innerSpec and not baseDrewInnerGlow then
+	if hasInner and not baseDrewInnerGlow then
 		profile = profiling and profileStart() or nil
-		drawChamferInnerGlowSpec(x, y, w, h, resolvedCuts, innerSpec)
+		drawChamferInnerGlowRaw(x, y, w, h, resolvedCuts, true, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff)
 		if profiling then profileEnd("chamfer.innerGlow", profile) end
 	end
 	if profiling then profileEnd("chamfer.immediate", totalProfile) end
+end
+
+local function drawChamferBoxImmediate(x, y, w, h, style, resolvedCuts)
+	style = style or {}
+	return drawChamferBoxRaw(x, y, w, h, resolvedCuts or style.cuts or 0, style.fill or style.color, style.stroke, style.strokeWidth, style.shadow, style.outerGlow, style.innerGlow, style.backdrop, style.pattern)
 end
 
 function M.ChamferBoxEx(x, y, w, h, style)
@@ -546,24 +536,14 @@ function M.ChamferBoxEx(x, y, w, h, style)
 	end)
 end
 
-local chamferBoxArgStyle = {}
-
 function M.ChamferBox(x, y, w, h, cuts, fill, stroke, strokeWidth)
-	chamferBoxArgStyle.cuts = cuts
-	chamferBoxArgStyle.fill = fill
-	chamferBoxArgStyle.stroke = stroke
-	chamferBoxArgStyle.strokeWidth = strokeWidth
-	return M.ChamferBoxEx(x, y, w, h, chamferBoxArgStyle)
+	recordDirectImmediate("DrawChamferBox", "chamfer")
+	return drawChamferBoxRaw(x, y, w, h, cuts or 0, fill, stroke, strokeWidth, nil, nil, nil, nil, nil)
 end
 
-local function drawLineRect(x, y, w, h, fill, style)
-	if style.radius ~= nil or style.shadow or style.outerGlow or style.backdrop then
-		lineRoundRectStyle.radius = style.radius or 0
-		lineRoundRectStyle.backdrop = style.backdrop
-		lineRoundRectStyle.fill = fill
-		lineRoundRectStyle.shadow = style.shadow
-		lineRoundRectStyle.outerGlow = style.outerGlow
-		return drawRoundRectImmediate(x, y, w, h, lineRoundRectStyle)
+local function drawLineRectRaw(x, y, w, h, fill, radius, shadow, outerGlow, backdrop)
+	if radius ~= nil or shadow or outerGlow or backdrop then
+		return drawRoundRectRaw(x, y, w, h, radius or 0, fill, nil, nil, shadow, outerGlow, nil, backdrop, nil)
 	end
 
 	local points = linePolyPointsScratch
@@ -571,11 +551,7 @@ local function drawLineRect(x, y, w, h, fill, style)
 	points[2].x, points[2].y = x + w, y
 	points[3].x, points[3].y = x + w, y + h
 	points[4].x, points[4].y = x, y + h
-	linePolyStyle.backdrop = style.backdrop
-	linePolyStyle.fill = fill
-	linePolyStyle.shadow = nil
-	linePolyStyle.outerGlow = nil
-	return drawPolyImmediate(points, linePolyStyle)
+	return drawPolyRaw(points, nil, fill, nil, 0, nil, nil, nil, nil)
 end
 
 local function lineFallbackVerts(verts, fill, backdrop, shadow, outerGlow)
@@ -584,11 +560,7 @@ local function lineFallbackVerts(verts, fill, backdrop, shadow, outerGlow)
 	points[2].x, points[2].y = verts[2].x, verts[2].y
 	points[3].x, points[3].y = verts[3].x, verts[3].y
 	points[4].x, points[4].y = verts[4].x, verts[4].y
-	linePolyStyle.backdrop = backdrop
-	linePolyStyle.fill = fill
-	linePolyStyle.shadow = shadow
-	linePolyStyle.outerGlow = outerGlow
-	return drawPolyImmediate(points, linePolyStyle)
+	return drawPolyRaw(points, nil, fill, nil, 0, shadow, outerGlow, backdrop, nil)
 end
 
 local lineQuadVertsInto
@@ -599,17 +571,17 @@ local defaultLineColor = Color(255, 255, 255, 32)
 local lineVertsScratch = {{}, {}, {}, {}}
 local lineFallbackVertsScratch = {{}, {}, {}, {}}
 
-local function drawLineQuad(x1, y1, x2, y2, strokeWidth, noCaps, verts, fill, style)
-	if style.backdrop then
+local function drawLineQuadRaw(x1, y1, x2, y2, strokeWidth, noCaps, verts, fill, shadow, outerGlow, backdrop)
+	if backdrop then
 		local backdropVerts = lineQuadVertsInto(lineFallbackVertsScratch, x1, y1, x2, y2, strokeWidth, noCaps, 0)
 		if backdropVerts then
-			lineFallbackVerts(backdropVerts, transparentColor, style.backdrop)
+			lineFallbackVerts(backdropVerts, transparentColor, backdrop)
 		end
 	end
 
-	if not style.radius and not style.shadow and not style.outerGlow and drawLineShaderVerts(verts, fill) then return end
+	if not shadow and not outerGlow and drawLineShaderVerts(verts, fill) then return end
 	local fallbackVerts = lineQuadVertsInto(lineFallbackVertsScratch, x1, y1, x2, y2, strokeWidth, noCaps, 0)
-	return lineFallbackVerts(fallbackVerts or verts, fill, nil, style.shadow, style.outerGlow)
+	return lineFallbackVerts(fallbackVerts or verts, fill, nil, shadow, outerGlow)
 end
 
 lineQuadVertsInto = function(out, x1, y1, x2, y2, strokeWidth, noCaps, fringeOverride)
@@ -656,21 +628,20 @@ local function normalizeLineArgs(color, width, style)
 	return color, width, style or {}
 end
 
-drawLineImmediate = function(x1, y1, x2, y2, color, width, style)
-	color, width, style = normalizeLineArgs(color, width, style)
-	local rawWidth = strokeWidthValue(width or style.width, 1)
+drawLineRaw = function(x1, y1, x2, y2, fillInput, widthInput, radius, shadow, outerGlow, backdrop, noCaps)
+	local rawWidth = strokeWidthValue(widthInput, 1)
 	local strokeWidth = math_max(0, rawWidth)
 	if strokeWidth <= 0 then return end
-	local fill = fillFromStyle(style.fill or style.color or color or defaultLineColor)
-	if not fillVisible(fill) and not style.backdrop then return end
+	local fill = fillFromStyle(fillInput or defaultLineColor)
+	if not fillVisible(fill) and not backdrop then return end
 
 	if math_abs(y2 - y1) < 0.001 then
 		local x = math_min(x1, x2)
 		local w = math_abs(x2 - x1)
 		if w <= 0 then return end
 		local y = y1 - strokeWidth * 0.5
-		if style.radius ~= nil or style.shadow or style.outerGlow then
-			return drawLineRect(x, y, w, strokeWidth, fill, style)
+		if radius ~= nil or shadow or outerGlow then
+			return drawLineRectRaw(x, y, w, strokeWidth, fill, radius, shadow, outerGlow, backdrop)
 		end
 	end
 
@@ -679,15 +650,28 @@ drawLineImmediate = function(x1, y1, x2, y2, color, width, style)
 		local h = math_abs(y2 - y1)
 		if h <= 0 then return end
 		local x = x1 - strokeWidth * 0.5
-		if style.radius ~= nil or style.shadow or style.outerGlow then
-			return drawLineRect(x, y, strokeWidth, h, fill, style)
+		if radius ~= nil or shadow or outerGlow then
+			return drawLineRectRaw(x, y, strokeWidth, h, fill, radius, shadow, outerGlow, backdrop)
 		end
 	end
 
-	local noCaps = style.noCaps == true or style.caps == false
 	local verts = lineQuadVertsInto(lineVertsScratch, x1, y1, x2, y2, strokeWidth, noCaps)
 	if not verts then return end
-	return drawLineQuad(x1, y1, x2, y2, strokeWidth, noCaps, verts, fill, style)
+	return drawLineQuadRaw(x1, y1, x2, y2, strokeWidth, noCaps, verts, fill, shadow, outerGlow, backdrop)
+end
+
+drawLineImmediate = function(x1, y1, x2, y2, color, width, style)
+	color, width, style = normalizeLineArgs(color, width, style)
+	return drawLineRaw(
+		x1, y1, x2, y2,
+		style.fill or style.color or color,
+		width or style.width,
+		style.radius,
+		style.shadow,
+		style.outerGlow,
+		style.backdrop,
+		style.noCaps == true or style.caps == false
+	)
 end
 
 function M.LineEx(x1, y1, x2, y2, style)
@@ -703,20 +687,16 @@ function M.LineEx(x1, y1, x2, y2, style)
 	local bw = math_abs(x2 - x1) + pad * 2
 	local bh = math_abs(y2 - y1) + pad * 2
 	if not transform then
-		return drawLineImmediate(x1, y1, x2, y2, nil, nil, style)
+		return drawLineRaw(x1, y1, x2, y2, style.fill or style.color, style.width, style.radius, style.shadow, style.outerGlow, style.backdrop, style.noCaps == true or style.caps == false)
 	end
 	return withTransform(transform, bx, by, bw, bh, function()
-		return drawLineImmediate(x1, y1, x2, y2, nil, nil, style)
+		return drawLineRaw(x1, y1, x2, y2, style.fill or style.color, style.width, style.radius, style.shadow, style.outerGlow, style.backdrop, style.noCaps == true or style.caps == false)
 	end)
 end
 
-local lineArgStyle = {}
-
 function M.Line(x1, y1, x2, y2, width, fill)
-	lineArgStyle.width = width
-	lineArgStyle.fill = fill
 	recordDirectImmediate("DrawLine", "line")
-	return drawLineImmediate(x1, y1, x2, y2, nil, nil, lineArgStyle)
+	return drawLineRaw(x1, y1, x2, y2, fill, width, nil, nil, nil, nil, false)
 end
 
 local function pointXY(point)
@@ -887,13 +867,10 @@ local function drawPolyStroke(poly, color, strokeWidth)
 		return
 	end
 	if drawLineImmediate and (shadersActive() or hasTransform()) then
-		local style = polyLineStrokeStyle
-		style.width = strokeWidth
-		style.fill = color
 		for i = 1, #poly.points do
 			local a = poly.points[i]
 			local b = poly.points[i % #poly.points + 1]
-			drawLineImmediate(poly.x + a.x, poly.y + a.y, poly.x + b.x, poly.y + b.y, nil, nil, style)
+			drawLineRaw(poly.x + a.x, poly.y + a.y, poly.x + b.x, poly.y + b.y, color, strokeWidth, nil, nil, nil, nil, true)
 		end
 		return
 	end
@@ -990,15 +967,17 @@ local function drawPolyBackdrop(poly, backdrop)
 	return spec
 end
 
-local function polyShadowBounds(poly, shadow, biasOffset)
-	if not shadow or not shadow.color or (shadow.color.a or 255) <= 0 then return nil end
+local function polyEffectBounds(poly, enabled, alpha, ox, oy, width, extent, grow, strength, falloff, biasOffset)
+	if not enabled or alpha <= 0 or strength <= 0 then return nil end
 
-	local width = math_max(0.001, tonumber(shadow.width) or 12)
-	local grow = math_max(0, tonumber(shadow.grow) or 0)
-	local spread = effectExtentFromSpec(shadow, 12)
-	local padding = grow + math_max(spread, width)
-	local ox = tonumber(shadow.x) or 0
-	local oy = tonumber(shadow.y) or 0
+	width = math_max(0.001, tonumber(width) or 12)
+	grow = math_max(0, tonumber(grow) or 0)
+	extent = math_max(1, tonumber(extent) or width)
+	local padding = grow + math_max(extent, width)
+	ox = tonumber(ox) or 0
+	oy = tonumber(oy) or 0
+	falloff = math_max(0.001, tonumber(falloff) or 1.7)
+	strength = math_max(0, tonumber(strength) or 1)
 
 	if biasOffset then
 		local left, top, right, bottom = glowBiasPads(padding, ox, oy, 0.001)
@@ -1011,8 +990,8 @@ local function polyShadowBounds(poly, shadow, biasOffset)
 			oy = 0,
 			width = width,
 			grow = grow,
-			falloff = math_max(0.001, tonumber(shadow.falloff) or 1.7),
-			strength = math_max(0, tonumber(shadow.strength) or 1),
+			falloff = falloff,
+			strength = strength,
 		}
 	end
 
@@ -1025,8 +1004,8 @@ local function polyShadowBounds(poly, shadow, biasOffset)
 		oy = oy,
 		width = width,
 		grow = grow,
-		falloff = math_max(0.001, tonumber(shadow.falloff) or 1.7),
-		strength = math_max(0, tonumber(shadow.strength) or 1),
+		falloff = falloff,
+		strength = strength,
 	}
 end
 
@@ -1044,7 +1023,7 @@ local function shadowVertex(poly, point, bounds)
 	return poly.x + point.x + bounds.ox - bounds.x, poly.y + point.y + bounds.oy - bounds.y
 end
 
-local function setupPolyShadowConstants(mat, poly, shadow, bounds)
+local function setupPolyEffectConstants(mat, poly, bounds, r, g, b, a)
 	local p = poly.points
 	local x1, y1 = shadowVertex(poly, p[1], bounds)
 	local x2, y2 = shadowVertex(poly, p[2], bounds)
@@ -1054,7 +1033,6 @@ local function setupPolyShadowConstants(mat, poly, shadow, bounds)
 	local x6, y6 = shadowVertex(poly, p[6], bounds)
 	local x7, y7 = shadowVertex(poly, p[7], bounds)
 	local x8, y8 = shadowVertex(poly, p[8], bounds)
-	local r, g, b, a = color01(shadow.color)
 
 	setupParamMatrix(mat,
 		x1, y1, x2, y2,
@@ -1070,13 +1048,13 @@ local function setupPolyShadowConstants(mat, poly, shadow, bounds)
 	)
 end
 
-local function drawPolyShadow(poly, shadow, bounds)
+local function drawPolyShadow(poly, bounds, r, g, b, a)
 	if not bounds or not setupExtraParams then return false end
 
 	local mat = materials["poly" .. poly.count .. "_shadow"]
 	if not matOK(mat) then return false end
 
-	setupPolyShadowConstants(mat, poly, shadow, bounds)
+	setupPolyEffectConstants(mat, poly, bounds, r, g, b, a)
 	local bleedLeft, bleedTop, bleedRight, bleedBottom = effectBleedFromDrawRect(poly.x, poly.y, poly.w, poly.h, bounds.x, bounds.y, bounds.w, bounds.h)
 	local bleedToken = beginPanelEffectBleed(bleedLeft, bleedTop, bleedRight, bleedBottom)
 	surface_SetMaterial(mat)
@@ -1086,13 +1064,13 @@ local function drawPolyShadow(poly, shadow, bounds)
 	return true
 end
 
-local function drawPolyOuterGlow(poly, glow, bounds)
+local function drawPolyOuterGlow(poly, bounds, r, g, b, a)
 	if not bounds or not setupExtraParams then return false end
 
 	local mat = materials["poly" .. poly.count .. "_outerglow"]
 	if not matOK(mat) then return false end
 
-	setupPolyShadowConstants(mat, poly, glow, bounds)
+	setupPolyEffectConstants(mat, poly, bounds, r, g, b, a)
 	local bleedLeft, bleedTop, bleedRight, bleedBottom = effectBleedFromDrawRect(poly.x, poly.y, poly.w, poly.h, bounds.x, bounds.y, bounds.w, bounds.h)
 	local bleedToken = beginPanelEffectBleed(bleedLeft, bleedTop, bleedRight, bleedBottom)
 	surface_SetMaterial(mat)
@@ -1159,12 +1137,12 @@ local function setupPolyFillConstants(mat, poly, fill)
 	return drawRect
 end
 
-local function drawPolyFallback(points, style)
+local function drawPolyFallbackRaw(points, fillInput, stroke, strokeWidthInput)
 	M.stats.fallbacks = M.stats.fallbacks + 1
-	local fill = fillFromStyle(style.fill)
+	local fill = fillFromStyle(fillInput)
 	local hasFill = fillVisible(fill)
-	local strokeWidth = strokeWidthValue(style.strokeWidth, 0)
-	local hasStroke = strokeVisible(style.stroke, strokeWidth)
+	local strokeWidth = strokeWidthValue(strokeWidthInput, 0)
+	local hasStroke = strokeVisible(stroke, strokeWidth)
 
 	if hasFill then
 		setDrawColor(fill.colorA or color_white)
@@ -1173,14 +1151,12 @@ local function drawPolyFallback(points, style)
 	end
 
 	if hasStroke then
-		setDrawColor(style.stroke)
+		setDrawColor(stroke)
 		if hasTransform() and drawLineImmediate then
-			polyFallbackLineStyle.width = strokeWidth
-			polyFallbackLineStyle.fill = style.stroke
 			for i = 1, #points do
 				local a = points[i]
 				local b = points[i % #points + 1]
-				drawLineImmediate(a.x or a[1], a.y or a[2], b.x or b[1], b.y or b[2], nil, nil, polyFallbackLineStyle)
+				drawLineRaw(a.x or a[1], a.y or a[2], b.x or b[1], b.y or b[2], stroke, strokeWidth, nil, nil, nil, nil, true)
 			end
 		else
 			for i = 1, #points do
@@ -1193,14 +1169,12 @@ local function drawPolyFallback(points, style)
 	end
 end
 
-drawPolyImmediateNormalized = function(points, style, poly)
-	style = style or {}
-
-	local shadow = shadowStyle(style.shadow)
-	local shadowBounds = polyShadowBounds(poly, shadow)
-	local outer = outerGlowStyle(style.outerGlow)
-	local outerBounds = polyShadowBounds(poly, outer, true)
-	local backdropSpec = backdropStyle(style.backdrop)
+local function drawPolyRawNormalized(points, poly, fillInput, stroke, strokeWidthInput, shadow, outerGlow, backdropInput, pattern)
+	local hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, _, shadowGrow, shadowStrength, shadowFalloff, shadowExtent = roundRaw.shadow(shadow)
+	local shadowBounds = polyEffectBounds(poly, hasShadow, sa, shadowX, shadowY, shadowWidth, shadowExtent, shadowGrow, shadowStrength, shadowFalloff)
+	local hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, _, outerGrow, outerStrength, outerFalloff, outerExtent = roundRaw.outerGlow(outerGlow)
+	local outerBounds = polyEffectBounds(poly, hasOuter, oa, outerX, outerY, outerWidth, outerExtent, outerGrow, outerStrength, outerFalloff, true)
+	local backdropSpec = backdropStyle(backdropInput)
 	local cullX, cullY, cullW, cullH = includeBounds(poly.x, poly.y, poly.w, poly.h, shadowBounds)
 	cullX, cullY, cullW, cullH = includeBounds(cullX, cullY, cullW, cullH, outerBounds)
 	if backdropSpec ~= nil then
@@ -1217,20 +1191,20 @@ drawPolyImmediateNormalized = function(points, style, poly)
 	if not hasTransform() and isCulled(cullX, cullY, cullW, cullH) then return end
 
 	if not shadersActive() then
-		return drawPolyFallback(points, style)
+		return drawPolyFallbackRaw(points, fillInput, stroke, strokeWidthInput)
 	end
 
-	drawPolyShadow(poly, shadow, shadowBounds)
-	drawPolyOuterGlow(poly, outer, outerBounds)
+	drawPolyShadow(poly, shadowBounds, sr, sg, sb, sa)
+	drawPolyOuterGlow(poly, outerBounds, orr, og, ob, oa)
 
-	local backdrop = drawPolyBackdrop(poly, style.backdrop)
+	local backdrop = drawPolyBackdrop(poly, backdropInput)
 
 	local key = "poly" .. poly.count
 	local mat = materials[key]
-	local fill = fillFromStyle(style.fill)
+	local fill = fillFromStyle(fillInput)
 	local hasFill = fillVisible(fill)
-	local strokeWidth = strokeWidthValue(style.strokeWidth, 0)
-	local hasStroke = strokeVisible(style.stroke, strokeWidth)
+	local strokeWidth = strokeWidthValue(strokeWidthInput, 0)
+	local hasStroke = strokeVisible(stroke, strokeWidth)
 
 	if hasFill then
 		local drawRect = setupPolyFillConstants(mat, poly, fill)
@@ -1238,11 +1212,29 @@ drawPolyImmediateNormalized = function(points, style, poly)
 		drawTexturedQuadUV(drawRect.x, drawRect.y, drawRect.w, drawRect.h, drawRect.u0, drawRect.v0, drawRect.u1, drawRect.v1, mat)
 	end
 
-	drawPolyPattern(poly, style.pattern)
+	drawPolyPattern(poly, pattern)
 
 	if hasStroke then
-		drawPolyStroke(poly, style.stroke, strokeWidth)
+		drawPolyStroke(poly, stroke, strokeWidth)
 	end
+end
+
+drawPolyImmediateNormalized = function(points, style, poly)
+	style = style or {}
+	return drawPolyRawNormalized(points, poly, style.fill or style.color, style.stroke, style.strokeWidth, style.shadow, style.outerGlow, style.backdrop, style.pattern)
+end
+
+drawPolyRaw = function(points, poly, fill, stroke, strokeWidth, shadow, outerGlow, backdrop, pattern)
+	if not poly then
+		local err
+		poly, err = normalizePoly(points)
+		if not poly then
+			if M.debug then print("[MGFX] " .. err) end
+			return
+		end
+	end
+
+	return drawPolyRawNormalized(points, poly, fill, stroke, strokeWidth, shadow, outerGlow, backdrop, pattern)
 end
 
 drawPolyImmediate = function(points, style)
@@ -1267,17 +1259,13 @@ function M.PolyEx(points, style)
 		return
 	end
 	if not transform then
-		return drawPolyImmediateNormalized(points, style, poly)
+		return drawPolyRawNormalized(points, poly, style.fill or style.color, style.stroke, style.strokeWidth, style.shadow, style.outerGlow, style.backdrop, style.pattern)
 	end
 	return withTransform(transform, poly.x, poly.y, poly.w, poly.h, function()
-		return drawPolyImmediateNormalized(points, style, poly)
+		return drawPolyRawNormalized(points, poly, style.fill or style.color, style.stroke, style.strokeWidth, style.shadow, style.outerGlow, style.backdrop, style.pattern)
 	end)
 end
 
-local polyArgStyle = {}
-local regularPolyArgStyle = {}
-local diamondArgStyle = {}
-local caretArgStyle = {}
 local regularPolyScratch = {}
 local diamondScratch = {{}, {}, {}, {}}
 local caretScratch = {{}, {}, {}}
@@ -1347,10 +1335,8 @@ local function caretPoints(x, y, w, h, direction)
 end
 
 function M.Poly(points, fill, stroke, strokeWidth)
-	polyArgStyle.fill = fill
-	polyArgStyle.stroke = stroke
-	polyArgStyle.strokeWidth = strokeWidth
-	return M.PolyEx(points, polyArgStyle)
+	recordDirectImmediate("DrawPoly", "poly")
+	return drawPolyRaw(points, nil, fill, stroke, strokeWidth, nil, nil, nil, nil)
 end
 
 function M.RegularPolyEx(cx, cy, radius, sides, style)
@@ -1359,11 +1345,8 @@ function M.RegularPolyEx(cx, cy, radius, sides, style)
 end
 
 function M.RegularPoly(cx, cy, radius, sides, rotation, fill, stroke, strokeWidth)
-	regularPolyArgStyle.rotation = rotation
-	regularPolyArgStyle.fill = fill
-	regularPolyArgStyle.stroke = stroke
-	regularPolyArgStyle.strokeWidth = strokeWidth
-	return M.RegularPolyEx(cx, cy, radius, sides, regularPolyArgStyle)
+	recordDirectImmediate("DrawPoly", "poly")
+	return drawPolyRaw(regularPolyPoints(cx, cy, radius, sides, rotation), nil, fill, stroke, strokeWidth, nil, nil, nil, nil)
 end
 
 function M.DiamondEx(x, y, w, h, style)
@@ -1371,10 +1354,8 @@ function M.DiamondEx(x, y, w, h, style)
 end
 
 function M.Diamond(x, y, w, h, fill, stroke, strokeWidth)
-	diamondArgStyle.fill = fill
-	diamondArgStyle.stroke = stroke
-	diamondArgStyle.strokeWidth = strokeWidth
-	return M.DiamondEx(x, y, w, h, diamondArgStyle)
+	recordDirectImmediate("DrawPoly", "poly")
+	return drawPolyRaw(diamondPoints(x, y, w, h), nil, fill, stroke, strokeWidth, nil, nil, nil, nil)
 end
 
 function M.CaretEx(x, y, w, h, style)
@@ -1383,11 +1364,8 @@ function M.CaretEx(x, y, w, h, style)
 end
 
 function M.Caret(x, y, w, h, direction, fill, stroke, strokeWidth)
-	caretArgStyle.direction = direction
-	caretArgStyle.fill = fill
-	caretArgStyle.stroke = stroke
-	caretArgStyle.strokeWidth = strokeWidth
-	return M.CaretEx(x, y, w, h, caretArgStyle)
+	recordDirectImmediate("DrawPoly", "poly")
+	return drawPolyRaw(caretPoints(x, y, w, h, direction), nil, fill, stroke, strokeWidth, nil, nil, nil, nil)
 end
 
 	C.chamferTuple = chamferTuple
@@ -1395,6 +1373,7 @@ end
 	C.drawChamferInnerGlow = drawChamferInnerGlow
 	C.drawChamferOuterGlow = drawChamferOuterGlow
 	C.drawChamferPattern = drawChamferPattern
+	C.drawChamferBoxRaw = drawChamferBoxRaw
 	C.drawChamferBoxImmediate = drawChamferBoxImmediate
 	C.drawLineImmediate = drawLineImmediate
 	C.normalizePoly = normalizePoly
