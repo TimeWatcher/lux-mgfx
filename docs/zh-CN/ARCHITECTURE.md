@@ -50,7 +50,7 @@ MGFX 不用 stencil 模拟 shape mask。`PushClip` / `PopClip` 只属于矩形 s
 
 热路径 shape shader 使用 `$viewprojmat` / pixel shader register `c11` 中的 `MGFXExtraParams` 作为主 16-float 参数页。Lua call site 应使用共享 matrix upload helper，不要发很多单独 `SetFloat`。
 
-`$c0..$c3` 是辅助页，只给 fused shader 的额外参数使用。能放进 matrix 页的参数不要占用辅助页；不要用 `$c8` 之类临时寄存器，它们可能能编译但在 GMod runtime material 中读到 0 或未定义值。
+`$invviewprojmat` / pixel shader register `c15` 中的 `MGFXAuxParams` 是辅助 16-float 参数页，给 fused shader、polygon 顶点、text atlas 和额外 effect 参数使用。能放进 matrix 页的参数不要占用 `$c0..$c3`；不要用 `$c8` 之类临时寄存器，它们可能能编译但在 GMod runtime material 中读到 0 或未定义值。
 
 Pattern 是 shader-space paint field。UI code 不应该把大面积 stripe、smoke 或 scanline 背景拆成大量 `LineEx` 调用。如果效果能表示成 primitive shader 数学，就应该在底层 pattern path 实现。
 
@@ -131,4 +131,4 @@ Immediate shader path 是主 renderer path，不是 batch scheduler 的 fallback
 | 待办 | 继续缩小 `cl_mgfx.lua` 传给模块的共享 context table；新模块优先窄 constructor argument 和返回 helper table。 |
 | 完成 | 增加 cross-cutting draw-phase transform stack 和 `style.transform`，避免创建 `ProjectedXXX` API 家族。 |
 | 完成 | 从 runtime 移除 shape/data-texture batch prototype。代表性 GMod UI profiling 显示它是净负收益。 |
-| 完成 | 保持每个 runtime Lua 文件低于 2000 行。当前最大文件仍是 `cl_mgfx_text.lua`、demo 和 primitive/widget module。 |
+| 完成 | 保持每个 runtime Lua 文件低于 2000 行。当前最大文件仍是 `cl_mgfx_text.lua`、demo 和较大的 renderer module。 |

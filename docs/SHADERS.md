@@ -35,12 +35,22 @@ The build script:
 
 ## Parameter Layout
 
-Hot shape shaders use the shared matrix parameter page, read in HLSL through the MGFX common helpers. Extra `$c0..$c3` float constants are reserved for shaders that genuinely need more than the main 16 float slots.
+Hot shape shaders use matrix parameter pages, read in HLSL through the MGFX common helpers:
+
+```hlsl
+const float4x4 MGFXExtraParams : register(c11);
+const float4x4 MGFXAuxParams   : register(c15);
+```
+
+Lua writes them with `Matrix():SetUnpacked(...)` followed by `SetMatrix("$viewprojmat", matrix)` for `c11` and `SetMatrix("$invviewprojmat", matrix)` for `c15`. This avoids the high cost of many individual `SetFloat("$cN_*", ...)` calls in hot paths.
+
+`MGFXExtraParams` is the main 16-float page. `MGFXAuxParams` is the auxiliary 16-float page for fused shaders and shape families that need more data, such as polygon vertices, chamfer cuts, ring stroke/inner glow data, text atlas data, and combined shadow/glow parameters. `$c0..$c3` remain declared for compatibility and diagnostics, but new hot rendering paths should prefer the matrix pages.
 
 Rules:
 
-- Prefer the main parameter page.
-- Use `$c0..$c3` only for fused shaders or extra effect data.
+- Prefer `MGFXExtraParams` / `$viewprojmat` (`c11`) for the common page.
+- Use `MGFXAuxParams` / `$invviewprojmat` (`c15`) for extra fused-shader data.
+- Avoid `$c0..$c3` in hot paths unless a measured engine constraint leaves no matrix alternative.
 - Do not invent temporary registers such as `$c8`; they may compile but read as zero or undefined in GMod.
 - Document parameter layout changes in this file.
 
@@ -63,4 +73,16 @@ Checklist:
 
 ## Layering
 
-MGFX may use small focused fused shaders, but they must reproduce the original layered result. `pattern`, `shadow`, `outerGlow`, and `backdrop` often remain separate passes because their draw bounds, source texture, and blend order are visible behavior.
+MGFX may use small focused fused shaders, but they must reproduce the original layered result.
+
+Current fused paths include:
+
+- `roundrect_fx`: fill/stroke plus inner glow when that saves a pass.
+- `roundrect_shadow_outer`: rounded-box shadow plus outer glow.
+- `chamfer`: chamfer fill/stroke plus optional inner glow.
+- `chamfer_shadow_outer`: chamfer shadow plus outer glow.
+- `ring_fx`: ring/arc/sector fill/stroke plus optional inner glow.
+- `ring_shadow_outer`: ring/arc/sector shadow plus outer glow.
+- `image_mask_shadow_outer`: rounded/chamfer/circle/capsule/texture image-mask shadow plus outer glow.
+
+The fused shadow/glow paths keep the API semantics separate: shadow is a CSS-like projected solid shape mask, while outer glow is exterior-only edge light. Convex polygon shadow/outer-glow paths remain separate because the polygon vertex data already consumes the auxiliary parameter page. Backdrop blur remains a separate pass because it samples the framebuffer and its source texture and blend order are visible behavior.

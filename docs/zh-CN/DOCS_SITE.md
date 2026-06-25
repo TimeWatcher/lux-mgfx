@@ -60,7 +60,7 @@ docs-site/
 
 不要手动编辑 `docs-site/` 中的生成文件。修改 Markdown 或 VitePress 配置后重新构建。
 
-`api-reference/` 来自旧文档站的 `api-reference.js` 结构化数据，并按 API family 拆分。public signature 改动时，必须同时更新概念性的 `API.md` 和对应的详细分组页。`API_REFERENCE.md` 只保留为旧 URL 的兼容入口。
+`api-reference/` 来自旧文档站的 `api-reference.js` 结构化数据，并按绘制任务拆分。public signature 改动时，必须同时更新概念性的 `API.md` 和对应的详细任务页。`API_REFERENCE.md` 只保留为旧 URL 的兼容入口。
 
 详细 API 页由脚本生成：
 

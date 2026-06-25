@@ -1,6 +1,6 @@
-# 组件图元
+# HUD 数值组件与扇区
 
-ProgressBar、SegmentBar、Ring、Arc、Sector 这些 renderer-level widget。
+ProgressBar、SegmentBar、Ring、Arc、Sector 都是 renderer-level immediate helper，不保存状态；每帧传入当前值。
 
 ## 适用边界
 

@@ -29,6 +29,8 @@ Callers compute the current visual state and submit draw calls every frame.
 
 ## Module Boundaries
 
+These are internal maintenance boundaries, not user-facing entry points. Application code should call `MGFX.*` or `mgfx.api.*`; it should not decide whether a draw call belongs to `roundrect`, `primitives`, `widgets`, `paint`, or `style`.
+
 | Area | Responsibility |
 | --- | --- |
 | `roundrect` | Rounded boxes, circles, capsules, shared glow/shadow style normalization. |

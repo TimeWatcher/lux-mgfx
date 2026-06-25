@@ -41,6 +41,9 @@ consume it through `luxc install`; plain GLua projects should use the sibling
   angular, and multi-stop gradients share one normalized stop pipeline.
 - **Shape-aware effects**: masks, strokes, inner glow, outer glow, backdrop
   blur, patterns, and image clipping follow each primitive's coverage.
+- **Focused effect fusion**: compatible shadow and outer-glow layers share one
+  shader pass for rounded boxes, chamfers, rings, and image masks without
+  changing the API fields.
 - **Lux-native delivery**: imports, client realm ownership, package
   dependencies, generated loaders, and client file delivery are handled by
   `luxc gmod build`.
@@ -203,14 +206,14 @@ maps, and GMod loader generation.
 ## Package Surface
 
 `@lux/mgfx` is the normal entry point and exports the unified `mgfx.api` facade.
-Subpackages remain importable for users that want a narrower dependency surface
-or are building tools around MGFX internals, but ordinary UI code should not need
-to decide whether a call lives in paint, primitives, or widgets.
+Subpackages remain importable for maintainers, narrow tooling, and generated
+runtime integration, but ordinary UI code should not need to decide whether a
+call lives in an internal shape, paint, text, or runtime package.
 
 | Area | Packages |
 | --- | --- |
 | Public API | `@lux/mgfx`, `@lux/mgfx/api` |
-| Internal drawing modules | `@lux/mgfx/paint`, `@lux/mgfx/roundrect`, `@lux/mgfx/primitives`, `@lux/mgfx/widgets` |
+| Internal renderer packages | `@lux/mgfx/roundrect`, `@lux/mgfx/primitives`, `@lux/mgfx/widgets`, `@lux/mgfx/paint` |
 | Frame and commands | `@lux/mgfx/frame`, `@lux/mgfx/commands` |
 | Styling | `@lux/mgfx/style`, `@lux/mgfx/capabilities` |
 | Runtime support | `@lux/mgfx/geometry`, `@lux/mgfx/materials`, `@lux/mgfx/profiler`, `@lux/mgfx/shaderpack` |

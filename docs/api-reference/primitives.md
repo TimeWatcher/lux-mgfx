@@ -1,6 +1,6 @@
-# Primitive API
+# Shapes and Lines
 
-Primitive APIs draw shape-level building blocks. Advanced visual effects live in the `Ex` style table.
+These APIs draw shape-level building blocks. Advanced visual effects live in the `Ex` style table.
 
 ## Functions
 
@@ -101,5 +101,7 @@ Use `caps = false` or `noCaps = true` for square-ended line quads.
 ## Shape-aware Effects
 
 `shadow`, `outerGlow`, `backdrop`, and `pattern` are clipped or evaluated against the current shape where supported. `outerGlow.x/y` is directional glow bias, not a duplicate shifted shape. Use `shadow.x/y` when you want a projected offset.
+
+For rounded boxes and chamfer boxes, compatible `shadow` and `outerGlow` layers may be rendered by one fused shader pass. The style fields and visual semantics remain separate.
 
 [Back to API Reference](./index)

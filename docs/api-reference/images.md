@@ -1,6 +1,6 @@
 # Images and Masks
 
-Image APIs draw materials, render targets, texture sources, and icons with optional fit, crop, mask, stroke, backdrop, and glow.
+Image APIs draw materials, render targets, texture sources, and icons with optional fit, crop, mask, stroke, shadow, backdrop, and glow.
 
 ## Functions
 
@@ -29,6 +29,7 @@ MGFX.TextureSource(texture)
 | `tint` / `color` / `alpha` | Image tint and opacity. |
 | `fill` / `background` | Background paint behind the image. |
 | `stroke` / `strokeWidth` | Optional image border. |
+| `shadow` | Mask-aware external soft shadow. |
 | `outerGlow` | Mask-aware external glow. |
 | `backdrop` | Mask-aware framebuffer blur/tint. |
 | `transform` | Visual-only transform. |
@@ -56,6 +57,8 @@ MGFX.Mask("capsule")
 ```
 
 Texture masks can use alpha or color channels depending on the source. Prefer procedural masks for common rounded/chamfer/circle/capsule cases.
+
+Mask-aware `shadow` and `outerGlow` can share one fused shader pass. `backdrop` still samples and tints only the content behind the image or mask coverage.
 
 ## Icons
 

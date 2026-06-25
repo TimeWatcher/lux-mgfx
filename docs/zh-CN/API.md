@@ -90,7 +90,7 @@ MGFX.PopClip()
 
 `PushClip` / `PopClip` 是矩形 scissor，不是任意形状 mask 栈。形状 mask 是每个 primitive 自己的 shader coverage。
 
-## 基础图元
+## 形状与线条
 
 ```lua
 MGFX.RoundedBox(x, y, w, h, radius, fill, stroke, strokeWidth)
@@ -136,6 +136,8 @@ MGFX.CapsuleEx(x, y, w, h, style)
 - `shadow` 是外部软阴影 pass，默认 `x = 0, y = 4`，适合表达投影。Rounded、Circle、Capsule、Chamfer、Ring、Arc、Sector、Convex Poly 和 texture/image mask 都使用 shape-aware shader pass。
 - `outerGlow` 是外部光晕 pass，默认无偏移，适合表达发光边缘。`outerGlow.x/y` 表示方向偏置，用来做单侧发光；它不会像 `shadow.x/y` 一样移动发光源形状。
 - `backdrop` 是 shape/image 覆盖范围内的背景 blur/tint，不是阴影。
+
+`shadow` 和 `outerGlow` 在 API 语义上仍然是两个字段，但 rounded、chamfer、ring 和 image mask 的兼容路径会把二者合进同一个 shader pass。这个优化只减少 Lua 准备、材质参数上传和 draw，不改变 CSS-like shadow mask 与外部 glow 的视觉语义。
 
 实际选择可以按目的判断：
 
@@ -277,7 +279,7 @@ MGFX.ImageEx(x, y, size, size, avatarMaterial, {
 })
 ```
 
-## 组件图元
+## HUD 数值组件与扇区
 
 ```lua
 MGFX.ProgressBar(x, y, w, h, value, radius, track, fill, stroke, strokeWidth)

@@ -1,6 +1,6 @@
-# Widget Primitives
+# HUD Meters and Sectors
 
-Widget primitives are immediate draw helpers for common HUD shapes. They do not store state; pass the current value every frame.
+These immediate draw helpers cover common HUD meters and radial shapes. They do not store state; pass the current value every frame.
 
 ## Functions
 
@@ -55,6 +55,8 @@ MGFX.ArcEx(cx, cy, 48, 8, -90, 190, {
 ```
 
 Use `RingEx` for closed circular meters and `ArcEx` for partial meters.
+
+Compatible ring `shadow` and `outerGlow` layers may share one fused shader pass. `shadow` remains a projected offset effect; `outerGlow` remains an exterior glow.
 
 ## Sectors
 

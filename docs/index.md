@@ -18,9 +18,9 @@ hero:
 
 features:
   - title: Immediate first
-    details: Shapes and widgets use direct shader/fallback paths. There is no heavy general-purpose batch scheduler between your HUD code and the renderer.
+    details: Shapes and HUD meters use direct shader/fallback paths. There is no heavy general-purpose batch scheduler between your HUD code and the renderer.
   - title: Shape-aware effects
-    details: Rounded boxes, chamfer boxes, circles, capsules, rings, arcs, sectors, convex polygons, and image masks clip glow and backdrop effects to their own coverage.
+    details: Rounded boxes, chamfer boxes, circles, capsules, rings, arcs, sectors, convex polygons, and image masks clip shadow, glow, and backdrop effects to their own coverage.
   - title: Real paint records
     details: Linear, radial, conic, ring/sector radial, angular gradients, stripe patterns, and smoke patterns are paint slots instead of hand-expanded geometry.
   - title: Lux and plain GLua
@@ -67,12 +67,12 @@ end
   <a href="./API">
     <span>API</span>
     <strong>Overview</strong>
-    <small>Frame scope, primitives, images, widgets, text, paint records, transforms, and capability queries.</small>
+    <small>Frame scope, shapes, images, HUD meters, text, paint records, transforms, and capability queries.</small>
   </a>
   <a href="./api-reference/">
     <span>Reference</span>
     <strong>API Reference</strong>
-    <small>Function signatures, style fields, return values, examples, and caveats grouped by API family.</small>
+    <small>Function signatures, style fields, return values, examples, and caveats organized by drawing task.</small>
   </a>
   <a href="./PERFORMANCE">
     <span>Runtime</span>
@@ -94,7 +94,7 @@ Text is also not forced through MGFX. Plain labels should use native GMod text. 
 
 ## Maintenance Rules
 
-- Public API changes must update [API Overview](./API) and the matching [API Reference group](./api-reference/).
+- Public API changes must update [API Overview](./API) and the matching [API Reference task page](./api-reference/).
 - Shader parameter layout, gradient LUT, alpha, or shaderpack changes must update [Shaders and Packaging](./SHADERS).
 - Runtime performance changes must update [Performance Model](./PERFORMANCE).
 - Do not edit `docs-site/` by hand. Update `docs/` and rebuild the site.

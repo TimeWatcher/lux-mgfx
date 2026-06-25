@@ -47,7 +47,7 @@ docs/
 
 ## Maintenance Rules
 
-- API changes update `API.md` and the matching `api-reference/` page.
+- API changes update `API.md` and the matching task page under `api-reference/`.
 - Shader or shaderpack changes update `SHADERS.md`.
 - Runtime performance changes update `PERFORMANCE.md`.
 - Architecture or ownership changes update `ARCHITECTURE.md`.

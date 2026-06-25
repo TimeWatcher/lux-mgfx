@@ -7,7 +7,7 @@ MGFX 的性能目标不是“消灭 immediate”，而是在 immediate 心智模
 - Shape 和 widget 保持 immediate shader/fallback path。
 - 只保留经过实测的专用 fused shader，不恢复通用 data-texture batch scheduler。
 - 常规 shape 参数优先通过 `$viewprojmat` / pixel shader `c11` 上传。
-- `$c0..$c3` 只作为 fused shader 的辅助参数页。
+- `$invviewprojmat` / pixel shader `c15` 作为辅助 16-float 参数页，`$c0..$c3` 只保留给兼容和诊断。
 - Pattern 在 shader 中数学化生成，不拆成大量 `LineEx` 或几何段。
 - Scoreboard、表格、聊天和普通 label 文本优先走原生 GMod text。
 
@@ -34,7 +34,17 @@ const float4x4 MGFXExtraParams : register(c11);
 
 注意 Source/GMod 的矩阵索引按列抵达 HLSL。Lua 端打包必须使用 MGFX 的统一 helper，不要在调用点自己猜行列顺序。
 
-`SetFloat("$cN_x", ...)` 仍然存在，但它是备用手段。只有一个 shader 已经用满 16 个主参数，并且为了视觉一致性确实需要同 pass 的额外数据时，才应该用 `$c0..$c3` 辅助页。
+辅助参数走 `$invviewprojmat`：
+
+```hlsl
+const float4x4 MGFXAuxParams : register(c15);
+```
+
+```lua
+mat:SetMatrix("$invviewprojmat", matrix)
+```
+
+`SetFloat("$cN_x", ...)` 仍然存在，但它是备用/诊断手段。只有已经确认 matrix 参数页无法满足需求，并且有实测理由时，才考虑逐 float 上传。
 
 ## Pattern 数学化
 
@@ -80,9 +90,13 @@ end
 roundrect_fx   fill/stroke + innerGlow
 chamfer        fill/stroke + optional innerGlow
 ring_fx        fill/stroke + optional innerGlow
+roundrect_shadow_outer  shadow + outerGlow
+chamfer_shadow_outer    shadow + outerGlow
+ring_shadow_outer       shadow + outerGlow
+image_mask_shadow_outer shadow + outerGlow
 ```
 
-`outerGlow`、`backdrop`、`shadow` 和部分 `pattern` 仍可能是独立 pass，因为它们的 draw bounds、framebuffer read、blur source 或 blend order 是可见行为。
+`shadow` 和 `outerGlow` 在 API 语义上仍然分离；合成 pass 只用于能保持 CSS-like 结果一致的 shape。`backdrop`、convex poly 的 shadow/glow 和部分 `pattern` 仍可能是独立 pass，因为它们的 draw bounds、framebuffer read、参数页压力或 blend order 是可见行为。
 
 ## 分配规则
 

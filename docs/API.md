@@ -110,11 +110,11 @@ MGFX.PopClip()
 
 All coordinates are relative to the current active frame. `StartPanel` reads the panel's screen position and establishes panel-local coordinates. Callers should not manually convert panel-local positions to screen positions.
 
-Shapes, images, and widgets are usually drawn immediately. Text and clip commands are recorded inside the frame and flushed at `EndPanel` / `EndScreen`, so text routing and the composer remain stable.
+Shapes, images, and HUD meters are usually drawn immediately. Text and clip commands are recorded inside the frame and flushed at `EndPanel` / `EndScreen`, so text routing and the composer remain stable.
 
 `PushClip` / `PopClip` are rectangular scissor operations. Arbitrary shape masks are handled by each primitive's own shader coverage.
 
-## Primitive Functions
+## Shape Functions
 
 ```lua
 MGFX.RoundedBox(x, y, w, h, radius, fill, stroke, strokeWidth)
@@ -155,6 +155,8 @@ MGFX.CapsuleEx(x, y, w, h, style)
 - `outerGlow` is an external glow pass. It defaults to no offset and is meant for luminous edges.
 - `outerGlow.x/y` is directional bias for one-sided glow. It does not move the source shape like `shadow.x/y` does.
 - `backdrop` blurs and tints the framebuffer inside the current shape or image mask. It is not a shadow.
+
+`shadow` and `outerGlow` stay separate style fields, but compatible rounded-box, chamfer, ring, and image-mask paths may evaluate both in one fused shader pass. This is an implementation optimization; the CSS-like shadow mask and exterior glow semantics do not change.
 
 | Goal | Field | Typical value |
 | --- | --- | --- |
@@ -197,7 +199,7 @@ MGFX.Icon(x, y, w, h, source, tint)
 MGFX.IconEx(x, y, w, h, source, style)
 ```
 
-Use `ImageEx` when you need `fit`, `crop`, `uv`, `mask`, `outerGlow`, background fill, or advanced stroke.
+Use `ImageEx` when you need `fit`, `crop`, `uv`, `mask`, `shadow`, `outerGlow`, background fill, or advanced stroke.
 
 Mask examples:
 
@@ -210,7 +212,7 @@ MGFX.ImageEx(x, y, size, size, avatarMaterial, {
 })
 ```
 
-## Widgets
+## HUD Meters and Sectors
 
 ```lua
 MGFX.ProgressBarEx(x, y, w, h, value, style)

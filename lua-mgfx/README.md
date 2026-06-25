@@ -119,6 +119,11 @@ Zombie Survival scoreboard override is a separate addon:
 - `outerGlow` is an external glow pass and also accepts offsets.
 - `backdrop` samples/tints the background inside the shape or image mask.
 
+Compatible rounded-box, chamfer, ring, and image-mask `shadow + outerGlow`
+layers can share one shader pass. The fields remain separate because their
+visual semantics are different: shadow is a projected solid mask, while
+outerGlow is exterior edge light.
+
 Use `shadow = {x = 0, y = 8, blur = 18, spread = 2, color = Color(...)}` for
 drop shadows. Use `outerGlow = {x = 0, y = 0, width = 16, color = Color(...)}`
 for glow. `backdrop` should be reserved for glass/blur/tint surfaces, not
@@ -128,6 +133,7 @@ treated as a shadow substitute.
 
 Shared MGFX documentation lives one level up in `../docs`:
 
+- [Online Documentation](https://timewatcher.github.io/mgfx-docs-site/)
 - [API Reference](../docs/API.md)
 - [Performance Notes](../docs/PERFORMANCE.md)
 - [Internal Architecture](../docs/ARCHITECTURE.md)

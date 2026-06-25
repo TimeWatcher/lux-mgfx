@@ -1,4 +1,4 @@
-# 基础图元
+# 形状与线条
 
 Rounded、Chamfer、常用凸多边形、Poly、Line、Circle、Capsule 以及通用 shape style 能力。
 
@@ -119,6 +119,8 @@ MGFX.PolyEx(points, {
 ```
 
 `PolyEx` 的 contract 是 3..8 点凸多边形。凹多边形、星形、复杂路径需要先拆成多个凸片段。
+
+Rounded 和 Chamfer 的兼容 `shadow + outerGlow` 会走合成 shader pass。`shadow` 仍然是投影偏移，`outerGlow` 仍然是外部发光；合并只影响性能，不改变 API 语义。
 
 ## 效果参数速查
 

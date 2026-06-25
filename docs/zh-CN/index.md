@@ -21,7 +21,7 @@ features:
   - title: 完整 stop 渐变
     details: Linear、Radial、Conic、Ring/Sector local radial、Shape angular 都走统一 LUT stop 路径。
   - title: 矩阵参数上传
-    details: 热路径参数优先用 $viewprojmat / c11 一次上传，SetFloat 只作为辅助参数页。
+    details: 热路径参数优先用 $viewprojmat / c11 和 $invviewprojmat / c15 一次上传，SetFloat 只作为兼容或诊断手段。
 ---
 
 ## 快速开始
@@ -86,7 +86,7 @@ MGFX 是底层 renderer，不是 UI framework。它不拥有 layout、input、fo
 
 ## 维护规则
 
-- 改 public API 时，同步更新 [API 总览](./API) 和对应的 [详细 API 分组页](./api-reference/)。
+- 改 public API 时，同步更新 [API 总览](./API) 和对应的 [详细 API 任务页](./api-reference/)。
 - 改 shader 参数布局、gradient LUT、alpha 处理或 shaderpack 构建时，同步更新 [Shader 构建与打包](./SHADERS)。
 - 改性能路径时，同步更新 [MGFX 性能模型](./PERFORMANCE)。
 - 不要手改 `docs-site/` 产物；修改 `docs/` 源文件后重新构建。
