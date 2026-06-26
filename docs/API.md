@@ -40,7 +40,7 @@ fill, stroke, strokeWidth
 | Circular meters | `RingEx` / `ArcEx` | Small HUD rings often use `width = 4..12`; large meters use `12..24`. |
 | Radial menu wedges | `SectorEx` | Use `innerRadius`, `outerRadius`, `startDeg`, and `endDeg` for real sectors. |
 | Plain text, tables, player names | `Text` or native GMod text | Use `TextEx` only for stroke, glow, gradient face, or shader-side shadow. |
-| Gradients and patterns | `LinearGradient`, `RadialGradient`, `StripePattern`, `SmokePattern` | Pass them as `fill` or `pattern`; do not expand them into many primitives. |
+| Gradients and patterns | `LinearGradient`, `RadialGradient`, `StripePattern`, `SmokePattern`, `WornPattern` | Pass them as `fill` or `pattern`; do not expand them into many primitives. |
 
 ## Lux Usage
 
@@ -250,9 +250,37 @@ MGFX.RadialGradient(cx, cy, radius, colorA, colorB)
 MGFX.ConicGradient(cx, cy, rotationDeg, stops)
 MGFX.StripePattern(options)
 MGFX.SmokePattern(options)
+MGFX.WornPattern(options)
 ```
 
-Patterns are shader paint slots. Do not draw smoke or stripes by emitting many `LineEx` calls.
+Patterns are shader paint slots. Do not draw smoke, stripes, or worn surface texture by emitting many primitive calls.
+
+`WornPattern` adds subtle material wear to otherwise flat UI fills. It is an independent shader pass over the source shape. The intended look is a slightly dulled rough surface, sparse fine scratches, occasional soft scuffs, and broken edge wear. It is not a smoke/noise/grunge decal and should not create a continuous dirty border:
+
+```lua
+MGFX.RoundedBoxEx(x, y, w, h, {
+    radius = 8,
+    fill = Color(28, 34, 40, 235),
+    pattern = MGFX.WornPattern({
+        color = Color(0, 0, 0, 44),
+        edgeColor = Color(218, 208, 184, 78),
+        fractal = 0.44,
+        grain = 0.64,
+        scratches = 0.30,
+        edge = 0.54,
+        scale = 32,
+        grainScale = 5.6,
+        scratchScale = 26,
+        scratchWidth = 0.045,
+        edgeWidth = 7,
+        angle = -14,
+        warp = 0.035,
+        seed = "inventory-card",
+    }),
+})
+```
+
+Good starting ranges: `fractal = 0.20..0.70`, `grain = 0.35..0.90`, `scratches = 0.12..0.55`, `edge = 0.25..0.85`, `scale = 24..48`, `grainScale = 3.5..7`, `scratchScale = 20..34`, `scratchWidth = 0.03..0.07`, `edgeWidth = 4..9`, `warp = 0..0.08`. `fractal` controls sparse soft scuffs, `grain` controls fine roughness, `scratches` controls short hairline marks, and `edge` controls broken edge wear. Increase one layer at a time; high `scratches` plus high `edgeColor` alpha turns into drawn lines instead of natural wear.
 
 ## Visual Transforms
 

@@ -252,6 +252,10 @@ fn setupPatternConstants(material, w, h, radius, pattern) {
     "smoke" => true
     _ => false
   }
+  local worn = match pattern.kind {
+    "worn" => true
+    _ => false
+  }
   local pz = 1
   local pw = 1
   local ox = 0
@@ -259,7 +263,14 @@ fn setupPatternConstants(material, w, h, radius, pattern) {
   local oz = 0
   local ow = 0
 
-  if smoke {
+  if worn {
+    pz = mathMax(1, toNumber(pattern.scale) ?? 32)
+    pw = mathMax(0.5, toNumber(pattern.edgeWidth) ?? 7)
+    ox = patternOffset(pattern)
+    oy = 2
+    oz = mathClamp(toNumber(pattern.softness) ?? 0.10, 0.001, 1)
+    ow = mathMax(0, toNumber(pattern.warp) ?? 0.035)
+  } else if smoke {
     pz = mathMax(1, toNumber(pattern.scale) ?? 140)
     pw = mathClamp(toNumber(pattern.density) ?? 0.48, 0, 1)
     ox = patternOffset(pattern)
@@ -274,10 +285,30 @@ fn setupPatternConstants(material, w, h, radius, pattern) {
 
   setupParamMatrix(material,
     r, g, b, a,
-    w, h, smoke then (toNumber(pattern.seed) ?? 0) else 0, mathMax(0, toNumber(radius) ?? 0),
+    w, h, (smoke or worn) then (toNumber(pattern.seed) ?? 0) else 0, mathMax(0, toNumber(radius) ?? 0),
     mathCos(angle), mathSin(angle), pz, pw,
     ox, oy, oz, ow
   )
+
+  if worn {
+    local edgeColor = style.asColor(pattern.edgeColor, makeColor(218, 208, 184, 78))
+    local er, eg, eb, ea = style.color01(edgeColor)
+    setupAuxConstants(material,
+      er, eg, eb, ea,
+      mathClamp(toNumber(pattern.fractal) ?? 0.44, 0, 1),
+      mathClamp(toNumber(pattern.grain) ?? 0.64, 0, 1),
+      mathClamp(toNumber(pattern.scratches ?? pattern.scratch) ?? 0.30, 0, 1),
+      mathClamp(toNumber(pattern.edge ?? pattern.edgeWear) ?? 0.54, 0, 1),
+      mathMax(0.25, toNumber(pattern.grainScale) ?? 5.6),
+      mathMax(1, toNumber(pattern.scratchScale) ?? 26),
+      mathClamp(toNumber(pattern.scratchWidth) ?? 0.045, 0.005, 0.5),
+      mathMax(0.5, toNumber(pattern.edgeWidth) ?? 7),
+      mathCos(angle),
+      mathSin(angle),
+      mathClamp(toNumber(pattern.softness) ?? 0.10, 0.001, 1),
+      mathMax(0, toNumber(pattern.warp) ?? 0.035)
+    )
+  }
 }
 
 fn drawRoundRectFillPass(x, y, w, h, radius, fill) {

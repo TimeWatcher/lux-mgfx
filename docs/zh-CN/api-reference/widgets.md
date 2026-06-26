@@ -181,7 +181,7 @@ MGFX.ProgressBarEx(x, y, w, h, value, style)
 | `track`<br>Color。 | `Color(10,18,24,190)` | 未填充轨道。 |
 | `fill`<br>Color 或 MGFX 绘制记录。 | `color_white` | 已填充部分。 |
 | `stroke / strokeWidth`<br>Color 加宽度。 | `white 18 / 1` | 轨道描边。 |
-| `trackPattern / fillPattern`<br>StripePattern 或 SmokePattern。 | `nil` | 轨道或填充回退路径上的图案。 |
+| `trackPattern / fillPattern`<br>StripePattern、SmokePattern 或 WornPattern。 | `nil` | 轨道或填充回退路径上的图案。 |
 | `outerGlow / innerGlow`<br>发光 spec 表。 | `nil` | 回退路径上的额外特效。 |
 | `fx`<br>{glow, sheen, marker, ticks}。 | `nil` | 可能时使用快速路径进度特效。 |
 
@@ -276,7 +276,7 @@ MGFX.SegmentBarEx(x, y, w, h, value, style)
 | `background / backgroundRadius`<br>Color 与半径。 | `nil / radius` | 所有分段后的可选容器。 |
 | `track`<br>Color。 | `Color(255,255,255,22)` | 未激活分段颜色。 |
 | `fill / color`<br>Color 或 MGFX 绘制记录。 | `orange` | 已激活分段绘制。 |
-| `fillPattern / trackPattern`<br>StripePattern 或 SmokePattern。 | `nil` | 激活/未激活分段图案。 |
+| `fillPattern / trackPattern`<br>StripePattern、SmokePattern 或 WornPattern。 | `nil` | 激活/未激活分段图案。 |
 | `stroke / strokeWidth`<br>Color 加宽度。 | `nil / 0` | 回退路径上每个分段的描边。 |
 
 #### 支持目标与边界
@@ -358,7 +358,7 @@ MGFX.RingEx(cx, cy, radius, width, style)
 | `fill / color`<br>Color 或 MGFX 绘制记录。 | `white 180` | 圆环/弧线主体绘制。 |
 | `stroke / strokeWidth`<br>Color 加宽度。 | `nil / 0` | 内外边缘描边。 |
 | `shadow`<br>投影 spec 表。 | `nil` | 按圆环/弧线形状绘制外部软阴影。 |
-| `pattern`<br>StripePattern 或 SmokePattern。 | `nil` | 裁剪到环形或弧线内的图案。 |
+| `pattern`<br>StripePattern、SmokePattern 或 WornPattern。 | `nil` | 裁剪到环形或弧线内的图案。 |
 | `innerGlow / outerGlow`<br>发光 spec 表。 | `nil` | 圆环/弧线边缘发光。 |
 | `backdrop`<br>true、数字、Color 或表。 | `nil` | 按圆环/弧线裁剪的 framebuffer 模糊/染色。 |
 
@@ -437,7 +437,7 @@ MGFX.ArcEx(cx, cy, radius, width, startDeg, endDeg, style)
 | `fill / color`<br>Color 或 MGFX 绘制记录。 | `white 180` | 圆环/弧线主体绘制。 |
 | `stroke / strokeWidth`<br>Color 加宽度。 | `nil / 0` | 内外边缘描边。 |
 | `shadow`<br>投影 spec 表。 | `nil` | 按圆环/弧线形状绘制外部软阴影。 |
-| `pattern`<br>StripePattern 或 SmokePattern。 | `nil` | 裁剪到环形或弧线内的图案。 |
+| `pattern`<br>StripePattern、SmokePattern 或 WornPattern。 | `nil` | 裁剪到环形或弧线内的图案。 |
 | `innerGlow / outerGlow`<br>发光 spec 表。 | `nil` | 圆环/弧线边缘发光。 |
 | `backdrop`<br>true、数字、Color 或表。 | `nil` | 按圆环/弧线裁剪的 framebuffer 模糊/染色。 |
 
@@ -518,7 +518,7 @@ MGFX.SectorEx(cx, cy, innerRadius, outerRadius, startDeg, endDeg, style)
 | `fill / color`<br>Color 或 MGFX 绘制记录。 | `white 180` | 扇区主体绘制，可使用 SectorRadialGradient 和 SectorAngularGradient。 |
 | `stroke / strokeWidth`<br>Color 加宽度。 | `nil / 0` | 外弧、内弧和径向边描边。 |
 | `shadow`<br>投影 spec 表。 | `nil` | 按扇区形状绘制外部软阴影。 |
-| `pattern`<br>StripePattern 或 SmokePattern。 | `nil` | 裁剪到扇区形状内的图案。 |
+| `pattern`<br>StripePattern、SmokePattern 或 WornPattern。 | `nil` | 裁剪到扇区形状内的图案。 |
 | `innerGlow / outerGlow`<br>发光 spec 表。 | `nil` | 扇区边缘发光。 |
 | `backdrop`<br>true、数字、Color 或表。 | `nil` | 按扇区裁剪的 framebuffer 模糊/染色。 |
 

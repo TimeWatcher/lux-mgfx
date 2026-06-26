@@ -42,7 +42,7 @@ fill, stroke, strokeWidth
 | 圆形读条、仪表 | `RingEx` / `ArcEx` | 小 HUD `width = 4..12`，大仪表 `12..24`。 |
 | 轮盘菜单 wedge | `SectorEx` | 用 `innerRadius, outerRadius, startDeg, endDeg` 表达真实扇区。 |
 | 普通文本、表格、玩家名 | `Text` / 原生 GMod text | 只有需要描边、glow、渐变字面、shadow 时再用 `TextEx`。 |
-| 渐变、条纹、烟雾填充 | `LinearGradient` / `RadialGradient` / `StripePattern` / `SmokePattern` | 把它们作为 `fill` 或 `pattern` 传入，不要手工展开成很多 primitive。 |
+| 渐变、条纹、烟雾和磨损填充 | `LinearGradient` / `RadialGradient` / `StripePattern` / `SmokePattern` / `WornPattern` | 把它们作为 `fill` 或 `pattern` 传入，不要手工展开成很多 primitive。 |
 
 常见写法是：简单热路径用短签名；一旦参数开始需要解释，就切到 `Ex(..., style)`。GLua 用户可以继续像 `draw.RoundedBox` 那样直接调用，不需要额外封装一层 rect/helper。
 
@@ -354,6 +354,7 @@ MGFX.ArcAngularGradient(stops, rotationDeg)
 MGFX.SectorAngularGradient(stops, rotationDeg)
 MGFX.StripePattern(spec)
 MGFX.SmokePattern(spec)
+MGFX.WornPattern(spec)
 ```
 
 所有 gradient helper 都支持 stops，并通过统一 LUT 采样。差异只在 `t` 的几何含义：
@@ -377,7 +378,34 @@ local stops = {
 }
 ```
 
-Pattern 是 shader paint slot，不是几何 recipe。不要在 UI 层把斜线或烟雾拆成大量 `LineEx`。需要大面积 stripe/smoke 时，应补对应 shape 的 pattern shader path。
+Pattern 是 shader paint slot，不是几何 recipe。不要在 UI 层把斜线、烟雾或磨损材质拆成大量 primitive。需要大面积 stripe/smoke/worn 时，应补对应 shape 的 pattern shader path。
+
+`WornPattern` 用于给纯色和简单渐变增加细微材质感。目标效果是轻微变暗/降对比、细表面粗糙、少量方向性细划痕、稀疏软磨痕，以及破碎的边缘磨损。它不是烟雾、噪声或脏污贴图，也不应该形成连续脏边框：
+
+```lua
+MGFX.RoundedBoxEx(x, y, w, h, {
+    radius = 8,
+    fill = Color(28, 34, 40, 235),
+    pattern = MGFX.WornPattern({
+        color = Color(0, 0, 0, 44),
+        edgeColor = Color(218, 208, 184, 78),
+        fractal = 0.44,
+        grain = 0.64,
+        scratches = 0.30,
+        edge = 0.54,
+        scale = 32,
+        grainScale = 5.6,
+        scratchScale = 26,
+        scratchWidth = 0.045,
+        edgeWidth = 7,
+        angle = -14,
+        warp = 0.035,
+        seed = "inventory-card",
+    }),
+})
+```
+
+推荐起步范围：`fractal = 0.20..0.70`、`grain = 0.35..0.90`、`scratches = 0.12..0.55`、`edge = 0.25..0.85`、`scale = 24..48`、`grainScale = 3.5..7`、`scratchScale = 20..34`、`scratchWidth = 0.03..0.07`、`edgeWidth = 4..9`、`warp = 0..0.08`。`fractal` 控制稀疏软磨痕，`grain` 控制细表面粗糙，`scratches` 控制短细划痕，`edge` 控制破碎边缘磨损。一次只加强一层；`scratches` 和 `edgeColor` alpha 都很高时会变成手画线条，而不是自然磨损。
 
 ## 视觉变换
 

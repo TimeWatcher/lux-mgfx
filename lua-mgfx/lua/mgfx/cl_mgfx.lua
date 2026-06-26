@@ -1219,6 +1219,7 @@ if profiler and profiler.InstallApiWrappers then
 		"SectorAngularGradient",
 		"StripePattern",
 		"SmokePattern",
+		"WornPattern",
 		"Mask",
 		"Backdrop",
 		"ImageMaskStyle",

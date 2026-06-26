@@ -111,6 +111,34 @@ Zombie Survival scoreboard override is a separate addon:
   gradient fill, outline, shadow, glow, tracking, weight bias, italic/slant, and
   text boxes.
 
+## Material Patterns
+
+Patterns are shader paint slots clipped to the current shape. They should be
+passed through `style.pattern`, `fillPattern`, or `trackPattern` instead of
+being emulated with extra boxes, lines, or polygons.
+
+```lua
+MGFX.RoundedBoxEx(x, y, w, h, {
+    radius = 8,
+    fill = Color(28, 34, 40, 235),
+    pattern = MGFX.WornPattern({
+        color = Color(0, 0, 0, 44),
+        edgeColor = Color(218, 208, 184, 78),
+        grain = 0.64,
+        fractal = 0.44,
+        scratches = 0.30,
+        edge = 0.54,
+        edgeWidth = 7,
+        seed = "shop-card",
+    }),
+})
+```
+
+`WornPattern` is for subtle rough surfaces: fine grain, a few soft scuffs,
+sparse short scratches, and broken edge wear. See the shared
+[Paint Reference](../docs/api-reference/paint.md#wornpattern) for the full
+parameter table and practical ranges.
+
 ## Effect Model
 
 `shadow`, `outerGlow`, and `backdrop` are intentionally separate:

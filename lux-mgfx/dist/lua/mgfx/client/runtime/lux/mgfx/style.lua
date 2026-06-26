@@ -81,6 +81,7 @@ return function(__lux_import)
   local patternSeed
   local stripePattern
   local smokePattern
+  local wornPattern
   local mask
   local roundedMaskStyle
   local chamferMaskStyle
@@ -1127,6 +1128,109 @@ return function(__lux_import)
         seed = patternSeed(seed),
       }
     end
+    wornPattern = function(spec)
+      do
+        local __lux_tmp_119
+        if typeOf(spec) == "table" then
+          __lux_tmp_119 = spec
+        else
+          __lux_tmp_119 = {}
+        end
+        spec = __lux_tmp_119
+      end
+      local __lux_tmp_color_120 = spec.color
+      if __lux_tmp_color_120 == nil then
+        __lux_tmp_color_120 = spec.tint
+      end
+      local __lux_tmp_edgeColor_121 = spec.edgeColor
+      if __lux_tmp_edgeColor_121 == nil then
+        __lux_tmp_edgeColor_121 = spec.highlight
+      end
+      local __lux_tmp_fractal_122 = toNumber(spec.fractal)
+      if __lux_tmp_fractal_122 == nil then
+        __lux_tmp_fractal_122 = 0.44
+      end
+      local __lux_tmp_grain_123 = toNumber(spec.grain)
+      if __lux_tmp_grain_123 == nil then
+        __lux_tmp_grain_123 = 0.64
+      end
+      local __lux_tmp_scratches_124 = spec.scratches
+      if __lux_tmp_scratches_124 == nil then
+        __lux_tmp_scratches_124 = spec.scratch
+      end
+      local __lux_tmp_scratches_125 = toNumber(__lux_tmp_scratches_124)
+      if __lux_tmp_scratches_125 == nil then
+        __lux_tmp_scratches_125 = 0.30
+      end
+      local __lux_tmp_edge_126 = spec.edge
+      if __lux_tmp_edge_126 == nil then
+        __lux_tmp_edge_126 = spec.edgeWear
+      end
+      local __lux_tmp_edge_127 = toNumber(__lux_tmp_edge_126)
+      if __lux_tmp_edge_127 == nil then
+        __lux_tmp_edge_127 = 0.54
+      end
+      local __lux_tmp_scale_128 = toNumber(spec.scale)
+      if __lux_tmp_scale_128 == nil then
+        __lux_tmp_scale_128 = 32
+      end
+      local __lux_tmp_grainScale_129 = toNumber(spec.grainScale)
+      if __lux_tmp_grainScale_129 == nil then
+        __lux_tmp_grainScale_129 = 5.6
+      end
+      local __lux_tmp_scratchScale_130 = toNumber(spec.scratchScale)
+      if __lux_tmp_scratchScale_130 == nil then
+        __lux_tmp_scratchScale_130 = 26
+      end
+      local __lux_tmp_scratchWidth_131 = toNumber(spec.scratchWidth)
+      if __lux_tmp_scratchWidth_131 == nil then
+        __lux_tmp_scratchWidth_131 = 0.045
+      end
+      local __lux_tmp_edgeWidth_132 = toNumber(spec.edgeWidth)
+      if __lux_tmp_edgeWidth_132 == nil then
+        __lux_tmp_edgeWidth_132 = 7
+      end
+      local __lux_tmp_softness_133 = toNumber(spec.softness)
+      if __lux_tmp_softness_133 == nil then
+        __lux_tmp_softness_133 = 0.10
+      end
+      local __lux_tmp_warp_134 = toNumber(spec.warp)
+      if __lux_tmp_warp_134 == nil then
+        __lux_tmp_warp_134 = 0.035
+      end
+      local __lux_tmp_angle_135 = toNumber(spec.angle)
+      if __lux_tmp_angle_135 == nil then
+        __lux_tmp_angle_135 = -14
+      end
+      local __lux_tmp_offset_136 = toNumber(spec.offset)
+      if __lux_tmp_offset_136 == nil then
+        __lux_tmp_offset_136 = 0
+      end
+      local __lux_tmp_speed_137 = toNumber(spec.speed)
+      if __lux_tmp_speed_137 == nil then
+        __lux_tmp_speed_137 = 0
+      end
+      return {
+        kind = "worn",
+        color = colorOr(__lux_tmp_color_120, makeColor(0, 0, 0, 44)),
+        edgeColor = colorOr(__lux_tmp_edgeColor_121, makeColor(218, 208, 184, 78)),
+        fractal = mathClamp(__lux_tmp_fractal_122, 0, 1),
+        grain = mathClamp(__lux_tmp_grain_123, 0, 1),
+        scratches = mathClamp(__lux_tmp_scratches_125, 0, 1),
+        edge = mathClamp(__lux_tmp_edge_127, 0, 1),
+        scale = mathMax(1, __lux_tmp_scale_128),
+        grainScale = mathMax(0.25, __lux_tmp_grainScale_129),
+        scratchScale = mathMax(1, __lux_tmp_scratchScale_130),
+        scratchWidth = mathClamp(__lux_tmp_scratchWidth_131, 0.005, 0.5),
+        edgeWidth = mathMax(0.5, __lux_tmp_edgeWidth_132),
+        softness = mathClamp(__lux_tmp_softness_133, 0.001, 1),
+        warp = mathMax(0, __lux_tmp_warp_134),
+        angle = __lux_tmp_angle_135,
+        offset = __lux_tmp_offset_136,
+        speed = __lux_tmp_speed_137,
+        seed = patternSeed(spec.seed),
+      }
+    end
   end
   do
     mask = function(kind, spec)
@@ -1145,11 +1249,11 @@ return function(__lux_import)
         out = {}
       end
       do
-        local __lux_tmp_kind_119 = kind
-        if __lux_tmp_kind_119 == nil then
-          __lux_tmp_kind_119 = out.kind
+        local __lux_tmp_kind_138 = kind
+        if __lux_tmp_kind_138 == nil then
+          __lux_tmp_kind_138 = out.kind
         end
-        out.kind = __lux_tmp_kind_119
+        out.kind = __lux_tmp_kind_138
       end
       if out.kind == nil and out.shape ~= nil then
         out.kind = out.shape
@@ -1158,11 +1262,11 @@ return function(__lux_import)
       return out
     end
     roundedMaskStyle = function(resolved)
-      local __lux_tmp_radius_120 = resolved.radius
-      if __lux_tmp_radius_120 == nil then
-        __lux_tmp_radius_120 = 0
+      local __lux_tmp_radius_139 = resolved.radius
+      if __lux_tmp_radius_139 == nil then
+        __lux_tmp_radius_139 = 0
       end
-      return { kind = "rounded", radius = __lux_tmp_radius_120 }
+      return { kind = "rounded", radius = __lux_tmp_radius_139 }
     end
     chamferMaskStyle = function()
       return { kind = "chamfer", cuts = 0 }
@@ -1174,28 +1278,28 @@ return function(__lux_import)
       return { kind = "capsule" }
     end
     stringMaskStyle = function(kind, resolved)
-      local __lux_match_121 = kind
-      if __lux_match_121 == "round" or __lux_match_121 == "rounded" or __lux_match_121 == "roundedbox" or __lux_match_121 == "roundrect" then
+      local __lux_match_140 = kind
+      if __lux_match_140 == "round" or __lux_match_140 == "rounded" or __lux_match_140 == "roundedbox" or __lux_match_140 == "roundrect" then
         return roundedMaskStyle(resolved)
-      elseif __lux_match_121 == "chamfer" or __lux_match_121 == "bevel" then
+      elseif __lux_match_140 == "chamfer" or __lux_match_140 == "bevel" then
         return chamferMaskStyle()
-      elseif __lux_match_121 == "circle" then
+      elseif __lux_match_140 == "circle" then
         return circleMaskStyle()
-      elseif __lux_match_121 == "capsule" or __lux_match_121 == "pill" then
+      elseif __lux_match_140 == "capsule" or __lux_match_140 == "pill" then
         return capsuleMaskStyle()
       else
         return nil
       end
     end
     canonicalMaskKind = function(kind)
-      local __lux_match_122 = kind
-      if __lux_match_122 == "round" or __lux_match_122 == "roundrect" or __lux_match_122 == "roundedbox" then
+      local __lux_match_141 = kind
+      if __lux_match_141 == "round" or __lux_match_141 == "roundrect" or __lux_match_141 == "roundedbox" then
         return "rounded"
-      elseif __lux_match_122 == "bevel" then
+      elseif __lux_match_141 == "bevel" then
         return "chamfer"
-      elseif __lux_match_122 == "pill" then
+      elseif __lux_match_141 == "pill" then
         return "capsule"
-      elseif __lux_match_122 == "alpha" or __lux_match_122 == "image" then
+      elseif __lux_match_141 == "alpha" or __lux_match_141 == "image" then
         return "texture"
       else
         return kind
@@ -1224,81 +1328,81 @@ return function(__lux_import)
       end
       local out = tableCopy(maskValue)
       do
-        local __lux_tmp_kind_123 = out.kind
-        if __lux_tmp_kind_123 == nil then
-          __lux_tmp_kind_123 = out.shape
+        local __lux_tmp_kind_142 = out.kind
+        if __lux_tmp_kind_142 == nil then
+          __lux_tmp_kind_142 = out.shape
         end
-        if __lux_tmp_kind_123 == nil then
-          local __lux_tmp_124
+        if __lux_tmp_kind_142 == nil then
+          local __lux_tmp_143
           if out.source ~= nil then
-            __lux_tmp_124 = "texture"
+            __lux_tmp_143 = "texture"
           else
-            __lux_tmp_124 = nil
+            __lux_tmp_143 = nil
           end
-          __lux_tmp_kind_123 = __lux_tmp_124
+          __lux_tmp_kind_142 = __lux_tmp_143
         end
-        if __lux_tmp_kind_123 == nil then
-          local __lux_tmp_125
+        if __lux_tmp_kind_142 == nil then
+          local __lux_tmp_144
           if out.material ~= nil then
-            __lux_tmp_125 = "texture"
+            __lux_tmp_144 = "texture"
           else
-            __lux_tmp_125 = nil
+            __lux_tmp_144 = nil
           end
-          __lux_tmp_kind_123 = __lux_tmp_125
+          __lux_tmp_kind_142 = __lux_tmp_144
         end
-        if __lux_tmp_kind_123 == nil then
-          local __lux_tmp_126
+        if __lux_tmp_kind_142 == nil then
+          local __lux_tmp_145
           if out.texture ~= nil then
-            __lux_tmp_126 = "texture"
+            __lux_tmp_145 = "texture"
           else
-            __lux_tmp_126 = nil
+            __lux_tmp_145 = nil
           end
-          __lux_tmp_kind_123 = __lux_tmp_126
+          __lux_tmp_kind_142 = __lux_tmp_145
         end
-        out.kind = __lux_tmp_kind_123
+        out.kind = __lux_tmp_kind_142
       end
       if typeOf(out.kind) == "string" then
         out.kind = canonicalMaskKind(stringLower(out.kind))
       end
-      local __lux_match_127 = out.kind
-      if __lux_match_127 == "chamfer" then
+      local __lux_match_146 = out.kind
+      if __lux_match_146 == "chamfer" then
         if out.cuts == nil then
           out.cuts = 0
         end
-      elseif __lux_match_127 == "rounded" then
+      elseif __lux_match_146 == "rounded" then
         if out.radius == nil then
           do
-            local __lux_tmp_radius_128 = resolved.radius
-            if __lux_tmp_radius_128 == nil then
-              __lux_tmp_radius_128 = 0
+            local __lux_tmp_radius_147 = resolved.radius
+            if __lux_tmp_radius_147 == nil then
+              __lux_tmp_radius_147 = 0
             end
-            out.radius = __lux_tmp_radius_128
+            out.radius = __lux_tmp_radius_147
           end
         end
       else
-        local __lux_unused_129 = nil
+        local __lux_unused_148 = nil
       end
       return out
     end
   end
   do
     isFillRecord = function(value)
-      local __lux_tmp_133 = typeOf(value) == "table"
-      if __lux_tmp_133 then
-        local __lux_tmp_130
-        local __lux_match_131 = value
-        local __lux_tag_132
-        if __lux_match_131 ~= nil then
-          __lux_tag_132 = __lux_match_131.kind
+      local __lux_tmp_152 = typeOf(value) == "table"
+      if __lux_tmp_152 then
+        local __lux_tmp_149
+        local __lux_match_150 = value
+        local __lux_tag_151
+        if __lux_match_150 ~= nil then
+          __lux_tag_151 = __lux_match_150.kind
         end
-        if __lux_tag_132 == FILL_SOLID or __lux_tag_132 == FILL_LINEAR or __lux_tag_132 == FILL_RADIAL or __lux_tag_132 == FILL_CONIC then
-          __lux_tmp_130 = true
+        if __lux_tag_151 == FILL_SOLID or __lux_tag_151 == FILL_LINEAR or __lux_tag_151 == FILL_RADIAL or __lux_tag_151 == FILL_CONIC then
+          __lux_tmp_149 = true
         else
-          __lux_tmp_130 = false
+          __lux_tmp_149 = false
         end
-        __lux_tmp_133 = __lux_tmp_130
+        __lux_tmp_152 = __lux_tmp_149
       end
-      return __lux_tmp_133
+      return __lux_tmp_152
     end
     fillFromStyle = function(fill)
       if isFillRecord(fill) then
@@ -1320,29 +1424,29 @@ return function(__lux_import)
       if resolved.stops ~= nil and #resolved.stops > 0 then
         return colorAtStops(resolved.stops, t)
       end
-      local __lux_tmp_colorA_134 = resolved.colorA
-      if __lux_tmp_colorA_134 == nil then
-        __lux_tmp_colorA_134 = color_white
+      local __lux_tmp_colorA_153 = resolved.colorA
+      if __lux_tmp_colorA_153 == nil then
+        __lux_tmp_colorA_153 = color_white
       end
-      local __lux_tmp_colorB_135 = resolved.colorB
-      if __lux_tmp_colorB_135 == nil then
-        __lux_tmp_colorB_135 = resolved.colorA
+      local __lux_tmp_colorB_154 = resolved.colorB
+      if __lux_tmp_colorB_154 == nil then
+        __lux_tmp_colorB_154 = resolved.colorA
       end
-      if __lux_tmp_colorB_135 == nil then
-        __lux_tmp_colorB_135 = color_white
+      if __lux_tmp_colorB_154 == nil then
+        __lux_tmp_colorB_154 = color_white
       end
-      return lerpColor(t, __lux_tmp_colorA_134, __lux_tmp_colorB_135)
+      return lerpColor(t, __lux_tmp_colorA_153, __lux_tmp_colorB_154)
     end
     fillVisible = function(fill)
       if fill == nil then
         return false
       end
       if isColor(fill) then
-        local __lux_cmp_136 = false
+        local __lux_cmp_155 = false
         if alpha(fill.a) ~= nil then
-          __lux_cmp_136 = alpha(fill.a) > 0
+          __lux_cmp_155 = alpha(fill.a) > 0
         end
-        return __lux_cmp_136
+        return __lux_cmp_155
       end
       if typeOf(fill) == "table" and fill._mgfxFillVisible ~= nil then
         return fill._mgfxFillVisible
@@ -1353,27 +1457,27 @@ return function(__lux_import)
       if stroke == nil then
         return false
       end
-      local __lux_cmp_137 = false
+      local __lux_cmp_156 = false
       if alpha(stroke.a) ~= nil then
-        __lux_cmp_137 = alpha(stroke.a) <= 0
+        __lux_cmp_156 = alpha(stroke.a) <= 0
       end
-      if __lux_cmp_137 then
+      if __lux_cmp_156 then
         return false
       end
-      local __lux_cmp_138 = false
+      local __lux_cmp_157 = false
       if strokeWidth(width, 1) ~= nil then
-        __lux_cmp_138 = strokeWidth(width, 1) > 0
+        __lux_cmp_157 = strokeWidth(width, 1) > 0
       end
-      return __lux_cmp_138
+      return __lux_cmp_157
     end
     normalizedRotation = function(value)
       local rotation
       do
-        local __lux_tmp_value_139 = toNumber(value)
-        if __lux_tmp_value_139 == nil then
-          __lux_tmp_value_139 = 0
+        local __lux_tmp_value_158 = toNumber(value)
+        if __lux_tmp_value_158 == nil then
+          __lux_tmp_value_158 = 0
         end
-        rotation = __lux_tmp_value_139 / 360 % 1
+        rotation = __lux_tmp_value_158 / 360 % 1
       end
       if rotation < 0 then
         rotation = rotation + 1
@@ -1386,14 +1490,14 @@ return function(__lux_import)
       end
       local value
       do
-        local __lux_tmp_softness_140 = toNumber(softness)
-        if __lux_tmp_softness_140 == nil then
-          __lux_tmp_softness_140 = defaultSoftness
+        local __lux_tmp_softness_159 = toNumber(softness)
+        if __lux_tmp_softness_159 == nil then
+          __lux_tmp_softness_159 = defaultSoftness
         end
-        if __lux_tmp_softness_140 == nil then
-          __lux_tmp_softness_140 = 0.55
+        if __lux_tmp_softness_159 == nil then
+          __lux_tmp_softness_159 = 0.55
         end
-        value = mathClamp(__lux_tmp_softness_140, 0, 1)
+        value = mathClamp(__lux_tmp_softness_159, 0, 1)
       end
       return mathClamp(3.25 - value * 2.5, 0.75, 3.25)
     end
@@ -1413,11 +1517,11 @@ return function(__lux_import)
       if typeOf(value) == "number" then
         local blurKey
         do
-          local __lux_tmp_value_141 = toNumber(value)
-          if __lux_tmp_value_141 == nil then
-            __lux_tmp_value_141 = 0
+          local __lux_tmp_value_160 = toNumber(value)
+          if __lux_tmp_value_160 == nil then
+            __lux_tmp_value_160 = 0
           end
-          blurKey = mathMax(0, __lux_tmp_value_141)
+          blurKey = mathMax(0, __lux_tmp_value_160)
         end
         local cached = backdropNumberCache[blurKey]
         if cached ~= nil then
@@ -1448,11 +1552,11 @@ return function(__lux_import)
           end
         end
         cached = { blur = 0, tint = value, opacity = 1, padding = 0 }
-        local __lux_cmp_142 = false
+        local __lux_cmp_161 = false
         if alpha(value.a) ~= nil then
-          __lux_cmp_142 = alpha(value.a) <= 0
+          __lux_cmp_161 = alpha(value.a) <= 0
         end
-        if __lux_cmp_142 then
+        if __lux_cmp_161 then
           cached = false
         end
         backdropColorCache[value] = cached
@@ -1478,67 +1582,67 @@ return function(__lux_import)
       end
       local blur
       do
-        local __lux_tmp_blur_143 = value.blur
-        if __lux_tmp_blur_143 == nil then
-          __lux_tmp_blur_143 = value.size
+        local __lux_tmp_blur_162 = value.blur
+        if __lux_tmp_blur_162 == nil then
+          __lux_tmp_blur_162 = value.size
         end
-        if __lux_tmp_blur_143 == nil then
-          __lux_tmp_blur_143 = value[1]
+        if __lux_tmp_blur_162 == nil then
+          __lux_tmp_blur_162 = value[1]
         end
-        local __lux_tmp_blur_144 = toNumber(__lux_tmp_blur_143)
-        if __lux_tmp_blur_144 == nil then
-          __lux_tmp_blur_144 = 0
+        local __lux_tmp_blur_163 = toNumber(__lux_tmp_blur_162)
+        if __lux_tmp_blur_163 == nil then
+          __lux_tmp_blur_163 = 0
         end
-        blur = mathMax(0, __lux_tmp_blur_144)
+        blur = mathMax(0, __lux_tmp_blur_163)
       end
       if transparentColor == nil then
         transparentColor = makeColor(0, 0, 0, 0)
       end
       local tint
       do
-        local __lux_tmp_tint_145 = value.tint
-        if __lux_tmp_tint_145 == nil then
-          __lux_tmp_tint_145 = value.color
+        local __lux_tmp_tint_164 = value.tint
+        if __lux_tmp_tint_164 == nil then
+          __lux_tmp_tint_164 = value.color
         end
-        tint = colorOr(__lux_tmp_tint_145, transparentColor)
+        tint = colorOr(__lux_tmp_tint_164, transparentColor)
       end
       local opacity
       do
-        local __lux_tmp_opacity_146 = value.opacity
-        if __lux_tmp_opacity_146 == nil then
-          __lux_tmp_opacity_146 = value.strength
+        local __lux_tmp_opacity_165 = value.opacity
+        if __lux_tmp_opacity_165 == nil then
+          __lux_tmp_opacity_165 = value.strength
         end
-        local __lux_tmp_opacity_147 = toNumber(__lux_tmp_opacity_146)
-        if __lux_tmp_opacity_147 == nil then
-          __lux_tmp_opacity_147 = 1
+        local __lux_tmp_opacity_166 = toNumber(__lux_tmp_opacity_165)
+        if __lux_tmp_opacity_166 == nil then
+          __lux_tmp_opacity_166 = 1
         end
-        opacity = mathClamp(__lux_tmp_opacity_147, 0, 1)
+        opacity = mathClamp(__lux_tmp_opacity_166, 0, 1)
       end
       local padding
       do
-        local __lux_tmp_padding_148 = value.padding
-        if __lux_tmp_padding_148 == nil then
-          __lux_tmp_padding_148 = value.spread
+        local __lux_tmp_padding_167 = value.padding
+        if __lux_tmp_padding_167 == nil then
+          __lux_tmp_padding_167 = value.spread
         end
-        local __lux_tmp_padding_149 = toNumber(__lux_tmp_padding_148)
-        if __lux_tmp_padding_149 == nil then
-          __lux_tmp_padding_149 = 0
+        local __lux_tmp_padding_168 = toNumber(__lux_tmp_padding_167)
+        if __lux_tmp_padding_168 == nil then
+          __lux_tmp_padding_168 = 0
         end
-        padding = mathMax(0, __lux_tmp_padding_149)
+        padding = mathMax(0, __lux_tmp_padding_168)
       end
-      local __lux_tmp_152 = blur <= 0
-      if __lux_tmp_152 then
-        local __lux_cmp_151 = false
+      local __lux_tmp_171 = blur <= 0
+      if __lux_tmp_171 then
+        local __lux_cmp_170 = false
         if alpha(tint.a) ~= nil then
-          __lux_cmp_151 = alpha(tint.a) <= 0
+          __lux_cmp_170 = alpha(tint.a) <= 0
         end
-        __lux_tmp_152 = __lux_cmp_151
+        __lux_tmp_171 = __lux_cmp_170
       end
-      local __lux_tmp_153 = __lux_tmp_152
-      if not __lux_tmp_153 then
-        __lux_tmp_153 = opacity <= 0
+      local __lux_tmp_172 = __lux_tmp_171
+      if not __lux_tmp_172 then
+        __lux_tmp_172 = opacity <= 0
       end
-      if __lux_tmp_153 then
+      if __lux_tmp_172 then
         backdropTableCache[value] = false
         return nil
       end
@@ -1571,13 +1675,13 @@ return function(__lux_import)
     gradientLutSerial = 0
     gradientLutSchema = "lut-alpha-rgb-v3"
     do
-      local __lux_tmp_154
+      local __lux_tmp_173
       if bitBor ~= nil then
-        __lux_tmp_154 = bitBor(2, 256, 4, 8)
+        __lux_tmp_173 = bitBor(2, 256, 4, 8)
       else
-        __lux_tmp_154 = 270
+        __lux_tmp_173 = 270
       end
-      gradientLutFlags = __lux_tmp_154
+      gradientLutFlags = __lux_tmp_173
     end
     setGradientLutOwner = function(owner)
       gradientLutOwner = owner
@@ -1589,47 +1693,47 @@ return function(__lux_import)
       end
       local stats
       do
-        local __lux_obj_gradientLutOwner_155 = gradientLutOwner
-        local __lux_val_stats_156 = nil
-        if __lux_obj_gradientLutOwner_155 ~= nil then
-          __lux_val_stats_156 = __lux_obj_gradientLutOwner_155.stats
+        local __lux_obj_gradientLutOwner_174 = gradientLutOwner
+        local __lux_val_stats_175 = nil
+        if __lux_obj_gradientLutOwner_174 ~= nil then
+          __lux_val_stats_175 = __lux_obj_gradientLutOwner_174.stats
         end
-        stats = __lux_val_stats_156
+        stats = __lux_val_stats_175
       end
       if stats ~= nil then
         do
-          local __lux_tmp_key_157 = stats[key]
-          if __lux_tmp_key_157 == nil then
-            __lux_tmp_key_157 = 0
+          local __lux_tmp_key_176 = stats[key]
+          if __lux_tmp_key_176 == nil then
+            __lux_tmp_key_176 = 0
           end
-          stats[key] = __lux_tmp_key_157 + amount
+          stats[key] = __lux_tmp_key_176 + amount
         end
       end
     end
     lutColorKey = function(color)
       local c = asColor(color, color_white)
-      local __lux_tmp_r_158 = c.r
-      if __lux_tmp_r_158 == nil then
-        __lux_tmp_r_158 = 0
+      local __lux_tmp_r_177 = c.r
+      if __lux_tmp_r_177 == nil then
+        __lux_tmp_r_177 = 0
       end
-      local __lux_tmp_g_159 = c.g
-      if __lux_tmp_g_159 == nil then
-        __lux_tmp_g_159 = 0
+      local __lux_tmp_g_178 = c.g
+      if __lux_tmp_g_178 == nil then
+        __lux_tmp_g_178 = 0
       end
-      local __lux_tmp_b_160 = c.b
-      if __lux_tmp_b_160 == nil then
-        __lux_tmp_b_160 = 0
+      local __lux_tmp_b_179 = c.b
+      if __lux_tmp_b_179 == nil then
+        __lux_tmp_b_179 = 0
       end
-      local __lux_tmp_a_161 = c.a
-      if __lux_tmp_a_161 == nil then
-        __lux_tmp_a_161 = 255
+      local __lux_tmp_a_180 = c.a
+      if __lux_tmp_a_180 == nil then
+        __lux_tmp_a_180 = 255
       end
       return tableConcat(
         {
-          mathFloor(__lux_tmp_r_158),
-          mathFloor(__lux_tmp_g_159),
-          mathFloor(__lux_tmp_b_160),
-          mathFloor(__lux_tmp_a_161),
+          mathFloor(__lux_tmp_r_177),
+          mathFloor(__lux_tmp_g_178),
+          mathFloor(__lux_tmp_b_179),
+          mathFloor(__lux_tmp_a_180),
         },
         ","
       )
@@ -1649,18 +1753,18 @@ return function(__lux_import)
       else
         if typeOf(fill) == "table" then
           do
-            local __lux_tmp_colorA_162 = fill.colorA
-            if __lux_tmp_colorA_162 == nil then
-              __lux_tmp_colorA_162 = fill[1]
+            local __lux_tmp_colorA_181 = fill.colorA
+            if __lux_tmp_colorA_181 == nil then
+              __lux_tmp_colorA_181 = fill[1]
             end
-            colorA = asColor(__lux_tmp_colorA_162, color_white)
+            colorA = asColor(__lux_tmp_colorA_181, color_white)
           end
           do
-            local __lux_tmp_colorB_163 = fill.colorB
-            if __lux_tmp_colorB_163 == nil then
-              __lux_tmp_colorB_163 = fill[2]
+            local __lux_tmp_colorB_182 = fill.colorB
+            if __lux_tmp_colorB_182 == nil then
+              __lux_tmp_colorB_182 = fill[2]
             end
-            colorB = asColor(__lux_tmp_colorB_163, colorA)
+            colorB = asColor(__lux_tmp_colorB_182, colorA)
           end
         else
           colorA = asColor(fill, color_white)
@@ -1698,11 +1802,11 @@ return function(__lux_import)
       end
       local amount
       do
-        local __lux_tmp_t_164 = toNumber(t)
-        if __lux_tmp_t_164 == nil then
-          __lux_tmp_t_164 = 0
+        local __lux_tmp_t_183 = toNumber(t)
+        if __lux_tmp_t_183 == nil then
+          __lux_tmp_t_183 = 0
         end
-        amount = mathClamp(__lux_tmp_t_164, 0, 1)
+        amount = mathClamp(__lux_tmp_t_183, 0, 1)
       end
       for index = 1, #stops - 1 do
         local a = stops[index]
@@ -1712,22 +1816,22 @@ return function(__lux_import)
           return lerpColor((amount - a.pos) / span, a.color, b.color)
         end
       end
-      local __lux_tmp_color_165 = stops[#stops].color
-      if __lux_tmp_color_165 == nil then
-        __lux_tmp_color_165 = color_white
+      local __lux_tmp_color_184 = stops[#stops].color
+      if __lux_tmp_color_184 == nil then
+        __lux_tmp_color_184 = color_white
       end
-      return __lux_tmp_color_165
+      return __lux_tmp_color_184
     end
     gradientLutKey = function(stops)
       local parts = { gradientLutSchema }
       for index = 1, #stops do
         local stop = stops[index]
         do
-          local __lux_tmp_pos_166 = stop.pos
-          if __lux_tmp_pos_166 == nil then
-            __lux_tmp_pos_166 = 0
+          local __lux_tmp_pos_185 = stop.pos
+          if __lux_tmp_pos_185 == nil then
+            __lux_tmp_pos_185 = 0
           end
-          parts[#parts + 1] = stringFormat("%.5f:%s", __lux_tmp_pos_166, lutColorKey(stop.color))
+          parts[#parts + 1] = stringFormat("%.5f:%s", __lux_tmp_pos_185, lutColorKey(stop.color))
         end
       end
       return tableConcat(parts, "|")
@@ -1744,16 +1848,16 @@ return function(__lux_import)
         suffix = toString(gradientLutSerial)
       end
       local name = "MGFXGradLUT_" .. toString(gradientLutSerial) .. "_" .. suffix
-      local __lux_tmp_MATERIAL_RT_DEPTH_NONE_167 = MATERIAL_RT_DEPTH_NONE
-      if __lux_tmp_MATERIAL_RT_DEPTH_NONE_167 == nil then
-        __lux_tmp_MATERIAL_RT_DEPTH_NONE_167 = 0
+      local __lux_tmp_MATERIAL_RT_DEPTH_NONE_186 = MATERIAL_RT_DEPTH_NONE
+      if __lux_tmp_MATERIAL_RT_DEPTH_NONE_186 == nil then
+        __lux_tmp_MATERIAL_RT_DEPTH_NONE_186 = 0
       end
       return getRenderTargetEx(
         name,
         GRADIENT_LUT_W,
         GRADIENT_LUT_H,
         RT_SIZE_LITERAL,
-        __lux_tmp_MATERIAL_RT_DEPTH_NONE_167,
+        __lux_tmp_MATERIAL_RT_DEPTH_NONE_186,
         gradientLutFlags,
         0,
         IMAGE_FORMAT_BGRA8888
@@ -1814,26 +1918,26 @@ return function(__lux_import)
         local color = colorAtNormalizedStops(stops, x / (GRADIENT_LUT_W - 1))
         local alphaByte
         do
-          local __lux_tmp_a_168 = color.a
-          if __lux_tmp_a_168 == nil then
-            __lux_tmp_a_168 = 255
+          local __lux_tmp_a_187 = color.a
+          if __lux_tmp_a_187 == nil then
+            __lux_tmp_a_187 = 255
           end
-          alphaByte = mathClamp(mathFloor(__lux_tmp_a_168), 0, 255)
+          alphaByte = mathClamp(mathFloor(__lux_tmp_a_187), 0, 255)
         end
         do
-          local __lux_tmp_r_169 = color.r
-          if __lux_tmp_r_169 == nil then
-            __lux_tmp_r_169 = 255
+          local __lux_tmp_r_188 = color.r
+          if __lux_tmp_r_188 == nil then
+            __lux_tmp_r_188 = 255
           end
-          local __lux_tmp_g_170 = color.g
-          if __lux_tmp_g_170 == nil then
-            __lux_tmp_g_170 = 255
+          local __lux_tmp_g_189 = color.g
+          if __lux_tmp_g_189 == nil then
+            __lux_tmp_g_189 = 255
           end
-          local __lux_tmp_b_171 = color.b
-          if __lux_tmp_b_171 == nil then
-            __lux_tmp_b_171 = 255
+          local __lux_tmp_b_190 = color.b
+          if __lux_tmp_b_190 == nil then
+            __lux_tmp_b_190 = 255
           end
-          surfaceSetDrawColor(__lux_tmp_r_169, __lux_tmp_g_170, __lux_tmp_b_171, 255)
+          surfaceSetDrawColor(__lux_tmp_r_188, __lux_tmp_g_189, __lux_tmp_b_190, 255)
         end
         surfaceDrawRect(x, 0, 1, 2)
         surfaceSetDrawColor(alphaByte, alphaByte, alphaByte, 255)
@@ -1878,19 +1982,19 @@ return function(__lux_import)
       local oldestKey = nil
       local oldestEntry = nil
       for entryKey, entry in pairs(gradientLutCache) do
-        local __lux_tmp_176 = oldestEntry == nil
-        if not __lux_tmp_176 then
-          local __lux_tmp_tick_174 = entry.tick
-          if __lux_tmp_tick_174 == nil then
-            __lux_tmp_tick_174 = 0
+        local __lux_tmp_195 = oldestEntry == nil
+        if not __lux_tmp_195 then
+          local __lux_tmp_tick_193 = entry.tick
+          if __lux_tmp_tick_193 == nil then
+            __lux_tmp_tick_193 = 0
           end
-          local __lux_tmp_tick_175 = oldestEntry.tick
-          if __lux_tmp_tick_175 == nil then
-            __lux_tmp_tick_175 = 0
+          local __lux_tmp_tick_194 = oldestEntry.tick
+          if __lux_tmp_tick_194 == nil then
+            __lux_tmp_tick_194 = 0
           end
-          __lux_tmp_176 = __lux_tmp_tick_174 < __lux_tmp_tick_175
+          __lux_tmp_195 = __lux_tmp_tick_193 < __lux_tmp_tick_194
         end
-        if __lux_tmp_176 then
+        if __lux_tmp_195 then
           oldestKey = entryKey
           oldestEntry = entry
         end
@@ -1962,6 +2066,7 @@ return function(__lux_import)
       owner.SectorAngularGradient = sectorAngularGradient
       owner.StripePattern = stripePattern
       owner.SmokePattern = smokePattern
+      owner.WornPattern = wornPattern
       owner.Mask = mask
       owner.Backdrop = backdrop
       owner.ImageMaskStyle = imageMaskStyle
@@ -2014,6 +2119,7 @@ return function(__lux_import)
   __lux_exports.sectorAngularGradient = sectorAngularGradient
   __lux_exports.stripePattern = stripePattern
   __lux_exports.smokePattern = smokePattern
+  __lux_exports.wornPattern = wornPattern
   __lux_exports.mask = mask
   __lux_exports.imageMaskStyle = imageMaskStyle
   __lux_exports.fillFromStyle = fillFromStyle

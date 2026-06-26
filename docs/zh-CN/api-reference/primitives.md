@@ -187,7 +187,7 @@ MGFX.RoundedBoxEx(x, y, w, h, style)
 | style.fill | Color 或渐变填充。 |
 | style.stroke / strokeWidth | 可选描边。 |
 | style.shadow, innerGlow, outerGlow | 受支持路径上的可选特效。 |
-| style.pattern | StripePattern 或 SmokePattern 叠加。 |
+| style.pattern | StripePattern、SmokePattern 或 WornPattern 叠加。 |
 
 #### 用法说明
 
@@ -212,7 +212,7 @@ MGFX.RoundedBoxEx(x, y, w, h, style)
 | `innerGlow`<br>true、Color，或 {color/tint, width/size, opacity/strength, softness/falloff}。 | `nil` | 内边缘发光。 |
 | `outerGlow`<br>true、Color，或 {x/y、offsetX/offsetY、color/tint、width/size/spread、opacity/strength、softness/falloff}。 | `nil` | 外发光；`x/y` 是方向偏置，不会像 shadow 那样移动发光源形状。 |
 | `backdrop`<br>true、数字、Color 或 {blur, tint, opacity}。 | `nil` | 按圆角形状裁剪的 framebuffer 模糊/染色层。 |
-| `pattern`<br>MGFX.StripePattern、MGFX.SmokePattern、true，或图案 spec 表。 | `nil` | 在支持的形状路径上叠加图案。 |
+| `pattern`<br>MGFX.StripePattern、MGFX.SmokePattern、MGFX.WornPattern、true，或图案 spec 表。 | `nil` | 在支持的形状路径上叠加图案。 |
 
 #### 支持目标与边界
 
@@ -284,7 +284,7 @@ MGFX.ChamferBoxEx(x, y, w, h, style)
 | --- | --- |
 | style.cuts | 数字或 {tl, tr, br, bl}。 |
 | style.fill | Color 或渐变填充。 |
-| style.pattern | 可选 StripePattern 或 SmokePattern。 |
+| style.pattern | 可选 StripePattern、SmokePattern 或 WornPattern。 |
 | style.innerGlow / outerGlow | 可选的切角感知发光效果。 |
 
 #### 用法说明
@@ -310,7 +310,7 @@ MGFX.ChamferBoxEx(x, y, w, h, style)
 | `innerGlow`<br>true、Color，或 {color/tint, width/size, opacity/strength, softness/falloff}。 | `nil` | 内边缘发光。 |
 | `outerGlow`<br>true、Color，或 {x/y、offsetX/offsetY、color/tint、width/size/spread、opacity/strength、softness/falloff}。 | `nil` | 外发光；`x/y` 是方向偏置，不会像 shadow 那样移动发光源形状。 |
 | `backdrop`<br>true、数字、Color 或 {blur, tint, opacity}。 | `nil` | 按切角形状裁剪的 framebuffer 模糊/染色层。 |
-| `pattern`<br>StripePattern 或 SmokePattern。 | `nil` | 裁剪到切角多边形内的图案。 |
+| `pattern`<br>StripePattern、SmokePattern 或 WornPattern。 | `nil` | 裁剪到切角多边形内的图案。 |
 
 #### 支持目标与边界
 
@@ -542,7 +542,7 @@ MGFX.PolyEx(points, style)
 | `shadow`<br>true、数字、Color，或 {x/y、offsetX/offsetY、dx/dy、offset、blur/radius/size/width、spread/grow、color/tint、opacity/strength、softness/falloff}。 | `nil` | 基于凸多边形距离场的外部软阴影；`x/y` 控制偏移，`spread/grow` 控制实体扩张，`blur` 控制软边宽度。 |
 | `outerGlow`<br>true、Color，或 {x/y、offsetX/offsetY、color/tint、width/size/spread、opacity/strength、softness/falloff}。 | `nil` | 基于凸多边形距离场的外发光；`x/y` 会把 glow 偏向一侧，但不会平移多边形轮廓。 |
 | `backdrop`<br>true、数字、Color 或 {blur, tint, opacity}。 | `nil` | 按多边形裁剪的 framebuffer 模糊/染色层。 |
-| `pattern`<br>StripePattern 或 SmokePattern。 | `nil` | 裁剪到多边形内的图案。 |
+| `pattern`<br>StripePattern、SmokePattern 或 WornPattern。 | `nil` | 裁剪到多边形内的图案。 |
 
 #### 支持目标与边界
 

@@ -624,7 +624,7 @@ end
 local function patternStyle(pattern)
 	if not pattern then return nil end
 	if pattern == true then return M.StripePattern(Color(255, 255, 255, 20), 10, 2, 135) end
-	if istable(pattern) and (pattern.kind == "stripe" or pattern.kind == "smoke") then return pattern end
+	if istable(pattern) and (pattern.kind == "stripe" or pattern.kind == "smoke" or pattern.kind == "worn") then return pattern end
 	if istable(pattern) then return M.StripePattern(pattern) end
 	return nil
 end
@@ -641,8 +641,13 @@ local function setupPatternConstants(mat, w, h, radius, pattern)
 	local r, g, b, a = color01(color)
 	local angle = math_rad(tonumber(pattern.angle) or 135)
 	local smoke = pattern.kind == "smoke"
+	local worn = pattern.kind == "worn"
 	local pz, pw, ox, oy, oz, ow
-	if smoke then
+	if worn then
+		pz = math_max(1, tonumber(pattern.scale) or 32)
+		pw = math_max(0.5, tonumber(pattern.edgeWidth) or 7)
+		ox, oy, oz, ow = patternOffset(pattern), 2, math.Clamp(tonumber(pattern.softness) or 0.10, 0.001, 1), math_max(0, tonumber(pattern.warp) or 0.035)
+	elseif smoke then
 		pz = math_max(1, tonumber(pattern.scale) or 140)
 		pw = math.Clamp(tonumber(pattern.density) or 0.48, 0, 1)
 		ox, oy, oz, ow = patternOffset(pattern), 1, math_max(0.001, tonumber(pattern.softness) or 0.3), math_max(0, tonumber(pattern.warp) or 0.85)
@@ -653,10 +658,29 @@ local function setupPatternConstants(mat, w, h, radius, pattern)
 	end
 	setupParamMatrix(mat,
 		r, g, b, a,
-		w, h, smoke and (tonumber(pattern.seed) or 0) or 0, math_max(0, tonumber(radius) or 0),
+		w, h, (smoke or worn) and (tonumber(pattern.seed) or 0) or 0, math_max(0, tonumber(radius) or 0),
 		math_cos(angle), math_sin(angle), pz, pw,
 		ox, oy, oz, ow
 	)
+	if worn and setupExtraParams then
+		local edgeColor = asColor(pattern.edgeColor, Color(218, 208, 184, 78))
+		local er, eg, eb, ea = color01(edgeColor)
+		setupExtraParams(mat,
+			er, eg, eb, ea,
+			math.Clamp(tonumber(pattern.fractal) or 0.44, 0, 1),
+			math.Clamp(tonumber(pattern.grain) or 0.64, 0, 1),
+			math.Clamp(tonumber(pattern.scratches) or tonumber(pattern.scratch) or 0.30, 0, 1),
+			math.Clamp(tonumber(pattern.edge) or tonumber(pattern.edgeWear) or 0.54, 0, 1),
+			math_max(0.25, tonumber(pattern.grainScale) or 5.6),
+			math_max(1, tonumber(pattern.scratchScale) or 26),
+			math.Clamp(tonumber(pattern.scratchWidth) or 0.045, 0.005, 0.5),
+			math_max(0.5, tonumber(pattern.edgeWidth) or 7),
+			math_cos(angle),
+			math_sin(angle),
+			math.Clamp(tonumber(pattern.softness) or 0.10, 0.001, 1),
+			math_max(0, tonumber(pattern.warp) or 0.035)
+		)
+	end
 end
 
 local function drawRoundRectPatternPrepared(x, y, w, h, radius, spec)

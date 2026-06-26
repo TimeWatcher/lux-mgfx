@@ -11,7 +11,7 @@ RoundedBox / RoundedBoxEx:
   solid fill
   two-stop linear/radial/conic fill
   multi-stop fill up to 5 stops
-  stripe/smoke pattern data
+  stripe/smoke/worn pattern data
   scalar radius
   optional inner stroke
 
@@ -19,7 +19,7 @@ ChamferBox / ChamferBoxEx:
   solid fill
   two-stop linear/radial/conic fill
   multi-stop fill up to 5 stops
-  stripe/smoke pattern data
+  stripe/smoke/worn pattern data
   scalar/table cuts
   optional inner stroke
 
@@ -32,7 +32,7 @@ Poly / PolyEx:
   convex fill-only solid
   convex two-stop linear gradient
   radial/conic/multi-stop through data texture
-  stripe/smoke pattern data
+  stripe/smoke/worn pattern data
   fill+stroke data path
   stroke-only via line batch
 

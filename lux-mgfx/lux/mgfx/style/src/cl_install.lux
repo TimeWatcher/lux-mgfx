@@ -13,6 +13,7 @@ export client fn install(owner) {
   owner.SectorAngularGradient = sectorAngularGradient
   owner.StripePattern = stripePattern
   owner.SmokePattern = smokePattern
+  owner.WornPattern = wornPattern
   owner.Mask = mask
   owner.Backdrop = backdrop
   owner.ImageMaskStyle = imageMaskStyle

@@ -251,6 +251,7 @@ fn installProfileWrappers(owner) {
     "SectorAngularGradient",
     "StripePattern",
     "SmokePattern",
+    "WornPattern",
     "Mask",
     "Backdrop",
     "ImageMaskStyle",

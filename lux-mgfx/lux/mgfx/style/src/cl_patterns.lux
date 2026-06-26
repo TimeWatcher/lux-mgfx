@@ -65,3 +65,26 @@ export client fn smokePattern(color, scale = 140, density = 0.48, softness = 0.3
   }
 }
 
+export client fn wornPattern(spec = nil) {
+  spec = typeOf(spec) == "table" then spec else {}
+  {
+    kind = "worn",
+      color = colorOr(spec.color ?? spec.tint, makeColor(0, 0, 0, 44)),
+      edgeColor = colorOr(spec.edgeColor ?? spec.highlight, makeColor(218, 208, 184, 78)),
+      fractal = mathClamp(toNumber(spec.fractal) ?? 0.44, 0, 1),
+      grain = mathClamp(toNumber(spec.grain) ?? 0.64, 0, 1),
+      scratches = mathClamp(toNumber(spec.scratches ?? spec.scratch) ?? 0.30, 0, 1),
+      edge = mathClamp(toNumber(spec.edge ?? spec.edgeWear) ?? 0.54, 0, 1),
+      scale = mathMax(1, toNumber(spec.scale) ?? 32),
+      grainScale = mathMax(0.25, toNumber(spec.grainScale) ?? 5.6),
+      scratchScale = mathMax(1, toNumber(spec.scratchScale) ?? 26),
+      scratchWidth = mathClamp(toNumber(spec.scratchWidth) ?? 0.045, 0.005, 0.5),
+      edgeWidth = mathMax(0.5, toNumber(spec.edgeWidth) ?? 7),
+      softness = mathClamp(toNumber(spec.softness) ?? 0.10, 0.001, 1),
+      warp = mathMax(0, toNumber(spec.warp) ?? 0.035),
+      angle = toNumber(spec.angle) ?? -14,
+      offset = toNumber(spec.offset) ?? 0,
+      speed = toNumber(spec.speed) ?? 0,
+      seed = patternSeed(spec.seed)
+  }
+}

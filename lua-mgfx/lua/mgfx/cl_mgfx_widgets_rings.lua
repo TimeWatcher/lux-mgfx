@@ -385,8 +385,12 @@ local function drawRingPatternPass(x, y, w, h, innerRadius, outerRadius, startDe
 		local pmat = materials.ring_pattern
 		local angle = math_rad(tonumber(spec.angle) or 135)
 		local smoke = spec.kind == "smoke"
+		local worn = spec.kind == "worn"
 		local pz, pw
-		if smoke then
+		if worn then
+			pz = math_max(1, tonumber(spec.scale) or 32)
+			pw = math_max(0.5, tonumber(spec.edgeWidth) or 7)
+		elseif smoke then
 			pz = math_max(1, tonumber(spec.scale) or 140)
 			pw = math.Clamp(tonumber(spec.density) or 0.48, 0, 1)
 		else
@@ -394,14 +398,33 @@ local function drawRingPatternPass(x, y, w, h, innerRadius, outerRadius, startDe
 			pw = math_max(0.25, tonumber(spec.width) or 2)
 		end
 		setupParamMatrix(pmat,
-			smoke and (tonumber(spec.seed) or 0) or 0,
+			(smoke or worn) and (tonumber(spec.seed) or 0) or 0,
 			patternOffset(spec),
-			smoke and math_max(0.001, tonumber(spec.softness) or 0.3) or 0,
-			smoke and math_max(0, tonumber(spec.warp) or 0.85) or 0,
+			(smoke or worn) and math_max(0.001, tonumber(spec.softness) or (worn and 0.10 or 0.3)) or 0,
+			(smoke or worn) and math_max(0, tonumber(spec.warp) or (worn and 0.035 or 0.85)) or 0,
 			w, h, math_max(0, tonumber(innerRadius) or 0), math_max(0.001, tonumber(outerRadius) or math_min(w, h) * 0.5),
-			math_rad(tonumber(startDeg) or 0), math_rad(tonumber(endDeg) or 360), ringModeValue(mode), smoke and 1 or 0,
+			math_rad(tonumber(startDeg) or 0), math_rad(tonumber(endDeg) or 360), ringModeValue(mode), smoke and 1 or (worn and 2 or 0),
 			math_cos(angle), math_sin(angle), pz, pw
 		)
+		if worn and setupExtraParams then
+			local edgeColor = asColor(spec.edgeColor, Color(218, 208, 184, 78))
+			local er, eg, eb, ea = color01(edgeColor)
+			setupExtraParams(pmat,
+				er, eg, eb, ea,
+				math.Clamp(tonumber(spec.fractal) or 0.44, 0, 1),
+				math.Clamp(tonumber(spec.grain) or 0.64, 0, 1),
+				math.Clamp(tonumber(spec.scratches) or tonumber(spec.scratch) or 0.30, 0, 1),
+				math.Clamp(tonumber(spec.edge) or tonumber(spec.edgeWear) or 0.54, 0, 1),
+				math_max(0.25, tonumber(spec.grainScale) or 5.6),
+				math_max(1, tonumber(spec.scratchScale) or 26),
+				math.Clamp(tonumber(spec.scratchWidth) or 0.045, 0.005, 0.5),
+				math_max(0.5, tonumber(spec.edgeWidth) or 7),
+				math_cos(angle),
+				math_sin(angle),
+				math.Clamp(tonumber(spec.softness) or 0.10, 0.001, 1),
+				math_max(0, tonumber(spec.warp) or 0.035)
+			)
+		end
 		setDrawColor(spec.color or spec.tint or Color(255, 255, 255, 24))
 		surface_SetMaterial(pmat)
 		drawTexturedQuad(x, y, w, h, pmat)

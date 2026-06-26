@@ -354,6 +354,30 @@ end
 		}
 	end
 
+	function owner.WornPattern(spec)
+		spec = istable(spec) and spec or {}
+		return {
+			kind = "worn",
+			color = asColor(spec.color or spec.tint, Color(0, 0, 0, 44)),
+			edgeColor = asColor(spec.edgeColor or spec.highlight, Color(218, 208, 184, 78)),
+			fractal = math.Clamp(tonumber(spec.fractal) or 0.44, 0, 1),
+			grain = math.Clamp(tonumber(spec.grain) or 0.64, 0, 1),
+			scratches = math.Clamp(tonumber(spec.scratches) or spec.scratch or 0.30, 0, 1),
+			edge = math.Clamp(tonumber(spec.edge) or spec.edgeWear or 0.54, 0, 1),
+			scale = math_max(1, tonumber(spec.scale) or 32),
+			grainScale = math_max(0.25, tonumber(spec.grainScale) or 5.6),
+			scratchScale = math_max(1, tonumber(spec.scratchScale) or 26),
+			scratchWidth = math.Clamp(tonumber(spec.scratchWidth) or 0.045, 0.005, 0.5),
+			edgeWidth = math_max(0.5, tonumber(spec.edgeWidth) or 7),
+			softness = math.Clamp(tonumber(spec.softness) or 0.10, 0.001, 1),
+			warp = math_max(0, tonumber(spec.warp) or 0.035),
+			angle = tonumber(spec.angle) or -14,
+			offset = tonumber(spec.offset) or 0,
+			speed = tonumber(spec.speed) or 0,
+			seed = patternSeed(spec.seed),
+		}
+	end
+
 	function owner.Mask(kind, spec)
 		if istable(kind) and not kind.r then
 			local out = table.Copy(kind)

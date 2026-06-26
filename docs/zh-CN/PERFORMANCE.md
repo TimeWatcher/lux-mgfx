@@ -85,7 +85,7 @@ mat:SetMatrix("$invviewprojmat", matrix)
 
 ## Pattern 数学化
 
-Pattern 不应该在调用层展开成许多 line、box 或 polygon。`StripePattern` 和 `SmokePattern` 是 paint slot，应该由对应 shape shader 根据当前 shape local space 直接采样。
+Pattern 不应该在调用层展开成许多 line、box 或 polygon。`StripePattern`、`SmokePattern` 和 `WornPattern` 是 paint slot，应该由对应 shape shader 根据当前 shape local space 直接采样。
 
 正确方向：
 

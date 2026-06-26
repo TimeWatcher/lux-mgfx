@@ -43,7 +43,7 @@ MGFX.CapsuleEx(x, y, w, h, style)
 | `outerGlow` | External glow. `x/y` biases glow direction without moving the source shape. |
 | `innerGlow` | Inner edge glow for supported shapes. |
 | `backdrop` | Shape-clipped framebuffer blur/tint. |
-| `pattern` | Shader pattern such as `StripePattern` or `SmokePattern`. |
+| `pattern` | Shader pattern such as `StripePattern`, `SmokePattern`, or `WornPattern`. |
 | `transform` | Visual-only transform record. |
 
 ## Rounded Boxes

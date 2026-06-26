@@ -15,7 +15,7 @@ API names, Lua parameter names, and shader terms are kept in English.
 | Images | [Images and Masks](./images) | `ImageEx`, `IconEx`, `Mask`, `MaterialSource`, `TextureSource` |
 | HUD meters and sectors | [HUD Meters and Sectors](./widgets) | `ProgressBarEx`, `SegmentBarEx`, `RingEx`, `ArcEx`, `SectorEx` |
 | Text | [Text API](./text-api) | `Text`, `TextEx`, `TextBoxEx`, `MeasureText`, `PrewarmText` |
-| Paint records and transforms | [Paint, Patterns, Transforms](./paint) | `LinearGradient`, `SmokePattern`, `Transform`, `PointerTilt`, `GetCapabilities` |
+| Paint records and transforms | [Paint, Patterns, Transforms](./paint) | `LinearGradient`, `SmokePattern`, `WornPattern`, `Transform`, `PointerTilt`, `GetCapabilities` |
 
 ## Reading Order
 

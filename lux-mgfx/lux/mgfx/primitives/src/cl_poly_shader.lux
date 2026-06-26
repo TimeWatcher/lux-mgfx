@@ -229,6 +229,26 @@ fn drawPolyOuterGlow(poly, bounds, r, g, b, a) {
   true
 }
 
+fn setupPolyWornPatternExtraParams(material, spec, angle) {
+  local edgeColor = style.asColor(spec.edgeColor, makeColor(218, 208, 184, 78))
+  local er, eg, eb, ea = style.color01(edgeColor)
+  setupPolyShadowAuxConstants(material,
+    er, eg, eb, ea,
+    mathClamp(toNumber(spec.fractal) ?? 0.44, 0, 1),
+    mathClamp(toNumber(spec.grain) ?? 0.64, 0, 1),
+    mathClamp(toNumber(spec.scratches ?? spec.scratch) ?? 0.30, 0, 1),
+    mathClamp(toNumber(spec.edge ?? spec.edgeWear) ?? 0.54, 0, 1),
+    mathMax(0.25, toNumber(spec.grainScale) ?? 5.6),
+    mathMax(1, toNumber(spec.scratchScale) ?? 26),
+    mathClamp(toNumber(spec.scratchWidth) ?? 0.045, 0.005, 0.5),
+    mathMax(0.5, toNumber(spec.edgeWidth) ?? 7),
+    mathCos(angle),
+    mathSin(angle),
+    mathClamp(toNumber(spec.softness) ?? 0.10, 0.001, 1),
+    mathMax(0, toNumber(spec.warp) ?? 0.035)
+  )
+}
+
 fn drawPolyPatternPrepared(poly, spec) {
   stopif spec == nil or not shadersActive() or not materialOK(primitiveMaterials.poly_pattern), false
 
@@ -242,13 +262,24 @@ fn drawPolyPatternPrepared(poly, spec) {
     "smoke" => true
     _ => false
   }
+  local worn = match spec.kind {
+    "worn" => true
+    _ => false
+  }
   local pz = 1
   local pw = 1
   local ox = 0
   local oy = 0
   local oz = 0
   local ow = 0
-  if smoke {
+  if worn {
+    pz = mathMax(1, toNumber(spec.scale) ?? 32)
+    pw = mathMax(0.5, toNumber(spec.edgeWidth) ?? 7)
+    ox = roundrect.patternOffset(spec)
+    oy = 2
+    oz = mathClamp(toNumber(spec.softness) ?? 0.10, 0.001, 1)
+    ow = mathMax(0, toNumber(spec.warp) ?? 0.035)
+  } else if smoke {
     pz = mathMax(1, toNumber(spec.scale) ?? 140)
     pw = mathClamp(toNumber(spec.density) ?? 0.48, 0, 1)
     ox = roundrect.patternOffset(spec)
@@ -263,10 +294,13 @@ fn drawPolyPatternPrepared(poly, spec) {
 
   setupParamMatrix(material,
     r, g, b, a,
-    poly.w, poly.h, smoke and (toNumber(spec.seed) ?? 0) or 0, 0,
+    poly.w, poly.h, (smoke or worn) and (toNumber(spec.seed) ?? 0) or 0, 0,
     mathCos(angle), mathSin(angle), pz, pw,
     ox, oy, oz, ow
   )
+  if worn {
+    setupPolyWornPatternExtraParams(material, spec, angle)
+  }
   surfaceSetMaterial(material)
   surfaceSetDrawColor(255, 255, 255, 255)
   drawTransformedPoly(polyDrawVerts(poly))

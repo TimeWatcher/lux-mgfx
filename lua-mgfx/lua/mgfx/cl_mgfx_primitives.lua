@@ -352,6 +352,28 @@ local function drawChamferOuterGlow(x, y, w, h, cuts, glow)
 	)
 end
 
+local function setupWornPatternExtraParams(mat, spec, angle)
+	if not setupExtraParams then return end
+
+	local edgeColor = asColor(spec.edgeColor, Color(218, 208, 184, 78))
+	local er, eg, eb, ea = color01(edgeColor)
+	setupExtraParams(mat,
+		er, eg, eb, ea,
+		math.Clamp(tonumber(spec.fractal) or 0.44, 0, 1),
+		math.Clamp(tonumber(spec.grain) or 0.64, 0, 1),
+		math.Clamp(tonumber(spec.scratches) or tonumber(spec.scratch) or 0.30, 0, 1),
+		math.Clamp(tonumber(spec.edge) or tonumber(spec.edgeWear) or 0.54, 0, 1),
+		math_max(0.25, tonumber(spec.grainScale) or 5.6),
+		math_max(1, tonumber(spec.scratchScale) or 26),
+		math.Clamp(tonumber(spec.scratchWidth) or 0.045, 0.005, 0.5),
+		math_max(0.5, tonumber(spec.edgeWidth) or 7),
+		math_cos(angle),
+		math_sin(angle),
+		math.Clamp(tonumber(spec.softness) or 0.10, 0.001, 1),
+		math_max(0, tonumber(spec.warp) or 0.035)
+	)
+end
+
 local function drawChamferPatternPrepared(x, y, w, h, cuts, spec)
 	if not spec then return end
 	if not shadersActive() or not matOK(materials.chamfer_pattern) then return end
@@ -362,13 +384,17 @@ local function drawChamferPatternPrepared(x, y, w, h, cuts, spec)
 	local tl, tr, br, bl = chamferTuple(cuts, w, h)
 	local angle = math_rad(tonumber(spec.angle) or 135)
 	local smoke = spec.kind == "smoke"
+	local worn = spec.kind == "worn"
 	local mat = materials.chamfer_pattern
 	local r, g, b, a = color01(asColor(spec.color or spec.tint, Color(255, 255, 255, 24)))
 	local function smokeByte(value, fallback)
 		return math.Clamp(math_floor((tonumber(value) or fallback or 0) * 255 + 0.5), 0, 255)
 	end
 	local pz, pw
-	if smoke then
+	if worn then
+		pz = math_max(1, tonumber(spec.scale) or 32)
+		pw = math_max(0.5, tonumber(spec.edgeWidth) or 7)
+	elseif smoke then
 		local density = smokeByte(spec.density, 0.48)
 		local softness = smokeByte(spec.softness, 0.3)
 		local warp = smokeByte(spec.warp, 0.85)
@@ -380,10 +406,13 @@ local function drawChamferPatternPrepared(x, y, w, h, cuts, spec)
 	end
 	setupParamMatrix(mat,
 		r, g, b, a,
-		w, h, patternOffset(spec), (smoke and 1 or 0) + (smoke and (tonumber(spec.seed) or 0) or 0),
+		w, h, patternOffset(spec), (smoke and 1 or 0) + (worn and 2 or 0) + ((smoke or worn) and (tonumber(spec.seed) or 0) or 0),
 		math_cos(angle), math_sin(angle), pz, pw,
 		tl, tr, br, bl
 	)
+	if worn then
+		setupWornPatternExtraParams(mat, spec, angle)
+	end
 	surface_SetMaterial(mat)
 	surface_SetDrawColor(255, 255, 255, 255)
 	drawTexturedQuad(x, y, w, h, mat)
@@ -1176,8 +1205,13 @@ local function drawPolyPatternPrepared(poly, spec)
 	local r, g, b, a = color01(asColor(spec.color or spec.tint, Color(255, 255, 255, 24)))
 	local angle = math_rad(tonumber(spec.angle) or 135)
 	local smoke = spec.kind == "smoke"
+	local worn = spec.kind == "worn"
 	local pz, pw, ox, oy, oz, ow
-	if smoke then
+	if worn then
+		pz = math_max(1, tonumber(spec.scale) or 32)
+		pw = math_max(0.5, tonumber(spec.edgeWidth) or 7)
+		ox, oy, oz, ow = patternOffset(spec), 2, math.Clamp(tonumber(spec.softness) or 0.10, 0.001, 1), math_max(0, tonumber(spec.warp) or 0.035)
+	elseif smoke then
 		pz = math_max(1, tonumber(spec.scale) or 140)
 		pw = math.Clamp(tonumber(spec.density) or 0.48, 0, 1)
 		ox, oy, oz, ow = patternOffset(spec), 1, math_max(0.001, tonumber(spec.softness) or 0.3), math_max(0, tonumber(spec.warp) or 0.85)
@@ -1188,10 +1222,13 @@ local function drawPolyPatternPrepared(poly, spec)
 	end
 	setupParamMatrix(mat,
 		r, g, b, a,
-		poly.w, poly.h, smoke and (tonumber(spec.seed) or 0) or 0, 0,
+		poly.w, poly.h, (smoke or worn) and (tonumber(spec.seed) or 0) or 0, 0,
 		math_cos(angle), math_sin(angle), pz, pw,
 		ox, oy, oz, ow
 	)
+	if worn then
+		setupWornPatternExtraParams(mat, spec, angle)
+	end
 
 	surface_SetMaterial(mat)
 	surface_SetDrawColor(255, 255, 255, 255)

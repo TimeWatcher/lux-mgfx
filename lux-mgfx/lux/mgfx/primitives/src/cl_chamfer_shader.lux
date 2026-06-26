@@ -86,6 +86,26 @@ fn setupPrimitiveFillConstants(material, w, h, fill, stroke, strokeWidth, radius
   true
 }
 
+fn setupChamferWornPatternExtraParams(material, spec, angle) {
+  local edgeColor = style.asColor(spec.edgeColor, makeColor(218, 208, 184, 78))
+  local er, eg, eb, ea = style.color01(edgeColor)
+  setupPrimitiveAuxConstants(material,
+    er, eg, eb, ea,
+    mathClamp(toNumber(spec.fractal) ?? 0.44, 0, 1),
+    mathClamp(toNumber(spec.grain) ?? 0.64, 0, 1),
+    mathClamp(toNumber(spec.scratches ?? spec.scratch) ?? 0.30, 0, 1),
+    mathClamp(toNumber(spec.edge ?? spec.edgeWear) ?? 0.54, 0, 1),
+    mathMax(0.25, toNumber(spec.grainScale) ?? 5.6),
+    mathMax(1, toNumber(spec.scratchScale) ?? 26),
+    mathClamp(toNumber(spec.scratchWidth) ?? 0.045, 0.005, 0.5),
+    mathMax(0.5, toNumber(spec.edgeWidth) ?? 7),
+    mathCos(angle),
+    mathSin(angle),
+    mathClamp(toNumber(spec.softness) ?? 0.10, 0.001, 1),
+    mathMax(0, toNumber(spec.warp) ?? 0.035)
+  )
+}
+
 fn drawChamferInnerGlowRaw(x, y, w, h, cuts, enabled, gr, gg, gb, ga, glowWidth, glowStrength, glowFalloff) {
   stopif not enabled or ga <= 0 or glowStrength <= 0 or not shadersActive() or not materialOK(primitiveMaterials.chamfer_innerglow), false
 
@@ -291,11 +311,18 @@ fn drawChamferPatternPrepared(x, y, w, h, cuts, spec) {
     "smoke" => true
     _ => false
   }
+  local worn = match spec.kind {
+    "worn" => true
+    _ => false
+  }
   local material = primitiveMaterials.chamfer_pattern
   local r, g, b, a = style.color01(style.asColor(spec.color ?? spec.tint, makeColor(255, 255, 255, 24)))
   local pz = 1
   local pw = 1
-  if smoke {
+  if worn {
+    pz = mathMax(1, toNumber(spec.scale) ?? 32)
+    pw = mathMax(0.5, toNumber(spec.edgeWidth) ?? 7)
+  } else if smoke {
     local density = mathClamp(mathFloor((toNumber(spec.density) ?? 0.48) * 255 + 0.5), 0, 255)
     local softness = mathClamp(mathFloor((toNumber(spec.softness) ?? 0.3) * 255 + 0.5), 0, 255)
     local warp = mathClamp(mathFloor((toNumber(spec.warp) ?? 0.85) * 255 + 0.5), 0, 255)
@@ -308,10 +335,13 @@ fn drawChamferPatternPrepared(x, y, w, h, cuts, spec) {
 
   setupParamMatrix(material,
     r, g, b, a,
-    w, h, roundrect.patternOffset(spec), (smoke and 1 or 0) + (smoke and (toNumber(spec.seed) ?? 0) or 0),
+    w, h, roundrect.patternOffset(spec), (smoke and 1 or 0) + (worn and 2 or 0) + ((smoke or worn) and (toNumber(spec.seed) ?? 0) or 0),
     mathCos(angle), mathSin(angle), pz, pw,
     tl, tr, br, bl
   )
+  if worn {
+    setupChamferWornPatternExtraParams(material, spec, angle)
+  }
   surfaceSetMaterial(material)
   surfaceSetDrawColor(255, 255, 255, 255)
   drawTexturedQuad(x, y, w, h, material)

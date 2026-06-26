@@ -41,6 +41,9 @@ consume it through `luxc install`; plain GLua projects should use the sibling
   angular, and multi-stop gradients share one normalized stop pipeline.
 - **Shape-aware effects**: masks, strokes, inner glow, outer glow, backdrop
   blur, patterns, and image clipping follow each primitive's coverage.
+- **Material wear pass**: `WornPattern` adds shader-native roughness, sparse
+  scuffs, short scratches, and broken edge wear to flat or gradient UI
+  surfaces without data textures or many extra primitive calls.
 - **Focused effect fusion**: compatible shadow and outer-glow layers share one
   shader pass for rounded boxes, chamfers, rings, and image masks without
   changing the API fields.
@@ -181,6 +184,16 @@ client fn paintPanel(panel, w, h) {
     backdrop = { blur = 8, tint = Color(3, 10, 16, 125) },
     innerGlow = { color = Color(255, 255, 255, 34), width = 18 },
     outerGlow = { color = Color(35, 212, 232, 72), width = 14, x = 0, y = 0 },
+    pattern = draw.wornPattern({
+      color = Color(0, 0, 0, 44),
+      edgeColor = Color(218, 208, 184, 78),
+      grain = 0.64,
+      fractal = 0.44,
+      scratches = 0.30,
+      edge = 0.54,
+      edgeWidth = 7,
+      seed = "lux-panel",
+    }),
   })
 
   draw.progressBarEx(24, h - 38, w - 48, 10, 0.72, {

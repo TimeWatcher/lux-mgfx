@@ -44,6 +44,7 @@ return function(__lux_import)
   local sectorAngularGradient
   local stripePattern
   local smokePattern
+  local wornPattern
   local mask
   local backdrop
   local backdropStyle
@@ -480,6 +481,7 @@ return function(__lux_import)
           "SectorAngularGradient",
           "StripePattern",
           "SmokePattern",
+          "WornPattern",
           "Mask",
           "Backdrop",
           "ImageMaskStyle",
@@ -655,6 +657,9 @@ return function(__lux_import)
         seed = 0
       end
       return defaultRuntime.SmokePattern(color, scale, density, softness, angle, offset, seed)
+    end
+    wornPattern = function(spec)
+      return defaultRuntime.WornPattern(spec)
     end
     mask = function(kind, spec)
       return defaultRuntime.Mask(kind, spec)
@@ -923,6 +928,7 @@ return function(__lux_import)
   __lux_exports.sectorAngularGradient = sectorAngularGradient
   __lux_exports.stripePattern = stripePattern
   __lux_exports.smokePattern = smokePattern
+  __lux_exports.wornPattern = wornPattern
   __lux_exports.mask = mask
   __lux_exports.backdrop = backdrop
   __lux_exports.backdropStyle = backdropStyle

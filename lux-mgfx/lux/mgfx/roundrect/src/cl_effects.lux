@@ -262,7 +262,7 @@ export client fn patternStyle(pattern) {
 
   if typeOf(pattern) == "table" {
     local knownPattern = match pattern.kind {
-      "stripe" | "smoke" => true
+      "stripe" | "smoke" | "worn" => true
       _ => false
     }
     stopif knownPattern, pattern

@@ -418,17 +418,52 @@ fn drawRingPatternPass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, m
     "smoke" => true
     _ => false
   }
-  local pz = smoke then mathMax(1, toNumber(spec.scale) ?? 140) else mathMax(1, toNumber(spec.spacing) ?? 12)
-  local pw = smoke then mathClamp(toNumber(spec.density) ?? 0.48, 0, 1) else mathMax(0.25, toNumber(spec.width) ?? 2)
+  local worn = match spec.kind {
+    "worn" => true
+    _ => false
+  }
+  local pz = if worn {
+    mathMax(1, toNumber(spec.scale) ?? 32)
+  } else if smoke {
+    mathMax(1, toNumber(spec.scale) ?? 140)
+  } else {
+    mathMax(1, toNumber(spec.spacing) ?? 12)
+  }
+  local pw = if worn {
+    mathMax(0.5, toNumber(spec.edgeWidth) ?? 7)
+  } else if smoke {
+    mathClamp(toNumber(spec.density) ?? 0.48, 0, 1)
+  } else {
+    mathMax(0.25, toNumber(spec.width) ?? 2)
+  }
   setupParamMatrix(material,
-    smoke then (toNumber(spec.seed) ?? 0) else 0,
+    (smoke or worn) then (toNumber(spec.seed) ?? 0) else 0,
     roundrect.patternOffset(spec),
-    smoke then mathMax(0.001, toNumber(spec.softness) ?? 0.3) else 0,
-    smoke then mathMax(0, toNumber(spec.warp) ?? 0.85) else 0,
+    (smoke or worn) then mathMax(0.001, toNumber(spec.softness) ?? (worn then 0.10 else 0.3)) else 0,
+    (smoke or worn) then mathMax(0, toNumber(spec.warp) ?? (worn then 0.035 else 0.85)) else 0,
     w, h, mathMax(0, toNumber(innerRadius) ?? 0), mathMax(0.001, toNumber(outerRadius) ?? mathMin(w, h) * 0.5),
-    mathRad(toNumber(startDeg) ?? 0), mathRad(toNumber(endDeg) ?? 360), ringModeValue(mode), smoke then 1 else 0,
+    mathRad(toNumber(startDeg) ?? 0), mathRad(toNumber(endDeg) ?? 360), ringModeValue(mode), smoke then 1 else (worn then 2 else 0),
     mathCos(angle), mathSin(angle), pz, pw
   )
+  if worn {
+    local edgeColor = style.asColor(spec.edgeColor, makeColor(218, 208, 184, 78))
+    local er, eg, eb, ea = style.color01(edgeColor)
+    setupAuxConstants(material,
+      er, eg, eb, ea,
+      mathClamp(toNumber(spec.fractal) ?? 0.44, 0, 1),
+      mathClamp(toNumber(spec.grain) ?? 0.64, 0, 1),
+      mathClamp(toNumber(spec.scratches ?? spec.scratch) ?? 0.30, 0, 1),
+      mathClamp(toNumber(spec.edge ?? spec.edgeWear) ?? 0.54, 0, 1),
+      mathMax(0.25, toNumber(spec.grainScale) ?? 5.6),
+      mathMax(1, toNumber(spec.scratchScale) ?? 26),
+      mathClamp(toNumber(spec.scratchWidth) ?? 0.045, 0.005, 0.5),
+      mathMax(0.5, toNumber(spec.edgeWidth) ?? 7),
+      mathCos(angle),
+      mathSin(angle),
+      mathClamp(toNumber(spec.softness) ?? 0.10, 0.001, 1),
+      mathMax(0, toNumber(spec.warp) ?? 0.035)
+    )
+  }
   style.setDrawColor(spec.color ?? spec.tint ?? makeColor(255, 255, 255, 24))
   surfaceSetMaterial(material)
   drawTexturedQuad(x, y, w, h, material)

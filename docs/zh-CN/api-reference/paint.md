@@ -23,6 +23,7 @@ Color/gradient paint record、程序化 pattern、2.5D transform helper 和 capa
 - [SectorAngularGradient](#sectorangulargradient) - 创建从 startDeg 到 endDeg 的扇区局部周向渐变。
 - [StripePattern](#stripepattern) - 创建程序化条纹图案记录。
 - [SmokePattern](#smokepattern) - 创建程序化烟雾/噪声图案记录。
+- [WornPattern](#wornpattern) - 创建程序化磨损材质图案记录。
 - [Transform](#transform) - 复制一个类似 CSS 的绘制变换记录，用作 style.transform。
 - [PointerTilt](#pointertilt) - 创建一个由指针位置驱动的 2.5D 倾斜变换。
 - [ProjectedQuad](#projectedquad) - 创建专家用投影四边形变换，而不是新增 ProjectedXXX 图元 API。
@@ -45,6 +46,7 @@ Color/gradient paint record、程序化 pattern、2.5D transform helper 和 capa
 | 圆环/扇区沿角度变色 | `ShapeAngularGradient` / `RingAngularGradient` / `ArcAngularGradient` / `SectorAngularGradient` | 冷却环、仪表弧、轮盘 wedge。 |
 | 斜线、扫描线 | `StripePattern` | HUD 装饰、分段条纹。 |
 | 程序化噪声/烟雾 | `SmokePattern` | 能量面板、稀有物品背景。 |
+| 细微磨损、颗粒、边缘破损、划痕 | `WornPattern` | 武器/背包/商店 UI、金属或旧纸材质表面。 |
 
 坐标是图元本地归一化空间，不是屏幕像素：`LinearGradient(0, 0, 1, 0, ...)` 表示从图元左到右；`RadialGradient(0.5, 0.5, 0.85, ...)` 表示以图元中心为圆心。
 
@@ -125,7 +127,7 @@ MGFX.RingEx(cx, cy, 36, 10, {
 
 `RingRadialGradient` 的 `t = 0` 在 inner edge，`t = 1` 在 outer edge。
 
-#### 条纹和烟雾图案
+#### 条纹、烟雾和磨损图案
 
 ```lua
 MGFX.RoundedBoxEx(x, y, w, h, {
@@ -152,7 +154,7 @@ MGFX.ChamferBoxEx(x, y, w, h, {
 })
 ```
 
-`StripePattern.spacing = 8..16`、`width = 1..3` 常用。`SmokePattern.scale = 90..180`、`density = 0.35..0.6`、`softness = 0.2..0.45` 比较稳。
+`StripePattern.spacing = 8..16`、`width = 1..3` 常用。`SmokePattern.scale = 90..180`、`density = 0.35..0.6`、`softness = 0.2..0.45` 比较稳。磨损材质使用 `WornPattern`，完整参数和示例见本页的 [WornPattern](#wornpattern)。
 
 ## 参数速查
 
@@ -167,6 +169,9 @@ MGFX.ChamferBoxEx(x, y, w, h, {
 | `SmokePattern.scale` | `90..180` | 越小纹理越细碎。 |
 | `SmokePattern.density` | `0.35..0.6` | 越大越明显。 |
 | `SmokePattern.softness` | `0.2..0.45` | 越大边缘越散。 |
+| `WornPattern.grain` | `0.35..0.90` | 细表面粗糙和对比破坏。 |
+| `WornPattern.scratches` | `0.12..0.55` | 稀疏短划痕；过高会变成随机线条。 |
+| `WornPattern.edge` | `0.25..0.85` | 破碎边缘磨损强度。 |
 
 ## 函数参考
 
@@ -786,6 +791,85 @@ local smoke = MGFX.SmokePattern({
     density = 0.48,
     softness = 0.3,
     seed = "panel-a",
+})
+```
+
+## WornPattern
+
+```lua
+MGFX.WornPattern(spec)
+```
+
+创建程序化磨损材质图案记录。它会在 shader 内生成轻微变暗/降对比、细表面粗糙、方向性细划痕、稀疏软磨痕和破碎边缘磨损，不使用 RT 或 data texture。
+
+#### 参数
+
+| 参数 | 说明 |
+| --- | --- |
+| spec.color / tint | 主磨损叠加颜色，通常使用低 alpha 深色或浅色。 |
+| spec.edgeColor / highlight | 边缘磨损高光色。 |
+| spec.fractal | 稀疏软磨痕强度。 |
+| spec.grain | 细表面粗糙强度。 |
+| spec.scratches / scratch | 方向性细划痕强度。 |
+| spec.edge / edgeWear | 破碎边缘磨损强度。 |
+| spec.scale | 软磨痕采样尺度，单位近似像素。 |
+| spec.grainScale | 细表面粗糙密度。 |
+| spec.scratchScale / scratchWidth | 划痕间距和宽度。 |
+| spec.edgeWidth | 边缘磨损带宽度，单位近似像素。 |
+| spec.angle | 划痕方向，单位度。 |
+| spec.softness / warp | softness 为兼容保留字段；warp 是轻微形变强度。 |
+| spec.offset / speed / seed | 采样偏移、动画速度和稳定随机种子。 |
+
+#### 用法说明
+
+- 放到 `style.pattern`、`fillPattern` 或 `trackPattern`。
+- 这是独立 pattern pass，不会走 `$c0..$c3` 的 `SetFloat` 参数上传。
+- UI 推荐低强度；如果 grain 和 scratches 都很高，会从“材质感”变成噪声。
+- WornPattern 不是烟雾、噪声或脏污贴图；边缘磨损应该是破碎窄带，不应该形成连续脏边框。
+
+#### 返回值
+
+kind = "worn" 的图案表。
+
+#### spec 字段
+
+| 字段 / 可接受值 | 默认值 | 推荐范围与作用 |
+| --- | --- | --- |
+| `color / tint`<br>Color。 | `Color(0,0,0,44)` | 主磨损层；alpha 常用 24..70。深色会降低明度和对比，浅色可用于暗色金属。 |
+| `edgeColor / highlight`<br>Color。 | `Color(218,208,184,78)` | 破碎边缘高光；alpha 常用 40..120，颜色应贴近材质，不建议纯白。 |
+| `fractal`<br>0..1。 | `0.44` | 推荐 0.20..0.70；稀疏软磨痕，不要调成烟雾斑块。 |
+| `grain`<br>0..1。 | `0.64` | 推荐 0.35..0.90；细表面粗糙和对比破坏，是“不要太光滑”的主要控制。 |
+| `scratches / scratch`<br>0..1。 | `0.30` | 推荐 0.12..0.55；稀疏短划痕，过高会变成随机手画线。 |
+| `edge / edgeWear`<br>0..1。 | `0.54` | 推荐 0.25..0.85；破碎边缘磨损。 |
+| `scale`<br>数字。 | `32` | 推荐 24..48；软磨痕尺度，越低越忙，越高越干净。 |
+| `grainScale`<br>数字。 | `5.6` | 推荐 3.5..7；越大粗糙细节越密。 |
+| `scratchScale`<br>数字。 | `26` | 推荐 18..36；划痕间距。 |
+| `scratchWidth`<br>数字。 | `0.045` | 推荐 0.03..0.07；划痕宽度。 |
+| `edgeWidth`<br>数字。 | `7` | 推荐 4..9；边缘磨损带宽度。 |
+| `angle`<br>角度。 | `-14` | 划痕方向。 |
+| `softness`<br>数字。 | `0.10` | 兼容保留字段；当前 worn 模型不依赖它作为主要控制。 |
+| `warp`<br>数字。 | `0.035` | 推荐 0..0.08；轻微扭曲纹理场。 |
+| `offset / speed`<br>数字。 | `0 / 0` | 采样偏移和动画速度。 |
+| `seed`<br>数字或字符串。 | `0` | 稳定变化种子；字符串会用 CRC 哈希。 |
+
+#### 示例
+
+```lua
+local worn = MGFX.WornPattern({
+    color = Color(0, 0, 0, 44),
+    edgeColor = Color(218, 208, 184, 78),
+    fractal = 0.44,
+    grain = 0.64,
+    scratches = 0.30,
+    edge = 0.54,
+    scale = 32,
+    grainScale = 5.6,
+    scratchScale = 26,
+    scratchWidth = 0.045,
+    edgeWidth = 7,
+    angle = -14,
+    warp = 0.035,
+    seed = "shop-card",
 })
 ```
 

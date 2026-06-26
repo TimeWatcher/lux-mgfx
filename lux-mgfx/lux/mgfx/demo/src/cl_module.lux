@@ -704,15 +704,15 @@ fn PANEL:Paint(w, h) {
           addText("MGFX.LinearGradientStops not available", "MGFXDemoTiny", x + cw * 0.5, y + 70, COLORS.red, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
         }
 
-        x, y, cw, ch = card(3, "Pattern", "StripePattern / SmokePattern", COLORS.green)
-        api.RoundedBoxEx(x + 26, y + 48, cw - 52, 42, {
+        x, y, cw, ch = card(3, "Pattern", "Stripe / Smoke / Worn", COLORS.green)
+        api.RoundedBoxEx(x + 26, y + 44, cw - 52, 24, {
           radius = 10,
           fill = makeColor(4, 18, 22, 220),
           pattern = api.StripePattern(makeColor(88, 230, 160, 100), 9, 2, 135, 2),
           stroke = makeColor(88, 230, 160, 80),
           strokeWidth = 1,
         })
-        api.ChamferBoxEx(x + 36, y + 100, cw - 72, 28, {
+        api.ChamferBoxEx(x + 36, y + 76, cw - 72, 24, {
           cuts = {tl = 12, tr = 3, br = 12, bl = 3},
           fill = makeColor(14, 24, 18, 220),
           pattern = api.SmokePattern({
@@ -726,6 +726,29 @@ fn PANEL:Paint(w, h) {
             speed = 1,
           }),
           stroke = makeColor(255, 190, 66, 76),
+          strokeWidth = "hairline",
+        })
+        api.RoundedBoxEx(x + 24, y + 100, cw - 48, 42, {
+          radius = 10,
+          fill = api.LinearGradient(0, 0, 1, 0, makeColor(34, 39, 41, 236), makeColor(18, 22, 24, 236)),
+          pattern = api.WornPattern({
+            color = makeColor(0, 0, 0, 64),
+            edgeColor = makeColor(218, 208, 184, 112),
+            fractal = 0.62,
+            grain = 0.82,
+            scratches = 0.48,
+            edge = 0.76,
+            scale = 32,
+            grainScale = 5.8,
+            scratchScale = 24,
+            scratchWidth = 0.045,
+            edgeWidth = 7.5,
+            angle = -12,
+            softness = 0.10,
+            warp = 0.035,
+            seed = "demo-worn",
+          }),
+          stroke = makeColor(255, 230, 170, 86),
           strokeWidth = "hairline",
         })
 

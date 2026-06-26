@@ -1197,6 +1197,7 @@ addCommand("mgfx_selftest", function()
 		"SectorAngularGradient",
 		"StripePattern",
 		"SmokePattern",
+		"WornPattern",
 		"Mask",
 		"DebugOverlay",
 	}

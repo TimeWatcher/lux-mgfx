@@ -22,7 +22,7 @@ features:
   - title: Shape-aware effects
     details: Rounded boxes, chamfer boxes, circles, capsules, rings, arcs, sectors, convex polygons, and image masks clip shadow, glow, and backdrop effects to their own coverage.
   - title: Real paint records
-    details: Linear, radial, conic, ring/sector radial, angular gradients, stripe patterns, and smoke patterns are paint slots instead of hand-expanded geometry.
+    details: Linear, radial, conic, ring/sector radial, angular gradients, stripe, smoke, and worn material patterns are paint slots instead of hand-expanded geometry.
   - title: Lux and plain GLua
     details: Lux projects import @lux/mgfx. Non-Lux projects can load the bundled runtime and call MGFX.* directly.
   - title: Measured shop performance

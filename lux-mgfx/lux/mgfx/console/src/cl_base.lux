@@ -192,6 +192,7 @@ local requiredApis = {
     "SectorAngularGradient",
     "StripePattern",
     "SmokePattern",
+    "WornPattern",
     "Mask",
     "DebugOverlay"
 }

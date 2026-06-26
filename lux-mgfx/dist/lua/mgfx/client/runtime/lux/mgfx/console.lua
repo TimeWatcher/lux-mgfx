@@ -452,6 +452,7 @@ return function(__lux_import)
       "SectorAngularGradient",
       "StripePattern",
       "SmokePattern",
+      "WornPattern",
       "Mask",
       "DebugOverlay",
     }

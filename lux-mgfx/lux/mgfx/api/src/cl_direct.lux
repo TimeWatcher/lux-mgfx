@@ -66,6 +66,9 @@ export client fn stripePattern(color, spacing = 12, width = 2, angle = 135, offs
 export client fn smokePattern(color, scale = 140, density = 0.48, softness = 0.3, angle = 135, offset = 0, seed = 0) =
   defaultRuntime.SmokePattern(color, scale, density, softness, angle, offset, seed)
 
+export client fn wornPattern(spec = nil) =
+  defaultRuntime.WornPattern(spec)
+
 export client fn mask(kind, spec = nil) =
   defaultRuntime.Mask(kind, spec)
 

@@ -67,6 +67,37 @@ the shadow passes for each layer, then draws fill/stroke/backdrop/innerGlow once
 
 `innerGlow` remains clipped inside the shape and does not use offset.
 
+## Material Patterns
+
+Patterns are shader paint slots for surfaces, not recipes for drawing extra
+geometry. Use `MGFX.WornPattern(...)` when a flat fill or simple gradient needs
+subtle material texture:
+
+```lua
+pattern = MGFX.WornPattern({
+    color = Color(0, 0, 0, 44),
+    edgeColor = Color(218, 208, 184, 78),
+    fractal = 0.44,
+    grain = 0.64,
+    scratches = 0.30,
+    edge = 0.54,
+    scale = 32,
+    grainScale = 5.6,
+    scratchScale = 26,
+    scratchWidth = 0.045,
+    edgeWidth = 7,
+    angle = -14,
+    warp = 0.035,
+    seed = "inventory-card",
+})
+```
+
+The intended look is a dulled rough surface with sparse scuffs, short scratches,
+and broken edge wear. `grain` is the main roughness control, `fractal` adds soft
+irregular scuffs, `scratches` should stay sparse, and `edge` controls local
+edge damage. Full parameter guidance is in the
+[Paint Reference](docs/api-reference/paint.md#wornpattern).
+
 ## Performance Status
 
 The current hot path is optimized around direct immediate drawing, not a
@@ -127,6 +158,7 @@ The generated site is written to `docs-site/`.
 
 #### Features And API
 
+- 2026-06-27 Added shader-native `WornPattern` documentation and synchronized its defaults across the plain Lua and Lux shader paths. The worn model is tuned around subtle roughness, sparse scuffs, short scratches, and broken edge wear instead of smoke/noise overlays.
 - 2026-06-19 (`dab15db`, `205be62`) Initialized and fixed the unified `MGFX.api` facade runtime for Lux. Lux users can call the unified API surface without choosing between primitive, widget, text, or style internals.
 - 2026-06-19 (`d0018ae`) Unified the MGFX API facade and polygon helper APIs across Lua and Lux, including dedicated helpers for common polygon construction and shader-backed polygon effects.
 - 2026-06-19 (`bacf4fd`) Loaded Lua MGFX demo commands by default so plain GLua users can run demo and inspection commands without manual includes.

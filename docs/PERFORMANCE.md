@@ -116,7 +116,7 @@ High-churn text with shader effects can consume atlas space quickly. Prewarm onl
 - Avoid nested `PushClip` unless the clipped content actually needs it.
 - Reuse gradients, masks, and style tables when they are stable.
 - Avoid constructing many `Color(...)` objects in tight loops.
-- Keep smoke/stripe effects in `pattern` fields.
+- Keep smoke, stripe, and worn surface effects in `pattern` fields.
 
 ## When Adding Renderer Features
 
