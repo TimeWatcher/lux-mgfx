@@ -45,11 +45,16 @@ MGFX.RoundedBoxEx(x, y, w, h, {
     fill = Color(20, 24, 32, 232),
     stroke = Color(255, 255, 255, 26),
     strokeWidth = "hairline",
-    shadow = {x = 0, y = 6, blur = 14, spread = 1, color = Color(0, 0, 0, 118), softness = 0.66},
+    shadow = {
+        {x = 0, y = 1, blur = 2, color = Color(0, 0, 0, 86)},
+        {x = 0, y = 6, blur = 14, spread = 1, color = Color(0, 0, 0, 118), softness = 0.66},
+    },
 })
 ```
 
 小控件把 `shadow.y` 降到 `1..3`、`blur` 降到 `4..8`。大面板可以用 `y = 8..12`、`blur = 18..28`。
+
+`RoundedBoxEx.shadow` 支持数组形式，适合 CSS `box-shadow` 那样的多层阴影。这样比叠多个 `RoundedBoxEx` 更便宜：内部只循环 shadow-only path，不会重复 fill、stroke、backdrop、pattern 或 innerGlow。
 
 #### 只做毛玻璃，不做投影
 

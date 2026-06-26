@@ -156,6 +156,12 @@ MGFX.CapsuleEx(x, y, w, h, style)
 
 `shadow` and `outerGlow` stay separate style fields, but compatible rounded-box, chamfer, ring, and image-mask paths may evaluate both in one fused shader pass. This is an implementation optimization; the CSS-like shadow mask and exterior glow semantics do not change.
 
+`RoundedBoxEx.shadow` may be a single shadow spec or an array of specs. Use the
+array form for CSS-style layered shadows instead of drawing the same rounded box
+several times with different shadow-only styles. MGFX parses the list once, draws
+each shadow layer through the shadow-only path, and draws fill, stroke, backdrop,
+pattern, and inner glow once.
+
 | Goal | Field | Typical value |
 | --- | --- | --- |
 | Lift a control from the background | `shadow` | `{x = 0, y = 4, blur = 10, spread = 1, color = Color(0,0,0,120), softness = 0.68}` |
@@ -170,12 +176,8 @@ Example:
 MGFX.RoundedBoxEx(x, y, w, h, {
     radius = 12,
     shadow = {
-        x = 0,
-        y = 8,
-        blur = 18,
-        spread = 2,
-        color = Color(0, 0, 0, 120),
-        softness = 0.62,
+        {x = 0, y = 1, blur = 2, color = Color(0, 0, 0, 90)},
+        {x = 0, y = 8, blur = 18, spread = 2, color = Color(0, 0, 0, 120), softness = 0.62},
     },
     outerGlow = {
         x = 8,

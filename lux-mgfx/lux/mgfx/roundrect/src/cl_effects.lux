@@ -217,6 +217,42 @@ export client fn shadowRaw(shadow) {
     mathAbs(x) + mathAbs(y) + extent + grow
 }
 
+export client fn shadowLayersRaw(shadow, out = nil) {
+  stopif typeOf(shadow) ~= "table" or typeOf(shadow[1]) ~= "table", nil, 0, 0
+
+  out = out ?? {}
+  for index = #out, 1, -1 {
+    out[index] = nil
+  }
+
+  local count = 0
+  local maxCullSpread = 0
+  for index = 1, #shadow {
+    local hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, _, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread = shadowRaw(shadow[index])
+    if hasShadow {
+      local base = count * 12
+      count += 1
+      out[base + 1] = sr
+      out[base + 2] = sg
+      out[base + 3] = sb
+      out[base + 4] = sa
+      out[base + 5] = shadowX
+      out[base + 6] = shadowY
+      out[base + 7] = shadowWidth
+      out[base + 8] = shadowExtent
+      out[base + 9] = shadowGrow
+      out[base + 10] = shadowStrength
+      out[base + 11] = shadowFalloff
+      out[base + 12] = shadowCullSpread
+      if shadowCullSpread > maxCullSpread {
+        maxCullSpread = shadowCullSpread
+      }
+    }
+  }
+
+  return out, count, maxCullSpread
+}
+
 export client fn patternStyle(pattern) {
   stopif pattern == nil or pattern == false, nil
 

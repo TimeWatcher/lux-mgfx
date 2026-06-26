@@ -129,6 +129,19 @@ drop shadows. Use `outerGlow = {x = 0, y = 0, width = 16, color = Color(...)}`
 for glow. `backdrop` should be reserved for glass/blur/tint surfaces, not
 treated as a shadow substitute.
 
+Rounded boxes can use multiple shadow layers in one style:
+
+```lua
+shadow = {
+    {x = 0, y = 1, blur = 2, color = Color(0, 0, 0, 90)},
+    {x = 0, y = 8, blur = 24, color = Color(0, 0, 0, 80)},
+}
+```
+
+This replaces the old pattern of stacking several `RoundedBoxEx` calls for
+shadow only. The renderer loops the shadow-only path and still draws the body
+once.
+
 ## Performance Model
 
 MGFX keeps the immediate drawing model. It does not hide calls behind a general

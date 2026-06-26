@@ -65,6 +65,7 @@ local defaultInnerGlowColor = makeColor(76, 190, 255, 34)
 local defaultOuterGlowColor = makeColor(76, 190, 255, 88)
 local defaultShadowColor = makeColor(0, 0, 0, 132)
 local inv255 = 1 / 255
+local shadowLayerScratch = {}
 
 export client fn effectExtentRaw(width, falloff, spread, defaultWidth = 18) {
   width = mathMax(0.001, toNumber(width) ?? defaultWidth)

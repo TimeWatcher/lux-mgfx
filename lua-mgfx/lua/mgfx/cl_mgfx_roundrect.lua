@@ -193,6 +193,7 @@ local defaultShadowColor = Color(0, 0, 0, 132)
 local defaultInnerGlowFalloff = glowSoftnessToFalloff(0.55)
 local defaultOuterGlowFalloff = glowSoftnessToFalloff(0.54)
 local defaultShadowFalloff = glowSoftnessToFalloff(0.62)
+local shadowLayerScratch = {}
 function roundRaw.effectExtent(width, falloff, spread, defaultWidth)
 	width = math_max(0.001, tonumber(width) or defaultWidth or 18)
 	falloff = math_max(0.35, tonumber(falloff) or 1.9)
@@ -580,6 +581,44 @@ function roundRaw.shadow(shadow)
 		falloff,
 		extent,
 		math_abs(ox) + math_abs(oy) + extent + grow
+end
+
+function roundRaw.shadowLayers(shadow, out)
+	if not (istable(shadow) and istable(shadow[1])) then
+		return nil, 0, 0
+	end
+
+	out = out or {}
+	for i = #out, 1, -1 do
+		out[i] = nil
+	end
+
+	local count = 0
+	local maxCullSpread = 0
+	for i = 1, #shadow do
+		local hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, _, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread = roundRaw.shadow(shadow[i])
+		if hasShadow then
+			local base = count * 12
+			count = count + 1
+			out[base + 1] = sr
+			out[base + 2] = sg
+			out[base + 3] = sb
+			out[base + 4] = sa
+			out[base + 5] = shadowX
+			out[base + 6] = shadowY
+			out[base + 7] = shadowWidth
+			out[base + 8] = shadowExtent
+			out[base + 9] = shadowGrow
+			out[base + 10] = shadowStrength
+			out[base + 11] = shadowFalloff
+			out[base + 12] = shadowCullSpread
+			if shadowCullSpread > maxCullSpread then
+				maxCullSpread = shadowCullSpread
+			end
+		end
+	end
+
+	return out, count, maxCullSpread
 end
 
 local function patternStyle(pattern)
@@ -1018,7 +1057,8 @@ drawRoundRectPrepared = function(
 	hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
 	hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff,
 	backdropSpec, patternSpec,
-	profiling, totalProfile, stageProfile
+	profiling, totalProfile, stageProfile,
+	shadowLayers, shadowLayerCount, shadowLayersCullSpread
 )
 	if profiling == nil then
 		profiling = profiler and profiler.IsActive and profiler.IsActive()
@@ -1035,8 +1075,11 @@ drawRoundRectPrepared = function(
 	hasShadow = hasShadow == true
 	hasOuter = hasOuter == true
 	hasInner = hasInner == true
+	shadowLayerCount = shadowLayerCount or 0
+	local hasShadowLayers = shadowLayers ~= nil and shadowLayerCount > 0
 
 	local noEffects = not hasShadow
+		and not hasShadowLayers
 		and not hasOuter
 		and not hasInner
 		and backdropSpec == nil
@@ -1093,6 +1136,9 @@ drawRoundRectPrepared = function(
 		if hasShadow then
 			cullSpread = math_max(cullSpread, shadowCullSpread or 0)
 		end
+		if hasShadowLayers then
+			cullSpread = math_max(cullSpread, shadowLayersCullSpread or 0)
+		end
 		if hasOuter then
 			cullSpread = math_max(cullSpread, outerCullSpread or 0)
 		end
@@ -1134,6 +1180,7 @@ drawRoundRectPrepared = function(
 		and patternSpec == nil
 		and not hasInner
 		and not transformActive
+		and not hasShadowLayers
 		and (hasFill or hasStroke)
 		and (hasShadow or hasOuter)
 	if canTryFused then
@@ -1149,6 +1196,21 @@ drawRoundRectPrepared = function(
 			return
 		end
 		if profiling then profileEnd("round.fused.miss", profile) end
+	end
+
+	if hasShadowLayers then
+		local shadowOuterProfile = profiling and profileStart() or nil
+		for i = shadowLayerCount, 1, -1 do
+			local base = (i - 1) * 12
+			roundRaw.drawShadowOuter(
+				x, y, w, h, radius,
+				true,
+				shadowLayers[base + 1], shadowLayers[base + 2], shadowLayers[base + 3], shadowLayers[base + 4],
+				shadowLayers[base + 5], shadowLayers[base + 6], shadowLayers[base + 7], shadowLayers[base + 8], shadowLayers[base + 9], shadowLayers[base + 10], shadowLayers[base + 11],
+				false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1
+			)
+		end
+		if profiling then profileEnd("round.shadowOuter", shadowOuterProfile) end
 	end
 
 	if hasShadow or hasOuter then
@@ -1176,7 +1238,7 @@ drawRoundRectPrepared = function(
 		and not hasStroke
 		and patternSpec == nil
 		and not hasInner
-		and (hasShadow or hasOuter)
+		and (hasShadow or hasOuter or hasShadowLayers)
 	if effectOnly and not hasFill then
 		finishImmediateProfile(profiling, totalProfile)
 		return
@@ -1267,8 +1329,26 @@ drawRoundRectRaw = function(x, y, w, h, radius, fillInput, stroke, strokeWidthIn
 	end
 
 	local hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread = false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0
+	local shadowLayers, shadowLayerCount, shadowLayersCullSpread = nil, 0, 0
 	if shadow ~= nil and shadow ~= false then
-		hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread = roundRaw.shadow(shadow)
+		shadowLayers, shadowLayerCount, shadowLayersCullSpread = roundRaw.shadowLayers(shadow, shadowLayerScratch)
+		if shadowLayers ~= nil then
+			if shadowLayerCount == 1 then
+				hasShadow = true
+				sr, sg, sb, sa = shadowLayers[1], shadowLayers[2], shadowLayers[3], shadowLayers[4]
+				shadowX, shadowY, shadowWidth = shadowLayers[5], shadowLayers[6], shadowLayers[7]
+				shadowSpread, shadowGrow, shadowStrength = shadowWidth, shadowLayers[9], shadowLayers[10]
+				shadowFalloff, shadowExtent, shadowCullSpread = shadowLayers[11], shadowLayers[8], shadowLayers[12]
+				shadowLayers = nil
+				shadowLayerCount = 0
+				shadowLayersCullSpread = 0
+			elseif shadowLayerCount <= 0 then
+				shadowLayers = nil
+			end
+		else
+			shadowLayers = nil
+			hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread = roundRaw.shadow(shadow)
+		end
 	end
 
 	local hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread = false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0
@@ -1299,7 +1379,8 @@ drawRoundRectRaw = function(x, y, w, h, radius, fillInput, stroke, strokeWidthIn
 		hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
 		hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff,
 		backdropSpec, patternSpec,
-		profiling, totalProfile, totalProfile
+		profiling, totalProfile, totalProfile,
+		shadowLayers, shadowLayerCount, shadowLayersCullSpread
 	)
 end
 

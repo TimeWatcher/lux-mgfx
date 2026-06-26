@@ -60,6 +60,7 @@ return function(__lux_import)
   local defaultOuterGlowColor
   local defaultShadowColor
   local inv255
+  local shadowLayerScratch
   local effectExtentRaw
   local defaultInnerGlowFalloff
   local defaultOuterGlowFalloff
@@ -94,6 +95,7 @@ return function(__lux_import)
   local innerGlowRaw
   local outerGlowRaw
   local shadowRaw
+  local shadowLayersRaw
   local patternStyle
   local patternOffset
   local roundRectFillParams
@@ -222,6 +224,7 @@ return function(__lux_import)
     defaultOuterGlowColor = makeColor(76, 190, 255, 88)
     defaultShadowColor = makeColor(0, 0, 0, 132)
     inv255 = 1 / 255
+    shadowLayerScratch = {}
     effectExtentRaw = function(width, falloff, spread, defaultWidth)
       if defaultWidth == nil then
         defaultWidth = 18
@@ -1128,6 +1131,42 @@ return function(__lux_import)
         __lux_tmp_b_83 = 0
       end
       return alpha > 0 and strength > 0, __lux_tmp_r_81 * inv255, __lux_tmp_g_82 * inv255, __lux_tmp_b_83 * inv255, alpha, x, y, width, spread, grow, strength, falloff, extent, mathAbs(x) + mathAbs(y) + extent + grow
+    end
+    shadowLayersRaw = function(shadow, out)
+      if typeOf(shadow) ~= "table" or typeOf(shadow[1]) ~= "table" then
+        return nil, 0, 0
+      end
+      if out == nil then
+        out = {}
+      end
+      for index = #out, 1, -1 do
+        out[index] = nil
+      end
+      local count = 0
+      local maxCullSpread = 0
+      for index = 1, #shadow do
+        local hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, _, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread = shadowRaw(shadow[index])
+        if hasShadow then
+          local base = count * 12
+          count = count + 1
+          out[base + 1] = sr
+          out[base + 2] = sg
+          out[base + 3] = sb
+          out[base + 4] = sa
+          out[base + 5] = shadowX
+          out[base + 6] = shadowY
+          out[base + 7] = shadowWidth
+          out[base + 8] = shadowExtent
+          out[base + 9] = shadowGrow
+          out[base + 10] = shadowStrength
+          out[base + 11] = shadowFalloff
+          out[base + 12] = shadowCullSpread
+          if shadowCullSpread > maxCullSpread then
+            maxCullSpread = shadowCullSpread
+          end
+        end
+      end
+      return out, count, maxCullSpread
     end
     patternStyle = function(pattern)
       if pattern == nil or pattern == false then
@@ -3044,7 +3083,13 @@ return function(__lux_import)
     end
   end
   do
-    drawRoundRectPrepared = function(x, y, w, h, radius, fill, hasFill, strokeValue, strokeWidth, hasStroke, hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread, hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread, hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff, backdropSpec, patternSpec, profiling, totalProfile, stageProfile)
+    drawRoundRectPrepared = function(x, y, w, h, radius, fill, hasFill, strokeValue, strokeWidth, hasStroke, hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread, hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread, hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff, backdropSpec, patternSpec, profiling, totalProfile, stageProfile, shadowLayers, shadowLayerCount, shadowLayersCullSpread)
+      if shadowLayerCount == nil then
+        shadowLayerCount = 0
+      end
+      if shadowLayersCullSpread == nil then
+        shadowLayersCullSpread = 0
+      end
       if profiling == nil then
         profiling = roundRectProfileActive()
         do
@@ -3071,7 +3116,11 @@ return function(__lux_import)
       hasShadow = hasShadow == true
       hasOuter = hasOuter == true
       hasInner = hasInner == true
-      local noEffects = not hasShadow and not hasOuter and not hasInner and backdropSpec == nil and patternSpec == nil
+      if shadowLayerCount == nil then
+        shadowLayerCount = 0
+      end
+      local hasShadowLayers = shadowLayers ~= nil and shadowLayerCount > 0
+      local noEffects = not hasShadow and not hasShadowLayers and not hasOuter and not hasInner and backdropSpec == nil and patternSpec == nil
       if noEffects and not hasStroke and not transformActive then
         if hasFill and fill.kind == style.FILL_SOLID then
           local radiusValue = roundRectRadiusScalar(radius, w, h)
@@ -3140,22 +3189,31 @@ return function(__lux_import)
             cullSpread = mathMax(cullSpread, __lux_tmp_shadowCullSpread_237)
           end
         end
+        if hasShadowLayers then
+          do
+            local __lux_tmp_shadowLayersCullSpread_238 = shadowLayersCullSpread
+            if __lux_tmp_shadowLayersCullSpread_238 == nil then
+              __lux_tmp_shadowLayersCullSpread_238 = 0
+            end
+            cullSpread = mathMax(cullSpread, __lux_tmp_shadowLayersCullSpread_238)
+          end
+        end
         if hasOuter then
           do
-            local __lux_tmp_outerCullSpread_238 = outerCullSpread
-            if __lux_tmp_outerCullSpread_238 == nil then
-              __lux_tmp_outerCullSpread_238 = 0
+            local __lux_tmp_outerCullSpread_239 = outerCullSpread
+            if __lux_tmp_outerCullSpread_239 == nil then
+              __lux_tmp_outerCullSpread_239 = 0
             end
-            cullSpread = mathMax(cullSpread, __lux_tmp_outerCullSpread_238)
+            cullSpread = mathMax(cullSpread, __lux_tmp_outerCullSpread_239)
           end
         end
         if backdropSpec ~= nil then
           do
-            local __lux_tmp_padding_239 = toNumber(backdropSpec.padding)
-            if __lux_tmp_padding_239 == nil then
-              __lux_tmp_padding_239 = 0
+            local __lux_tmp_padding_240 = toNumber(backdropSpec.padding)
+            if __lux_tmp_padding_240 == nil then
+              __lux_tmp_padding_240 = 0
             end
-            cullSpread = mathMax(cullSpread, mathMax(0, __lux_tmp_padding_239))
+            cullSpread = mathMax(cullSpread, mathMax(0, __lux_tmp_padding_240))
           end
         end
       end
@@ -3220,16 +3278,16 @@ return function(__lux_import)
         stageProfile = now
       end
       local profile = nil
-      local canTryFused = backdropSpec == nil and patternSpec == nil and not hasInner and not transformActive and (hasFill or hasStroke) and (hasShadow or hasOuter)
+      local canTryFused = backdropSpec == nil and patternSpec == nil and not hasInner and not transformActive and not hasShadowLayers and (hasFill or hasStroke) and (hasShadow or hasOuter)
       if canTryFused then
         do
-          local __lux_tmp_240
+          local __lux_tmp_241
           if profiling then
-            __lux_tmp_240 = roundRectProfileStart()
+            __lux_tmp_241 = roundRectProfileStart()
           else
-            __lux_tmp_240 = nil
+            __lux_tmp_241 = nil
           end
-          profile = __lux_tmp_240
+          profile = __lux_tmp_241
         end
         local radiusValue = roundRectRadiusScalar(radius, w, h)
         local drawFill
@@ -3283,15 +3341,63 @@ return function(__lux_import)
           roundRectProfileEnd("round.fused.miss", profile)
         end
       end
+      if hasShadowLayers then
+        do
+          local __lux_tmp_242
+          if profiling then
+            __lux_tmp_242 = roundRectProfileStart()
+          else
+            __lux_tmp_242 = nil
+          end
+          profile = __lux_tmp_242
+        end
+        for index = shadowLayerCount, 1, -1 do
+          local base = (index - 1) * 12
+          drawRoundRectShadowOuterRaw(
+            x,
+            y,
+            w,
+            h,
+            radius,
+            true,
+            shadowLayers[base + 1],
+            shadowLayers[base + 2],
+            shadowLayers[base + 3],
+            shadowLayers[base + 4],
+            shadowLayers[base + 5],
+            shadowLayers[base + 6],
+            shadowLayers[base + 7],
+            shadowLayers[base + 8],
+            shadowLayers[base + 9],
+            shadowLayers[base + 10],
+            shadowLayers[base + 11],
+            false,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            0,
+            0,
+            1
+          )
+        end
+        if profiling then
+          roundRectProfileEnd("round.shadowOuter", profile)
+        end
+      end
       if hasShadow or hasOuter then
         do
-          local __lux_tmp_241
+          local __lux_tmp_243
           if profiling then
-            __lux_tmp_241 = roundRectProfileStart()
+            __lux_tmp_243 = roundRectProfileStart()
           else
-            __lux_tmp_241 = nil
+            __lux_tmp_243 = nil
           end
-          profile = __lux_tmp_241
+          profile = __lux_tmp_243
         end
         drawRoundRectShadowOuterRaw(
           x,
@@ -3331,20 +3437,20 @@ return function(__lux_import)
       local backdrop = nil
       if backdropSpec ~= nil then
         do
-          local __lux_tmp_242
+          local __lux_tmp_244
           if profiling then
-            __lux_tmp_242 = roundRectProfileStart()
+            __lux_tmp_244 = roundRectProfileStart()
           else
-            __lux_tmp_242 = nil
+            __lux_tmp_244 = nil
           end
-          profile = __lux_tmp_242
+          profile = __lux_tmp_244
         end
         backdrop = drawRoundRectBackdrop(x, y, w, h, radius, backdropSpec)
         if profiling then
           roundRectProfileEnd("round.backdrop", profile)
         end
       end
-      local effectOnly = backdrop == nil and not hasStroke and patternSpec == nil and not hasInner and (hasShadow or hasOuter)
+      local effectOnly = backdrop == nil and not hasStroke and patternSpec == nil and not hasInner and (hasShadow or hasOuter or hasShadowLayers)
       if effectOnly and not hasFill then
         finishImmediateProfile(profiling, totalProfile)
         return
@@ -3362,13 +3468,13 @@ return function(__lux_import)
       local innerGlowDrawn = false
       if patternSpec ~= nil then
         do
-          local __lux_tmp_243
+          local __lux_tmp_245
           if profiling then
-            __lux_tmp_243 = roundRectProfileStart()
+            __lux_tmp_245 = roundRectProfileStart()
           else
-            __lux_tmp_243 = nil
+            __lux_tmp_245 = nil
           end
-          profile = __lux_tmp_243
+          profile = __lux_tmp_245
         end
         if hasFill then
           drawRoundRectFillPass(x, y, w, h, radius, fill)
@@ -3382,13 +3488,13 @@ return function(__lux_import)
         end
       else
         do
-          local __lux_tmp_244
+          local __lux_tmp_246
           if profiling then
-            __lux_tmp_244 = roundRectProfileStart()
+            __lux_tmp_246 = roundRectProfileStart()
           else
-            __lux_tmp_244 = nil
+            __lux_tmp_246 = nil
           end
-          profile = __lux_tmp_244
+          profile = __lux_tmp_246
         end
         local radiusValue = roundRectRadiusScalar(radius, w, h)
         local baseKind
@@ -3542,8 +3648,38 @@ return function(__lux_import)
       local shadowFalloff = 1
       local shadowExtent = 0
       local shadowCullSpread = 0
+      local shadowLayers = nil
+      local shadowLayerCount = 0
+      local shadowLayersCullSpread = 0
       if shadowValue ~= nil and shadowValue ~= false then
-        hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread = shadowRaw(shadowValue)
+        shadowLayers, shadowLayerCount, shadowLayersCullSpread = shadowLayersRaw(shadowValue, shadowLayerScratch)
+        if shadowLayers ~= nil then
+          if shadowLayerCount == 1 then
+            hasShadow = true
+            sr = shadowLayers[1]
+            sg = shadowLayers[2]
+            sb = shadowLayers[3]
+            sa = shadowLayers[4]
+            shadowX = shadowLayers[5]
+            shadowY = shadowLayers[6]
+            shadowWidth = shadowLayers[7]
+            shadowSpread = shadowWidth
+            shadowGrow = shadowLayers[9]
+            shadowStrength = shadowLayers[10]
+            shadowFalloff = shadowLayers[11]
+            shadowExtent = shadowLayers[8]
+            shadowCullSpread = shadowLayers[12]
+            shadowLayers = nil
+            shadowLayerCount = 0
+            shadowLayersCullSpread = 0
+          else
+            if shadowLayerCount <= 0 then
+              shadowLayers = nil
+            end
+          end
+        else
+          hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread = shadowRaw(shadowValue)
+        end
       end
       local hasOuter = false
       local orr = 0
@@ -3636,7 +3772,10 @@ return function(__lux_import)
         patternSpec,
         profiling,
         totalProfile,
-        totalProfile
+        totalProfile,
+        shadowLayers,
+        shadowLayerCount,
+        shadowLayersCullSpread
       )
     end
     drawRoundRectImmediate = function(x, y, w, h, drawStyle)
@@ -3644,24 +3783,24 @@ return function(__lux_import)
       if styleValue == nil then
         styleValue = emptyRoundRectStyle
       end
-      local __lux_tmp_radius_245 = styleValue.radius
-      if __lux_tmp_radius_245 == nil then
-        __lux_tmp_radius_245 = styleValue.r
+      local __lux_tmp_radius_247 = styleValue.radius
+      if __lux_tmp_radius_247 == nil then
+        __lux_tmp_radius_247 = styleValue.r
       end
-      if __lux_tmp_radius_245 == nil then
-        __lux_tmp_radius_245 = 0
+      if __lux_tmp_radius_247 == nil then
+        __lux_tmp_radius_247 = 0
       end
-      local __lux_tmp_fill_246 = styleValue.fill
-      if __lux_tmp_fill_246 == nil then
-        __lux_tmp_fill_246 = styleValue.color
+      local __lux_tmp_fill_248 = styleValue.fill
+      if __lux_tmp_fill_248 == nil then
+        __lux_tmp_fill_248 = styleValue.color
       end
       return drawRoundRectRaw(
         x,
         y,
         w,
         h,
-        __lux_tmp_radius_245,
-        __lux_tmp_fill_246,
+        __lux_tmp_radius_247,
+        __lux_tmp_fill_248,
         styleValue.stroke,
         styleValue.strokeWidth,
         styleValue.shadow,
@@ -3728,9 +3867,9 @@ return function(__lux_import)
           size,
           size,
           function()
-            local __lux_tmp_fill_247 = stripped.fill
-            if __lux_tmp_fill_247 == nil then
-              __lux_tmp_fill_247 = stripped.color
+            local __lux_tmp_fill_249 = stripped.fill
+            if __lux_tmp_fill_249 == nil then
+              __lux_tmp_fill_249 = stripped.color
             end
             return drawRoundRectRaw(
               x,
@@ -3738,7 +3877,7 @@ return function(__lux_import)
               size,
               size,
               radius,
-              __lux_tmp_fill_247,
+              __lux_tmp_fill_249,
               stripped.stroke,
               stripped.strokeWidth,
               stripped.shadow,
@@ -3750,9 +3889,9 @@ return function(__lux_import)
           end
         )
       end
-      local __lux_tmp_fill_248 = stripped.fill
-      if __lux_tmp_fill_248 == nil then
-        __lux_tmp_fill_248 = stripped.color
+      local __lux_tmp_fill_250 = stripped.fill
+      if __lux_tmp_fill_250 == nil then
+        __lux_tmp_fill_250 = stripped.color
       end
       return drawRoundRectRaw(
         x,
@@ -3760,7 +3899,7 @@ return function(__lux_import)
         size,
         size,
         radius,
-        __lux_tmp_fill_248,
+        __lux_tmp_fill_250,
         stripped.stroke,
         stripped.strokeWidth,
         stripped.shadow,
@@ -3791,9 +3930,9 @@ return function(__lux_import)
           w,
           h,
           function()
-            local __lux_tmp_fill_249 = stripped.fill
-            if __lux_tmp_fill_249 == nil then
-              __lux_tmp_fill_249 = stripped.color
+            local __lux_tmp_fill_251 = stripped.fill
+            if __lux_tmp_fill_251 == nil then
+              __lux_tmp_fill_251 = stripped.color
             end
             return drawRoundRectRaw(
               x,
@@ -3801,7 +3940,7 @@ return function(__lux_import)
               w,
               h,
               radius,
-              __lux_tmp_fill_249,
+              __lux_tmp_fill_251,
               stripped.stroke,
               stripped.strokeWidth,
               stripped.shadow,
@@ -3813,9 +3952,9 @@ return function(__lux_import)
           end
         )
       end
-      local __lux_tmp_fill_250 = stripped.fill
-      if __lux_tmp_fill_250 == nil then
-        __lux_tmp_fill_250 = stripped.color
+      local __lux_tmp_fill_252 = stripped.fill
+      if __lux_tmp_fill_252 == nil then
+        __lux_tmp_fill_252 = stripped.color
       end
       return drawRoundRectRaw(
         x,
@@ -3823,7 +3962,7 @@ return function(__lux_import)
         w,
         h,
         radius,
-        __lux_tmp_fill_250,
+        __lux_tmp_fill_252,
         stripped.stroke,
         stripped.strokeWidth,
         stripped.shadow,
@@ -3838,11 +3977,11 @@ return function(__lux_import)
     install = function(owner)
       configureRoundRect(owner)
       do
-        local __lux_tmp_internal_251 = owner._internal
-        if __lux_tmp_internal_251 == nil then
-          __lux_tmp_internal_251 = {}
+        local __lux_tmp_internal_253 = owner._internal
+        if __lux_tmp_internal_253 == nil then
+          __lux_tmp_internal_253 = {}
         end
-        owner._internal = __lux_tmp_internal_251
+        owner._internal = __lux_tmp_internal_253
       end
       owner._internal.drawRoundRectRaw = drawRoundRectRaw
       owner._internal.drawRoundRectPrepared = drawRoundRectPrepared
@@ -3856,6 +3995,7 @@ return function(__lux_import)
         innerGlow = innerGlowRaw,
         outerGlow = outerGlowRaw,
         shadow = shadowRaw,
+        shadowLayers = shadowLayersRaw,
         drawInnerGlow = drawRoundRectInnerGlowRaw,
         drawShadowOuter = drawRoundRectShadowOuterRaw,
         drawFused = drawRoundRectFusedRaw,
@@ -3886,6 +4026,7 @@ return function(__lux_import)
   __lux_exports.innerGlowRaw = innerGlowRaw
   __lux_exports.outerGlowRaw = outerGlowRaw
   __lux_exports.shadowRaw = shadowRaw
+  __lux_exports.shadowLayersRaw = shadowLayersRaw
   __lux_exports.patternStyle = patternStyle
   __lux_exports.patternOffset = patternOffset
   __lux_exports.drawRoundRectPrepared = drawRoundRectPrepared

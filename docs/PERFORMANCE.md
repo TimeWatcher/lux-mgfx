@@ -82,6 +82,11 @@ Local GMod profiling showed repeated `SetFloat` calls are several times more exp
 
 The current renderer intentionally fuses compatible `shadow + outerGlow` work for rounded boxes, chamfers, rings, and image masks. This removes duplicated style preparation, material setup, and draw calls while preserving the visual layers.
 
+Rounded boxes also support layered `shadow = { {...}, {...} }`. This is cheaper
+than stacking multiple full `RoundedBoxEx` calls: style parsing happens once,
+the renderer loops only the shadow path for each layer, and the body/effects
+that belong to the source shape are drawn once.
+
 Do not fuse layers just because two shaders look similar. Backdrop blur reads the framebuffer, pattern layers can affect blend order, and convex polygons need their auxiliary page for vertices, so those paths must stay separate unless a measured implementation proves pixel-equivalent output.
 
 ## Shader and Fallback Routing

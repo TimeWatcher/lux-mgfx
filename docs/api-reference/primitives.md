@@ -59,6 +59,23 @@ MGFX.RoundedBoxEx(x, y, w, h, {
 
 `radius` accepts a number or `{tl, tr, br, bl}`.
 
+`RoundedBoxEx.shadow` can also be an array of shadow specs for CSS-style layered
+box shadows:
+
+```lua
+MGFX.RoundedBoxEx(x, y, w, h, {
+    radius = 10,
+    fill = Color(18, 24, 32, 220),
+    shadow = {
+        {x = 0, y = 1, blur = 2, color = Color(0, 0, 0, 90)},
+        {x = 0, y = 8, blur = 24, color = Color(0, 0, 0, 80)},
+    },
+})
+```
+
+The renderer loops only the shadow path for these layers. It does not repeat
+fill, stroke, backdrop, pattern, or inner glow work.
+
 ## Chamfer Boxes
 
 ```lua

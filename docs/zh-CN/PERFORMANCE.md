@@ -135,6 +135,8 @@ image_mask_shadow_outer shadow + outerGlow
 
 `shadow` 和 `outerGlow` 在 API 语义上仍然分离；合成 pass 只用于能保持 CSS-like 结果一致的 shape。`backdrop`、convex poly 的 shadow/glow 和部分 `pattern` 仍可能是独立 pass，因为它们的 draw bounds、framebuffer read、参数页压力或 blend order 是可见行为。
 
+RoundedBox 还支持 `shadow = { {...}, {...} }` 多层阴影。它用于替代“为了多个阴影叠多次完整 `RoundedBoxEx`”的写法：style 只解析一次，每一层只走 shadow-only path，主体和其它效果仍然只画一次。
+
 ## 分配规则
 
 Hot paint path 中避免这些写法：

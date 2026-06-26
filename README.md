@@ -52,6 +52,19 @@ Lux code should use `@lux/mgfx` and its unified `mgfx.api` facade; the old paint
 
 The API fields stay separate, but the renderer may fuse compatible `shadow` and `outerGlow` layers into one shader pass for rounded boxes, chamfers, rings, and image masks. That optimization preserves the CSS-like visual result while avoiding duplicate Lua setup and material parameter uploads.
 
+`RoundedBoxEx.shadow` also accepts CSS-style multiple layers:
+
+```lua
+shadow = {
+    {x = 0, y = 1, blur = 2, color = Color(0, 0, 0, 90)},
+    {x = 0, y = 8, blur = 24, color = Color(0, 0, 0, 80)},
+}
+```
+
+Use this instead of stacking multiple full `RoundedBoxEx` calls just to create
+layered shadows. MGFX parses the layer list once at the API boundary, draws only
+the shadow passes for each layer, then draws fill/stroke/backdrop/innerGlow once.
+
 `innerGlow` remains clipped inside the shape and does not use offset.
 
 ## Performance Status

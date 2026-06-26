@@ -139,6 +139,8 @@ MGFX.CapsuleEx(x, y, w, h, style)
 
 `shadow` 和 `outerGlow` 在 API 语义上仍然是两个字段，但 rounded、chamfer、ring 和 image mask 的兼容路径会把二者合进同一个 shader pass。这个优化只减少 Lua 准备、材质参数上传和 draw，不改变 CSS-like shadow mask 与外部 glow 的视觉语义。
 
+`RoundedBoxEx.shadow` 可以是单个 shadow spec，也可以是 shadow spec 数组。需要 CSS 式多层阴影时，应该写在同一个 `shadow` 数组里，而不是叠多次完整 `RoundedBoxEx`。MGFX 会在 API 边界解析一次数组，然后只循环 shadow-only path；fill、stroke、backdrop、pattern 和 innerGlow 仍然只画一次。
+
 实际选择可以按目的判断：
 
 | 目的 | 字段 | 典型值 |
@@ -155,12 +157,8 @@ MGFX.CapsuleEx(x, y, w, h, style)
 MGFX.RoundedBoxEx(x, y, w, h, {
     radius = 12,
     shadow = {
-        x = 0,
-        y = 8,
-        blur = 18,
-        spread = 2,
-        color = Color(0, 0, 0, 120),
-        softness = 0.62,
+        {x = 0, y = 1, blur = 2, color = Color(0, 0, 0, 90)},
+        {x = 0, y = 8, blur = 18, spread = 2, color = Color(0, 0, 0, 120), softness = 0.62},
     },
     outerGlow = {
         x = 0,

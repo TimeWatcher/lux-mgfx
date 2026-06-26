@@ -6,7 +6,8 @@ export client fn drawRoundRectPrepared(
   hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
   hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff,
   backdropSpec, patternSpec,
-  profiling = nil, totalProfile = nil, stageProfile = nil
+  profiling = nil, totalProfile = nil, stageProfile = nil,
+  shadowLayers = nil, shadowLayerCount = 0, shadowLayersCullSpread = 0
 ) {
   if profiling == nil {
     profiling = roundRectProfileActive()
@@ -23,8 +24,11 @@ export client fn drawRoundRectPrepared(
   hasShadow = hasShadow == true
   hasOuter = hasOuter == true
   hasInner = hasInner == true
+  shadowLayerCount = shadowLayerCount ?? 0
+  local hasShadowLayers = shadowLayers ~= nil and shadowLayerCount > 0
 
   local noEffects = not hasShadow
+    and not hasShadowLayers
     and not hasOuter
     and not hasInner
     and backdropSpec == nil
@@ -84,6 +88,9 @@ export client fn drawRoundRectPrepared(
     if hasShadow {
       cullSpread = mathMax(cullSpread, shadowCullSpread ?? 0)
     }
+    if hasShadowLayers {
+      cullSpread = mathMax(cullSpread, shadowLayersCullSpread ?? 0)
+    }
     if hasOuter {
       cullSpread = mathMax(cullSpread, outerCullSpread ?? 0)
     }
@@ -129,6 +136,7 @@ export client fn drawRoundRectPrepared(
     and patternSpec == nil
     and not hasInner
     and not transformActive
+    and not hasShadowLayers
     and (hasFill or hasStroke)
     and (hasShadow or hasOuter)
   if canTryFused {
@@ -148,6 +156,23 @@ export client fn drawRoundRectPrepared(
     }
     if profiling {
       roundRectProfileEnd("round.fused.miss", profile)
+    }
+  }
+
+  if hasShadowLayers {
+    profile = profiling then roundRectProfileStart() else nil
+    for index = shadowLayerCount, 1, -1 {
+      local base = (index - 1) * 12
+      drawRoundRectShadowOuterRaw(
+        x, y, w, h, radius,
+        true,
+        shadowLayers[base + 1], shadowLayers[base + 2], shadowLayers[base + 3], shadowLayers[base + 4],
+        shadowLayers[base + 5], shadowLayers[base + 6], shadowLayers[base + 7], shadowLayers[base + 8], shadowLayers[base + 9], shadowLayers[base + 10], shadowLayers[base + 11],
+        false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1
+      )
+    }
+    if profiling {
+      roundRectProfileEnd("round.shadowOuter", profile)
     }
   }
 
@@ -176,7 +201,7 @@ export client fn drawRoundRectPrepared(
     and not hasStroke
     and patternSpec == nil
     and not hasInner
-    and (hasShadow or hasOuter)
+    and (hasShadow or hasOuter or hasShadowLayers)
   if effectOnly and not hasFill {
     finishImmediateProfile(profiling, totalProfile)
     return
@@ -291,8 +316,36 @@ export client fn drawRoundRectRaw(x, y, w, h, radius = 0, fillInput = nil, strok
   local shadowFalloff = 1
   local shadowExtent = 0
   local shadowCullSpread = 0
+  local shadowLayers = nil
+  local shadowLayerCount = 0
+  local shadowLayersCullSpread = 0
   if shadowValue ~= nil and shadowValue ~= false {
-    hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread = shadowRaw(shadowValue)
+    shadowLayers, shadowLayerCount, shadowLayersCullSpread = shadowLayersRaw(shadowValue, shadowLayerScratch)
+    if shadowLayers ~= nil {
+      if shadowLayerCount == 1 {
+        hasShadow = true
+        sr = shadowLayers[1]
+        sg = shadowLayers[2]
+        sb = shadowLayers[3]
+        sa = shadowLayers[4]
+        shadowX = shadowLayers[5]
+        shadowY = shadowLayers[6]
+        shadowWidth = shadowLayers[7]
+        shadowSpread = shadowWidth
+        shadowGrow = shadowLayers[9]
+        shadowStrength = shadowLayers[10]
+        shadowFalloff = shadowLayers[11]
+        shadowExtent = shadowLayers[8]
+        shadowCullSpread = shadowLayers[12]
+        shadowLayers = nil
+        shadowLayerCount = 0
+        shadowLayersCullSpread = 0
+      } else if shadowLayerCount <= 0 {
+        shadowLayers = nil
+      }
+    } else {
+      hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread = shadowRaw(shadowValue)
+    }
   }
 
   local hasOuter = false
@@ -336,7 +389,8 @@ export client fn drawRoundRectRaw(x, y, w, h, radius = 0, fillInput = nil, strok
     hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
     hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff,
     backdropSpec, patternSpec,
-    profiling, totalProfile, totalProfile
+    profiling, totalProfile, totalProfile,
+    shadowLayers, shadowLayerCount, shadowLayersCullSpread
   )
 }
 

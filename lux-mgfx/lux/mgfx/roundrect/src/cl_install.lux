@@ -13,6 +13,7 @@ export client fn install(owner) {
     innerGlow = innerGlowRaw,
     outerGlow = outerGlowRaw,
     shadow = shadowRaw,
+    shadowLayers = shadowLayersRaw,
     drawInnerGlow = drawRoundRectInnerGlowRaw,
     drawShadowOuter = drawRoundRectShadowOuterRaw,
     drawFused = drawRoundRectFusedRaw,
