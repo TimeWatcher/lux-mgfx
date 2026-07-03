@@ -74,6 +74,7 @@ function MGFX._InstallPrimitives(C)
 	local drawPolyImmediate
 	local drawPolyRaw
 	local drawPolyImmediateNormalized
+	local drawPolyFallbackPrepared
 local function profileStart()
 	if profiler and profiler.Start then return profiler.Start() end
 	return nil
@@ -1262,7 +1263,7 @@ local function setupPolyFillConstants(mat, poly, fill)
 	return drawRect
 end
 
-local function drawPolyFallbackPrepared(points, fill, hasFill, stroke, strokeWidth, hasStroke)
+drawPolyFallbackPrepared = function(points, fill, hasFill, stroke, strokeWidth, hasStroke)
 	M.stats.fallbacks = M.stats.fallbacks + 1
 
 	if hasFill then
