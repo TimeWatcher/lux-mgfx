@@ -156,9 +156,10 @@ fn drawImageMaskPass(x, y, w, h, texture, u0, v0, u1, v1, tint, stroke, strokeWi
   }
 
   local material = widgetMaterials.image_mask
-  material:SetTexture("$basetexture", texture)
+  -- Keep $basetexture fixed so DrawTexturedRectUV's local UV correction stays stable.
+  material:SetTexture("$texture1", texture)
   if maskTexture ~= nil {
-    material:SetTexture("$texture1", maskTexture)
+    material:SetTexture("$texture2", maskTexture)
   }
 
   setupImageMaskConstants(material, w, h, u0, v0, u1, v1, stroke, strokeWidth, mask, kind, maskTexture, sourceAlphaBase)

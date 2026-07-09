@@ -54,6 +54,16 @@ Rules:
 - Do not invent temporary registers such as `$c8`; they may compile but read as zero or undefined in GMod.
 - Document parameter layout changes in this file.
 
+## Image Mask Samplers
+
+`mgfx_image_mask` keeps `$basetexture` fixed to `color/white`. It is the stable mapping carrier used by the `DrawTexturedRectUV` half-pixel correction, not the image being rendered. The shader sampler layout is:
+
+- `TexBase`: fixed local-UV mapping carrier.
+- `Tex1`: source image or render target.
+- `Tex2`: optional texture mask.
+
+The corrected `i.uv` is reserved for normalized shape coordinates, while `SOURCE_UV` maps it into the source image. Do not bind a source image back to `$basetexture`: changing the material mapping dimensions couples source sampling to procedural SDF coordinates and distorts circle and rounded-mask coverage.
+
 ## Gradient LUT
 
 Multi-stop gradients use a cached 256-sample LUT. The shader reconstructs color and alpha from the LUT path. This avoids fragile alpha behavior across Source render targets and blend states.

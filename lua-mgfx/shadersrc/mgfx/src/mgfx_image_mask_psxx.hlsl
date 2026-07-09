@@ -107,7 +107,7 @@ float procedural_dist(float2 uv, float kind)
 float texture_mask_value(float2 uv, float kind)
 {
 	float2 maskUV = lerp(MASK_PARAMS.xy, MASK_PARAMS.zw, saturate(uv));
-	float4 m = tex2D(Tex1, maskUV);
+	float4 m = tex2D(Tex2, maskUV);
 
 	if (kind < 10.5) return m.a;
 	if (kind < 11.5) return m.r;
@@ -149,7 +149,7 @@ float4 main(PS_INPUT i) : COLOR
 	float invert = step(128.0, packedKind);
 	float kind = packedKind - invert * 128.0;
 	float2 sourceUV = lerp(SOURCE_UV.xy, SOURCE_UV.zw, saturate(i.uv));
-	float4 texColor = tex2D(TexBase, sourceUV) * i.color;
+	float4 texColor = tex2D(Tex1, sourceUV) * i.color;
 
 	float outer = 0.0;
 	float inner = 0.0;

@@ -66,7 +66,7 @@ mgfx_draw_counts 0
 
 这些不是风格建议，是实际踩坑后的硬规则：
 
-- 对生成材质不要直接依赖 `DrawTexturedRectUV`，除非你已经处理了 UV 修正。优先使用带显式 UV 的四点 textured quad。
+- 对生成材质不要直接依赖 `DrawTexturedRectUV`，除非已经按稳定的 `$basetexture` mapping size 处理 UV 修正。热路径可以使用修正后的 `DrawTexturedRectUV`，但不能在绘制期间改变作为 mapping carrier 的基底纹理。
 - 抗锯齿需要最终屏幕空间尺寸或 UV derivative。不要把逻辑尺寸当成 shader AA 所需的物理像素尺寸。
 - 进入 SDF 计算前先 clamp radius 和 chamfer cuts。
 - 不要随手加 data texture 参数路径。被移除的 batch prototype 已经证明，上传和调度成本可能压过 draw call 收益。
@@ -103,6 +103,16 @@ GMod/Source 的矩阵索引会按列抵达 HLSL：`matrix[0]` 读到的是 `1,5,
 `MGFXExtraParams` 是主参数页。`MGFXAuxParams` 是辅助参数页，只给参数超过 16 个 float 的 fused shader 使用，例如 chamfer cuts + inner glow、ring stroke + inner glow、polygon 顶点、text atlas 数据，以及 shadow + outerGlow 合成参数。`$c0..$c3` 仍然在 shader common 中声明，主要用于兼容和诊断；新的热路径不要默认回到逐 float 上传。
 
 本地 GMod benchmark 中，16 个独立 `SetFloat` 大约是 `SetUnpacked + SetMatrix` 的 7 倍成本，所以 hot shape path 不应回到逐 float 上传。
+
+## Image Mask Sampler 布局
+
+`mgfx_image_mask` 的 `$basetexture` 固定为 `color/white`。它只是 `DrawTexturedRectUV` 半像素修正所依赖的稳定 mapping carrier，不是真正要显示的图像。Sampler 分工如下：
+
+- `TexBase`：固定的局部 UV mapping carrier。
+- `Tex1`：源图像或 render target。
+- `Tex2`：可选的纹理 mask。
+
+修正后的 `i.uv` 只表示归一化 shape 坐标，再由 `SOURCE_UV` 映射到源图。不要把源图重新绑定到 `$basetexture`；否则材质 mapping 尺寸会把源图采样和 procedural SDF 坐标重新耦合，circle 和 rounded mask 的 coverage 会发生畸变。
 
 ## 融合 Shape 快速路径
 

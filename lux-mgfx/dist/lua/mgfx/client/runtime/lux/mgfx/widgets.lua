@@ -3909,9 +3909,9 @@ return function(__lux_import)
         return false
       end
       local material = widgetMaterials.image_mask
-      material:SetTexture("$basetexture", texture)
+      material:SetTexture("$texture1", texture)
       if maskTexture ~= nil then
-        material:SetTexture("$texture1", maskTexture)
+        material:SetTexture("$texture2", maskTexture)
       end
       setupImageMaskConstants(
         material,
@@ -4972,11 +4972,18 @@ return function(__lux_import)
         mask = style.imageMaskStyle(maskInput, resolved)
         maskKind = imageMaskKindValue(mask)
       end
-      if imageMaskUsesTexture(maskKind) then
-        local maskTexture = imageMaskTextureSource(mask)
-        local backdropMaskKind = imageMaskTextureChannelKind(mask.channel)
-        if backdropMaskKind == nil then
-          backdropMaskKind = maskKind
+      if imageMaskUsesTexture(maskKind) or maskKind == 2 then
+        local maskTexture = nil
+        local backdropMaskKind = maskKind
+        if imageMaskUsesTexture(maskKind) then
+          maskTexture = imageMaskTextureSource(mask)
+          do
+            local __lux_tmp_channel_309 = imageMaskTextureChannelKind(mask.channel)
+            if __lux_tmp_channel_309 == nil then
+              __lux_tmp_channel_309 = maskKind
+            end
+            backdropMaskKind = __lux_tmp_channel_309
+          end
         end
         if hasShadow or hasOuter then
           drawImageMaskShadowOuter(
@@ -5163,15 +5170,15 @@ return function(__lux_import)
           nil
         )
       end
-      local __lux_tmp_311 = background ~= nil
-      if __lux_tmp_311 then
-        local __lux_tmp_a_310 = background.a
-        if __lux_tmp_a_310 == nil then
-          __lux_tmp_a_310 = 255
+      local __lux_tmp_312 = background ~= nil
+      if __lux_tmp_312 then
+        local __lux_tmp_a_311 = background.a
+        if __lux_tmp_a_311 == nil then
+          __lux_tmp_a_311 = 255
         end
-        __lux_tmp_311 = __lux_tmp_a_310 > 0
+        __lux_tmp_312 = __lux_tmp_a_311 > 0
       end
-      if __lux_tmp_311 then
+      if __lux_tmp_312 then
         drawPreparedRoundRectPlain(x, y, w, h, radius, style.fillFromStyle(background))
       end
       return drawImageRoundRectShader(

@@ -297,9 +297,14 @@ fn imageImmediate(x, y, w, h, source, drawStyle) {
     maskKind = imageMaskKindValue(mask)
   }
 
-  if imageMaskUsesTexture(maskKind) {
-    local maskTexture = imageMaskTextureSource(mask)
-    local backdropMaskKind = imageMaskTextureChannelKind(mask.channel) ?? maskKind
+  if imageMaskUsesTexture(maskKind) or maskKind == ImageMaskKind.Circle {
+    local maskTexture = nil
+    local backdropMaskKind = maskKind
+    if imageMaskUsesTexture(maskKind) {
+      maskTexture = imageMaskTextureSource(mask)
+      backdropMaskKind = imageMaskTextureChannelKind(mask.channel) ?? maskKind
+    }
+
     if hasShadow or hasOuter {
       drawImageMaskShadowOuter(
         x, y, w, h, mask, maskKind,

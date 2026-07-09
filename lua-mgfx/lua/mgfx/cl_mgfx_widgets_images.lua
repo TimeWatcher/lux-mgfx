@@ -412,9 +412,10 @@ local function drawImageMaskPass(x, y, w, h, texture, u0, v0, u1, v1, tint, stro
 	if not texture or not matOK(materials.image_mask) then return false end
 
 	local mat = materials.image_mask
-	mat:SetTexture("$basetexture", texture)
+	-- Keep $basetexture fixed so DrawTexturedRectUV's local UV correction stays stable.
+	mat:SetTexture("$texture1", texture)
 	if maskTexture then
-		mat:SetTexture("$texture1", maskTexture)
+		mat:SetTexture("$texture2", maskTexture)
 	end
 
 	setupImageMaskConstants(mat, w, h, u0, v0, u1, v1, stroke, strokeWidth, mask, kind, maskTexture, sourceAlphaBase == true)
@@ -757,10 +758,14 @@ end
 			maskKind = maskKindValue(mask)
 		end
 
-	if maskKind == MASK_TEXTURE_A or maskKind == MASK_TEXTURE_R or maskKind == MASK_TEXTURE_G or maskKind == MASK_TEXTURE_B or maskKind == MASK_TEXTURE_LUMA then
+	if maskKind == MASK_CIRCLE or (maskKind and maskKind >= MASK_TEXTURE_A) then
 		profile = profileStart()
-		local maskTexture = maskTextureSource(mask)
-		local backdropMaskKind = maskTextureChannelKind(mask.channel) or maskKind
+		local maskTexture
+		local backdropMaskKind = maskKind
+		if maskKind >= MASK_TEXTURE_A then
+			maskTexture = maskTextureSource(mask)
+			backdropMaskKind = maskTextureChannelKind(mask.channel) or maskKind
+		end
 		if hasShadow or hasOuter then
 			drawImageMaskShadowOuter(
 				x, y, w, h, mask, maskKind,
