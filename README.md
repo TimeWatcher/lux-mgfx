@@ -50,6 +50,14 @@ Lux code should use `@lux/mgfx` and its unified `mgfx.api` facade; the old paint
 - `outerGlow` is an external glow pass. It supports the same offset aliases, but defaults to no offset.
 - `backdrop` samples and tints the background inside the current shape or image mask. It is not a shadow.
 
+Backdrop blur is shared per engine render frame. The first blurred backdrop
+captures the framebuffer and builds the completed two-pass full-screen blur;
+later shapes reuse it through a single masked texture sample. Use
+`backdrop = {blur = 6, recapture = true}` only when a later draw must include
+newly rendered framebuffer content or deliberately start a different blur
+intensity. That explicit recapture becomes the shared source for subsequent
+backdrops in the same frame.
+
 The API fields stay separate, but the renderer may fuse compatible `shadow` and `outerGlow` layers into one shader pass for rounded boxes, chamfers, rings, and image masks. That optimization preserves the CSS-like visual result while avoiding duplicate Lua setup and material parameter uploads.
 
 `RoundedBoxEx.shadow` also accepts CSS-style multiple layers:

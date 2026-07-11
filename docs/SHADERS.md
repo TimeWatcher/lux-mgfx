@@ -14,6 +14,11 @@ lua-mgfx/shadersrc/mgfx/
 
 lux-mgfx/lux/mgfx/shaderpack/
   src/cl_module.lux
+
+lux-mgfx/lux/mgfx/shaderpack_chunks/
+  chunk_01/src/cl_module.lux
+  ...
+  chunk_05/src/cl_module.lux
 ```
 
 The SDK helper tools are build-time only and must not be shipped as runtime files.
@@ -24,6 +29,7 @@ From the repository root:
 
 ```powershell
 python .\lua-mgfx\shadersrc\mgfx\build.py
+python .\lux-mgfx\lux\mgfx\shadersrc\build.py
 ```
 
 The build script:
@@ -31,7 +37,9 @@ The build script:
 1. Runs the shader compile list.
 2. Produces `.vcs` files under `src/shaders/fxc`.
 3. Packs them into the embedded shaderpack.
-4. Updates the Lua/Lux shaderpack source used by the runtime.
+4. Writes a small facade plus 40,000-character GLua files or independent Lux
+   chunk packages, so the generated runtime never depends on one oversized
+   source artifact.
 
 ## Parameter Layout
 

@@ -64,7 +64,7 @@ return function(__lux_import)
       return api.create()
     end
   end
-  
+
   __lux_exports.install = install
   __lux_exports.installGlobal = installGlobal
   __lux_exports.create = create
@@ -82,6 +82,6 @@ return function(__lux_import)
   __lux_exports.style = style
   __lux_exports.text = text
   __lux_exports.widgets = widgets
-  
+
   return __lux_exports
 end

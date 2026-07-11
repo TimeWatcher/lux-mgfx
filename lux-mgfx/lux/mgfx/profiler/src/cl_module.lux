@@ -22,6 +22,8 @@ local RECENT_SCOPE_LIMIT = 96
 local scalarStatKeys = {
   "draws",
   "blurPasses",
+  "blurCaptures",
+  "blurReuses",
   "fallbacks",
   "culled",
   "gradientLutFillHits",
@@ -1052,11 +1054,11 @@ export client fn create(owner = nil, options = nil) {
     }
     if cvarsLib ~= nil and cvarsLib.AddChangeCallback ~= nil {
       cvarsLib.AddChangeCallback("mgfx_profile", (_, _, newValue) => {
-        if toBool(newValue) {
-          wrapApi()
-        } else {
-          unwrapApi()
-        }
+          if toBool(newValue) {
+              wrapApi()
+          } else {
+              unwrapApi()
+          }
       }, callbackId)
     }
     if isEnabled() {

@@ -315,16 +315,12 @@ fn drawImageMaskBackdrop(x, y, w, h, mask, kind, maskTexture, spec) {
   local bw = w + pad * 2
   local bh = h + pad * 2
 
-  if spec.blur > 0 and widgetBlurRT ~= nil and renderCopyRenderTargetToTexture ~= nil and materialOK(widgetMaterials.image_mask_backdrop) {
+  if spec.blur > 0 and materialOK(widgetMaterials.image_mask_backdrop) {
     local material = widgetMaterials.image_mask_backdrop
-    local intensity = blurIntensity(spec.blur)
+    prepareBackdropBlur(spec.blur, spec.recapture)
     surfaceSetMaterial(material)
     surfaceSetDrawColor(255, 255, 255, 255)
-    renderCopyRenderTargetToTexture(widgetBlurRT)
-    setupImageMaskBackdropConstants(material, bw, bh, w, h, mask, kind, maskTexture, false, intensity)
-    drawTexturedQuad(bx, by, bw, bh, material)
-    renderCopyRenderTargetToTexture(widgetBlurRT)
-    setupImageMaskBackdropConstants(material, bw, bh, w, h, mask, kind, maskTexture, true, intensity)
+    setupImageMaskBackdropConstants(material, bw, bh, w, h, mask, kind, maskTexture, true, 0)
     drawTexturedQuad(bx, by, bw, bh, material)
   }
 

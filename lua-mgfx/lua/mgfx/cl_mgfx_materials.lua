@@ -72,12 +72,33 @@ function MGFX._CreateMaterialState(owner)
 
 	local materials = {}
 	local blurRTFlags = bit_bor(2, 256, 4, 8)
+	local blurNamespace = "MGFXBlur" .. (shaderVersion ~= "" and shaderVersion or "dev") .. SysTime()
 	local blurRT = GetRenderTargetEx(
-		"MGFXBlur" .. (shaderVersion ~= "" and shaderVersion or "dev") .. SysTime(),
-		ScrW(),
-		ScrH(),
-		RT_SIZE_LITERAL,
-		MATERIAL_RT_DEPTH_SEPARATE,
+		blurNamespace .. "_source",
+		-1,
+		-1,
+		RT_SIZE_FULL_FRAME_BUFFER,
+		MATERIAL_RT_DEPTH_NONE,
+		blurRTFlags,
+		0,
+		IMAGE_FORMAT_BGRA8888
+	)
+	local backdropBlurHorizontalRT = GetRenderTargetEx(
+		blurNamespace .. "_horizontal",
+		-1,
+		-1,
+		RT_SIZE_FULL_FRAME_BUFFER,
+		MATERIAL_RT_DEPTH_NONE,
+		blurRTFlags,
+		0,
+		IMAGE_FORMAT_BGRA8888
+	)
+	local backdropBlurRT = GetRenderTargetEx(
+		blurNamespace .. "_final",
+		-1,
+		-1,
+		RT_SIZE_FULL_FRAME_BUFFER,
+		MATERIAL_RT_DEPTH_NONE,
 		blurRTFlags,
 		0,
 		IMAGE_FORMAT_BGRA8888
@@ -116,22 +137,33 @@ function MGFX._CreateMaterialState(owner)
 		createMaterial("chamfer_texture", "mgfx_chamfer_texture_ps30")
 		createMaterial("image_mask", "mgfx_image_mask_ps30")
 		createMaterial("image_mask_shadow_outer", "mgfx_image_mask_shadow_outer_ps30")
-		createMaterial("image_mask_backdrop", "mgfx_image_mask_backdrop_ps30", {
-			["$basetexture"] = blurRT:GetName(),
+		createMaterial("image_mask_backdrop", "mgfx_image_mask_backdrop_sample_ps30", {
+			["$basetexture"] = backdropBlurRT:GetName(),
 			["$texture1"] = "_rt_FullFrameFB",
 		})
 		createMaterial("image_mask_backdrop_fill", "mgfx_image_mask_backdrop_ps30")
 		createMaterial("chamfer_stroke", "mgfx_chamfer_stroke_ps30")
-		createMaterial("roundrect_blur", "mgfx_roundrect_blur_ps30", {
+		-- The polygon blur shader is an unmasked, opaque separable blur kernel.
+		-- Reuse that bytecode for the shared full-screen pass instead of paying
+		-- the round-rect coverage/tint work over every framebuffer pixel.
+		createMaterial("backdrop_blur_horizontal", "mgfx_poly3_blur_ps30", {
 			["$basetexture"] = blurRT:GetName(),
+			["$texture1"] = "_rt_FullFrameFB",
+		})
+		createMaterial("backdrop_blur_vertical", "mgfx_poly3_blur_ps30", {
+			["$basetexture"] = backdropBlurHorizontalRT:GetName(),
+			["$texture1"] = "_rt_FullFrameFB",
+		})
+		createMaterial("roundrect_blur", "mgfx_roundrect_backdrop_sample_ps30", {
+			["$basetexture"] = backdropBlurRT:GetName(),
 			["$texture1"] = "_rt_FullFrameFB",
 		})
 		createMaterial("roundrect_innerglow", "mgfx_roundrect_innerglow_ps30")
 		createMaterial("chamfer_innerglow", "mgfx_chamfer_innerglow_ps30")
 		createMaterial("roundrect_shadow_outer", "mgfx_roundrect_shadow_outer_ps30")
 		createMaterial("chamfer_shadow_outer", "mgfx_chamfer_shadow_outer_ps30")
-		createMaterial("chamfer_backdrop", "mgfx_chamfer_backdrop_ps30", {
-			["$basetexture"] = blurRT:GetName(),
+		createMaterial("chamfer_backdrop", "mgfx_chamfer_backdrop_sample_ps30", {
+			["$basetexture"] = backdropBlurRT:GetName(),
 			["$texture1"] = "_rt_FullFrameFB",
 		})
 		createMaterial("progress", "mgfx_progress_ps30")
@@ -149,8 +181,8 @@ function MGFX._CreateMaterialState(owner)
 		createMaterial("poly_pattern", "mgfx_poly_pattern_ps30")
 		createMaterial("ring", "mgfx_ring_ps30")
 		createMaterial("ring_fx", "mgfx_ring_fx_ps30")
-		createMaterial("ring_backdrop", "mgfx_ring_backdrop_ps30", {
-			["$basetexture"] = blurRT:GetName(),
+		createMaterial("ring_backdrop", "mgfx_ring_backdrop_sample_ps30", {
+			["$basetexture"] = backdropBlurRT:GetName(),
 			["$texture1"] = "_rt_FullFrameFB",
 		})
 		createMaterial("ring_stroke", "mgfx_ring_stroke_ps30")
@@ -163,8 +195,8 @@ function MGFX._CreateMaterialState(owner)
 			createMaterial("poly" .. count, "mgfx_poly" .. count .. "_ps30")
 			createMaterial("poly" .. count .. "_shadow", "mgfx_poly" .. count .. "_shadow_ps30")
 			createMaterial("poly" .. count .. "_outerglow", "mgfx_poly" .. count .. "_outerglow_ps30")
-			createMaterial("poly" .. count .. "_blur", "mgfx_poly" .. count .. "_blur_ps30", {
-				["$basetexture"] = blurRT:GetName(),
+			createMaterial("poly" .. count .. "_blur", "mgfx_backdrop_sample_ps30", {
+				["$basetexture"] = backdropBlurRT:GetName(),
 				["$texture1"] = "_rt_FullFrameFB",
 			})
 		end
@@ -181,6 +213,8 @@ function MGFX._CreateMaterialState(owner)
 		shaderMountName = shaderMountName,
 		materials = materials,
 		blurRT = blurRT,
+		backdropBlurHorizontalRT = backdropBlurHorizontalRT,
+		backdropBlurRT = backdropBlurRT,
 		matOK = matOK,
 		shaderName = shaderName,
 	}
@@ -223,6 +257,8 @@ function MGFX._CreateMaterialState(owner)
 			paramProbeInv = materials.param_probe_inv,
 			chamfer = materials.chamfer,
 			blur = materials.roundrect_blur,
+			backdropBlurHorizontal = materials.backdrop_blur_horizontal,
+			backdropBlurVertical = materials.backdrop_blur_vertical,
 			image = materials.roundrect_texture,
 			chamferImage = materials.chamfer_texture,
 			imageMask = materials.image_mask,

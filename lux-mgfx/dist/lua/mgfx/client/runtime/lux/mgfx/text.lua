@@ -5557,7 +5557,7 @@ return function(__lux_import)
       return owner
     end
   end
-  
+
   __lux_exports.registerFont = __lux_module_1.registerFont
   __lux_exports.defineStyle = __lux_module_1.defineStyle
   __lux_exports.getStyle = __lux_module_1.getStyle
@@ -5576,6 +5576,6 @@ return function(__lux_import)
   __lux_exports.createTextRenderer = __lux_module_1.createTextRenderer
   __lux_exports._CreateTextRenderer = __lux_module_1.createTextRenderer
   __lux_exports.install = __lux_module_1.install
-  
+
   return __lux_exports
 end

@@ -23,15 +23,14 @@ local mathMax = math.max
 local mathMin = math.min
 local mathRad = math.rad
 local mathSin = math.sin
-local renderCopyRenderTargetToTexture = render?.CopyRenderTargetToTexture
 local surfaceSetDrawColor = surface.SetDrawColor
 local surfaceSetMaterial = surface.SetMaterial
 local toNumber = tonumber
 local typeOf = type
 
 local drawTexturedQuad = geometry.drawTexturedQuad
-local blurIntensity = geometry.blurIntensity
 local hasTransform = geometry.hasTransform
+local prepareBackdropBlur = geometry.prepareBackdropBlur
 local beginPanelEffectBleed = frame.beginPanelEffectBleed
 local endPanelEffectBleed = frame.endPanelEffectBleed
 local withPanelEffectBleed = frame.withPanelEffectBleed
@@ -40,7 +39,6 @@ local paramMatrixSetUnpacked = paramMatrixProbe?.SetUnpacked
 local paramMatrices = {}
 local auxParamMatrices = {}
 local widgetMaterials = {}
-local widgetBlurRT = nil
 local widgetMatOK = (material) => material ~= nil and material.IsError ~= nil and not material:IsError()
 local widgetHasShaders = () => false
 local forceFallbackCvar = nil
@@ -64,7 +62,6 @@ fn configureWidgets(owner) {
   owner = owner ?? {}
   local materialState = owner._MaterialState ?? {}
   widgetMaterials = owner._Materials ?? materialState.materials ?? widgetMaterials ?? {}
-  widgetBlurRT = owner._BlurRT ?? materialState.blurRT ?? widgetBlurRT
   widgetMatOK = owner.MaterialOK ?? materialState.matOK ?? widgetMatOK
   widgetHasShaders = owner.hasShaders ?? widgetHasShaders
   true
@@ -89,50 +86,50 @@ fn setupParamMatrix(material,
   b0, b1, b2, b3,
   c0, c1, c2, c3,
   d0, d1, d2, d3) {
-  if material == nil or paramMatrixSetUnpacked == nil or matrixCtor == nil {
-    return false
-  }
+    if material == nil or paramMatrixSetUnpacked == nil or matrixCtor == nil {
+      return false
+    }
 
-  local matrix = paramMatrices[material]
-  if matrix == nil {
-    matrix = matrixCtor()
-    paramMatrices[material] = matrix
-  }
+    local matrix = paramMatrices[material]
+    if matrix == nil {
+      matrix = matrixCtor()
+      paramMatrices[material] = matrix
+    }
 
-  paramMatrixSetUnpacked(matrix,
-    a0 ?? 0, b0 ?? 0, c0 ?? 0, d0 ?? 0,
-    a1 ?? 0, b1 ?? 0, c1 ?? 0, d1 ?? 0,
-    a2 ?? 0, b2 ?? 0, c2 ?? 0, d2 ?? 0,
-    a3 ?? 0, b3 ?? 0, c3 ?? 0, d3 ?? 0
-  )
-  material:SetMatrix("$viewprojmat", matrix)
-  true
-}
+    paramMatrixSetUnpacked(matrix,
+      a0 ?? 0, b0 ?? 0, c0 ?? 0, d0 ?? 0,
+      a1 ?? 0, b1 ?? 0, c1 ?? 0, d1 ?? 0,
+      a2 ?? 0, b2 ?? 0, c2 ?? 0, d2 ?? 0,
+      a3 ?? 0, b3 ?? 0, c3 ?? 0, d3 ?? 0
+    )
+    material:SetMatrix("$viewprojmat", matrix)
+    true
+  }
 
 fn setupAuxConstants(material,
   a0, a1, a2, a3,
   b0, b1, b2, b3,
   c0, c1, c2, c3,
   d0 = 0, d1 = 0, d2 = 0, d3 = 0) {
-  if material == nil or paramMatrixSetUnpacked == nil or matrixCtor == nil {
-    return false
-  }
+    if material == nil or paramMatrixSetUnpacked == nil or matrixCtor == nil {
+      return false
+    }
 
-  local matrix = auxParamMatrices[material]
-  if matrix == nil {
-    matrix = matrixCtor()
-    auxParamMatrices[material] = matrix
-  }
+    local matrix = auxParamMatrices[material]
+    if matrix == nil {
+      matrix = matrixCtor()
+      auxParamMatrices[material] = matrix
+    }
 
-  paramMatrixSetUnpacked(matrix,
-    a0 ?? 0, b0 ?? 0, c0 ?? 0, d0 ?? 0,
-    a1 ?? 0, b1 ?? 0, c1 ?? 0, d1 ?? 0,
-    a2 ?? 0, b2 ?? 0, c2 ?? 0, d2 ?? 0,
-    a3 ?? 0, b3 ?? 0, c3 ?? 0, d3 ?? 0
-  )
-  material:SetMatrix("$invviewprojmat", matrix)
-  true
-}
+    paramMatrixSetUnpacked(matrix,
+      a0 ?? 0, b0 ?? 0, c0 ?? 0, d0 ?? 0,
+      a1 ?? 0, b1 ?? 0, c1 ?? 0, d1 ?? 0,
+      a2 ?? 0, b2 ?? 0, c2 ?? 0, d2 ?? 0,
+      a3 ?? 0, b3 ?? 0, c3 ?? 0, d3 ?? 0
+    )
+    material:SetMatrix("$invviewprojmat", matrix)
+    true
+  }
 
 fn copyInto(out, value) {
   for key, _ in pairs(out) {

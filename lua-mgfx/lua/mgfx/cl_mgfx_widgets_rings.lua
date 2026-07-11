@@ -470,7 +470,7 @@ local function drawRingBackdropPass(x, y, w, h, innerRadius, outerRadius, startD
 		local mat = materials.ring_backdrop
 		drawBlurredCustomQuad(mat, bx, by, bw, bh, spec.blur, function(passMat, vertical, intensity)
 			setupRingBackdropConstants(passMat, bw, bh, bi, bo, startDeg, endDeg, mode, vertical, intensity)
-		end)
+		end, spec.recapture)
 	end
 
 	local tint = backdropTintColor(spec)

@@ -22,8 +22,9 @@ return function(__lux_import)
   local matOK
   local shaderName
   local mountShaderPack
-  local blurTarget
+  local blurTargets
   local screenMaterialFactory
+  local textureValues
   local materialValues
   local create
   local hasShaders
@@ -137,6 +138,8 @@ return function(__lux_import)
       "image_mask_backdrop",
       "image_mask_backdrop_fill",
       "chamfer_stroke",
+      "backdrop_blur_horizontal",
+      "backdrop_blur_vertical",
       "roundrect_blur",
       "roundrect_innerglow",
       "chamfer_innerglow",
@@ -203,15 +206,17 @@ return function(__lux_import)
       chamfer_texture = "mgfx_chamfer_texture_ps30",
       image_mask = "mgfx_image_mask_ps30",
       image_mask_shadow_outer = "mgfx_image_mask_shadow_outer_ps30",
-      image_mask_backdrop = "mgfx_image_mask_backdrop_ps30",
+      image_mask_backdrop = "mgfx_image_mask_backdrop_sample_ps30",
       image_mask_backdrop_fill = "mgfx_image_mask_backdrop_ps30",
       chamfer_stroke = "mgfx_chamfer_stroke_ps30",
-      roundrect_blur = "mgfx_roundrect_blur_ps30",
+      backdrop_blur_horizontal = "mgfx_poly3_blur_ps30",
+      backdrop_blur_vertical = "mgfx_poly3_blur_ps30",
+      roundrect_blur = "mgfx_roundrect_backdrop_sample_ps30",
       roundrect_innerglow = "mgfx_roundrect_innerglow_ps30",
       chamfer_innerglow = "mgfx_chamfer_innerglow_ps30",
       roundrect_shadow_outer = "mgfx_roundrect_shadow_outer_ps30",
       chamfer_shadow_outer = "mgfx_chamfer_shadow_outer_ps30",
-      chamfer_backdrop = "mgfx_chamfer_backdrop_ps30",
+      chamfer_backdrop = "mgfx_chamfer_backdrop_sample_ps30",
       progress = "mgfx_progress_ps30",
       progress_fx = "mgfx_progress_fx_ps30",
       segmentbar = "mgfx_segmentbar_ps30",
@@ -223,7 +228,7 @@ return function(__lux_import)
       poly_pattern = "mgfx_poly_pattern_ps30",
       ring = "mgfx_ring_ps30",
       ring_fx = "mgfx_ring_fx_ps30",
-      ring_backdrop = "mgfx_ring_backdrop_ps30",
+      ring_backdrop = "mgfx_ring_backdrop_sample_ps30",
       ring_stroke = "mgfx_ring_stroke_ps30",
       ring_innerglow = "mgfx_ring_innerglow_ps30",
       ring_shadow_outer = "mgfx_ring_shadow_outer_ps30",
@@ -232,32 +237,32 @@ return function(__lux_import)
       poly3 = "mgfx_poly3_ps30",
       poly3_shadow = "mgfx_poly3_shadow_ps30",
       poly3_outerglow = "mgfx_poly3_outerglow_ps30",
-      poly3_blur = "mgfx_poly3_blur_ps30",
+      poly3_blur = "mgfx_backdrop_sample_ps30",
       poly4_stroke = "mgfx_poly4_stroke_ps30",
       poly4 = "mgfx_poly4_ps30",
       poly4_shadow = "mgfx_poly4_shadow_ps30",
       poly4_outerglow = "mgfx_poly4_outerglow_ps30",
-      poly4_blur = "mgfx_poly4_blur_ps30",
+      poly4_blur = "mgfx_backdrop_sample_ps30",
       poly5_stroke = "mgfx_poly5_stroke_ps30",
       poly5 = "mgfx_poly5_ps30",
       poly5_shadow = "mgfx_poly5_shadow_ps30",
       poly5_outerglow = "mgfx_poly5_outerglow_ps30",
-      poly5_blur = "mgfx_poly5_blur_ps30",
+      poly5_blur = "mgfx_backdrop_sample_ps30",
       poly6_stroke = "mgfx_poly6_stroke_ps30",
       poly6 = "mgfx_poly6_ps30",
       poly6_shadow = "mgfx_poly6_shadow_ps30",
       poly6_outerglow = "mgfx_poly6_outerglow_ps30",
-      poly6_blur = "mgfx_poly6_blur_ps30",
+      poly6_blur = "mgfx_backdrop_sample_ps30",
       poly7_stroke = "mgfx_poly7_stroke_ps30",
       poly7 = "mgfx_poly7_ps30",
       poly7_shadow = "mgfx_poly7_shadow_ps30",
       poly7_outerglow = "mgfx_poly7_outerglow_ps30",
-      poly7_blur = "mgfx_poly7_blur_ps30",
+      poly7_blur = "mgfx_backdrop_sample_ps30",
       poly8_stroke = "mgfx_poly8_stroke_ps30",
       poly8 = "mgfx_poly8_ps30",
       poly8_shadow = "mgfx_poly8_shadow_ps30",
       poly8_outerglow = "mgfx_poly8_outerglow_ps30",
-      poly8_blur = "mgfx_poly8_blur_ps30",
+      poly8_blur = "mgfx_backdrop_sample_ps30",
     }
     shaderPack = function()
       return shaderpack.current()
@@ -287,28 +292,54 @@ return function(__lux_import)
       end
       return nil
     end
-    blurTarget = function(version)
+    blurTargets = function(version)
       if getRenderTargetEx == nil or bitBor == nil then
-        return nil
+        return nil, nil, nil
       end
-      local __lux_tmp_13
-      if version ~= "" then
-        __lux_tmp_13 = version
-      else
-        __lux_tmp_13 = "dev"
+      local flags = bitBor(2, 256, 4, 8)
+      local namespace
+      do
+        local __lux_tmp_13
+        if version ~= "" then
+          __lux_tmp_13 = version
+        else
+          __lux_tmp_13 = "dev"
+        end
+        namespace = "MGFXBlur" .. __lux_tmp_13 .. sysTime()
       end
-      return getRenderTargetEx(
-        "MGFXBlur" .. __lux_tmp_13 .. sysTime(),
-        ScrW(),
-        ScrH(),
-        RT_SIZE_LITERAL,
-        MATERIAL_RT_DEPTH_SEPARATE,
-        bitBor(2, 256, 4, 8),
+      local source = getRenderTargetEx(
+        namespace .. "_source",
+        -1,
+        -1,
+        RT_SIZE_FULL_FRAME_BUFFER,
+        MATERIAL_RT_DEPTH_NONE,
+        flags,
         0,
         IMAGE_FORMAT_BGRA8888
       )
+      local horizontal = getRenderTargetEx(
+        namespace .. "_horizontal",
+        -1,
+        -1,
+        RT_SIZE_FULL_FRAME_BUFFER,
+        MATERIAL_RT_DEPTH_NONE,
+        flags,
+        0,
+        IMAGE_FORMAT_BGRA8888
+      )
+      local final = getRenderTargetEx(
+        namespace .. "_final",
+        -1,
+        -1,
+        RT_SIZE_FULL_FRAME_BUFFER,
+        MATERIAL_RT_DEPTH_NONE,
+        flags,
+        0,
+        IMAGE_FORMAT_BGRA8888
+      )
+      return source, horizontal, final
     end
-    screenMaterialFactory = function(version, blurRT)
+    screenMaterialFactory = function(version)
       return function(name, pixshader, values)
         if createMaterial == nil then
           return nil
@@ -329,11 +360,26 @@ return function(__lux_import)
         return createMaterial("mgfx_" .. name .. "_" .. sysTime(), "screenspace_general", kv)
       end
     end
-    materialValues = function(key, blurRT)
+    textureValues = function(texture)
+      local textureName
+      if texture ~= nil and texture.GetName ~= nil then
+        textureName = texture:GetName()
+      else
+        textureName = ""
+      end
+      return { ["$basetexture"] = textureName, ["$texture1"] = "_rt_FullFrameFB" }
+    end
+    materialValues = function(key, blurRT, horizontalRT, finalRT)
+      if key == "backdrop_blur_horizontal" then
+        return textureValues(blurRT)
+      end
+      if key == "backdrop_blur_vertical" then
+        return textureValues(horizontalRT)
+      end
       if key == "roundrect_blur" or key == "image_mask_backdrop" or key == "chamfer_backdrop" or key == "ring_backdrop" or key == "poly3_blur" or key == "poly4_blur" or key == "poly5_blur" or key == "poly6_blur" or key == "poly7_blur" or key == "poly8_blur" then
         local textureName
-        if blurRT ~= nil and blurRT.GetName ~= nil then
-          textureName = blurRT:GetName()
+        if finalRT ~= nil and finalRT.GetName ~= nil then
+          textureName = finalRT:GetName()
         else
           textureName = ""
         end
@@ -353,13 +399,17 @@ return function(__lux_import)
         version = ""
       end
       local mountName = mountShaderPack(version)
-      local blurRT = blurTarget(version)
+      local blurRT, backdropBlurHorizontalRT, backdropBlurRT = blurTargets(version)
       local materials = {}
-      local createScreenMaterial = screenMaterialFactory(version, blurRT)
+      local createScreenMaterial = screenMaterialFactory(version)
       for _, key in ipairs(materialKeys) do
         local pixshader = shaderNames[key]
         if pixshader ~= nil then
-          materials[key] = createScreenMaterial(key, pixshader, materialValues(key, blurRT))
+          materials[key] = createScreenMaterial(
+            key,
+            pixshader,
+            materialValues(key, blurRT, backdropBlurHorizontalRT, backdropBlurRT)
+          )
         end
       end
       local state = {
@@ -367,6 +417,8 @@ return function(__lux_import)
         shaderMountName = mountName,
         materials = materials,
         blurRT = blurRT,
+        backdropBlurHorizontalRT = backdropBlurHorizontalRT,
+        backdropBlurRT = backdropBlurRT,
         matOK = matOK,
         shaderName = function(name)
           return shaderName(version, name)
@@ -447,6 +499,8 @@ return function(__lux_import)
         paramProbeInv = materials.param_probe_inv,
         chamfer = materials.chamfer,
         blur = materials.roundrect_blur,
+        backdropBlurHorizontal = materials.backdrop_blur_horizontal,
+        backdropBlurVertical = materials.backdrop_blur_vertical,
         image = materials.roundrect_texture,
         chamferImage = materials.chamfer_texture,
         imageMask = materials.image_mask,
@@ -524,6 +578,8 @@ return function(__lux_import)
       owner._MaterialState = state
       owner._Materials = state.materials
       owner._BlurRT = state.blurRT
+      owner._BackdropBlurHorizontalRT = state.backdropBlurHorizontalRT
+      owner._BackdropBlurRT = state.backdropBlurRT
       owner.MaterialOK = matOK
       owner.GetMaterialState = function()
         return state
@@ -538,13 +594,13 @@ return function(__lux_import)
       return owner
     end
   end
-  
+
   __lux_exports.matOK = matOK
   __lux_exports.create = create
   __lux_exports.hasShaders = hasShaders
   __lux_exports.shaderStatus = shaderStatus
   __lux_exports.textureFallbackMaterial = textureFallbackMaterial
   __lux_exports.install = install
-  
+
   return __lux_exports
 end

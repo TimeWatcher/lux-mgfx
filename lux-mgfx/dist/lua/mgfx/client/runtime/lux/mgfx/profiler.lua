@@ -63,6 +63,8 @@ return function(__lux_import)
     scalarStatKeys = {
       "draws",
       "blurPasses",
+      "blurCaptures",
+      "blurReuses",
       "fallbacks",
       "culled",
       "gradientLutFillHits",
@@ -2271,9 +2273,9 @@ return function(__lux_import)
       return owner
     end
   end
-  
+
   __lux_exports.create = create
   __lux_exports.install = install
-  
+
   return __lux_exports
 end

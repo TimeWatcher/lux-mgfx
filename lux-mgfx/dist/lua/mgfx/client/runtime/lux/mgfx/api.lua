@@ -185,6 +185,8 @@ return function(__lux_import)
       local stats = owner.stats
       stats.draws = 0
       stats.blurPasses = 0
+      stats.blurCaptures = 0
+      stats.blurReuses = 0
       stats.fallbacks = 0
       stats.culled = 0
       stats.gradientLutFillHits = 0
@@ -911,7 +913,7 @@ return function(__lux_import)
       return defaultRuntime.PrewarmText(value, font, textStyle)
     end
   end
-  
+
   __lux_exports.install = install
   __lux_exports.installGlobal = installGlobal
   __lux_exports.create = create
@@ -1001,6 +1003,6 @@ return function(__lux_import)
   __lux_exports.textBoxEx = textBoxEx
   __lux_exports.textBatchEx = textBatchEx
   __lux_exports.prewarmText = prewarmText
-  
+
   return __lux_exports
 end

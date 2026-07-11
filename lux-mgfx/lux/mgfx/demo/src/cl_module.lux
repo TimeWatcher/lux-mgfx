@@ -1248,7 +1248,7 @@ fn PANEL:Paint(w, h) {
   text(statusText, "MGFXDemoTiny", left + 2, top + 62, loaded and COLORS.green or COLORS.red)
 
   local stats = api ~= nil and api.stats or {}
-  text(stringFormat("draws %d   blur %d   fallback %d   culled %d", stats.draws or 0, stats.blurPasses or 0, stats.fallbacks or 0, stats.culled or 0), "MGFXDemoTiny", left + 2, h - 30, COLORS.muted)
+  text(stringFormat("draws %d   blur %d   captures %d   reuses %d   fallback %d   culled %d", stats.draws or 0, stats.blurPasses or 0, stats.blurCaptures or 0, stats.blurReuses or 0, stats.fallbacks or 0, stats.culled or 0), "MGFXDemoTiny", left + 2, h - 30, COLORS.muted)
   text(stringFormat("text composed draws %d   bakes %d   blits %d", stats.textShaderDraws or 0, stats.textComposedBakes or 0, stats.textComposedBlits or 0), "MGFXDemoTiny", left + 2, h - 16, makeColor(170, 230, 200))
 
   for _, item in ipairs(labels) {

@@ -137,6 +137,14 @@ MGFX.CapsuleEx(x, y, w, h, style)
 - `outerGlow` 是外部光晕 pass，默认无偏移，适合表达发光边缘。`outerGlow.x/y` 表示方向偏置，用来做单侧发光；它不会像 `shadow.x/y` 一样移动发光源形状。
 - `backdrop` 是 shape/image 覆盖范围内的背景 blur/tint，不是阴影。
 
+Backdrop blur 是每个引擎渲染帧共享的资源。该帧第一个非零 blur
+会捕获 framebuffer，完成横向和纵向两个全屏 pass，并确定共享模糊源
+和模糊强度；后续 backdrop 只做一次带自身形状遮罩的纹理采样。只有当后续元素必须包含第一次捕获之后新绘制的内容，或
+确实要切换共享模糊强度时，才显式写
+`backdrop = {blur = 8, recapture = true}`。这次重捕获会成为本帧后续
+backdrop 的共享源。Tint/opacity 仍逐 shape 应用，只有 tint 而没有
+blur 时不会触发捕获。
+
 `shadow` 和 `outerGlow` 在 API 语义上仍然是两个字段，但 rounded、chamfer、ring 和 image mask 的兼容路径会把二者合进同一个 shader pass。这个优化只减少 Lua 准备、材质参数上传和 draw，不改变 CSS-like shadow mask 与外部 glow 的视觉语义。
 
 `RoundedBoxEx.shadow` 可以是单个 shadow spec，也可以是 shadow spec 数组。需要 CSS 式多层阴影时，应该写在同一个 `shadow` 数组里，而不是叠多次完整 `RoundedBoxEx`。MGFX 会在 API 边界解析一次数组，然后只循环 shadow-only path；fill、stroke、backdrop、pattern 和 innerGlow 仍然只画一次。
@@ -225,6 +233,7 @@ backdrop = true         -- blur = 4
 backdrop = 6            -- blur = 6
 backdrop = Color(...)   -- only tint
 backdrop = {blur = 6, tint = Color(...), opacity = 0.8}
+backdrop = {blur = 8, recapture = true} -- 显式重建本帧共享模糊源
 ```
 
 `style.backdrop` 会按当前 shape coverage 裁剪。Rounded、Circle、Capsule、Chamfer、Poly、Line、Ring、Arc、Sector 和 Image mask 都使用自己的形状范围来裁剪 blur/tint。不要再使用旧的 `BackdropEx` 思路，也不要用 backdrop 去模拟 drop shadow。

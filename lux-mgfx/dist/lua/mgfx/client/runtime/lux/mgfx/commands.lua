@@ -464,7 +464,7 @@ return function(__lux_import)
       return owner
     end
   end
-  
+
   __lux_exports.name = name
   __lux_exports.makeRoundedBox = makeRoundedBox
   __lux_exports.makePoly = makePoly
@@ -506,6 +506,6 @@ return function(__lux_import)
   __lux_exports.normalizeAll = normalizeAll
   __lux_exports.values = values
   __lux_exports.install = install
-  
+
   return __lux_exports
 end

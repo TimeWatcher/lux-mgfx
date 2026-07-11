@@ -101,7 +101,9 @@ local math_ceil = math.ceil
 local math_rad = math.rad
 local math_cos = math.cos
 local math_sin = math.sin
+local FrameNumber = FrameNumber
 local render_CopyRenderTargetToTexture = render.CopyRenderTargetToTexture
+local render_DrawScreenQuad = render.DrawScreenQuad
 local render_GetBlend = render.GetBlend
 local render_GetColorModulation = render.GetColorModulation
 local render_OverrideBlend = render.OverrideBlend
@@ -110,6 +112,7 @@ local render_PopRenderTarget = render.PopRenderTarget
 local render_PushRenderTarget = render.PushRenderTarget
 local render_SetBlend = render.SetBlend
 local render_SetColorModulation = render.SetColorModulation
+local render_SetMaterial = render.SetMaterial
 local render_SetScissorRect = render.SetScissorRect
 local cam_Start2D = cam.Start2D
 local cam_End2D = cam.End2D
@@ -127,11 +130,15 @@ local shaderVersion = materialState.shaderVersion
 local shaderMountName = materialState.shaderMountName
 local materials = materialState.materials
 local blurRT = materialState.blurRT
+local backdropBlurHorizontalRT = materialState.backdropBlurHorizontalRT
+local backdropBlurRT = materialState.backdropBlurRT
 local matOK = materialState.matOK
 
 M.stats = M.stats or {
 	draws = 0,
 	blurPasses = 0,
+	blurCaptures = 0,
+	blurReuses = 0,
 	fallbacks = 0,
 	culled = 0,
 	drawCommandCounts = {},
@@ -143,6 +150,8 @@ M.stats.drawCommandCounts = M.stats.drawCommandCounts or {}
 M.stats.drawImmediateCounts = M.stats.drawImmediateCounts or {}
 M.stats.profileTimes = M.stats.profileTimes or {}
 M.stats.profileCounts = M.stats.profileCounts or {}
+M.stats.blurCaptures = M.stats.blurCaptures or 0
+M.stats.blurReuses = M.stats.blurReuses or 0
 M._internal = M._internal or {}
 
 local clipStack = {}
@@ -341,6 +350,8 @@ end
 local function resetStats()
 	M.stats.draws = 0
 	M.stats.blurPasses = 0
+	M.stats.blurCaptures = 0
+	M.stats.blurReuses = 0
 	M.stats.fallbacks = 0
 	M.stats.culled = 0
 	M.stats.gradientLutFillHits = 0
@@ -903,19 +914,64 @@ local function drawLineShaderVerts(verts, fill)
 	return true
 end
 
-local function drawBlurredQuad(mat, x, y, w, h, radius, amount, tint)
+local backdropBlurPreparedFrame = -1
+local backdropBlurPreparedIntensity = 0
+
+-- Backdrop blur is a frame resource, not a per-widget operation. The first
+-- backdrop in an engine render frame captures the screen and completes the
+-- horizontal and vertical full-screen passes. Every shape then samples that
+-- final texture once through its own mask. A caller that genuinely needs a newer
+-- source after drawing into the frame must request `backdrop.recapture = true`.
+local function prepareBackdropBlur(amount, recapture)
+	local frame = FrameNumber()
+	if not recapture and backdropBlurPreparedFrame == frame then
+		M.stats.blurReuses = M.stats.blurReuses + 1
+		return backdropBlurPreparedIntensity
+	end
+
+	local sw, sh = ScrW(), ScrH()
+	local intensity = blurIntensity(amount)
+	local horizontalMat = materials.backdrop_blur_horizontal
+	local verticalMat = materials.backdrop_blur_vertical
+	local prevR, prevG, prevB = render_GetColorModulation()
+	local prevBlend = render_GetBlend()
+
+	render_CopyRenderTargetToTexture(blurRT)
+	render_PushRenderTarget(backdropBlurHorizontalRT)
+	render_SetScissorRect(0, 0, 0, 0, false)
+	render_SetColorModulation(1, 1, 1)
+	render_SetBlend(1)
+	render_OverrideAlphaWriteEnable(true, true)
+	render_OverrideBlend(true, BLEND_ONE, BLEND_ZERO, BLENDFUNC_ADD, BLEND_ONE, BLEND_ZERO, BLENDFUNC_ADD)
+	setupBlurConstants(horizontalMat, sw, sh, false, intensity, 0)
+	render_SetMaterial(horizontalMat)
+	render_DrawScreenQuad()
+	M.stats.draws = M.stats.draws + 1
+	render_PopRenderTarget()
+
+	render_PushRenderTarget(backdropBlurRT)
+	setupBlurConstants(verticalMat, sw, sh, true, intensity, 0)
+	render_SetMaterial(verticalMat)
+	render_DrawScreenQuad()
+	M.stats.draws = M.stats.draws + 1
+	render_OverrideBlend(false)
+	render_OverrideAlphaWriteEnable(false)
+	render_SetColorModulation(prevR, prevG, prevB)
+	render_SetBlend(prevBlend)
+	render_PopRenderTarget()
+	restoreScissor()
+
+	backdropBlurPreparedFrame = frame
+	backdropBlurPreparedIntensity = intensity
+	M.stats.blurCaptures = M.stats.blurCaptures + 1
+	M.stats.blurPasses = M.stats.blurPasses + 2
+	return intensity
+end
+
+local function drawBlurredQuad(mat, x, y, w, h, radius, amount, tint, recapture)
+	prepareBackdropBlur(amount, recapture)
 	surface_SetMaterial(mat)
 	surface_SetDrawColor(255, 255, 255, 255)
-
-	setupAuxConstantsRaw(mat,
-		0, 0, 0, 0,
-		0, 0, 0, 0,
-		0, 0, 0, 0,
-		0, 0, 0, 0
-	)
-	render_CopyRenderTargetToTexture(blurRT)
-	setupBlurConstants(mat, w, h, false, blurIntensity(amount), radius)
-	drawTexturedQuad(x, y, w, h, mat)
 
 	if tint then
 		setupAuxConstantsRaw(mat,
@@ -935,42 +991,25 @@ local function drawBlurredQuad(mat, x, y, w, h, radius, amount, tint)
 			0, 0, 0, 0
 		)
 	end
-	render_CopyRenderTargetToTexture(blurRT)
-	setupBlurConstants(mat, w, h, true, blurIntensity(amount), radius)
+	setupBlurConstants(mat, w, h, true, 0, radius)
 	drawTexturedQuad(x, y, w, h, mat)
-
-	M.stats.blurPasses = M.stats.blurPasses + 2
 end
 
-local function drawBlurredCustomQuad(mat, x, y, w, h, amount, setup)
+local function drawBlurredCustomQuad(mat, x, y, w, h, amount, setup, recapture)
+	prepareBackdropBlur(amount, recapture)
 	surface_SetMaterial(mat)
 	surface_SetDrawColor(255, 255, 255, 255)
-
-	render_CopyRenderTargetToTexture(blurRT)
-	setup(mat, false, blurIntensity(amount))
+	setup(mat, true, 0)
 	drawTexturedQuad(x, y, w, h, mat)
-
-	render_CopyRenderTargetToTexture(blurRT)
-	setup(mat, true, blurIntensity(amount))
-	drawTexturedQuad(x, y, w, h, mat)
-
-	M.stats.blurPasses = M.stats.blurPasses + 2
 end
 
-local function drawBlurredPoly(poly, mat, amount)
+local function drawBlurredPoly(poly, mat, amount, recapture)
 	if not poly or not mat then return false end
 
+	prepareBackdropBlur(amount, recapture)
 	surface_SetDrawColor(255, 255, 255, 255)
-
-	render_CopyRenderTargetToTexture(blurRT)
-	setupBlurConstants(mat, poly.w, poly.h, false, blurIntensity(amount), 0)
+	setupBlurConstants(mat, poly.w, poly.h, true, 0, 0)
 	drawMaterialPoly(poly, mat)
-
-	render_CopyRenderTargetToTexture(blurRT)
-	setupBlurConstants(mat, poly.w, poly.h, true, blurIntensity(amount), 0)
-	drawMaterialPoly(poly, mat)
-
-	M.stats.blurPasses = M.stats.blurPasses + 2
 	return true
 end
 

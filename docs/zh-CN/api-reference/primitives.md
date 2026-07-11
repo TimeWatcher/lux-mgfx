@@ -762,7 +762,7 @@ MGFX.CapsuleEx(x, y, w, 28, {
 ## style.backdrop
 
 ```lua
-style.backdrop = true | number | Color | {blur, tint, opacity}
+style.backdrop = true | number | Color | {blur, tint, opacity, recapture}
 ```
 
 由形状或图像遮罩裁剪的 framebuffer 模糊/染色效果。Backdrop 只影响形状内部覆盖范围，不是投影；需要 drop shadow 时使用 `style.shadow`。
@@ -774,12 +774,14 @@ style.backdrop = true | number | Color | {blur, tint, opacity}
 | true | 使用默认 blur = 4。 |
 | number | 数字值会作为 blur 强度。 |
 | Color | 只绘制按形状裁剪的 tint。 |
-| table | 支持 blur、tint/color、opacity/strength 和 padding/spread。 |
+| table | 支持 blur、tint/color、opacity/strength、padding/spread 和显式 recapture。 |
 
 #### 用法说明
 
 - Backdrop 是 style 字段，不再是独立 primitive。
 - RoundedBoxEx、ChamferBoxEx、PolyEx、LineEx、RingEx、ArcEx、SectorEx、CircleEx、CapsuleEx 和 ImageEx 都会按自身覆盖区域裁剪它。
+- 每个引擎渲染帧默认只捕获一次 framebuffer，并用横向、纵向两个全屏 pass 建立最终共享模糊源；后续 shape 只做一次带遮罩纹理采样。
+- 第一个非零 blur 决定共享强度。只有需要包含稍后绘制的 framebuffer 内容或切换共享强度时，才显式设置 `recapture = true`。
 
 #### style 字段
 
@@ -792,6 +794,7 @@ style.backdrop = true | number | Color | {blur, tint, opacity}
 | `tint / color`<br>Color。 | `transparent` | 覆盖在模糊区域上的颜色。 |
 | `opacity / strength`<br>0..1 数字。 | `1` | tint alpha 的乘数。 |
 | `padding / spread`<br>数字。 | `0` | 为形状 backdrop pass 预留的扩展提示。 |
+| `recapture`<br>布尔值。 | `false` | 显式重新捕获 framebuffer、重建本帧共享模糊源和强度；后续 backdrop 复用新结果。 |
 
 #### 示例
 

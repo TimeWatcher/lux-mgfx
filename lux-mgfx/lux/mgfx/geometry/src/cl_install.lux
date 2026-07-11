@@ -1,6 +1,78 @@
 export client fn blurIntensity(value) =
   mathClamp((toNumber(value) ?? 16) / 16, 0.001, 4)
 
+fn setupBackdropBlurConstants(material, w, h, vertical, intensity) {
+  local matrix = backdropBlurParamMatrices[material]
+  if matrix == nil {
+    matrix = matrixCtor()
+    backdropBlurParamMatrices[material] = matrix
+  }
+
+  backdropBlurMatrixSetUnpacked(matrix,
+    vertical then 1 else 0, w, 0, 0,
+    intensity, h, 0, 0,
+    0, 0, 1, 0,
+    0, 0, 0, 0
+  )
+  material:SetMatrix("$viewprojmat", matrix)
+}
+
+export client fn prepareBackdropBlur(amount, recapture = false) {
+  local currentFrame = frameNumber()
+  if not recapture and backdropBlurPreparedFrame == currentFrame {
+    stats.blurReuses = (stats.blurReuses ?? 0) + 1
+    return backdropBlurPreparedIntensity
+  }
+
+  local materialState = geometryOwner?._MaterialState
+  if materialState == nil {
+    errorFn("MGFX material state unavailable for backdrop blur", 2)
+  }
+
+  local materials = materialState.materials
+  local sourceRT = materialState.blurRT
+  local horizontalRT = materialState.backdropBlurHorizontalRT
+  local finalRT = materialState.backdropBlurRT
+  local horizontalMaterial = materials.backdrop_blur_horizontal
+  local verticalMaterial = materials.backdrop_blur_vertical
+  local width = ScrW()
+  local height = ScrH()
+  local intensity = blurIntensity(amount)
+  local previousR, previousG, previousB = renderGetColorModulation()
+  local previousBlend = renderGetBlend()
+
+  renderCopyRenderTargetToTexture(sourceRT)
+  renderPushRenderTarget(horizontalRT)
+  renderSetScissorRect(0, 0, 0, 0, false)
+  renderSetColorModulation(1, 1, 1)
+  renderSetBlend(1)
+  renderOverrideAlphaWriteEnable(true, true)
+  renderOverrideBlend(true, BLEND_ONE, BLEND_ZERO, BLENDFUNC_ADD, BLEND_ONE, BLEND_ZERO, BLENDFUNC_ADD)
+  setupBackdropBlurConstants(horizontalMaterial, width, height, false, intensity)
+  renderSetMaterial(horizontalMaterial)
+  renderDrawScreenQuad()
+  stats.draws = (stats.draws ?? 0) + 1
+  renderPopRenderTarget()
+
+  renderPushRenderTarget(finalRT)
+  setupBackdropBlurConstants(verticalMaterial, width, height, true, intensity)
+  renderSetMaterial(verticalMaterial)
+  renderDrawScreenQuad()
+  stats.draws = (stats.draws ?? 0) + 1
+  renderOverrideBlend(false)
+  renderOverrideAlphaWriteEnable(false)
+  renderSetColorModulation(previousR, previousG, previousB)
+  renderSetBlend(previousBlend)
+  renderPopRenderTarget()
+  frame.restoreScissor()
+
+  backdropBlurPreparedFrame = currentFrame
+  backdropBlurPreparedIntensity = intensity
+  stats.blurCaptures = (stats.blurCaptures ?? 0) + 1
+  stats.blurPasses = (stats.blurPasses ?? 0) + 2
+  intensity
+}
+
 fn bindStats(owner) {
   owner.stats = owner.stats ?? {}
   local targetStats = owner.stats
@@ -13,6 +85,8 @@ fn bindStats(owner) {
   stats = targetStats
   stats.draws = stats.draws ?? 0
   stats.blurPasses = stats.blurPasses ?? 0
+  stats.blurCaptures = stats.blurCaptures ?? 0
+  stats.blurReuses = stats.blurReuses ?? 0
   stats.fallbacks = stats.fallbacks ?? 0
   stats.culled = stats.culled ?? 0
   stats
@@ -21,6 +95,8 @@ fn bindStats(owner) {
 export client fn resetFrameStats() {
   stats.draws = 0
   stats.blurPasses = 0
+  stats.blurCaptures = 0
+  stats.blurReuses = 0
   stats.fallbacks = 0
   stats.culled = 0
   stats
@@ -46,6 +122,9 @@ export client fn profileSnapshot(reset = false) {
 }
 
 export client fn install(owner) {
+  geometryOwner = owner
+  backdropBlurPreparedFrame = -1
+  backdropBlurPreparedIntensity = 0
   geometryProfiler = owner.Profiler
   bindStats(owner)
   owner.Transform = transform
@@ -72,27 +151,28 @@ export client fn install(owner) {
   owner._internal = owner._internal ?? {}
   owner._Geometry = {
     blurIntensity = blurIntensity,
-      resetFrameStats = resetFrameStats,
-      recordDraws = recordDraws,
-      recordFallbacks = recordFallbacks,
-      drawTexturedQuad = drawTexturedQuad,
-      drawTexturedQuadUV = drawTexturedQuadUV,
-      drawTransformedPoly = drawTransformedPoly,
-      withTransform = withTransform,
-      splitStyleTransform = splitStyleTransform,
-      pushTransform = pushTransform,
-      popTransform = popTransform,
-      hasTransform = hasTransform,
-      drawCreatedMaterialTexturedRectUV = drawCreatedMaterialTexturedRectUV,
-      drawTexturedRectUV = drawTexturedRectUV,
-      textureSize = textureSize,
-      imageTint = imageTint,
-      imageStyle = imageStyle,
-      imageRadius = imageRadius,
-      imageAlign = imageAlign,
-      imageUV = imageUV,
-      imageFitRect = imageFitRect,
-      profileSnapshot = profileSnapshot
+    prepareBackdropBlur = prepareBackdropBlur,
+    resetFrameStats = resetFrameStats,
+    recordDraws = recordDraws,
+    recordFallbacks = recordFallbacks,
+    drawTexturedQuad = drawTexturedQuad,
+    drawTexturedQuadUV = drawTexturedQuadUV,
+    drawTransformedPoly = drawTransformedPoly,
+    withTransform = withTransform,
+    splitStyleTransform = splitStyleTransform,
+    pushTransform = pushTransform,
+    popTransform = popTransform,
+    hasTransform = hasTransform,
+    drawCreatedMaterialTexturedRectUV = drawCreatedMaterialTexturedRectUV,
+    drawTexturedRectUV = drawTexturedRectUV,
+    textureSize = textureSize,
+    imageTint = imageTint,
+    imageStyle = imageStyle,
+    imageRadius = imageRadius,
+    imageAlign = imageAlign,
+    imageUV = imageUV,
+    imageFitRect = imageFitRect,
+    profileSnapshot = profileSnapshot
   }
   owner._internal.drawTexturedQuad = drawTexturedQuad
   owner._internal.drawTexturedQuadUV = drawTexturedQuadUV

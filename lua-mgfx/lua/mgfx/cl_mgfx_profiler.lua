@@ -49,6 +49,8 @@ function MGFX._CreateProfiler(C)
 	local scalarStatKeys = {
 		"draws",
 		"blurPasses",
+		"blurCaptures",
+		"blurReuses",
 		"fallbacks",
 		"culled",
 		"gradientLutFillHits",
@@ -909,13 +911,15 @@ function MGFX._CreateProfiler(C)
 		local out = {}
 		for _, row in ipairs(rows or {}) do
 			local stats = row.stats or {}
-			out[#out + 1] = string.format("%s last=%.3f avg=%.3f max=%.3f draws=%d blur=%d text=%d shaderText=%d bakes=%d fallbacks=%d samples=%d call=%s",
+			out[#out + 1] = string.format("%s last=%.3f avg=%.3f max=%.3f draws=%d blur=%d captures=%d reuses=%d text=%d shaderText=%d bakes=%d fallbacks=%d samples=%d call=%s",
 				row.name or row.key or "scope",
 				row.last or 0,
 				row.avg or row.last or 0,
 				row.max or row.last or 0,
 				stats.draws or 0,
 				stats.blurPasses or 0,
+				stats.blurCaptures or 0,
+				stats.blurReuses or 0,
 				stats.textDraws or 0,
 				stats.textShaderDraws or 0,
 				stats.textComposedBakes or 0,

@@ -933,7 +933,7 @@ return function(__lux_import)
       return owner
     end
   end
-  
+
   __lux_exports.current = current
   __lux_exports.restoreScissor = restoreScissor
   __lux_exports.toScreen = toScreen
@@ -954,6 +954,6 @@ return function(__lux_import)
   __lux_exports.flushCommands = flushCommands
   __lux_exports.debugOverlay = debugOverlay
   __lux_exports.install = install
-  
+
   return __lux_exports
 end

@@ -92,16 +92,48 @@ def chunk_text(value, size):
 
 def write_lux_module(path, version, encoded, chunk_size):
     chunks = chunk_text(encoded, chunk_size)
-    lines = [
+    chunk_package_count = 5
+    if len(chunks) > chunk_package_count:
+        raise ValueError(
+            f"shaderpack needs {len(chunks)} Lux chunk packages; "
+            f"increase the {chunk_package_count} declared package slots"
+        )
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    for stale in path.parent.glob("chunk_[0-9][0-9]"):
+        module_path = stale / "cl_module.lux"
+        if module_path.is_file():
+            module_path.unlink()
+        if stale.is_dir():
+            stale.rmdir()
+
+    chunk_root = path.parent.parent.parent / "shaderpack_chunks"
+    chunk_names = []
+    for index in range(1, chunk_package_count + 1):
+        chunk = chunks[index - 1] if index <= len(chunks) else ""
+        name = f"chunk{index:02d}"
+        chunk_names.append(name)
+        module_path = chunk_root / f"chunk_{index:02d}" / "src" / "cl_module.lux"
+        module_path.parent.mkdir(parents=True, exist_ok=True)
+        module_path.write_text(
+            f"export client const {name} = {quote_lux_string(chunk)}\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+
+    lines = []
+    for index, name in enumerate(chunk_names, start=1):
+        lines.append(f'import {{ {name} }} from "@lux/mgfx/shaderpack/chunk{index:02d}"')
+
+    lines.extend([
+        "",
         "local tableConcat = table.concat",
         "",
         f"export client const VERSION = {quote_lux_string(version)}",
         "",
         "local chunks = {",
-    ]
-
-    for chunk in chunks:
-        lines.append(f"  {quote_lux_string(chunk)},")
+    ])
+    lines.extend(f"  {name}," for name in chunk_names)
 
     lines.extend(
         [
@@ -144,24 +176,48 @@ def write_lux_module(path, version, encoded, chunk_size):
         ]
     )
 
-    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines), encoding="utf-8", newline="\n")
 
 
-def write_legacy_lua(path, version, encoded):
+def write_legacy_lua(path, version, encoded, chunk_size):
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        "\n".join(
-            [
-                "MGFXShaderPack = MGFXShaderPack or {}",
-                f"MGFXShaderPack.Version = {version!r}",
-                f"MGFXShaderPack.GMA = [========[{encoded}]========]",
-                "",
-            ]
-        ),
-        encoding="utf-8",
-        newline="\n",
-    )
+    for stale in path.parent.glob("cl_mgfx_shaderpack_chunk_*.lua"):
+        stale.unlink()
+
+    chunk_names = []
+    for index, chunk in enumerate(chunk_text(encoded, chunk_size), start=1):
+        name = f"cl_mgfx_shaderpack_chunk_{index:02d}.lua"
+        chunk_names.append(name)
+        (path.parent / name).write_text(
+            f"return [========[{chunk}]========]\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+
+    lines = [
+        "MGFXShaderPack = MGFXShaderPack or {}",
+        f"MGFXShaderPack.Version = {version!r}",
+        "",
+        'local base_path = "mgfx/"',
+        "local chunk_files = {",
+    ]
+    lines.extend(f'    "{name}",' for name in chunk_names)
+    lines.extend([
+        "}",
+        "local chunks = {}",
+        "",
+        "for i = 1, #chunk_files do",
+        "    local chunk = include(base_path .. chunk_files[i])",
+        '    if not isstring(chunk) or chunk == "" then',
+        '        error("MGFX shaderpack chunk did not load: " .. chunk_files[i])',
+        "    end",
+        "    chunks[i] = chunk",
+        "end",
+        "",
+        "MGFXShaderPack.GMA = table.concat(chunks)",
+        "",
+    ])
+    path.write_text("\n".join(lines), encoding="utf-8", newline="\n")
 
 
 def parse_args(argv):
@@ -200,8 +256,8 @@ def parse_args(argv):
     parser.add_argument(
         "--chunk-size",
         type=int,
-        default=1000,
-        help="base64 characters per Lux string chunk",
+        default=40000,
+        help="base64 characters per generated Lux/GLua chunk module",
     )
     return parser.parse_args(argv)
 
@@ -212,8 +268,8 @@ def main(argv=None):
 
     if not args.version.isdigit():
         raise ValueError("--version must be a decimal Unix timestamp string")
-    if args.chunk_size < 256:
-        raise ValueError("--chunk-size must be at least 256")
+    if args.chunk_size < 1024:
+        raise ValueError("--chunk-size must be at least 1024")
 
     if not args.pack_only:
         run_shader_compile(root, args.shader_compiler)
@@ -226,7 +282,7 @@ def main(argv=None):
 
     if args.lua_out:
         lua_out = Path(args.lua_out).resolve()
-        write_legacy_lua(lua_out, args.version, encoded)
+        write_legacy_lua(lua_out, args.version, encoded, args.chunk_size)
         print(f"Wrote legacy GLua shaderpack: {lua_out}")
 
 

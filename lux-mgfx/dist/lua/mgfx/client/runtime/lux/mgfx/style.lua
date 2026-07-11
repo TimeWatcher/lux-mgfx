@@ -1510,7 +1510,7 @@ return function(__lux_import)
           if transparentColor == nil then
             transparentColor = makeColor(0, 0, 0, 0)
           end
-          backdropTrueSpec = { blur = 4, tint = transparentColor, opacity = 1, padding = 0 }
+          backdropTrueSpec = { blur = 4, tint = transparentColor, opacity = 1, padding = 0, recapture = false }
         end
         return backdropTrueSpec
       end
@@ -1538,7 +1538,7 @@ return function(__lux_import)
         if transparentColor == nil then
           transparentColor = makeColor(0, 0, 0, 0)
         end
-        cached = { blur = blurKey, tint = transparentColor, opacity = 1, padding = 0 }
+        cached = { blur = blurKey, tint = transparentColor, opacity = 1, padding = 0, recapture = false }
         backdropNumberCache[blurKey] = cached
         return cached
       end
@@ -1551,7 +1551,7 @@ return function(__lux_import)
             return cached
           end
         end
-        cached = { blur = 0, tint = value, opacity = 1, padding = 0 }
+        cached = { blur = 0, tint = value, opacity = 1, padding = 0, recapture = false }
         local __lux_cmp_161 = false
         if alpha(value.a) ~= nil then
           __lux_cmp_161 = alpha(value.a) <= 0
@@ -1570,10 +1570,10 @@ return function(__lux_import)
         return nil
       end
       local cached = backdropTableCache[value]
-      if cached ~= nil and cached ~= false and cached._blurInput == value.blur and cached._sizeInput == value.size and cached._indexInput == value[1] and cached._tintInput == value.tint and cached._colorInput == value.color and cached._opacityInput == value.opacity and cached._strengthInput == value.strength and cached._paddingInput == value.padding and cached._spreadInput == value.spread then
+      if cached ~= nil and cached ~= false and cached._blurInput == value.blur and cached._sizeInput == value.size and cached._indexInput == value[1] and cached._tintInput == value.tint and cached._colorInput == value.color and cached._opacityInput == value.opacity and cached._strengthInput == value.strength and cached._paddingInput == value.padding and cached._spreadInput == value.spread and cached._recaptureInput == value.recapture then
         return cached
       end
-      if cached == false and value.blur == nil and value.size == nil and value[1] == nil and value.tint == nil and value.color == nil and value.opacity == nil and value.strength == nil and value.padding == nil and value.spread == nil then
+      if cached == false and value.blur == nil and value.size == nil and value[1] == nil and value.tint == nil and value.color == nil and value.opacity == nil and value.strength == nil and value.padding == nil and value.spread == nil and value.recapture == nil then
         if cached == false then
           return nil
         else
@@ -1630,6 +1630,7 @@ return function(__lux_import)
         end
         padding = mathMax(0, __lux_tmp_padding_168)
       end
+      local recapture = value.recapture == true
       local __lux_tmp_171 = blur <= 0
       if __lux_tmp_171 then
         local __lux_cmp_170 = false
@@ -1646,7 +1647,13 @@ return function(__lux_import)
         backdropTableCache[value] = false
         return nil
       end
-      cached = { blur = blur, tint = tint, opacity = opacity, padding = padding }
+      cached = {
+        blur = blur,
+        tint = tint,
+        opacity = opacity,
+        padding = padding,
+        recapture = recapture,
+      }
       cached._blurInput = value.blur
       cached._sizeInput = value.size
       cached._indexInput = value[1]
@@ -1656,6 +1663,7 @@ return function(__lux_import)
       cached._strengthInput = value.strength
       cached._paddingInput = value.padding
       cached._spreadInput = value.spread
+      cached._recaptureInput = value.recapture
       backdropTableCache[value] = cached
       return cached
     end
@@ -2081,7 +2089,7 @@ return function(__lux_import)
       return owner
     end
   end
-  
+
   __lux_exports.FILL_SOLID = FILL_SOLID
   __lux_exports.FILL_LINEAR = FILL_LINEAR
   __lux_exports.FILL_RADIAL = FILL_RADIAL
@@ -2135,6 +2143,6 @@ return function(__lux_import)
   __lux_exports.bindGradientLut = bindGradientLut
   __lux_exports.gradientLutStatus = gradientLutStatus
   __lux_exports.install = install
-  
+
   return __lux_exports
 end

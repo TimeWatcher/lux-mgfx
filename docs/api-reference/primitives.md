@@ -42,7 +42,7 @@ MGFX.CapsuleEx(x, y, w, h, style)
 | `shadow` | External soft shadow. `x/y` moves the shadow shape. |
 | `outerGlow` | External glow. `x/y` biases glow direction without moving the source shape. |
 | `innerGlow` | Inner edge glow for supported shapes. |
-| `backdrop` | Shape-clipped framebuffer blur/tint. |
+| `backdrop` | Shape-clipped framebuffer blur/tint. Table form also accepts explicit `recapture`. |
 | `pattern` | Shader pattern such as `StripePattern`, `SmokePattern`, or `WornPattern`. |
 | `transform` | Visual-only transform record. |
 
@@ -118,6 +118,13 @@ Use `caps = false` or `noCaps = true` for square-ended line quads.
 ## Shape-aware Effects
 
 `shadow`, `outerGlow`, `backdrop`, and `pattern` are clipped or evaluated against the current shape where supported. `outerGlow.x/y` is directional glow bias, not a duplicate shifted shape. Use `shadow.x/y` when you want a projected offset.
+
+Blurred backdrops share one framebuffer capture and completed two-axis blur
+source per engine render frame. Later shapes only perform one masked sample.
+The first blurred backdrop establishes the shared blur intensity. Use
+`{blur = value, recapture = true}` only when a later shape must
+include newly drawn framebuffer content or deliberately replace that shared
+intensity. Tint-only backdrops do not use the shared blur resource.
 
 For rounded boxes and chamfer boxes, compatible `shadow` and `outerGlow` layers may be rendered by one fused shader pass. The style fields and visual semantics remain separate.
 

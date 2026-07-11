@@ -1,7 +1,10 @@
 return function(__lux_import)
   local __lux_exports = {}
+  local frame
   local styleUtil
+  local frameNumber
   local makeColor
+  local matrixCtor
   local mathAbs
   local mathClamp
   local mathCos
@@ -20,8 +23,26 @@ return function(__lux_import)
   local typeOf
   local pcallFn
   local errorFn
+  local renderCopyRenderTargetToTexture
+  local renderDrawScreenQuad
+  local renderGetBlend
+  local renderGetColorModulation
+  local renderOverrideAlphaWriteEnable
+  local renderOverrideBlend
+  local renderPopRenderTarget
+  local renderPushRenderTarget
+  local renderSetBlend
+  local renderSetColorModulation
+  local renderSetMaterial
+  local renderSetScissorRect
   local stats
   local geometryProfiler
+  local geometryOwner
+  local backdropBlurPreparedFrame
+  local backdropBlurPreparedIntensity
+  local backdropBlurParamMatrices
+  local backdropBlurMatrixProbe
+  local backdropBlurMatrixSetUnpacked
   local transformStack
   local transformPolyScratch
   local transformQuadVerts
@@ -72,6 +93,8 @@ return function(__lux_import)
   local imageUV
   local imageFitRect
   local blurIntensity
+  local setupBackdropBlurConstants
+  local prepareBackdropBlur
   local bindStats
   local resetFrameStats
   local recordDraws
@@ -79,9 +102,13 @@ return function(__lux_import)
   local profileSnapshot
   local install
   do
+    local frameImport = __lux_import("lux/mgfx/frame#client")
     local styleUtilImport = __lux_import("lux/mgfx/style#client")
+    frame = frameImport
     styleUtil = styleUtilImport
+    frameNumber = FrameNumber
     makeColor = Color
+    matrixCtor = Matrix
     mathAbs = math.abs
     mathClamp = math.Clamp
     mathCos = math.cos
@@ -100,8 +127,41 @@ return function(__lux_import)
     typeOf = type
     pcallFn = pcall
     errorFn = error
-    stats = { draws = 0 }
+    renderCopyRenderTargetToTexture = render.CopyRenderTargetToTexture
+    renderDrawScreenQuad = render.DrawScreenQuad
+    renderGetBlend = render.GetBlend
+    renderGetColorModulation = render.GetColorModulation
+    renderOverrideAlphaWriteEnable = render.OverrideAlphaWriteEnable
+    renderOverrideBlend = render.OverrideBlend
+    renderPopRenderTarget = render.PopRenderTarget
+    renderPushRenderTarget = render.PushRenderTarget
+    renderSetBlend = render.SetBlend
+    renderSetColorModulation = render.SetColorModulation
+    renderSetMaterial = render.SetMaterial
+    renderSetScissorRect = render.SetScissorRect
+    stats = { draws = 0, blurPasses = 0, blurCaptures = 0, blurReuses = 0 }
     geometryProfiler = nil
+    geometryOwner = nil
+    backdropBlurPreparedFrame = -1
+    backdropBlurPreparedIntensity = 0
+    backdropBlurParamMatrices = {}
+    do
+      local __lux_tmp_1
+      if matrixCtor ~= nil then
+        __lux_tmp_1 = matrixCtor()
+      else
+        __lux_tmp_1 = nil
+      end
+      backdropBlurMatrixProbe = __lux_tmp_1
+    end
+    do
+      local __lux_obj_backdropBlurMatrixProbe_2 = backdropBlurMatrixProbe
+      local __lux_val_SetUnpacked_3 = nil
+      if __lux_obj_backdropBlurMatrixProbe_2 ~= nil then
+        __lux_val_SetUnpacked_3 = __lux_obj_backdropBlurMatrixProbe_2.SetUnpacked
+      end
+      backdropBlurMatrixSetUnpacked = __lux_val_SetUnpacked_3
+    end
     transformStack = {}
     transformPolyScratch = { {}, {}, {}, {}, {}, {}, {}, {} }
     transformQuadVerts = { {}, {}, {}, {} }
@@ -135,39 +195,39 @@ return function(__lux_import)
         fallbackY = 0
       end
       if typeOf(value) ~= "table" then
-        local __lux_tmp_fallbackX_1 = fallbackX
-        if __lux_tmp_fallbackX_1 == nil then
-          __lux_tmp_fallbackX_1 = 0
+        local __lux_tmp_fallbackX_4 = fallbackX
+        if __lux_tmp_fallbackX_4 == nil then
+          __lux_tmp_fallbackX_4 = 0
         end
-        local __lux_tmp_fallbackY_2 = fallbackY
-        if __lux_tmp_fallbackY_2 == nil then
-          __lux_tmp_fallbackY_2 = 0
+        local __lux_tmp_fallbackY_5 = fallbackY
+        if __lux_tmp_fallbackY_5 == nil then
+          __lux_tmp_fallbackY_5 = 0
         end
-        return __lux_tmp_fallbackX_1, __lux_tmp_fallbackY_2
+        return __lux_tmp_fallbackX_4, __lux_tmp_fallbackY_5
       end
-      local __lux_tmp_x_3 = value.x
-      if __lux_tmp_x_3 == nil then
-        __lux_tmp_x_3 = value[1]
+      local __lux_tmp_x_6 = value.x
+      if __lux_tmp_x_6 == nil then
+        __lux_tmp_x_6 = value[1]
       end
-      local __lux_tmp_x_4 = toNumber(__lux_tmp_x_3)
-      if __lux_tmp_x_4 == nil then
-        __lux_tmp_x_4 = fallbackX
+      local __lux_tmp_x_7 = toNumber(__lux_tmp_x_6)
+      if __lux_tmp_x_7 == nil then
+        __lux_tmp_x_7 = fallbackX
       end
-      if __lux_tmp_x_4 == nil then
-        __lux_tmp_x_4 = 0
+      if __lux_tmp_x_7 == nil then
+        __lux_tmp_x_7 = 0
       end
-      local __lux_tmp_y_5 = value.y
-      if __lux_tmp_y_5 == nil then
-        __lux_tmp_y_5 = value[2]
+      local __lux_tmp_y_8 = value.y
+      if __lux_tmp_y_8 == nil then
+        __lux_tmp_y_8 = value[2]
       end
-      local __lux_tmp_y_6 = toNumber(__lux_tmp_y_5)
-      if __lux_tmp_y_6 == nil then
-        __lux_tmp_y_6 = fallbackY
+      local __lux_tmp_y_9 = toNumber(__lux_tmp_y_8)
+      if __lux_tmp_y_9 == nil then
+        __lux_tmp_y_9 = fallbackY
       end
-      if __lux_tmp_y_6 == nil then
-        __lux_tmp_y_6 = 0
+      if __lux_tmp_y_9 == nil then
+        __lux_tmp_y_9 = 0
       end
-      return __lux_tmp_x_4, __lux_tmp_y_6
+      return __lux_tmp_x_7, __lux_tmp_y_9
     end
     percentString = function(value)
       if typeOf(value) ~= "string" then
@@ -175,12 +235,12 @@ return function(__lux_import)
       end
       local lower = stringLower(value)
       local alias
-      local __lux_match_7 = lower
-      if __lux_match_7 == "left" or __lux_match_7 == "top" then
+      local __lux_match_10 = lower
+      if __lux_match_10 == "left" or __lux_match_10 == "top" then
         alias = 0
-      elseif __lux_match_7 == "center" or __lux_match_7 == "middle" then
+      elseif __lux_match_10 == "center" or __lux_match_10 == "middle" then
         alias = 0.5
-      elseif __lux_match_7 == "right" or __lux_match_7 == "bottom" then
+      elseif __lux_match_10 == "right" or __lux_match_10 == "bottom" then
         alias = 1
       else
         alias = nil
@@ -190,11 +250,11 @@ return function(__lux_import)
       end
       local pct = stringMatch(lower, "^%s*([%-%d%.]+)%s*%%%s*$")
       if pct ~= nil then
-        local __lux_tmp_pct_8 = toNumber(pct)
-        if __lux_tmp_pct_8 == nil then
-          __lux_tmp_pct_8 = 0
+        local __lux_tmp_pct_11 = toNumber(pct)
+        if __lux_tmp_pct_11 == nil then
+          __lux_tmp_pct_11 = 0
         end
-        return __lux_tmp_pct_8 / 100
+        return __lux_tmp_pct_11 / 100
       end
       return nil
     end
@@ -209,11 +269,11 @@ return function(__lux_import)
       if value == nil then
         return base + size * fallback
       end
-      local __lux_tmp_value_9 = toNumber(value)
-      if __lux_tmp_value_9 == nil then
-        __lux_tmp_value_9 = size * fallback
+      local __lux_tmp_value_12 = toNumber(value)
+      if __lux_tmp_value_12 == nil then
+        __lux_tmp_value_12 = size * fallback
       end
-      return base + __lux_tmp_value_9
+      return base + __lux_tmp_value_12
     end
     transformOrigin = function(spec, x, y, w, h)
       local origin = spec.origin
@@ -232,15 +292,15 @@ return function(__lux_import)
         return axisOrigin(a, x, w, 0.5), axisOrigin(b, y, h, 0.5)
       end
       if typeOf(origin) == "table" then
-        local __lux_tmp_x_10 = origin.x
-        if __lux_tmp_x_10 == nil then
-          __lux_tmp_x_10 = origin[1]
+        local __lux_tmp_x_13 = origin.x
+        if __lux_tmp_x_13 == nil then
+          __lux_tmp_x_13 = origin[1]
         end
-        local __lux_tmp_y_11 = origin.y
-        if __lux_tmp_y_11 == nil then
-          __lux_tmp_y_11 = origin[2]
+        local __lux_tmp_y_14 = origin.y
+        if __lux_tmp_y_14 == nil then
+          __lux_tmp_y_14 = origin[2]
         end
-        return axisOrigin(__lux_tmp_x_10, x, w, 0.5), axisOrigin(__lux_tmp_y_11, y, h, 0.5)
+        return axisOrigin(__lux_tmp_x_13, x, w, 0.5), axisOrigin(__lux_tmp_y_14, y, h, 0.5)
       end
       return x + w * 0.5, y + h * 0.5
     end
@@ -248,14 +308,14 @@ return function(__lux_import)
       if fallback == nil then
         fallback = 0
       end
-      local __lux_tmp_value_12 = toNumber(value)
-      if __lux_tmp_value_12 == nil then
-        __lux_tmp_value_12 = fallback
+      local __lux_tmp_value_15 = toNumber(value)
+      if __lux_tmp_value_15 == nil then
+        __lux_tmp_value_15 = fallback
       end
-      if __lux_tmp_value_12 == nil then
-        __lux_tmp_value_12 = 0
+      if __lux_tmp_value_15 == nil then
+        __lux_tmp_value_15 = 0
       end
-      return __lux_tmp_value_12
+      return __lux_tmp_value_15
     end
     compileCssTransform = function(spec, x, y, w, h)
       if x == nil then
@@ -277,16 +337,16 @@ return function(__lux_import)
       local scaleX = spec.scaleX
       if scaleX == nil then
         do
-          local __lux_tmp_13
+          local __lux_tmp_16
           if typeOf(scale) == "table" then
-            __lux_tmp_13 = scale.x
-            if __lux_tmp_13 == nil then
-              __lux_tmp_13 = scale[1]
+            __lux_tmp_16 = scale.x
+            if __lux_tmp_16 == nil then
+              __lux_tmp_16 = scale[1]
             end
           else
-            __lux_tmp_13 = scale
+            __lux_tmp_16 = scale
           end
-          scaleX = __lux_tmp_13
+          scaleX = __lux_tmp_16
           if scaleX == nil then
             scaleX = 1
           end
@@ -295,16 +355,16 @@ return function(__lux_import)
       local scaleY = spec.scaleY
       if scaleY == nil then
         do
-          local __lux_tmp_14
+          local __lux_tmp_17
           if typeOf(scale) == "table" then
-            __lux_tmp_14 = scale.y
-            if __lux_tmp_14 == nil then
-              __lux_tmp_14 = scale[2]
+            __lux_tmp_17 = scale.y
+            if __lux_tmp_17 == nil then
+              __lux_tmp_17 = scale[2]
             end
           else
-            __lux_tmp_14 = scale
+            __lux_tmp_17 = scale
           end
-          scaleY = __lux_tmp_14
+          scaleY = __lux_tmp_17
           if scaleY == nil then
             scaleY = 1
           end
@@ -315,16 +375,16 @@ return function(__lux_import)
         tx = spec.translateX
         if tx == nil then
           do
-            local __lux_tmp_15
+            local __lux_tmp_18
             if typeOf(translate) == "table" then
-              __lux_tmp_15 = translate.x
-              if __lux_tmp_15 == nil then
-                __lux_tmp_15 = translate[1]
+              __lux_tmp_18 = translate.x
+              if __lux_tmp_18 == nil then
+                __lux_tmp_18 = translate[1]
               end
             else
-              __lux_tmp_15 = nil
+              __lux_tmp_18 = nil
             end
-            tx = __lux_tmp_15
+            tx = __lux_tmp_18
             if tx == nil then
               tx = 0
             end
@@ -336,16 +396,16 @@ return function(__lux_import)
         ty = spec.translateY
         if ty == nil then
           do
-            local __lux_tmp_16
+            local __lux_tmp_19
             if typeOf(translate) == "table" then
-              __lux_tmp_16 = translate.y
-              if __lux_tmp_16 == nil then
-                __lux_tmp_16 = translate[2]
+              __lux_tmp_19 = translate.y
+              if __lux_tmp_19 == nil then
+                __lux_tmp_19 = translate[2]
               end
             else
-              __lux_tmp_16 = nil
+              __lux_tmp_19 = nil
             end
-            ty = __lux_tmp_16
+            ty = __lux_tmp_19
             if ty == nil then
               ty = 0
             end
@@ -357,16 +417,16 @@ return function(__lux_import)
         tz = spec.translateZ
         if tz == nil then
           do
-            local __lux_tmp_17
+            local __lux_tmp_20
             if typeOf(translate) == "table" then
-              __lux_tmp_17 = translate.z
-              if __lux_tmp_17 == nil then
-                __lux_tmp_17 = translate[3]
+              __lux_tmp_20 = translate.z
+              if __lux_tmp_20 == nil then
+                __lux_tmp_20 = translate[3]
               end
             else
-              __lux_tmp_17 = nil
+              __lux_tmp_20 = nil
             end
-            tz = __lux_tmp_17
+            tz = __lux_tmp_20
             if tz == nil then
               tz = 0
             end
@@ -376,16 +436,16 @@ return function(__lux_import)
       local skewX = spec.skewX
       if skewX == nil then
         do
-          local __lux_tmp_18
+          local __lux_tmp_21
           if typeOf(skew) == "table" then
-            __lux_tmp_18 = skew.x
-            if __lux_tmp_18 == nil then
-              __lux_tmp_18 = skew[1]
+            __lux_tmp_21 = skew.x
+            if __lux_tmp_21 == nil then
+              __lux_tmp_21 = skew[1]
             end
           else
-            __lux_tmp_18 = nil
+            __lux_tmp_21 = nil
           end
-          skewX = __lux_tmp_18
+          skewX = __lux_tmp_21
           if skewX == nil then
             skewX = 0
           end
@@ -394,16 +454,16 @@ return function(__lux_import)
       local skewY = spec.skewY
       if skewY == nil then
         do
-          local __lux_tmp_19
+          local __lux_tmp_22
           if typeOf(skew) == "table" then
-            __lux_tmp_19 = skew.y
-            if __lux_tmp_19 == nil then
-              __lux_tmp_19 = skew[2]
+            __lux_tmp_22 = skew.y
+            if __lux_tmp_22 == nil then
+              __lux_tmp_22 = skew[2]
             end
           else
-            __lux_tmp_19 = nil
+            __lux_tmp_22 = nil
           end
-          skewY = __lux_tmp_19
+          skewY = __lux_tmp_22
           if skewY == nil then
             skewY = 0
           end
@@ -430,13 +490,13 @@ return function(__lux_import)
           rotateY = 0
         end
       end
-      local __lux_tmp_perspective_20 = spec.perspective
-      if __lux_tmp_perspective_20 == nil then
-        __lux_tmp_perspective_20 = spec.depth
+      local __lux_tmp_perspective_23 = spec.perspective
+      if __lux_tmp_perspective_23 == nil then
+        __lux_tmp_perspective_23 = spec.depth
       end
-      local __lux_tmp_steps_21 = spec.steps
-      if __lux_tmp_steps_21 == nil then
-        __lux_tmp_steps_21 = spec.subdivisions
+      local __lux_tmp_steps_24 = spec.steps
+      if __lux_tmp_steps_24 == nil then
+        __lux_tmp_steps_24 = spec.subdivisions
       end
       return {
         kind = "css",
@@ -452,16 +512,16 @@ return function(__lux_import)
         rotate = mathRad(num(rotate, 0)),
         rotateX = mathRad(num(rotateX, 0)),
         rotateY = mathRad(num(rotateY, 0)),
-        perspective = mathMax(0, num(__lux_tmp_perspective_20, 0)),
-        steps = mathClamp(mathFloor(num(__lux_tmp_steps_21, 0)), 0, 24),
+        perspective = mathMax(0, num(__lux_tmp_perspective_23, 0)),
+        steps = mathClamp(mathFloor(num(__lux_tmp_steps_24, 0)), 0, 24),
       }
     end
     projectedCorner = function(spec, name, index)
-      local __lux_tmp_name_22 = spec[name]
-      if __lux_tmp_name_22 == nil then
-        __lux_tmp_name_22 = spec[index]
+      local __lux_tmp_name_25 = spec[name]
+      if __lux_tmp_name_25 == nil then
+        __lux_tmp_name_25 = spec[index]
       end
-      return pointXY(__lux_tmp_name_22, 0, 0)
+      return pointXY(__lux_tmp_name_25, 0, 0)
     end
     compileProjectedQuad = function(spec, x, y, w, h)
       if x == nil then
@@ -480,9 +540,9 @@ return function(__lux_import)
       local trx, try = projectedCorner(spec, "tr", 2)
       local brx, bry = projectedCorner(spec, "br", 3)
       local blx, bly = projectedCorner(spec, "bl", 4)
-      local __lux_tmp_steps_23 = spec.steps
-      if __lux_tmp_steps_23 == nil then
-        __lux_tmp_steps_23 = spec.subdivisions
+      local __lux_tmp_steps_26 = spec.steps
+      if __lux_tmp_steps_26 == nil then
+        __lux_tmp_steps_26 = spec.subdivisions
       end
       return {
         kind = "projected",
@@ -498,7 +558,7 @@ return function(__lux_import)
         bry = bry,
         blx = blx,
         bly = bly,
-        steps = mathClamp(mathFloor(num(__lux_tmp_steps_23, 10)), 1, 24),
+        steps = mathClamp(mathFloor(num(__lux_tmp_steps_26, 10)), 1, 24),
       }
     end
     compilePointerTilt = function(spec, x, y, w, h)
@@ -507,28 +567,28 @@ return function(__lux_import)
       end
       local px
       do
-        local __lux_tmp_pointerX_24 = spec.pointerX
-        if __lux_tmp_pointerX_24 == nil then
-          __lux_tmp_pointerX_24 = spec.x
+        local __lux_tmp_pointerX_27 = spec.pointerX
+        if __lux_tmp_pointerX_27 == nil then
+          __lux_tmp_pointerX_27 = spec.x
         end
-        if __lux_tmp_pointerX_24 == nil then
-          __lux_tmp_pointerX_24 = spec[1]
+        if __lux_tmp_pointerX_27 == nil then
+          __lux_tmp_pointerX_27 = spec[1]
         end
-        px = toNumber(__lux_tmp_pointerX_24)
+        px = toNumber(__lux_tmp_pointerX_27)
         if px == nil then
           px = x + w * 0.5
         end
       end
       local py
       do
-        local __lux_tmp_pointerY_25 = spec.pointerY
-        if __lux_tmp_pointerY_25 == nil then
-          __lux_tmp_pointerY_25 = spec.y
+        local __lux_tmp_pointerY_28 = spec.pointerY
+        if __lux_tmp_pointerY_28 == nil then
+          __lux_tmp_pointerY_28 = spec.y
         end
-        if __lux_tmp_pointerY_25 == nil then
-          __lux_tmp_pointerY_25 = spec[2]
+        if __lux_tmp_pointerY_28 == nil then
+          __lux_tmp_pointerY_28 = spec[2]
         end
-        py = toNumber(__lux_tmp_pointerY_25)
+        py = toNumber(__lux_tmp_pointerY_28)
         if py == nil then
           py = y + h * 0.5
         end
@@ -538,62 +598,62 @@ return function(__lux_import)
       local ny = mathClamp((py - (y + h * 0.5)) / mathMax(h * 0.5, 0.0001), -1, 1)
       local maxX
       do
-        local __lux_tmp_maxRotateX_26 = spec.maxRotateX
-        if __lux_tmp_maxRotateX_26 == nil then
-          __lux_tmp_maxRotateX_26 = spec.maxX
+        local __lux_tmp_maxRotateX_29 = spec.maxRotateX
+        if __lux_tmp_maxRotateX_29 == nil then
+          __lux_tmp_maxRotateX_29 = spec.maxX
         end
-        if __lux_tmp_maxRotateX_26 == nil then
-          __lux_tmp_maxRotateX_26 = spec.max
+        if __lux_tmp_maxRotateX_29 == nil then
+          __lux_tmp_maxRotateX_29 = spec.max
         end
-        if __lux_tmp_maxRotateX_26 == nil then
-          __lux_tmp_maxRotateX_26 = spec.amount
+        if __lux_tmp_maxRotateX_29 == nil then
+          __lux_tmp_maxRotateX_29 = spec.amount
         end
-        maxX = num(__lux_tmp_maxRotateX_26, 6)
+        maxX = num(__lux_tmp_maxRotateX_29, 6)
       end
       local maxY
       do
-        local __lux_tmp_maxRotateY_27 = spec.maxRotateY
-        if __lux_tmp_maxRotateY_27 == nil then
-          __lux_tmp_maxRotateY_27 = spec.maxY
+        local __lux_tmp_maxRotateY_30 = spec.maxRotateY
+        if __lux_tmp_maxRotateY_30 == nil then
+          __lux_tmp_maxRotateY_30 = spec.maxY
         end
-        if __lux_tmp_maxRotateY_27 == nil then
-          __lux_tmp_maxRotateY_27 = spec.max
+        if __lux_tmp_maxRotateY_30 == nil then
+          __lux_tmp_maxRotateY_30 = spec.max
         end
-        if __lux_tmp_maxRotateY_27 == nil then
-          __lux_tmp_maxRotateY_27 = spec.amount
+        if __lux_tmp_maxRotateY_30 == nil then
+          __lux_tmp_maxRotateY_30 = spec.amount
         end
-        maxY = num(__lux_tmp_maxRotateY_27, 6)
+        maxY = num(__lux_tmp_maxRotateY_30, 6)
       end
-      local __lux_tmp_origin_28 = spec.origin
-      if __lux_tmp_origin_28 == nil then
-        __lux_tmp_origin_28 = spec.transformOrigin
+      local __lux_tmp_origin_31 = spec.origin
+      if __lux_tmp_origin_31 == nil then
+        __lux_tmp_origin_31 = spec.transformOrigin
       end
-      if __lux_tmp_origin_28 == nil then
-        __lux_tmp_origin_28 = "50% 50%"
+      if __lux_tmp_origin_31 == nil then
+        __lux_tmp_origin_31 = "50% 50%"
       end
-      local __lux_tmp_perspective_29 = spec.perspective
-      if __lux_tmp_perspective_29 == nil then
-        __lux_tmp_perspective_29 = 900
+      local __lux_tmp_perspective_32 = spec.perspective
+      if __lux_tmp_perspective_32 == nil then
+        __lux_tmp_perspective_32 = 900
       end
-      local __lux_tmp_scale_30 = spec.scale
-      if __lux_tmp_scale_30 == nil then
-        __lux_tmp_scale_30 = 1 + strength * num(spec.scaleLift, 0)
+      local __lux_tmp_scale_33 = spec.scale
+      if __lux_tmp_scale_33 == nil then
+        __lux_tmp_scale_33 = 1 + strength * num(spec.scaleLift, 0)
       end
-      local __lux_tmp_steps_31 = spec.steps
-      if __lux_tmp_steps_31 == nil then
-        __lux_tmp_steps_31 = spec.subdivisions
+      local __lux_tmp_steps_34 = spec.steps
+      if __lux_tmp_steps_34 == nil then
+        __lux_tmp_steps_34 = spec.subdivisions
       end
-      if __lux_tmp_steps_31 == nil then
-        __lux_tmp_steps_31 = 10
+      if __lux_tmp_steps_34 == nil then
+        __lux_tmp_steps_34 = 10
       end
       return compileCssTransform(
         {
-          origin = __lux_tmp_origin_28,
-          perspective = __lux_tmp_perspective_29,
+          origin = __lux_tmp_origin_31,
+          perspective = __lux_tmp_perspective_32,
           rotateX = -ny * maxX * strength,
           rotateY = nx * maxY * strength,
-          scale = __lux_tmp_scale_30,
-          steps = __lux_tmp_steps_31,
+          scale = __lux_tmp_scale_33,
+          steps = __lux_tmp_steps_34,
         },
         x,
         y,
@@ -610,10 +670,10 @@ return function(__lux_import)
         kind = spec.type
       end
       local route
-      local __lux_match_32 = kind
-      if __lux_match_32 == "pointerTilt" then
+      local __lux_match_35 = kind
+      if __lux_match_35 == "pointerTilt" then
         route = 1
-      elseif __lux_match_32 == "projectedQuad" or __lux_match_32 == "projected" then
+      elseif __lux_match_35 == "projectedQuad" or __lux_match_35 == "projected" then
         route = 2
       else
         route = nil
@@ -622,77 +682,77 @@ return function(__lux_import)
         return compilePointerTilt(spec, x, y, w, h)
       end
       if route == 2 then
-        local __lux_tmp_x_33 = x
-        if __lux_tmp_x_33 == nil then
-          __lux_tmp_x_33 = 0
+        local __lux_tmp_x_36 = x
+        if __lux_tmp_x_36 == nil then
+          __lux_tmp_x_36 = 0
         end
-        local __lux_tmp_y_34 = y
-        if __lux_tmp_y_34 == nil then
-          __lux_tmp_y_34 = 0
+        local __lux_tmp_y_37 = y
+        if __lux_tmp_y_37 == nil then
+          __lux_tmp_y_37 = 0
         end
-        local __lux_tmp_w_35 = w
-        if __lux_tmp_w_35 == nil then
-          __lux_tmp_w_35 = 1
+        local __lux_tmp_w_38 = w
+        if __lux_tmp_w_38 == nil then
+          __lux_tmp_w_38 = 1
         end
-        local __lux_tmp_h_36 = h
-        if __lux_tmp_h_36 == nil then
-          __lux_tmp_h_36 = 1
+        local __lux_tmp_h_39 = h
+        if __lux_tmp_h_39 == nil then
+          __lux_tmp_h_39 = 1
         end
         return compileProjectedQuad(
           spec,
-          __lux_tmp_x_33,
-          __lux_tmp_y_34,
-          __lux_tmp_w_35,
-          __lux_tmp_h_36
+          __lux_tmp_x_36,
+          __lux_tmp_y_37,
+          __lux_tmp_w_38,
+          __lux_tmp_h_39
         )
       end
       if spec.tl ~= nil or isPoint(spec[1]) and isPoint(spec[2]) and isPoint(spec[3]) and isPoint(spec[4]) then
-        local __lux_tmp_x_37 = x
-        if __lux_tmp_x_37 == nil then
-          __lux_tmp_x_37 = 0
+        local __lux_tmp_x_40 = x
+        if __lux_tmp_x_40 == nil then
+          __lux_tmp_x_40 = 0
         end
-        local __lux_tmp_y_38 = y
-        if __lux_tmp_y_38 == nil then
-          __lux_tmp_y_38 = 0
+        local __lux_tmp_y_41 = y
+        if __lux_tmp_y_41 == nil then
+          __lux_tmp_y_41 = 0
         end
-        local __lux_tmp_w_39 = w
-        if __lux_tmp_w_39 == nil then
-          __lux_tmp_w_39 = 1
+        local __lux_tmp_w_42 = w
+        if __lux_tmp_w_42 == nil then
+          __lux_tmp_w_42 = 1
         end
-        local __lux_tmp_h_40 = h
-        if __lux_tmp_h_40 == nil then
-          __lux_tmp_h_40 = 1
+        local __lux_tmp_h_43 = h
+        if __lux_tmp_h_43 == nil then
+          __lux_tmp_h_43 = 1
         end
         return compileProjectedQuad(
           spec,
-          __lux_tmp_x_37,
-          __lux_tmp_y_38,
-          __lux_tmp_w_39,
-          __lux_tmp_h_40
+          __lux_tmp_x_40,
+          __lux_tmp_y_41,
+          __lux_tmp_w_42,
+          __lux_tmp_h_43
         )
       end
-      local __lux_tmp_x_41 = x
-      if __lux_tmp_x_41 == nil then
-        __lux_tmp_x_41 = 0
+      local __lux_tmp_x_44 = x
+      if __lux_tmp_x_44 == nil then
+        __lux_tmp_x_44 = 0
       end
-      local __lux_tmp_y_42 = y
-      if __lux_tmp_y_42 == nil then
-        __lux_tmp_y_42 = 0
+      local __lux_tmp_y_45 = y
+      if __lux_tmp_y_45 == nil then
+        __lux_tmp_y_45 = 0
       end
-      local __lux_tmp_w_43 = w
-      if __lux_tmp_w_43 == nil then
-        __lux_tmp_w_43 = 0
+      local __lux_tmp_w_46 = w
+      if __lux_tmp_w_46 == nil then
+        __lux_tmp_w_46 = 0
       end
-      local __lux_tmp_h_44 = h
-      if __lux_tmp_h_44 == nil then
-        __lux_tmp_h_44 = 0
+      local __lux_tmp_h_47 = h
+      if __lux_tmp_h_47 == nil then
+        __lux_tmp_h_47 = 0
       end
       return compileCssTransform(
         spec,
-        __lux_tmp_x_41,
-        __lux_tmp_y_42,
-        __lux_tmp_w_43,
-        __lux_tmp_h_44
+        __lux_tmp_x_44,
+        __lux_tmp_y_45,
+        __lux_tmp_w_46,
+        __lux_tmp_h_47
       )
     end
   end
@@ -703,27 +763,27 @@ return function(__lux_import)
     transformNeedsGrid = function()
       for index = 1, #transformStack do
         local t = transformStack[index]
-        local __lux_tmp_47 = t.kind == "projected" or t.perspective > 0
-        if not __lux_tmp_47 then
-          local __lux_cmp_46 = false
-          if mathAbs(t.rotateX) ~= nil then
-            __lux_cmp_46 = mathAbs(t.rotateX) > 0.0001
-          end
-          __lux_tmp_47 = __lux_cmp_46
-        end
-        local __lux_tmp_49 = __lux_tmp_47
-        if not __lux_tmp_49 then
-          local __lux_cmp_48 = false
-          if mathAbs(t.rotateY) ~= nil then
-            __lux_cmp_48 = mathAbs(t.rotateY) > 0.0001
-          end
-          __lux_tmp_49 = __lux_cmp_48
-        end
-        local __lux_tmp_50 = __lux_tmp_49
+        local __lux_tmp_50 = t.kind == "projected" or t.perspective > 0
         if not __lux_tmp_50 then
-          __lux_tmp_50 = t.steps > 1
+          local __lux_cmp_49 = false
+          if mathAbs(t.rotateX) ~= nil then
+            __lux_cmp_49 = mathAbs(t.rotateX) > 0.0001
+          end
+          __lux_tmp_50 = __lux_cmp_49
         end
-        if __lux_tmp_50 then
+        local __lux_tmp_52 = __lux_tmp_50
+        if not __lux_tmp_52 then
+          local __lux_cmp_51 = false
+          if mathAbs(t.rotateY) ~= nil then
+            __lux_cmp_51 = mathAbs(t.rotateY) > 0.0001
+          end
+          __lux_tmp_52 = __lux_cmp_51
+        end
+        local __lux_tmp_53 = __lux_tmp_52
+        if not __lux_tmp_53 then
+          __lux_tmp_53 = t.steps > 1
+        end
+        if __lux_tmp_53 then
           return true
         end
       end
@@ -734,41 +794,41 @@ return function(__lux_import)
       for index = 1, #transformStack do
         local t = transformStack[index]
         do
-          local __lux_tmp_53 = t.kind == "projected" or t.perspective > 0
-          if not __lux_tmp_53 then
-            local __lux_cmp_52 = false
+          local __lux_tmp_56 = t.kind == "projected" or t.perspective > 0
+          if not __lux_tmp_56 then
+            local __lux_cmp_55 = false
             if mathAbs(t.rotateX) ~= nil then
-              __lux_cmp_52 = mathAbs(t.rotateX) > 0.0001
+              __lux_cmp_55 = mathAbs(t.rotateX) > 0.0001
             end
-            __lux_tmp_53 = __lux_cmp_52
+            __lux_tmp_56 = __lux_cmp_55
           end
-          local __lux_tmp_55 = __lux_tmp_53
-          if not __lux_tmp_55 then
-            local __lux_cmp_54 = false
+          local __lux_tmp_58 = __lux_tmp_56
+          if not __lux_tmp_58 then
+            local __lux_cmp_57 = false
             if mathAbs(t.rotateY) ~= nil then
-              __lux_cmp_54 = mathAbs(t.rotateY) > 0.0001
+              __lux_cmp_57 = mathAbs(t.rotateY) > 0.0001
             end
-            __lux_tmp_55 = __lux_cmp_54
+            __lux_tmp_58 = __lux_cmp_57
           end
-          if __lux_tmp_55 then
+          if __lux_tmp_58 then
             do
-              local __lux_tmp_56
+              local __lux_tmp_59
               if t.steps > 0 then
-                __lux_tmp_56 = t.steps
+                __lux_tmp_59 = t.steps
               else
-                __lux_tmp_56 = 10
+                __lux_tmp_59 = 10
               end
-              steps = mathMax(steps, __lux_tmp_56)
+              steps = mathMax(steps, __lux_tmp_59)
             end
           else
             do
-              local __lux_tmp_57
+              local __lux_tmp_60
               if t.steps > 0 then
-                __lux_tmp_57 = t.steps
+                __lux_tmp_60 = t.steps
               else
-                __lux_tmp_57 = 1
+                __lux_tmp_60 = 1
               end
-              steps = mathMax(steps, __lux_tmp_57)
+              steps = mathMax(steps, __lux_tmp_60)
             end
           end
         end
@@ -790,39 +850,39 @@ return function(__lux_import)
       local sx = lx * t.scaleX + ly * t.skewX
       local sy = ly * t.scaleY + lx * t.skewY
       local sz = 0
-      local __lux_cmp_58 = false
+      local __lux_cmp_61 = false
       if mathAbs(t.rotateX) ~= nil then
-        __lux_cmp_58 = mathAbs(t.rotateX) > 0.0001
+        __lux_cmp_61 = mathAbs(t.rotateX) > 0.0001
       end
-      if __lux_cmp_58 then
+      if __lux_cmp_61 then
         local c = mathCos(t.rotateX)
         local s = mathSin(t.rotateX)
         sy, sz = sy * c - sz * s, sy * s + sz * c
       end
-      local __lux_cmp_59 = false
+      local __lux_cmp_62 = false
       if mathAbs(t.rotateY) ~= nil then
-        __lux_cmp_59 = mathAbs(t.rotateY) > 0.0001
+        __lux_cmp_62 = mathAbs(t.rotateY) > 0.0001
       end
-      if __lux_cmp_59 then
+      if __lux_cmp_62 then
         local c = mathCos(t.rotateY)
         local s = mathSin(t.rotateY)
         sx, sz = sx * c + sz * s, -sx * s + sz * c
       end
-      local __lux_cmp_60 = false
+      local __lux_cmp_63 = false
       if mathAbs(t.rotate) ~= nil then
-        __lux_cmp_60 = mathAbs(t.rotate) > 0.0001
+        __lux_cmp_63 = mathAbs(t.rotate) > 0.0001
       end
-      if __lux_cmp_60 then
+      if __lux_cmp_63 then
         local c = mathCos(t.rotate)
         local s = mathSin(t.rotate)
         sx, sy = sx * c - sy * s, sx * s + sy * c
       end
       do
-        local __lux_tmp_translateZ_61 = t.translateZ
-        if __lux_tmp_translateZ_61 == nil then
-          __lux_tmp_translateZ_61 = 0
+        local __lux_tmp_translateZ_64 = t.translateZ
+        if __lux_tmp_translateZ_64 == nil then
+          __lux_tmp_translateZ_64 = 0
         end
-        sz = sz + __lux_tmp_translateZ_61
+        sz = sz + __lux_tmp_translateZ_64
       end
       local p = t.perspective
       if p > 0 then
@@ -857,11 +917,11 @@ return function(__lux_import)
         local j01 = (bx - fx) / eps
         local j11 = (by - fy) / eps
         local det = j00 * j11 - j01 * j10
-        local __lux_cmp_62 = false
+        local __lux_cmp_65 = false
         if mathAbs(det) ~= nil then
-          __lux_cmp_62 = mathAbs(det) < 0.000001
+          __lux_cmp_65 = mathAbs(det) < 0.000001
         end
-        if __lux_cmp_62 then
+        if __lux_cmp_65 then
           return x, y
         end
         x = x - (ex * j11 - j01 * ey) / det
@@ -905,11 +965,11 @@ return function(__lux_import)
       if not hasTransform() then
         surfaceDrawPoly(verts)
         do
-          local __lux_tmp_draws_63 = stats.draws
-          if __lux_tmp_draws_63 == nil then
-            __lux_tmp_draws_63 = 0
+          local __lux_tmp_draws_66 = stats.draws
+          if __lux_tmp_draws_66 == nil then
+            __lux_tmp_draws_66 = 0
           end
-          stats.draws = __lux_tmp_draws_63 + 1
+          stats.draws = __lux_tmp_draws_66 + 1
         end
         return
       end
@@ -922,21 +982,21 @@ return function(__lux_import)
         end
         out[index] = dst
         do
-          local __lux_tmp_x_64 = src.x
-          if __lux_tmp_x_64 == nil then
-            __lux_tmp_x_64 = src[1]
+          local __lux_tmp_x_67 = src.x
+          if __lux_tmp_x_67 == nil then
+            __lux_tmp_x_67 = src[1]
           end
-          if __lux_tmp_x_64 == nil then
-            __lux_tmp_x_64 = 0
+          if __lux_tmp_x_67 == nil then
+            __lux_tmp_x_67 = 0
           end
-          local __lux_tmp_y_65 = src.y
-          if __lux_tmp_y_65 == nil then
-            __lux_tmp_y_65 = src[2]
+          local __lux_tmp_y_68 = src.y
+          if __lux_tmp_y_68 == nil then
+            __lux_tmp_y_68 = src[2]
           end
-          if __lux_tmp_y_65 == nil then
-            __lux_tmp_y_65 = 0
+          if __lux_tmp_y_68 == nil then
+            __lux_tmp_y_68 = 0
           end
-          dst.x, dst.y = transformPoint(__lux_tmp_x_64, __lux_tmp_y_65)
+          dst.x, dst.y = transformPoint(__lux_tmp_x_67, __lux_tmp_y_68)
         end
         dst.u = src.u
         dst.v = src.v
@@ -947,11 +1007,11 @@ return function(__lux_import)
       end
       surfaceDrawPoly(out)
       do
-        local __lux_tmp_draws_66 = stats.draws
-        if __lux_tmp_draws_66 == nil then
-          __lux_tmp_draws_66 = 0
+        local __lux_tmp_draws_69 = stats.draws
+        if __lux_tmp_draws_69 == nil then
+          __lux_tmp_draws_69 = 0
         end
-        stats.draws = __lux_tmp_draws_66 + 1
+        stats.draws = __lux_tmp_draws_69 + 1
       end
     end
     pushTransform = function(spec, x, y, w, h)
@@ -992,20 +1052,20 @@ return function(__lux_import)
       return nextTransform, stripped
     end
     transform = function(spec)
-      local __lux_tmp_spec_67 = spec
-      if __lux_tmp_spec_67 == nil then
-        __lux_tmp_spec_67 = {}
+      local __lux_tmp_spec_70 = spec
+      if __lux_tmp_spec_70 == nil then
+        __lux_tmp_spec_70 = {}
       end
-      return copyStyle(__lux_tmp_spec_67)
+      return copyStyle(__lux_tmp_spec_70)
     end
     projectedQuad = function(spec)
       local out
       do
-        local __lux_tmp_spec_68 = spec
-        if __lux_tmp_spec_68 == nil then
-          __lux_tmp_spec_68 = {}
+        local __lux_tmp_spec_71 = spec
+        if __lux_tmp_spec_71 == nil then
+          __lux_tmp_spec_71 = {}
         end
-        out = copyStyle(__lux_tmp_spec_68)
+        out = copyStyle(__lux_tmp_spec_71)
       end
       out.kind = "projectedQuad"
       return out
@@ -1013,11 +1073,11 @@ return function(__lux_import)
     pointerTilt = function(x, y, spec)
       local out
       do
-        local __lux_tmp_spec_69 = spec
-        if __lux_tmp_spec_69 == nil then
-          __lux_tmp_spec_69 = {}
+        local __lux_tmp_spec_72 = spec
+        if __lux_tmp_spec_72 == nil then
+          __lux_tmp_spec_72 = {}
         end
-        out = copyStyle(__lux_tmp_spec_69)
+        out = copyStyle(__lux_tmp_spec_72)
       end
       out.kind = "pointerTilt"
       out.x = x
@@ -1082,11 +1142,11 @@ return function(__lux_import)
           )
           traceEnd(surfaceTrace)
           do
-            local __lux_tmp_draws_70 = stats.draws
-            if __lux_tmp_draws_70 == nil then
-              __lux_tmp_draws_70 = 0
+            local __lux_tmp_draws_73 = stats.draws
+            if __lux_tmp_draws_73 == nil then
+              __lux_tmp_draws_73 = 0
             end
-            stats.draws = __lux_tmp_draws_70 + 1
+            stats.draws = __lux_tmp_draws_73 + 1
           end
           traceEnd(trace)
           return
@@ -1095,11 +1155,11 @@ return function(__lux_import)
         surfaceDrawTexturedRectUV(x, y, w, h, u0, v0, u1, v1)
         traceEnd(surfaceTrace)
         do
-          local __lux_tmp_draws_71 = stats.draws
-          if __lux_tmp_draws_71 == nil then
-            __lux_tmp_draws_71 = 0
+          local __lux_tmp_draws_74 = stats.draws
+          if __lux_tmp_draws_74 == nil then
+            __lux_tmp_draws_74 = 0
           end
-          stats.draws = __lux_tmp_draws_71 + 1
+          stats.draws = __lux_tmp_draws_74 + 1
         end
         traceEnd(trace)
         return
@@ -1133,11 +1193,11 @@ return function(__lux_import)
       end
       traceEnd(transformTrace)
       do
-        local __lux_tmp_draws_72 = stats.draws
-        if __lux_tmp_draws_72 == nil then
-          __lux_tmp_draws_72 = 0
+        local __lux_tmp_draws_75 = stats.draws
+        if __lux_tmp_draws_75 == nil then
+          __lux_tmp_draws_75 = 0
         end
-        stats.draws = __lux_tmp_draws_72 + draws
+        stats.draws = __lux_tmp_draws_75 + draws
       end
       return traceEnd(trace)
     end
@@ -1153,11 +1213,11 @@ return function(__lux_import)
         surfaceDrawTexturedRectUV(x, y, w, h, 0, 0, 1, 1)
       end
       do
-        local __lux_tmp_draws_73 = stats.draws
-        if __lux_tmp_draws_73 == nil then
-          __lux_tmp_draws_73 = 0
+        local __lux_tmp_draws_76 = stats.draws
+        if __lux_tmp_draws_76 == nil then
+          __lux_tmp_draws_76 = 0
         end
-        stats.draws = __lux_tmp_draws_73 + 1
+        stats.draws = __lux_tmp_draws_76 + 1
       end
     end
     drawCreatedMaterialTexturedRectUV = function(x, y, w, h, u0, v0, u1, v1)
@@ -1170,11 +1230,11 @@ return function(__lux_import)
       else
         surfaceDrawTexturedRectUV(x, y, w, h, u0, v0, u1, v1)
         do
-          local __lux_tmp_draws_74 = stats.draws
-          if __lux_tmp_draws_74 == nil then
-            __lux_tmp_draws_74 = 0
+          local __lux_tmp_draws_77 = stats.draws
+          if __lux_tmp_draws_77 == nil then
+            __lux_tmp_draws_77 = 0
           end
-          stats.draws = __lux_tmp_draws_74 + 1
+          stats.draws = __lux_tmp_draws_77 + 1
         end
       end
     end
@@ -1184,11 +1244,11 @@ return function(__lux_import)
       else
         surfaceDrawTexturedRectUV(x, y, w, h, u0, v0, u1, v1)
         do
-          local __lux_tmp_draws_75 = stats.draws
-          if __lux_tmp_draws_75 == nil then
-            __lux_tmp_draws_75 = 0
+          local __lux_tmp_draws_78 = stats.draws
+          if __lux_tmp_draws_78 == nil then
+            __lux_tmp_draws_78 = 0
           end
-          stats.draws = __lux_tmp_draws_75 + 1
+          stats.draws = __lux_tmp_draws_78 + 1
         end
       end
     end
@@ -1197,20 +1257,20 @@ return function(__lux_import)
       local th = 1
       if texture ~= nil and texture.Width ~= nil then
         do
-          local __lux_tmp_Width_76 = toNumber(texture:Width())
-          if __lux_tmp_Width_76 == nil then
-            __lux_tmp_Width_76 = tw
+          local __lux_tmp_Width_79 = toNumber(texture:Width())
+          if __lux_tmp_Width_79 == nil then
+            __lux_tmp_Width_79 = tw
           end
-          tw = __lux_tmp_Width_76
+          tw = __lux_tmp_Width_79
         end
       end
       if texture ~= nil and texture.Height ~= nil then
         do
-          local __lux_tmp_Height_77 = toNumber(texture:Height())
-          if __lux_tmp_Height_77 == nil then
-            __lux_tmp_Height_77 = th
+          local __lux_tmp_Height_80 = toNumber(texture:Height())
+          if __lux_tmp_Height_80 == nil then
+            __lux_tmp_Height_80 = th
           end
-          th = __lux_tmp_Height_77
+          th = __lux_tmp_Height_80
         end
       end
       return mathMax(1, tw), mathMax(1, th)
@@ -1224,11 +1284,11 @@ return function(__lux_import)
       end
       local tint
       do
-        local __lux_tmp_tint_78 = resolved.tint
-        if __lux_tmp_tint_78 == nil then
-          __lux_tmp_tint_78 = resolved.color
+        local __lux_tmp_tint_81 = resolved.tint
+        if __lux_tmp_tint_81 == nil then
+          __lux_tmp_tint_81 = resolved.color
         end
-        tint = styleUtil.asColor(__lux_tmp_tint_78, color_white)
+        tint = styleUtil.asColor(__lux_tmp_tint_81, color_white)
       end
       local alpha
       if tint.a == nil then
@@ -1241,11 +1301,11 @@ return function(__lux_import)
         return tint
       end
       do
-        local __lux_tmp_opacity_79 = toNumber(opacity)
-        if __lux_tmp_opacity_79 == nil then
-          __lux_tmp_opacity_79 = 255
+        local __lux_tmp_opacity_82 = toNumber(opacity)
+        if __lux_tmp_opacity_82 == nil then
+          __lux_tmp_opacity_82 = 255
         end
-        opacity = __lux_tmp_opacity_79
+        opacity = __lux_tmp_opacity_82
       end
       if opacity <= 1 then
         alpha = alpha * mathClamp(opacity, 0, 1)
@@ -1253,25 +1313,25 @@ return function(__lux_import)
         alpha = alpha * mathClamp(opacity, 0, 255) / 255
       end
       do
-        local __lux_tmp_r_80 = tint.r
-        if __lux_tmp_r_80 == nil then
-          __lux_tmp_r_80 = 255
+        local __lux_tmp_r_83 = tint.r
+        if __lux_tmp_r_83 == nil then
+          __lux_tmp_r_83 = 255
         end
-        imageTintScratch.r = __lux_tmp_r_80
+        imageTintScratch.r = __lux_tmp_r_83
       end
       do
-        local __lux_tmp_g_81 = tint.g
-        if __lux_tmp_g_81 == nil then
-          __lux_tmp_g_81 = 255
+        local __lux_tmp_g_84 = tint.g
+        if __lux_tmp_g_84 == nil then
+          __lux_tmp_g_84 = 255
         end
-        imageTintScratch.g = __lux_tmp_g_81
+        imageTintScratch.g = __lux_tmp_g_84
       end
       do
-        local __lux_tmp_b_82 = tint.b
-        if __lux_tmp_b_82 == nil then
-          __lux_tmp_b_82 = 255
+        local __lux_tmp_b_85 = tint.b
+        if __lux_tmp_b_85 == nil then
+          __lux_tmp_b_85 = 255
         end
-        imageTintScratch.b = __lux_tmp_b_82
+        imageTintScratch.b = __lux_tmp_b_85
       end
       imageTintScratch.a = mathFloor(mathClamp(alpha, 0, 255))
       return imageTintScratch
@@ -1296,26 +1356,26 @@ return function(__lux_import)
         end
         local pct = stringMatch(lower, "^%s*([%d%.]+)%s*%%%s*$")
         if pct ~= nil then
-          local __lux_tmp_pct_83 = toNumber(pct)
-          if __lux_tmp_pct_83 == nil then
-            __lux_tmp_pct_83 = 0
+          local __lux_tmp_pct_86 = toNumber(pct)
+          if __lux_tmp_pct_86 == nil then
+            __lux_tmp_pct_86 = 0
           end
-          return mathMin(w, h) * mathClamp(__lux_tmp_pct_83 / 100, 0, 1)
+          return mathMin(w, h) * mathClamp(__lux_tmp_pct_86 / 100, 0, 1)
         end
         local px = stringMatch(lower, "^%s*([%d%.]+)%s*px%s*$")
         if px ~= nil then
-          local __lux_tmp_px_84 = toNumber(px)
-          if __lux_tmp_px_84 == nil then
-            __lux_tmp_px_84 = 0
+          local __lux_tmp_px_87 = toNumber(px)
+          if __lux_tmp_px_87 == nil then
+            __lux_tmp_px_87 = 0
           end
-          return __lux_tmp_px_84
+          return __lux_tmp_px_87
         end
       end
-      local __lux_tmp_radius_85 = toNumber(radius)
-      if __lux_tmp_radius_85 == nil then
-        __lux_tmp_radius_85 = 0
+      local __lux_tmp_radius_88 = toNumber(radius)
+      if __lux_tmp_radius_88 == nil then
+        __lux_tmp_radius_88 = 0
       end
-      return mathMax(0, __lux_tmp_radius_85)
+      return mathMax(0, __lux_tmp_radius_88)
     end
     imageAlign = function(drawStyle)
       local resolved = drawStyle
@@ -1334,32 +1394,32 @@ return function(__lux_import)
       if typeOf(position) == "table" then
         if ax == nil then
           do
-            local __lux_tmp_x_86 = position.x
-            if __lux_tmp_x_86 == nil then
-              __lux_tmp_x_86 = position[1]
+            local __lux_tmp_x_89 = position.x
+            if __lux_tmp_x_89 == nil then
+              __lux_tmp_x_89 = position[1]
             end
-            ax = __lux_tmp_x_86
+            ax = __lux_tmp_x_89
           end
         end
         if ay == nil then
           do
-            local __lux_tmp_y_87 = position.y
-            if __lux_tmp_y_87 == nil then
-              __lux_tmp_y_87 = position[2]
+            local __lux_tmp_y_90 = position.y
+            if __lux_tmp_y_90 == nil then
+              __lux_tmp_y_90 = position[2]
             end
-            ay = __lux_tmp_y_87
+            ay = __lux_tmp_y_90
           end
         end
       end
-      local __lux_tmp_ax_88 = toNumber(ax)
-      if __lux_tmp_ax_88 == nil then
-        __lux_tmp_ax_88 = 0.5
+      local __lux_tmp_ax_91 = toNumber(ax)
+      if __lux_tmp_ax_91 == nil then
+        __lux_tmp_ax_91 = 0.5
       end
-      local __lux_tmp_ay_89 = toNumber(ay)
-      if __lux_tmp_ay_89 == nil then
-        __lux_tmp_ay_89 = 0.5
+      local __lux_tmp_ay_92 = toNumber(ay)
+      if __lux_tmp_ay_92 == nil then
+        __lux_tmp_ay_92 = 0.5
       end
-      return mathClamp(__lux_tmp_ax_88, 0, 1), mathClamp(__lux_tmp_ay_89, 0, 1)
+      return mathClamp(__lux_tmp_ax_91, 0, 1), mathClamp(__lux_tmp_ay_92, 0, 1)
     end
     imageUV = function(drawStyle, texture)
       local u0 = 0
@@ -1373,60 +1433,60 @@ return function(__lux_import)
       local uv = resolved.uv
       if typeOf(uv) == "table" then
         do
-          local __lux_tmp_u0_90 = uv.u0
-          if __lux_tmp_u0_90 == nil then
-            __lux_tmp_u0_90 = uv.x0
+          local __lux_tmp_u0_93 = uv.u0
+          if __lux_tmp_u0_93 == nil then
+            __lux_tmp_u0_93 = uv.x0
           end
-          if __lux_tmp_u0_90 == nil then
-            __lux_tmp_u0_90 = uv[1]
+          if __lux_tmp_u0_93 == nil then
+            __lux_tmp_u0_93 = uv[1]
           end
-          local __lux_tmp_u0_91 = toNumber(__lux_tmp_u0_90)
-          if __lux_tmp_u0_91 == nil then
-            __lux_tmp_u0_91 = u0
+          local __lux_tmp_u0_94 = toNumber(__lux_tmp_u0_93)
+          if __lux_tmp_u0_94 == nil then
+            __lux_tmp_u0_94 = u0
           end
-          u0 = __lux_tmp_u0_91
+          u0 = __lux_tmp_u0_94
         end
         do
-          local __lux_tmp_v0_92 = uv.v0
-          if __lux_tmp_v0_92 == nil then
-            __lux_tmp_v0_92 = uv.y0
+          local __lux_tmp_v0_95 = uv.v0
+          if __lux_tmp_v0_95 == nil then
+            __lux_tmp_v0_95 = uv.y0
           end
-          if __lux_tmp_v0_92 == nil then
-            __lux_tmp_v0_92 = uv[2]
+          if __lux_tmp_v0_95 == nil then
+            __lux_tmp_v0_95 = uv[2]
           end
-          local __lux_tmp_v0_93 = toNumber(__lux_tmp_v0_92)
-          if __lux_tmp_v0_93 == nil then
-            __lux_tmp_v0_93 = v0
+          local __lux_tmp_v0_96 = toNumber(__lux_tmp_v0_95)
+          if __lux_tmp_v0_96 == nil then
+            __lux_tmp_v0_96 = v0
           end
-          v0 = __lux_tmp_v0_93
+          v0 = __lux_tmp_v0_96
         end
         do
-          local __lux_tmp_u1_94 = uv.u1
-          if __lux_tmp_u1_94 == nil then
-            __lux_tmp_u1_94 = uv.x1
+          local __lux_tmp_u1_97 = uv.u1
+          if __lux_tmp_u1_97 == nil then
+            __lux_tmp_u1_97 = uv.x1
           end
-          if __lux_tmp_u1_94 == nil then
-            __lux_tmp_u1_94 = uv[3]
+          if __lux_tmp_u1_97 == nil then
+            __lux_tmp_u1_97 = uv[3]
           end
-          local __lux_tmp_u1_95 = toNumber(__lux_tmp_u1_94)
-          if __lux_tmp_u1_95 == nil then
-            __lux_tmp_u1_95 = u1
+          local __lux_tmp_u1_98 = toNumber(__lux_tmp_u1_97)
+          if __lux_tmp_u1_98 == nil then
+            __lux_tmp_u1_98 = u1
           end
-          u1 = __lux_tmp_u1_95
+          u1 = __lux_tmp_u1_98
         end
         do
-          local __lux_tmp_v1_96 = uv.v1
-          if __lux_tmp_v1_96 == nil then
-            __lux_tmp_v1_96 = uv.y1
+          local __lux_tmp_v1_99 = uv.v1
+          if __lux_tmp_v1_99 == nil then
+            __lux_tmp_v1_99 = uv.y1
           end
-          if __lux_tmp_v1_96 == nil then
-            __lux_tmp_v1_96 = uv[4]
+          if __lux_tmp_v1_99 == nil then
+            __lux_tmp_v1_99 = uv[4]
           end
-          local __lux_tmp_v1_97 = toNumber(__lux_tmp_v1_96)
-          if __lux_tmp_v1_97 == nil then
-            __lux_tmp_v1_97 = v1
+          local __lux_tmp_v1_100 = toNumber(__lux_tmp_v1_99)
+          if __lux_tmp_v1_100 == nil then
+            __lux_tmp_v1_100 = v1
           end
-          v1 = __lux_tmp_v1_97
+          v1 = __lux_tmp_v1_100
         end
       else
         local crop = resolved.crop
@@ -1452,22 +1512,22 @@ return function(__lux_import)
             end
             local w
             do
-              local __lux_tmp_w_98 = crop.w
-              if __lux_tmp_w_98 == nil then
-                __lux_tmp_w_98 = crop.width
+              local __lux_tmp_w_101 = crop.w
+              if __lux_tmp_w_101 == nil then
+                __lux_tmp_w_101 = crop.width
               end
-              w = toNumber(__lux_tmp_w_98)
+              w = toNumber(__lux_tmp_w_101)
               if w == nil then
                 w = 1
               end
             end
             local h
             do
-              local __lux_tmp_h_99 = crop.h
-              if __lux_tmp_h_99 == nil then
-                __lux_tmp_h_99 = crop.height
+              local __lux_tmp_h_102 = crop.h
+              if __lux_tmp_h_102 == nil then
+                __lux_tmp_h_102 = crop.height
               end
-              h = toNumber(__lux_tmp_h_99)
+              h = toNumber(__lux_tmp_h_102)
               if h == nil then
                 h = 1
               end
@@ -1480,48 +1540,48 @@ return function(__lux_import)
             end
           else
             do
-              local __lux_tmp_u0_100 = crop.u0
-              if __lux_tmp_u0_100 == nil then
-                __lux_tmp_u0_100 = crop[1]
+              local __lux_tmp_u0_103 = crop.u0
+              if __lux_tmp_u0_103 == nil then
+                __lux_tmp_u0_103 = crop[1]
               end
-              local __lux_tmp_u0_101 = toNumber(__lux_tmp_u0_100)
-              if __lux_tmp_u0_101 == nil then
-                __lux_tmp_u0_101 = u0
+              local __lux_tmp_u0_104 = toNumber(__lux_tmp_u0_103)
+              if __lux_tmp_u0_104 == nil then
+                __lux_tmp_u0_104 = u0
               end
-              u0 = __lux_tmp_u0_101
+              u0 = __lux_tmp_u0_104
             end
             do
-              local __lux_tmp_v0_102 = crop.v0
-              if __lux_tmp_v0_102 == nil then
-                __lux_tmp_v0_102 = crop[2]
+              local __lux_tmp_v0_105 = crop.v0
+              if __lux_tmp_v0_105 == nil then
+                __lux_tmp_v0_105 = crop[2]
               end
-              local __lux_tmp_v0_103 = toNumber(__lux_tmp_v0_102)
-              if __lux_tmp_v0_103 == nil then
-                __lux_tmp_v0_103 = v0
+              local __lux_tmp_v0_106 = toNumber(__lux_tmp_v0_105)
+              if __lux_tmp_v0_106 == nil then
+                __lux_tmp_v0_106 = v0
               end
-              v0 = __lux_tmp_v0_103
+              v0 = __lux_tmp_v0_106
             end
             do
-              local __lux_tmp_u1_104 = crop.u1
-              if __lux_tmp_u1_104 == nil then
-                __lux_tmp_u1_104 = crop[3]
+              local __lux_tmp_u1_107 = crop.u1
+              if __lux_tmp_u1_107 == nil then
+                __lux_tmp_u1_107 = crop[3]
               end
-              local __lux_tmp_u1_105 = toNumber(__lux_tmp_u1_104)
-              if __lux_tmp_u1_105 == nil then
-                __lux_tmp_u1_105 = u1
+              local __lux_tmp_u1_108 = toNumber(__lux_tmp_u1_107)
+              if __lux_tmp_u1_108 == nil then
+                __lux_tmp_u1_108 = u1
               end
-              u1 = __lux_tmp_u1_105
+              u1 = __lux_tmp_u1_108
             end
             do
-              local __lux_tmp_v1_106 = crop.v1
-              if __lux_tmp_v1_106 == nil then
-                __lux_tmp_v1_106 = crop[4]
+              local __lux_tmp_v1_109 = crop.v1
+              if __lux_tmp_v1_109 == nil then
+                __lux_tmp_v1_109 = crop[4]
               end
-              local __lux_tmp_v1_107 = toNumber(__lux_tmp_v1_106)
-              if __lux_tmp_v1_107 == nil then
-                __lux_tmp_v1_107 = v1
+              local __lux_tmp_v1_110 = toNumber(__lux_tmp_v1_109)
+              if __lux_tmp_v1_110 == nil then
+                __lux_tmp_v1_110 = v1
               end
-              v1 = __lux_tmp_v1_107
+              v1 = __lux_tmp_v1_110
             end
           end
         end
@@ -1602,19 +1662,153 @@ return function(__lux_import)
   end
   do
     blurIntensity = function(value)
-      local __lux_tmp_value_108 = toNumber(value)
-      if __lux_tmp_value_108 == nil then
-        __lux_tmp_value_108 = 16
+      local __lux_tmp_value_111 = toNumber(value)
+      if __lux_tmp_value_111 == nil then
+        __lux_tmp_value_111 = 16
       end
-      return mathClamp(__lux_tmp_value_108 / 16, 0.001, 4)
+      return mathClamp(__lux_tmp_value_111 / 16, 0.001, 4)
+    end
+    setupBackdropBlurConstants = function(material, w, h, vertical, intensity)
+      local matrix = backdropBlurParamMatrices[material]
+      if matrix == nil then
+        matrix = matrixCtor()
+        backdropBlurParamMatrices[material] = matrix
+      end
+      do
+        local __lux_tmp_112
+        if vertical then
+          __lux_tmp_112 = 1
+        else
+          __lux_tmp_112 = 0
+        end
+        backdropBlurMatrixSetUnpacked(
+          matrix,
+          __lux_tmp_112,
+          w,
+          0,
+          0,
+          intensity,
+          h,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0
+        )
+      end
+      return material:SetMatrix("$viewprojmat", matrix)
+    end
+    prepareBackdropBlur = function(amount, recapture)
+      if recapture == nil then
+        recapture = false
+      end
+      local currentFrame = frameNumber()
+      if not recapture and backdropBlurPreparedFrame == currentFrame then
+        do
+          local __lux_tmp_blurReuses_113 = stats.blurReuses
+          if __lux_tmp_blurReuses_113 == nil then
+            __lux_tmp_blurReuses_113 = 0
+          end
+          stats.blurReuses = __lux_tmp_blurReuses_113 + 1
+        end
+        return backdropBlurPreparedIntensity
+      end
+      local materialState
+      do
+        local __lux_obj_geometryOwner_114 = geometryOwner
+        local __lux_val_MaterialState_115 = nil
+        if __lux_obj_geometryOwner_114 ~= nil then
+          __lux_val_MaterialState_115 = __lux_obj_geometryOwner_114._MaterialState
+        end
+        materialState = __lux_val_MaterialState_115
+      end
+      if materialState == nil then
+        errorFn("MGFX material state unavailable for backdrop blur", 2)
+      end
+      local materials = materialState.materials
+      local sourceRT = materialState.blurRT
+      local horizontalRT = materialState.backdropBlurHorizontalRT
+      local finalRT = materialState.backdropBlurRT
+      local horizontalMaterial = materials.backdrop_blur_horizontal
+      local verticalMaterial = materials.backdrop_blur_vertical
+      local width = ScrW()
+      local height = ScrH()
+      local intensity = blurIntensity(amount)
+      local previousR, previousG, previousB = renderGetColorModulation()
+      local previousBlend = renderGetBlend()
+      renderCopyRenderTargetToTexture(sourceRT)
+      renderPushRenderTarget(horizontalRT)
+      renderSetScissorRect(0, 0, 0, 0, false)
+      renderSetColorModulation(1, 1, 1)
+      renderSetBlend(1)
+      renderOverrideAlphaWriteEnable(true, true)
+      renderOverrideBlend(
+        true,
+        BLEND_ONE,
+        BLEND_ZERO,
+        BLENDFUNC_ADD,
+        BLEND_ONE,
+        BLEND_ZERO,
+        BLENDFUNC_ADD
+      )
+      setupBackdropBlurConstants(horizontalMaterial, width, height, false, intensity)
+      renderSetMaterial(horizontalMaterial)
+      renderDrawScreenQuad()
+      do
+        local __lux_tmp_draws_116 = stats.draws
+        if __lux_tmp_draws_116 == nil then
+          __lux_tmp_draws_116 = 0
+        end
+        stats.draws = __lux_tmp_draws_116 + 1
+      end
+      renderPopRenderTarget()
+      renderPushRenderTarget(finalRT)
+      setupBackdropBlurConstants(verticalMaterial, width, height, true, intensity)
+      renderSetMaterial(verticalMaterial)
+      renderDrawScreenQuad()
+      do
+        local __lux_tmp_draws_117 = stats.draws
+        if __lux_tmp_draws_117 == nil then
+          __lux_tmp_draws_117 = 0
+        end
+        stats.draws = __lux_tmp_draws_117 + 1
+      end
+      renderOverrideBlend(false)
+      renderOverrideAlphaWriteEnable(false)
+      renderSetColorModulation(previousR, previousG, previousB)
+      renderSetBlend(previousBlend)
+      renderPopRenderTarget()
+      frame.restoreScissor()
+      backdropBlurPreparedFrame = currentFrame
+      backdropBlurPreparedIntensity = intensity
+      do
+        local __lux_tmp_blurCaptures_118 = stats.blurCaptures
+        if __lux_tmp_blurCaptures_118 == nil then
+          __lux_tmp_blurCaptures_118 = 0
+        end
+        stats.blurCaptures = __lux_tmp_blurCaptures_118 + 1
+      end
+      do
+        local __lux_tmp_blurPasses_119 = stats.blurPasses
+        if __lux_tmp_blurPasses_119 == nil then
+          __lux_tmp_blurPasses_119 = 0
+        end
+        stats.blurPasses = __lux_tmp_blurPasses_119 + 2
+      end
+      return intensity
     end
     bindStats = function(owner)
       do
-        local __lux_tmp_stats_109 = owner.stats
-        if __lux_tmp_stats_109 == nil then
-          __lux_tmp_stats_109 = {}
+        local __lux_tmp_stats_120 = owner.stats
+        if __lux_tmp_stats_120 == nil then
+          __lux_tmp_stats_120 = {}
         end
-        owner.stats = __lux_tmp_stats_109
+        owner.stats = __lux_tmp_stats_120
       end
       local targetStats = owner.stats
       for key, value in pairs(stats) do
@@ -1624,38 +1818,54 @@ return function(__lux_import)
       end
       stats = targetStats
       do
-        local __lux_tmp_draws_110 = stats.draws
-        if __lux_tmp_draws_110 == nil then
-          __lux_tmp_draws_110 = 0
+        local __lux_tmp_draws_121 = stats.draws
+        if __lux_tmp_draws_121 == nil then
+          __lux_tmp_draws_121 = 0
         end
-        stats.draws = __lux_tmp_draws_110
+        stats.draws = __lux_tmp_draws_121
       end
       do
-        local __lux_tmp_blurPasses_111 = stats.blurPasses
-        if __lux_tmp_blurPasses_111 == nil then
-          __lux_tmp_blurPasses_111 = 0
+        local __lux_tmp_blurPasses_122 = stats.blurPasses
+        if __lux_tmp_blurPasses_122 == nil then
+          __lux_tmp_blurPasses_122 = 0
         end
-        stats.blurPasses = __lux_tmp_blurPasses_111
+        stats.blurPasses = __lux_tmp_blurPasses_122
       end
       do
-        local __lux_tmp_fallbacks_112 = stats.fallbacks
-        if __lux_tmp_fallbacks_112 == nil then
-          __lux_tmp_fallbacks_112 = 0
+        local __lux_tmp_blurCaptures_123 = stats.blurCaptures
+        if __lux_tmp_blurCaptures_123 == nil then
+          __lux_tmp_blurCaptures_123 = 0
         end
-        stats.fallbacks = __lux_tmp_fallbacks_112
+        stats.blurCaptures = __lux_tmp_blurCaptures_123
       end
       do
-        local __lux_tmp_culled_113 = stats.culled
-        if __lux_tmp_culled_113 == nil then
-          __lux_tmp_culled_113 = 0
+        local __lux_tmp_blurReuses_124 = stats.blurReuses
+        if __lux_tmp_blurReuses_124 == nil then
+          __lux_tmp_blurReuses_124 = 0
         end
-        stats.culled = __lux_tmp_culled_113
+        stats.blurReuses = __lux_tmp_blurReuses_124
+      end
+      do
+        local __lux_tmp_fallbacks_125 = stats.fallbacks
+        if __lux_tmp_fallbacks_125 == nil then
+          __lux_tmp_fallbacks_125 = 0
+        end
+        stats.fallbacks = __lux_tmp_fallbacks_125
+      end
+      do
+        local __lux_tmp_culled_126 = stats.culled
+        if __lux_tmp_culled_126 == nil then
+          __lux_tmp_culled_126 = 0
+        end
+        stats.culled = __lux_tmp_culled_126
       end
       return stats
     end
     resetFrameStats = function()
       stats.draws = 0
       stats.blurPasses = 0
+      stats.blurCaptures = 0
+      stats.blurReuses = 0
       stats.fallbacks = 0
       stats.culled = 0
       return stats
@@ -1665,15 +1875,15 @@ return function(__lux_import)
         amount = 1
       end
       do
-        local __lux_tmp_draws_114 = stats.draws
-        if __lux_tmp_draws_114 == nil then
-          __lux_tmp_draws_114 = 0
+        local __lux_tmp_draws_127 = stats.draws
+        if __lux_tmp_draws_127 == nil then
+          __lux_tmp_draws_127 = 0
         end
-        local __lux_tmp_amount_115 = amount
-        if __lux_tmp_amount_115 == nil then
-          __lux_tmp_amount_115 = 1
+        local __lux_tmp_amount_128 = amount
+        if __lux_tmp_amount_128 == nil then
+          __lux_tmp_amount_128 = 1
         end
-        stats.draws = __lux_tmp_draws_114 + __lux_tmp_amount_115
+        stats.draws = __lux_tmp_draws_127 + __lux_tmp_amount_128
       end
       return stats.draws
     end
@@ -1682,15 +1892,15 @@ return function(__lux_import)
         amount = 1
       end
       do
-        local __lux_tmp_fallbacks_116 = stats.fallbacks
-        if __lux_tmp_fallbacks_116 == nil then
-          __lux_tmp_fallbacks_116 = 0
+        local __lux_tmp_fallbacks_129 = stats.fallbacks
+        if __lux_tmp_fallbacks_129 == nil then
+          __lux_tmp_fallbacks_129 = 0
         end
-        local __lux_tmp_amount_117 = amount
-        if __lux_tmp_amount_117 == nil then
-          __lux_tmp_amount_117 = 1
+        local __lux_tmp_amount_130 = amount
+        if __lux_tmp_amount_130 == nil then
+          __lux_tmp_amount_130 = 1
         end
-        stats.fallbacks = __lux_tmp_fallbacks_116 + __lux_tmp_amount_117
+        stats.fallbacks = __lux_tmp_fallbacks_129 + __lux_tmp_amount_130
       end
       return stats.fallbacks
     end
@@ -1705,6 +1915,9 @@ return function(__lux_import)
       return out
     end
     install = function(owner)
+      geometryOwner = owner
+      backdropBlurPreparedFrame = -1
+      backdropBlurPreparedIntensity = 0
       geometryProfiler = owner.Profiler
       bindStats(owner)
       owner.Transform = transform
@@ -1727,14 +1940,15 @@ return function(__lux_import)
       owner.ResetGeometryFrameStats = resetFrameStats
       owner.GetGeometryProfileSnapshot = profileSnapshot
       do
-        local __lux_tmp_internal_118 = owner._internal
-        if __lux_tmp_internal_118 == nil then
-          __lux_tmp_internal_118 = {}
+        local __lux_tmp_internal_131 = owner._internal
+        if __lux_tmp_internal_131 == nil then
+          __lux_tmp_internal_131 = {}
         end
-        owner._internal = __lux_tmp_internal_118
+        owner._internal = __lux_tmp_internal_131
       end
       owner._Geometry = {
         blurIntensity = blurIntensity,
+        prepareBackdropBlur = prepareBackdropBlur,
         resetFrameStats = resetFrameStats,
         recordDraws = recordDraws,
         recordFallbacks = recordFallbacks,
@@ -1762,7 +1976,7 @@ return function(__lux_import)
       return owner
     end
   end
-  
+
   __lux_exports.hasTransform = hasTransform
   __lux_exports.transformPoint = transformPoint
   __lux_exports.untransformPoint = untransformPoint
@@ -1786,11 +2000,12 @@ return function(__lux_import)
   __lux_exports.imageUV = imageUV
   __lux_exports.imageFitRect = imageFitRect
   __lux_exports.blurIntensity = blurIntensity
+  __lux_exports.prepareBackdropBlur = prepareBackdropBlur
   __lux_exports.resetFrameStats = resetFrameStats
   __lux_exports.recordDraws = recordDraws
   __lux_exports.recordFallbacks = recordFallbacks
   __lux_exports.profileSnapshot = profileSnapshot
   __lux_exports.install = install
-  
+
   return __lux_exports
 end

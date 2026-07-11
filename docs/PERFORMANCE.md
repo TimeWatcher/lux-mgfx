@@ -89,6 +89,28 @@ that belong to the source shape are drawn once.
 
 Do not fuse layers just because two shaders look similar. Backdrop blur reads the framebuffer, pattern layers can affect blend order, and convex polygons need their auxiliary page for vertices, so those paths must stay separate unless a measured implementation proves pixel-equivalent output.
 
+## Shared Backdrop Blur
+
+Backdrop blur is a per-engine-frame resource, not a per-widget framebuffer
+capture. The first nonzero backdrop blur performs one capture and the two
+full-screen separable blur axes. Each backdrop shape then reads the completed
+texture once through its own mask.
+
+For `N` blurred backdrops with no explicit recapture, the expected counters are:
+
+```text
+captures     1
+reuses       N - 1
+blur passes  2
+```
+
+The first capture also establishes the shared blur intensity. A caller that
+must include framebuffer content drawn later, or intentionally changes the
+shared intensity, must set `backdrop.recapture = true`. That operation replaces
+the shared source for following backdrops in the same render frame. Do not set
+`recapture` on every card or row; doing so restores the old per-widget capture
+cost by explicit request.
+
 ## Shader and Fallback Routing
 
 Shader paths are the normal renderer path. Fallbacks exist for missing shaders, disabled shader mode, unsupported combinations, or platform limitations.

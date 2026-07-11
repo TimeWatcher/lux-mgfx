@@ -12,13 +12,16 @@ mgfx_chamfer_texture_psxx.hlsl -v-30
 mgfx_image_mask_psxx.hlsl -v-30
 mgfx_image_mask_shadow_outer_psxx.hlsl -v-30
 mgfx_image_mask_backdrop_psxx.hlsl -v-30
+mgfx_image_mask_backdrop_sample_psxx.hlsl -v-30
 mgfx_chamfer_stroke_psxx.hlsl -v-30
 mgfx_roundrect_blur_psxx.hlsl -v-30
+mgfx_roundrect_backdrop_sample_psxx.hlsl -v-30
 mgfx_roundrect_innerglow_psxx.hlsl -v-30
 mgfx_chamfer_innerglow_psxx.hlsl -v-30
 mgfx_roundrect_shadow_outer_psxx.hlsl -v-30
 mgfx_chamfer_shadow_outer_psxx.hlsl -v-30
 mgfx_chamfer_backdrop_psxx.hlsl -v-30
+mgfx_chamfer_backdrop_sample_psxx.hlsl -v-30
 mgfx_progress_psxx.hlsl -v-30
 mgfx_progress_fx_psxx.hlsl -v-30
 mgfx_segmentbar_psxx.hlsl -v-30
@@ -31,6 +34,7 @@ mgfx_poly_pattern_psxx.hlsl -v-30
 mgfx_ring_psxx.hlsl -v-30
 mgfx_ring_fx_psxx.hlsl -v-30
 mgfx_ring_backdrop_psxx.hlsl -v-30
+mgfx_ring_backdrop_sample_psxx.hlsl -v-30
 mgfx_ring_stroke_psxx.hlsl -v-30
 mgfx_ring_innerglow_psxx.hlsl -v-30
 mgfx_ring_shadow_outer_psxx.hlsl -v-30
@@ -40,6 +44,7 @@ mgfx_poly3_psxx.hlsl -v-30
 mgfx_poly3_shadow_psxx.hlsl -v-30
 mgfx_poly3_outerglow_psxx.hlsl -v-30
 mgfx_poly3_blur_psxx.hlsl -v-30
+mgfx_backdrop_sample_psxx.hlsl -v-30
 mgfx_poly4_stroke_psxx.hlsl -v-30
 mgfx_poly4_psxx.hlsl -v-30
 mgfx_poly4_shadow_psxx.hlsl -v-30

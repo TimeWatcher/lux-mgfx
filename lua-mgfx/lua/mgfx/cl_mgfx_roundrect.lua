@@ -994,7 +994,7 @@ local function drawRoundRectBackdrop(x, y, w, h, radius, spec)
 	local blurred = false
 
 	if spec.blur > 0 and shadersActive() and matOK(materials.roundrect_blur) and drawBlurredQuad then
-		drawBlurredQuad(materials.roundrect_blur, bx, by, bw, bh, roundRectRadiusScalar(br, bw, bh), spec.blur, tint)
+		drawBlurredQuad(materials.roundrect_blur, bx, by, bw, bh, roundRectRadiusScalar(br, bw, bh), spec.blur, tint, spec.recapture)
 		blurred = true
 	end
 

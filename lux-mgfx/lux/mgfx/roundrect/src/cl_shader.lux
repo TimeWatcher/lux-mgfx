@@ -68,10 +68,10 @@ fn setupParamMatrixRaw(material,
   d0, d1, d2, d3) {
     local state = paramMatrixRawState[material]
     if state ~= nil
-      and state[1] == a0 and state[2] == a1 and state[3] == a2 and state[4] == a3
-      and state[5] == b0 and state[6] == b1 and state[7] == b2 and state[8] == b3
-      and state[9] == c0 and state[10] == c1 and state[11] == c2 and state[12] == c3
-      and state[13] == d0 and state[14] == d1 and state[15] == d2 and state[16] == d3 {
+    and state[1] == a0 and state[2] == a1 and state[3] == a2 and state[4] == a3
+    and state[5] == b0 and state[6] == b1 and state[7] == b2 and state[8] == b3
+    and state[9] == c0 and state[10] == c1 and state[11] == c2 and state[12] == c3
+    and state[13] == d0 and state[14] == d1 and state[15] == d2 and state[16] == d3 {
       return
     }
     if state == nil {
@@ -140,10 +140,10 @@ fn setupAuxConstantsRaw(material,
   d0, d1, d2, d3) {
     local state = auxParamMatrixRawState[material]
     if state ~= nil
-      and state[1] == a0 and state[2] == a1 and state[3] == a2 and state[4] == a3
-      and state[5] == b0 and state[6] == b1 and state[7] == b2 and state[8] == b3
-      and state[9] == c0 and state[10] == c1 and state[11] == c2 and state[12] == c3
-      and state[13] == d0 and state[14] == d1 and state[15] == d2 and state[16] == d3 {
+    and state[1] == a0 and state[2] == a1 and state[3] == a2 and state[4] == a3
+    and state[5] == b0 and state[6] == b1 and state[7] == b2 and state[8] == b3
+    and state[9] == c0 and state[10] == c1 and state[11] == c2 and state[12] == c3
+    and state[13] == d0 and state[14] == d1 and state[15] == d2 and state[16] == d3 {
       return true
     }
     if state == nil {
@@ -676,9 +676,9 @@ fn drawRoundRectBackdrop(x, y, w, h, radius, spec) {
   local tint = backdropTintColor(spec)
   local blurred = false
 
-  if spec.blur > 0 and roundRectBlurRT ~= nil and renderCopyRenderTargetToTexture ~= nil and materialOK(roundRectMaterials.roundrect_blur) {
+  if spec.blur > 0 and materialOK(roundRectMaterials.roundrect_blur) {
     local material = roundRectMaterials.roundrect_blur
-    local intensity = blurIntensity(spec.blur)
+    prepareBackdropBlur(spec.blur, spec.recapture)
     surfaceSetMaterial(material)
     surfaceSetDrawColor(255, 255, 255, 255)
     setupAuxConstantsRaw(material,
@@ -687,14 +687,12 @@ fn drawRoundRectBackdrop(x, y, w, h, radius, spec) {
       0, 0, 0, 0,
       0, 0, 0, 0
     )
-    renderCopyRenderTargetToTexture(roundRectBlurRT)
     setupParamMatrix(material,
-      0, intensity, 0, 0,
+      1, 0, 0, 0,
       bw, bh, 0, roundRectRadiusScalar(br, bw, bh),
       0, 0, 1, 1,
       0, 0, 0, 0
     )
-    drawTexturedQuad(bx, by, bw, bh, material)
     if tint ~= nil {
       setupAuxConstantsRaw(material,
         (tint.r ?? 0) * inv255,
@@ -713,13 +711,6 @@ fn drawRoundRectBackdrop(x, y, w, h, radius, spec) {
         0, 0, 0, 0
       )
     }
-    renderCopyRenderTargetToTexture(roundRectBlurRT)
-    setupParamMatrix(material,
-      1, intensity, 0, 0,
-      bw, bh, 0, roundRectRadiusScalar(br, bw, bh),
-      0, 0, 1, 1,
-      0, 0, 0, 0
-    )
     drawTexturedQuad(bx, by, bw, bh, material)
     blurred = true
   }

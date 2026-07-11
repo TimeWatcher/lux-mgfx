@@ -54,6 +54,21 @@ try {
   Get-ChildItem -LiteralPath $DistLua -Recurse -Filter "*.map.json" |
     Remove-Item -Force
 
+  $Utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+  Get-ChildItem -LiteralPath $DistLua -Recurse -Filter "*.lua" | ForEach-Object {
+    $path = $_.FullName
+    $source = [System.IO.File]::ReadAllText($path, [System.Text.Encoding]::UTF8)
+    $normalized = [System.Text.RegularExpressions.Regex]::Replace(
+      $source,
+      "[\t ]+(?=\r?$)",
+      "",
+      [System.Text.RegularExpressions.RegexOptions]::Multiline
+    )
+    if ($normalized -cne $source) {
+      [System.IO.File]::WriteAllText($path, $normalized, $Utf8NoBom)
+    }
+  }
+
   Write-Host "MGFX precompiled loader written to $DistLua"
 } finally {
   if (Test-Path -LiteralPath $WorkRoot) {

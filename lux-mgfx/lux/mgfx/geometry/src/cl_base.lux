@@ -1,8 +1,12 @@
+import * as frameImport from "@lux/mgfx/frame"
 import * as styleUtilImport from "@lux/mgfx/style"
 
+local frame = frameImport
 local styleUtil = styleUtilImport
 
+local frameNumber = FrameNumber
 local makeColor = Color
+local matrixCtor = Matrix
 local mathAbs = math.abs
 local mathClamp = math.Clamp
 local mathCos = math.cos
@@ -21,11 +25,32 @@ local toNumber = tonumber
 local typeOf = type
 local pcallFn = pcall
 local errorFn = error
+local renderCopyRenderTargetToTexture = render.CopyRenderTargetToTexture
+local renderDrawScreenQuad = render.DrawScreenQuad
+local renderGetBlend = render.GetBlend
+local renderGetColorModulation = render.GetColorModulation
+local renderOverrideAlphaWriteEnable = render.OverrideAlphaWriteEnable
+local renderOverrideBlend = render.OverrideBlend
+local renderPopRenderTarget = render.PopRenderTarget
+local renderPushRenderTarget = render.PushRenderTarget
+local renderSetBlend = render.SetBlend
+local renderSetColorModulation = render.SetColorModulation
+local renderSetMaterial = render.SetMaterial
+local renderSetScissorRect = render.SetScissorRect
 
 local stats = {
-  draws = 0
+  draws = 0,
+  blurPasses = 0,
+  blurCaptures = 0,
+  blurReuses = 0
 }
 local geometryProfiler = nil
+local geometryOwner = nil
+local backdropBlurPreparedFrame = -1
+local backdropBlurPreparedIntensity = 0
+local backdropBlurParamMatrices = {}
+local backdropBlurMatrixProbe = matrixCtor ~= nil then matrixCtor() else nil
+local backdropBlurMatrixSetUnpacked = backdropBlurMatrixProbe?.SetUnpacked
 
 enum TransformRoute repr number {
   PointerTilt = 1,

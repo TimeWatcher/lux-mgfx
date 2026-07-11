@@ -154,6 +154,15 @@ MGFX.CapsuleEx(x, y, w, h, style)
 - `outerGlow.x/y` is directional bias for one-sided glow. It does not move the source shape like `shadow.x/y` does.
 - `backdrop` blurs and tints the framebuffer inside the current shape or image mask. It is not a shadow.
 
+The first blurred backdrop in an engine render frame captures the framebuffer,
+finishes both full-screen blur axes, and establishes the shared source and
+intensity. Later backdrops reuse it with a single masked texture sample.
+If a later backdrop must see content drawn after that capture, or must establish
+a different blur intensity, opt in explicitly with
+`backdrop = {blur = 8, recapture = true}`. The new capture is then reused by
+subsequent backdrops in the same frame. Tint and opacity remain per shape;
+tint-only backdrops do not capture the framebuffer.
+
 `shadow` and `outerGlow` stay separate style fields, but compatible rounded-box, chamfer, ring, and image-mask paths may evaluate both in one fused shader pass. This is an implementation optimization; the CSS-like shadow mask and exterior glow semantics do not change.
 
 `RoundedBoxEx.shadow` may be a single shadow spec or an array of specs. Use the

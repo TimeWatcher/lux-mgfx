@@ -3,10 +3,13 @@
 This directory contains the HLSL source and compiled `.vcs` shader outputs used by
 the Lux MGFX shaderpack module.
 
-The canonical generated runtime file is:
+The canonical generated runtime files are:
 
 ```text
 ../shaderpack/src/cl_module.lux
+../shaderpack_chunks/chunk_01/src/cl_module.lux
+...
+../shaderpack_chunks/chunk_05/src/cl_module.lux
 ```
 
 Common commands:
@@ -32,9 +35,10 @@ python .\build.py --pack-only --version 1781243087 --gma-timestamp 1781243088
 python .\build.py --pack-only --lua-out .\cl_mgfx_shaderpack.lua
 ```
 
-`build.py` writes a base64 encoded GMA into the Lux module. At runtime MGFX
-decodes the GMA, writes it into Garry's Mod `data/`, mounts it through
-`game.MountGMA`, and uses the version-prefixed shader names.
+`build.py` writes the base64 encoded GMA across five independent Lux chunk
+packages. The shaderpack facade concatenates them once. At runtime MGFX decodes
+the GMA, writes it into Garry's Mod `data/`, mounts it through `game.MountGMA`,
+and uses the version-prefixed shader names.
 
 The bundled compiler is stored outside the Lux package tree:
 

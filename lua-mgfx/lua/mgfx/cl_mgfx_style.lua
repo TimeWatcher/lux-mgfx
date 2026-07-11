@@ -496,7 +496,7 @@ end
 
 		if value == true then
 			if not backdropTrueSpec then
-				backdropTrueSpec = {blur = 4, tint = transparentColor, opacity = 1, padding = 0}
+				backdropTrueSpec = {blur = 4, tint = transparentColor, opacity = 1, padding = 0, recapture = false}
 			end
 			return backdropTrueSpec
 		end
@@ -509,7 +509,7 @@ end
 				backdropNumberCache[blurKey] = false
 				return nil
 			end
-			cached = {blur = blurKey, tint = transparentColor, opacity = 1, padding = 0}
+			cached = {blur = blurKey, tint = transparentColor, opacity = 1, padding = 0, recapture = false}
 			backdropNumberCache[blurKey] = cached
 			return cached
 		end
@@ -521,7 +521,7 @@ end
 				backdropColorCache[value] = false
 				return nil
 			end
-			cached = {blur = 0, tint = value, opacity = 1, padding = 0}
+			cached = {blur = 0, tint = value, opacity = 1, padding = 0, recapture = false}
 			backdropColorCache[value] = cached
 			return cached
 		end
@@ -540,7 +540,8 @@ end
 			and cached._opacityInput == value.opacity
 			and cached._strengthInput == value.strength
 			and cached._paddingInput == value.padding
-			and cached._spreadInput == value.spread then
+			and cached._spreadInput == value.spread
+			and cached._recaptureInput == value.recapture then
 			return cached
 		end
 		if cached == false
@@ -552,7 +553,8 @@ end
 			and value.opacity == nil
 			and value.strength == nil
 			and value.padding == nil
-			and value.spread == nil then
+			and value.spread == nil
+			and value.recapture == nil then
 			return nil
 		end
 
@@ -560,6 +562,7 @@ end
 		local tint = asColor(value.tint or value.color, transparentColor)
 		local opacity = math.Clamp(tonumber(value.opacity or value.strength) or 1, 0, 1)
 		local padding = math_max(0, tonumber(value.padding or value.spread) or 0)
+		local recapture = value.recapture == true
 
 		if blur <= 0 and ((tint.a == nil and 255 or tint.a) <= 0 or opacity <= 0) then
 			backdropTableCache[value] = false
@@ -571,6 +574,7 @@ end
 			tint = tint,
 			opacity = opacity,
 			padding = padding,
+			recapture = recapture,
 		}
 		cached._blurInput = value.blur
 		cached._sizeInput = value.size
@@ -581,6 +585,7 @@ end
 		cached._strengthInput = value.strength
 		cached._paddingInput = value.padding
 		cached._spreadInput = value.spread
+		cached._recaptureInput = value.recapture
 		backdropTableCache[value] = cached
 		return cached
 	end

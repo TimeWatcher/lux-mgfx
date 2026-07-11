@@ -27,6 +27,36 @@ do
   end
 end
 do
+  if __lux_registry["lux/mgfx/shaderpack/chunk01#client"] == nil then
+    local __lux_factory = include("mgfx/client/runtime/lux/mgfx/shaderpack/chunk01.lua")
+    __lux_registry["lux/mgfx/shaderpack/chunk01#client"] = __lux_factory(__lux_import) or {}
+  end
+end
+do
+  if __lux_registry["lux/mgfx/shaderpack/chunk02#client"] == nil then
+    local __lux_factory = include("mgfx/client/runtime/lux/mgfx/shaderpack/chunk02.lua")
+    __lux_registry["lux/mgfx/shaderpack/chunk02#client"] = __lux_factory(__lux_import) or {}
+  end
+end
+do
+  if __lux_registry["lux/mgfx/shaderpack/chunk03#client"] == nil then
+    local __lux_factory = include("mgfx/client/runtime/lux/mgfx/shaderpack/chunk03.lua")
+    __lux_registry["lux/mgfx/shaderpack/chunk03#client"] = __lux_factory(__lux_import) or {}
+  end
+end
+do
+  if __lux_registry["lux/mgfx/shaderpack/chunk04#client"] == nil then
+    local __lux_factory = include("mgfx/client/runtime/lux/mgfx/shaderpack/chunk04.lua")
+    __lux_registry["lux/mgfx/shaderpack/chunk04#client"] = __lux_factory(__lux_import) or {}
+  end
+end
+do
+  if __lux_registry["lux/mgfx/shaderpack/chunk05#client"] == nil then
+    local __lux_factory = include("mgfx/client/runtime/lux/mgfx/shaderpack/chunk05.lua")
+    __lux_registry["lux/mgfx/shaderpack/chunk05#client"] = __lux_factory(__lux_import) or {}
+  end
+end
+do
   if __lux_registry["lux/mgfx/shaderpack#client"] == nil then
     local __lux_factory = include("mgfx/client/runtime/lux/mgfx/shaderpack.lua")
     __lux_registry["lux/mgfx/shaderpack#client"] = __lux_factory(__lux_import) or {}

@@ -3,6 +3,8 @@ export client fn install(owner) {
   owner._MaterialState = state
   owner._Materials = state.materials
   owner._BlurRT = state.blurRT
+  owner._BackdropBlurHorizontalRT = state.backdropBlurHorizontalRT
+  owner._BackdropBlurRT = state.backdropBlurRT
   owner.MaterialOK = matOK
   owner.GetMaterialState = () => state
   owner.hasShaders = () => hasShaders(state)

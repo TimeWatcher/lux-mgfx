@@ -72,7 +72,7 @@ addCommand("mgfx_status", function()
 	print("[MGFX] mount: " .. tostring(status.mount))
 	print("[MGFX] force fallback: " .. tostring(forceFallback:GetBool()))
 	print("[MGFX] draw counts: " .. tostring(drawCountsEnabled and drawCountsEnabled:GetBool() or false))
-	print("[MGFX] stats draws=" .. tostring(M.stats.draws) .. " blur=" .. tostring(M.stats.blurPasses or 0) .. " fallback=" .. tostring(M.stats.fallbacks or 0) .. " culled=" .. tostring(M.stats.culled or 0))
+	print("[MGFX] stats draws=" .. tostring(M.stats.draws) .. " blur=" .. tostring(M.stats.blurPasses or 0) .. " captures=" .. tostring(M.stats.blurCaptures or 0) .. " reuses=" .. tostring(M.stats.blurReuses or 0) .. " fallback=" .. tostring(M.stats.fallbacks or 0) .. " culled=" .. tostring(M.stats.culled or 0))
 	print("[MGFX] gradient LUT fill-cache hits=" .. tostring(M.stats.gradientLutFillHits or 0))
 	countsLine("draw commands", M.stats.drawCommandCounts)
 	countsLine("immediate draws", M.stats.drawImmediateCounts)
@@ -89,6 +89,8 @@ addCommand("mgfx_status", function()
 	print("[MGFX] param probe material: " .. tostring(status.paramProbe))
 	print("[MGFX] param probe inv material: " .. tostring(status.paramProbeInv))
 	print("[MGFX] blur material: " .. tostring(status.blur))
+	print("[MGFX] shared backdrop horizontal material: " .. tostring(status.backdropBlurHorizontal))
+	print("[MGFX] shared backdrop vertical material: " .. tostring(status.backdropBlurVertical))
 	print("[MGFX] chamfer material: " .. tostring(status.chamfer))
 	print("[MGFX] chamfer image material: " .. tostring(status.chamferImage))
 	print("[MGFX] image mask material: " .. tostring(status.imageMask))
@@ -575,7 +577,7 @@ local function printProfileInstanceRows(label, rows)
 
 	for _, row in ipairs(rows) do
 		local stats = row.stats or {}
-		print(string.format("[MGFX]   %s last=%.3f avg=%.3f max=%.3f scopes=%d avgScopes=%.1f draws=%d blur=%d text=%d bake=%d fallback=%d samples=%d",
+		print(string.format("[MGFX]   %s last=%.3f avg=%.3f max=%.3f scopes=%d avgScopes=%.1f draws=%d blur=%d captures=%d reuses=%d text=%d bake=%d fallback=%d samples=%d",
 			row.name or row.instance or "runtime",
 			row.last or 0,
 			row.avg or 0,
@@ -584,6 +586,8 @@ local function printProfileInstanceRows(label, rows)
 			row.avgCount or 0,
 			stats.draws or 0,
 			stats.blurPasses or 0,
+			stats.blurCaptures or 0,
+			stats.blurReuses or 0,
 			stats.textDraws or 0,
 			stats.textComposedBakes or 0,
 			stats.fallbacks or 0,
@@ -713,9 +717,11 @@ local function drawProfileHud()
 			row.avgCount or row.count or 0), "DermaDefaultBold", x + 430, rowY, color)
 		rowY = rowY + 17
 
-		hudText(string.format("draws %d   blur %d   text %d   bakes %d   fallback %d",
+		hudText(string.format("draws %d   blur %d   captures %d   reuses %d   text %d   bakes %d   fallback %d",
 			stats.draws or 0,
 			stats.blurPasses or 0,
+			stats.blurCaptures or 0,
+			stats.blurReuses or 0,
 			stats.textDraws or 0,
 			stats.textComposedBakes or 0,
 			stats.fallbacks or 0), "DermaDefault", x + 30, rowY, Color(170, 194, 204))
@@ -1077,6 +1083,8 @@ addCommand("mgfx_selftest", function()
 		"image_mask_backdrop",
 		"image_mask_backdrop_fill",
 		"chamfer_stroke",
+		"backdrop_blur_horizontal",
+		"backdrop_blur_vertical",
 		"roundrect_blur",
 		"roundrect_innerglow",
 		"chamfer_innerglow",

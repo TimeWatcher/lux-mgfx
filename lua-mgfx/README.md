@@ -147,6 +147,14 @@ parameter table and practical ranges.
 - `outerGlow` is an external glow pass and also accepts offsets.
 - `backdrop` samples/tints the background inside the shape or image mask.
 
+The renderer treats backdrop blur as a frame resource. The first nonzero
+backdrop blur in an engine render frame captures the framebuffer and creates
+one completed horizontal+vertical full-screen blur source. Every later backdrop
+reuses that texture through a single shape-masked sample. Set `recapture = true` in a
+backdrop table only when a later draw must include framebuffer content rendered
+after the first capture, or when it intentionally changes the shared blur
+intensity. The recaptured result is reused by following backdrops that frame.
+
 Compatible rounded-box, chamfer, ring, and image-mask `shadow + outerGlow`
 layers can share one shader pass. The fields remain separate because their
 visual semantics are different: shadow is a projected solid mask, while
@@ -178,6 +186,11 @@ readability, but hot internal layers now flatten those records once and pass
 prepared scalar, fill, stroke, and effect parameters to the shader/fallback
 draw path.
 
+For `N` blurred backdrops with no explicit recapture, the shader path performs
+exactly two shared full-screen blur passes plus `N` cheap masked samples. `mgfx_status` and
+the profiler expose `captures` and `reuses` so accidental recapture loops are
+visible.
+
 Recent shop UI profiling with diagnostics disabled holds 130+ FPS with a full
 item list and 160+ FPS in lighter categories.
 
@@ -206,9 +219,12 @@ The script writes:
 
 ```text
 lua/mgfx/cl_mgfx_shaderpack.lua
+lua/mgfx/cl_mgfx_shaderpack_chunk_*.lua
 ```
 
-The generated shaderpack is mounted by MGFX at runtime. The raw shader source
+The small manifest loads ordered 40,000-character chunk files and reconstructs
+the original base64 payload byte-for-byte before MGFX mounts it. The server
+autorun discovers and distributes every generated chunk automatically. The raw shader source
 and SDK helper tools are excluded from published GMA builds by `addon.json`.
 
 ## Packaging

@@ -383,18 +383,12 @@ fn drawRingBackdropPass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, 
   local bi = mathMax(0, (toNumber(innerRadius) ?? 0) - pad)
   local bo = mathMax(0.001, (toNumber(outerRadius) ?? mathMin(w, h) * 0.5) + pad)
 
-  if spec.blur > 0 and widgetBlurRT ~= nil and renderCopyRenderTargetToTexture ~= nil and materialOK(widgetMaterials.ring_backdrop) {
+  if spec.blur > 0 and materialOK(widgetMaterials.ring_backdrop) {
     local material = widgetMaterials.ring_backdrop
-    local intensity = blurIntensity(spec.blur)
+    prepareBackdropBlur(spec.blur, spec.recapture)
     surfaceSetMaterial(material)
     surfaceSetDrawColor(255, 255, 255, 255)
-
-    renderCopyRenderTargetToTexture(widgetBlurRT)
-    setupRingBackdropConstants(material, bw, bh, bi, bo, startDeg, endDeg, mode, false, intensity)
-    drawTexturedQuad(bx, by, bw, bh, material)
-
-    renderCopyRenderTargetToTexture(widgetBlurRT)
-    setupRingBackdropConstants(material, bw, bh, bi, bo, startDeg, endDeg, mode, true, intensity)
+    setupRingBackdropConstants(material, bw, bh, bi, bo, startDeg, endDeg, mode, true, 0)
     drawTexturedQuad(bx, by, bw, bh, material)
   }
 

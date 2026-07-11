@@ -37,17 +37,12 @@ fn setupPrimitiveBlurConstants(material, w, h, vertical, intensity, radius = 0) 
   )
 }
 
-fn drawBlurredPoly(poly, material, amount) {
-  stopif material == nil or primitiveBlurRT == nil or renderCopyRenderTargetToTexture == nil, false
+fn drawBlurredPoly(poly, material, amount, recapture = false) {
+  stopif material == nil, false
 
-  local intensity = backdropBlurIntensity(amount)
+  prepareBackdropBlur(amount, recapture)
   surfaceSetDrawColor(255, 255, 255, 255)
-  renderCopyRenderTargetToTexture(primitiveBlurRT)
-  setupPrimitiveBlurConstants(material, poly.w, poly.h, false, intensity, 0)
-  drawMaterialPoly(poly, material)
-
-  renderCopyRenderTargetToTexture(primitiveBlurRT)
-  setupPrimitiveBlurConstants(material, poly.w, poly.h, true, intensity, 0)
+  setupPrimitiveBlurConstants(material, poly.w, poly.h, true, 0, 0)
   drawMaterialPoly(poly, material)
   true
 }
@@ -72,7 +67,7 @@ fn drawPolyBackdrop(poly, spec) {
   local backdropPoly = pad > 0 then growConvexPoly(poly, pad) else poly
 
   if spec.blur > 0 {
-    drawBlurredPoly(backdropPoly, primitiveMaterials[polyMaterialKey(backdropPoly, "_blur")], spec.blur)
+    drawBlurredPoly(backdropPoly, primitiveMaterials[polyMaterialKey(backdropPoly, "_blur")], spec.blur, spec.recapture)
   }
 
   local tint = polyBackdropTintColor(spec)
@@ -105,29 +100,29 @@ fn polyEffectBounds(poly, enabled, alpha, ox, oy, width, extent, grow, strength,
     local left, top, right, bottom = roundrect.glowBiasPads(padding, ox, oy, 0.001)
     return {
       x = poly.x - left,
-        y = poly.y - top,
-        w = poly.w + left + right,
-        h = poly.h + top + bottom,
-        ox = 0,
-        oy = 0,
-        width = width,
-        grow = grow,
-        falloff = falloff,
-        strength = strength
+      y = poly.y - top,
+      w = poly.w + left + right,
+      h = poly.h + top + bottom,
+      ox = 0,
+      oy = 0,
+      width = width,
+      grow = grow,
+      falloff = falloff,
+      strength = strength
     }
   }
 
   return {
     x = poly.x + ox - padding,
-      y = poly.y + oy - padding,
-      w = poly.w + padding * 2,
-      h = poly.h + padding * 2,
-      ox = ox,
-      oy = oy,
-      width = width,
-      grow = grow,
-      falloff = falloff,
-      strength = strength
+    y = poly.y + oy - padding,
+    w = poly.w + padding * 2,
+    h = poly.h + padding * 2,
+    ox = ox,
+    oy = oy,
+    width = width,
+    grow = grow,
+    falloff = falloff,
+    strength = strength
   }
 }
 

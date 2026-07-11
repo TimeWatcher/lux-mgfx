@@ -28,9 +28,16 @@ local demoFiles = {
 	"cl_mgfx_perf_demo.lua",
 }
 
+local shaderChunkFiles = file.Find("mgfx/cl_mgfx_shaderpack_chunk_*.lua", "LUA")
+table.sort(shaderChunkFiles)
+
 AddCSLuaFile("autorun/client/mgfx_loader.lua")
 
 for _, name in ipairs(files) do
+	AddCSLuaFile("mgfx/" .. name)
+end
+
+for _, name in ipairs(shaderChunkFiles) do
 	AddCSLuaFile("mgfx/" .. name)
 end
 

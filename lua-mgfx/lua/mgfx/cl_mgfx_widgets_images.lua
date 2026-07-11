@@ -477,7 +477,7 @@ end
 		local mat = materials.image_mask_backdrop
 		drawBlurredCustomQuad(mat, bx, by, bw, bh, spec.blur, function(passMat, vertical, intensity)
 			setupImageMaskBackdropConstants(passMat, bw, bh, w, h, mask, kind, maskTexture, vertical, intensity)
-		end)
+		end, spec.recapture)
 	end
 
 	local tint = backdropTintColor(spec)

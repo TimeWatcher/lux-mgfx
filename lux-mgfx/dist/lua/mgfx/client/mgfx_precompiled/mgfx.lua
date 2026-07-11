@@ -7,6 +7,6 @@ return function(__lux_import)
       installGlobal("MGFX")
     end
   end
-  
+
   return __lux_exports
 end

@@ -50,12 +50,12 @@ fn collectProfilerRows(owner, methodName, limit = nil) {
   }
 
   tableSort(rows, (a, b) => {
-    local av = methodName == "RecentScopes" then (a.last ?? 0) else (a.avg ?? a.last ?? 0)
-    local bv = methodName == "RecentScopes" then (b.last ?? 0) else (b.avg ?? b.last ?? 0)
-    if av == bv {
-      return toString(a.name ?? "") < toString(b.name ?? "")
-    }
-    av > bv
+      local av = methodName == "RecentScopes" then (a.last ?? 0) else (a.avg ?? a.last ?? 0)
+      local bv = methodName == "RecentScopes" then (b.last ?? 0) else (b.avg ?? b.last ?? 0)
+      if av == bv {
+          return toString(a.name ?? "") < toString(b.name ?? "")
+      }
+      av > bv
   })
 
   local numericLimit = toNumber(limit)
@@ -136,68 +136,70 @@ fn textRendererStatus(owner) {
 
 local statusMaterialFields = {
   { "roundrect", "roundrect" },
-    { "roundrect fx", "roundrectFx" },
-    { "roundrect solid", "roundrectSolid" },
-    { "roundrect stroke", "roundrectStroke" },
-    { "param probe", "paramProbe" },
-    { "param probe inv", "paramProbeInv" },
-    { "blur", "blur" },
-    { "chamfer", "chamfer" },
-    { "chamfer image", "chamferImage" },
-    { "image mask", "imageMask" },
-    { "image mask shadow outer", "imageMaskShadowOuter" },
-    { "image mask backdrop", "imageMaskBackdrop" },
-    { "chamfer stroke", "chamferStroke" },
-    { "inner glow", "innerGlow" },
-    { "chamfer inner glow", "chamferInnerGlow" },
-    { "shadow outer", "shadowOuter" },
-    { "chamfer shadow outer", "chamferShadowOuter" },
-    { "chamfer backdrop", "chamferBackdrop" },
-    { "progress", "progress" },
-    { "progress fx", "progressFx" },
-    { "segmentbar", "segmentbar" },
-    { "line", "line" },
-    { "text compose", "textCompose" },
-    { "pattern", "pattern" },
-    { "chamfer pattern", "chamferPattern" },
-    { "poly pattern", "polyPattern" },
-    { "ring", "ring" },
-    { "ring fx", "ringFx" },
-    { "ring backdrop", "ringBackdrop" },
-    { "ring stroke", "ringStroke" },
-    { "ring inner glow", "ringInnerGlow" },
-    { "ring shadow outer", "ringShadowOuter" },
-    { "ring pattern", "ringPattern" },
-    { "poly3 stroke", "poly3Stroke" },
-    { "poly3", "poly3" },
-    { "poly3 shadow", "poly3Shadow" },
-    { "poly3 outer glow", "poly3OuterGlow" },
-    { "poly3 blur", "poly3Blur" },
-    { "poly4 stroke", "poly4Stroke" },
-    { "poly4", "poly4" },
-    { "poly4 shadow", "poly4Shadow" },
-    { "poly4 outer glow", "poly4OuterGlow" },
-    { "poly4 blur", "poly4Blur" },
-    { "poly5 stroke", "poly5Stroke" },
-    { "poly5", "poly5" },
-    { "poly5 shadow", "poly5Shadow" },
-    { "poly5 outer glow", "poly5OuterGlow" },
-    { "poly5 blur", "poly5Blur" },
-    { "poly6 stroke", "poly6Stroke" },
-    { "poly6", "poly6" },
-    { "poly6 shadow", "poly6Shadow" },
-    { "poly6 outer glow", "poly6OuterGlow" },
-    { "poly6 blur", "poly6Blur" },
-    { "poly7 stroke", "poly7Stroke" },
-    { "poly7", "poly7" },
-    { "poly7 shadow", "poly7Shadow" },
-    { "poly7 outer glow", "poly7OuterGlow" },
-    { "poly7 blur", "poly7Blur" },
-    { "poly8 stroke", "poly8Stroke" },
-    { "poly8", "poly8" },
-    { "poly8 shadow", "poly8Shadow" },
-    { "poly8 outer glow", "poly8OuterGlow" },
-    { "poly8 blur", "poly8Blur" }
+  { "roundrect fx", "roundrectFx" },
+  { "roundrect solid", "roundrectSolid" },
+  { "roundrect stroke", "roundrectStroke" },
+  { "param probe", "paramProbe" },
+  { "param probe inv", "paramProbeInv" },
+  { "blur", "blur" },
+  { "shared backdrop horizontal", "backdropBlurHorizontal" },
+  { "shared backdrop vertical", "backdropBlurVertical" },
+  { "chamfer", "chamfer" },
+  { "chamfer image", "chamferImage" },
+  { "image mask", "imageMask" },
+  { "image mask shadow outer", "imageMaskShadowOuter" },
+  { "image mask backdrop", "imageMaskBackdrop" },
+  { "chamfer stroke", "chamferStroke" },
+  { "inner glow", "innerGlow" },
+  { "chamfer inner glow", "chamferInnerGlow" },
+  { "shadow outer", "shadowOuter" },
+  { "chamfer shadow outer", "chamferShadowOuter" },
+  { "chamfer backdrop", "chamferBackdrop" },
+  { "progress", "progress" },
+  { "progress fx", "progressFx" },
+  { "segmentbar", "segmentbar" },
+  { "line", "line" },
+  { "text compose", "textCompose" },
+  { "pattern", "pattern" },
+  { "chamfer pattern", "chamferPattern" },
+  { "poly pattern", "polyPattern" },
+  { "ring", "ring" },
+  { "ring fx", "ringFx" },
+  { "ring backdrop", "ringBackdrop" },
+  { "ring stroke", "ringStroke" },
+  { "ring inner glow", "ringInnerGlow" },
+  { "ring shadow outer", "ringShadowOuter" },
+  { "ring pattern", "ringPattern" },
+  { "poly3 stroke", "poly3Stroke" },
+  { "poly3", "poly3" },
+  { "poly3 shadow", "poly3Shadow" },
+  { "poly3 outer glow", "poly3OuterGlow" },
+  { "poly3 blur", "poly3Blur" },
+  { "poly4 stroke", "poly4Stroke" },
+  { "poly4", "poly4" },
+  { "poly4 shadow", "poly4Shadow" },
+  { "poly4 outer glow", "poly4OuterGlow" },
+  { "poly4 blur", "poly4Blur" },
+  { "poly5 stroke", "poly5Stroke" },
+  { "poly5", "poly5" },
+  { "poly5 shadow", "poly5Shadow" },
+  { "poly5 outer glow", "poly5OuterGlow" },
+  { "poly5 blur", "poly5Blur" },
+  { "poly6 stroke", "poly6Stroke" },
+  { "poly6", "poly6" },
+  { "poly6 shadow", "poly6Shadow" },
+  { "poly6 outer glow", "poly6OuterGlow" },
+  { "poly6 blur", "poly6Blur" },
+  { "poly7 stroke", "poly7Stroke" },
+  { "poly7", "poly7" },
+  { "poly7 shadow", "poly7Shadow" },
+  { "poly7 outer glow", "poly7OuterGlow" },
+  { "poly7 blur", "poly7Blur" },
+  { "poly8 stroke", "poly8Stroke" },
+  { "poly8", "poly8" },
+  { "poly8 shadow", "poly8Shadow" },
+  { "poly8 outer glow", "poly8OuterGlow" },
+  { "poly8 blur", "poly8Blur" }
 }
 
 fn printMaterialStatus(status) {
@@ -219,7 +221,7 @@ export client fn status(owner) {
   printFn("[MGFX] mount: " .. toString(status.mount))
   printFn("[MGFX] force fallback: " .. toString(fallback ~= nil and fallback:GetBool() or false))
   printFn("[MGFX] draw counts: " .. toString(drawCounts ~= nil and drawCounts:GetBool() or false))
-  printFn("[MGFX] stats draws=" .. toString(stats.draws ?? 0) .. " blur=" .. toString(stats.blurPasses ?? 0) .. " fallback=" .. toString(stats.fallbacks ?? 0) .. " culled=" .. toString(stats.culled ?? 0))
+  printFn("[MGFX] stats draws=" .. toString(stats.draws ?? 0) .. " blur=" .. toString(stats.blurPasses ?? 0) .. " captures=" .. toString(stats.blurCaptures ?? 0) .. " reuses=" .. toString(stats.blurReuses ?? 0) .. " fallback=" .. toString(stats.fallbacks ?? 0) .. " culled=" .. toString(stats.culled ?? 0))
   countsLine("draw commands", stats.drawCommandCounts)
   countsLine("immediate draws", stats.drawImmediateCounts)
   countsLine("profile ms", stats.profileTimes)
@@ -283,7 +285,7 @@ fn printProfileInstanceRows(label, rows) {
   for index = 1, #rows {
     local row = rows[index]
     local stats = row.stats ?? {}
-    printFn(stringFormat("[MGFX]   %s last=%.3f avg=%.3f max=%.3f scopes=%d avgScopes=%.1f draws=%d blur=%d text=%d bake=%d fallback=%d samples=%d",
+    printFn(stringFormat("[MGFX]   %s last=%.3f avg=%.3f max=%.3f scopes=%d avgScopes=%.1f draws=%d blur=%d captures=%d reuses=%d text=%d bake=%d fallback=%d samples=%d",
       row.name ?? row.instance ?? "runtime",
       row.last ?? 0,
       row.avg ?? 0,
@@ -292,6 +294,8 @@ fn printProfileInstanceRows(label, rows) {
       row.avgCount ?? 0,
       stats.draws ?? 0,
       stats.blurPasses ?? 0,
+      stats.blurCaptures ?? 0,
+      stats.blurReuses ?? 0,
       stats.textDraws ?? 0,
       stats.textComposedBakes ?? 0,
       stats.fallbacks ?? 0,
@@ -440,9 +444,11 @@ fn drawProfileHud(owner) {
       row.avgCount ?? row.count ?? 0), "DermaDefaultBold", x + 430, rowY, rowColor)
     rowY += 17
 
-    hudText(stringFormat("draws %d   blur %d   text %d   bakes %d   fallback %d",
+    hudText(stringFormat("draws %d   blur %d   captures %d   reuses %d   text %d   bakes %d   fallback %d",
       stats.draws ?? 0,
       stats.blurPasses ?? 0,
+      stats.blurCaptures ?? 0,
+      stats.blurReuses ?? 0,
       stats.textDraws ?? 0,
       stats.textComposedBakes ?? 0,
       stats.fallbacks ?? 0), "DermaDefault", x + 30, rowY, makeColor(170, 194, 204))
@@ -468,7 +474,7 @@ export client fn setProfileHud(owner, enabled) {
     }
     if hookAdd ~= nil {
       hookAdd("HUDPaint", profileHudHook, () => {
-        drawProfileHud(owner);
+          drawProfileHud(owner);
       })
     }
   }

@@ -84,7 +84,10 @@ id = "@lux/mgfx/geometry"
 version = "0.1.0"
 path = "lux/mgfx/geometry"
 license = "Lux-MGFX-NC"
-depends = ["@lux/mgfx/style >=0.1 <0.2"]
+depends = [
+  "@lux/mgfx/frame >=0.1 <0.2",
+  "@lux/mgfx/style >=0.1 <0.2",
+]
 
 [[package]]
 id = "@lux/mgfx/materials"
@@ -124,6 +127,43 @@ depends = [
 id = "@lux/mgfx/shaderpack"
 version = "0.1.0"
 path = "lux/mgfx/shaderpack"
+license = "Lux-MGFX-NC"
+depends = [
+  "@lux/mgfx/shaderpack/chunk01 >=0.1 <0.2",
+  "@lux/mgfx/shaderpack/chunk02 >=0.1 <0.2",
+  "@lux/mgfx/shaderpack/chunk03 >=0.1 <0.2",
+  "@lux/mgfx/shaderpack/chunk04 >=0.1 <0.2",
+  "@lux/mgfx/shaderpack/chunk05 >=0.1 <0.2",
+]
+
+[[package]]
+id = "@lux/mgfx/shaderpack/chunk01"
+version = "0.1.0"
+path = "lux/mgfx/shaderpack_chunks/chunk_01"
+license = "Lux-MGFX-NC"
+
+[[package]]
+id = "@lux/mgfx/shaderpack/chunk02"
+version = "0.1.0"
+path = "lux/mgfx/shaderpack_chunks/chunk_02"
+license = "Lux-MGFX-NC"
+
+[[package]]
+id = "@lux/mgfx/shaderpack/chunk03"
+version = "0.1.0"
+path = "lux/mgfx/shaderpack_chunks/chunk_03"
+license = "Lux-MGFX-NC"
+
+[[package]]
+id = "@lux/mgfx/shaderpack/chunk04"
+version = "0.1.0"
+path = "lux/mgfx/shaderpack_chunks/chunk_04"
+license = "Lux-MGFX-NC"
+
+[[package]]
+id = "@lux/mgfx/shaderpack/chunk05"
+version = "0.1.0"
+path = "lux/mgfx/shaderpack_chunks/chunk_05"
 license = "Lux-MGFX-NC"
 
 [[package]]

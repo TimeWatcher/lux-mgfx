@@ -330,7 +330,7 @@ end
 
 function M.DebugOverlay(x, y)
 	x, y = x or 16, y or 16
-	draw.SimpleText(string.format("MGFX draws:%d blur:%d fallback:%d culled:%d", M.stats.draws, M.stats.blurPasses, M.stats.fallbacks, M.stats.culled), "DermaDefault", x, y, color_white)
+	draw.SimpleText(string.format("MGFX draws:%d blur:%d capture:%d reuse:%d fallback:%d culled:%d", M.stats.draws, M.stats.blurPasses, M.stats.blurCaptures or 0, M.stats.blurReuses or 0, M.stats.fallbacks, M.stats.culled), "DermaDefault", x, y, color_white)
 	draw.SimpleText(string.format("commands:%d immediate:%d", M.stats.textQueuedRecords or 0, M.stats.draws or 0), "DermaDefault", x, y + 14, Color(190, 225, 235))
 	draw.SimpleText(string.format("text draws:%d native:%d composed:%d fallback:%d", M.stats.textDraws or 0, M.stats.textNativeDraws or 0, M.stats.textShaderDraws or 0, M.stats.textFallbacks or 0), "DermaDefault", x, y + 28, Color(210, 225, 230))
 	draw.SimpleText(string.format("text composed bakes:%d blits:%d entries:%d evicts:%d", M.stats.textComposedBakes or 0, M.stats.textComposedBlits or 0, M.stats.textComposedEntries or 0, M.stats.textComposedEvicts or 0), "DermaDefault", x, y + 42, Color(170, 230, 200))

@@ -408,7 +408,7 @@ return function(__lux_import)
       return owner
     end
   end
-  
+
   __lux_exports.TARGET = TARGET
   __lux_exports.TARGET_NAME = TARGET_NAME
   __lux_exports.get = get
@@ -417,6 +417,6 @@ return function(__lux_import)
   __lux_exports.isFill = isFill
   __lux_exports.normalizeStyle = normalizeStyle
   __lux_exports.install = install
-  
+
   return __lux_exports
 end

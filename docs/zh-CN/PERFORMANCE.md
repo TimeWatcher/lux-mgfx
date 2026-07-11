@@ -137,6 +137,26 @@ image_mask_shadow_outer shadow + outerGlow
 
 RoundedBox 还支持 `shadow = { {...}, {...} }` 多层阴影。它用于替代“为了多个阴影叠多次完整 `RoundedBoxEx`”的写法：style 只解析一次，每一层只走 shadow-only path，主体和其它效果仍然只画一次。
 
+## Backdrop 共享模糊
+
+Backdrop blur 是每个引擎渲染帧的共享资源，不再由每个控件各自捕获
+framebuffer。该帧第一个非零 backdrop blur 只做一次捕获，并完成横向、
+纵向两个全屏 pass；每个 shape 随后只对最终纹理做一次带遮罩采样。
+
+如果本帧有 `N` 个模糊 backdrop，且都没有显式 recapture，统计应为：
+
+```text
+captures     1
+reuses       N - 1
+blur passes  2
+```
+
+第一次捕获同时确定共享 blur 强度。只有后续 shape 必须看到第一次捕获
+后新画入 framebuffer 的内容，或确实要切换共享强度时，才设置
+`backdrop.recapture = true`。重捕获后的结果会继续被本帧后续 backdrop
+复用。不要给每个卡片或列表行都设置 recapture，否则就是显式恢复旧的
+逐控件捕获成本。
+
 ## 分配规则
 
 Hot paint path 中避免这些写法：

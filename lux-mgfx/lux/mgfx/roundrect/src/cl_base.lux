@@ -18,7 +18,6 @@ local mathMin = math.min
 local mathRad = math.rad
 local mathSin = math.sin
 local mathSqrt = math.sqrt
-local renderCopyRenderTargetToTexture = render?.CopyRenderTargetToTexture
 local surfaceDrawOutlinedRect = surface.DrawOutlinedRect
 local surfaceDrawRect = surface.DrawRect
 local surfaceSetMaterial = surface.SetMaterial
@@ -32,8 +31,8 @@ local sysTime = SysTime
 local drawTransformedPoly = geometry.drawTransformedPoly
 local drawTexturedQuad = geometry.drawTexturedQuad
 local drawTexturedQuadUV = geometry.drawTexturedQuadUV
-local blurIntensity = geometry.blurIntensity
 local hasTransform = geometry.hasTransform
+local prepareBackdropBlur = geometry.prepareBackdropBlur
 local recordDraws = geometry.recordDraws
 local recordFallbacks = geometry.recordFallbacks
 local splitStyleTransform = geometry.splitStyleTransform
@@ -49,7 +48,6 @@ local paramMatrixRawState = {}
 local auxParamMatrices = {}
 local auxParamMatrixRawState = {}
 local roundRectMaterials = {}
-local roundRectBlurRT = nil
 local roundRectMatOK = (material) => material ~= nil and material.IsError ~= nil and not material:IsError()
 local roundRectHasShaders = () => false
 local forceFallbackCvar = nil
@@ -87,7 +85,6 @@ fn configureRoundRect(owner) {
   owner = owner ?? {}
   local materialState = owner._MaterialState ?? {}
   roundRectMaterials = owner._Materials ?? materialState.materials ?? roundRectMaterials ?? {}
-  roundRectBlurRT = owner._BlurRT ?? materialState.blurRT ?? roundRectBlurRT
   roundRectMatOK = owner.MaterialOK ?? materialState.matOK ?? roundRectMatOK
   roundRectHasShaders = owner.hasShaders ?? roundRectHasShaders
   roundRectProfiler = owner.Profiler
@@ -176,8 +173,8 @@ fn hotFillVisible(fill) {
 
   if kind == style.FILL_LINEAR or kind == style.FILL_RADIAL or kind == style.FILL_CONIC {
     return fill.stops ~= nil
-      or (fill.colorA ~= nil and (fill.colorA.a == nil or fill.colorA.a > 0))
-      or (fill.colorB ~= nil and (fill.colorB.a == nil or fill.colorB.a > 0))
+    or (fill.colorA ~= nil and (fill.colorA.a == nil or fill.colorA.a > 0))
+    or (fill.colorB ~= nil and (fill.colorB.a == nil or fill.colorB.a > 0))
   }
 
   false
@@ -199,8 +196,8 @@ fn roundRectRadiusScalar(radius, w = 0, h = 0) {
 
 fn roundRectProfileActive() =
   roundRectProfiler ~= nil
-    and roundRectProfiler.IsActive ~= nil
-    and roundRectProfiler.IsActive()
+and roundRectProfiler.IsActive ~= nil
+and roundRectProfiler.IsActive()
 
 fn roundRectProfileStart() {
   if roundRectProfiler ~= nil and roundRectProfiler.Start ~= nil {

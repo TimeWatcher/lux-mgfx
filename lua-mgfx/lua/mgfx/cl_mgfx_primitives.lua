@@ -333,7 +333,7 @@ local function drawChamferBackdrop(x, y, w, h, cuts, spec)
 				br, bl, 0, 0,
 				vertical and 1 or 0, intensity or 1, 0, 0
 			)
-		end)
+		end, spec.recapture)
 	end
 
 	local tint = chamferBackdropTintColor(spec)
@@ -1064,7 +1064,7 @@ local function drawPolyBackdrop(poly, spec)
 
 	if spec.blur > 0 then
 		local key = "poly" .. backdropPoly.count .. "_blur"
-		drawBlurredPoly(backdropPoly, materials[key], spec.blur)
+		drawBlurredPoly(backdropPoly, materials[key], spec.blur, spec.recapture)
 	end
 
 	local tint = backdropTintColor(spec)

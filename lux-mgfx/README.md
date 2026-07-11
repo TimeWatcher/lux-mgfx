@@ -268,8 +268,10 @@ full item list and 160+ FPS in lighter categories.
 ## Shader Tooling
 
 Most users do not need the shader tooling. MGFX ships precompiled Source shader
-bytecode (`.vcs`) in the package tree and embeds a generated shaderpack module
-for normal Lux builds.
+bytecode (`.vcs`) in the package tree and embeds the generated payload across
+five `@lux/mgfx/shaderpack/chunkXX` packages. The small shaderpack facade joins
+those chunks at runtime, keeping every generated Lua artifact below Garry's
+Mod's large-file distribution limit.
 
 Regenerate the legacy Lux-generated GLua loader tree with:
 
@@ -295,7 +297,8 @@ python .\build.py --pack-only
 python .\build.py
 ```
 
-`--pack-only` rebuilds the base64 shaderpack module from existing `.vcs` files.
+`--pack-only` rebuilds the base64 shaderpack facade and chunk packages from
+existing `.vcs` files.
 Running without `--pack-only` invokes the bundled shader build chain first.
 
 ## License

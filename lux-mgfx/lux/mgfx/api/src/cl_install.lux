@@ -40,6 +40,8 @@ fn resetFrameStats(owner) {
   local stats = owner.stats
   stats.draws = 0
   stats.blurPasses = 0
+  stats.blurCaptures = 0
+  stats.blurReuses = 0
   stats.fallbacks = 0
   stats.culled = 0
   stats.gradientLutFillHits = 0

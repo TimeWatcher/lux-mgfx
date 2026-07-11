@@ -268,25 +268,16 @@ fn drawChamferBackdrop(x, y, w, h, cuts, spec) {
   local bcuts = cutsWithGrow(cuts, pad)
   local tl, tr, br, bl = chamferTuple(bcuts, bw, bh)
 
-  if spec.blur > 0 and primitiveBlurRT ~= nil and renderCopyRenderTargetToTexture ~= nil and materialOK(primitiveMaterials.chamfer_backdrop) {
+  if spec.blur > 0 and materialOK(primitiveMaterials.chamfer_backdrop) {
     local material = primitiveMaterials.chamfer_backdrop
-    local intensity = backdropBlurIntensity(spec.blur)
+    prepareBackdropBlur(spec.blur, spec.recapture)
     surfaceSetMaterial(material)
     surfaceSetDrawColor(255, 255, 255, 255)
-    renderCopyRenderTargetToTexture(primitiveBlurRT)
     setupParamMatrix(material,
       bw, bh, 0, 0,
       bw, bh, tl, tr,
       br, bl, 0, 0,
-      0, intensity, 0, 0
-    )
-    drawTexturedQuad(bx, by, bw, bh, material)
-    renderCopyRenderTargetToTexture(primitiveBlurRT)
-    setupParamMatrix(material,
-      bw, bh, 0, 0,
-      bw, bh, tl, tr,
-      br, bl, 0, 0,
-      1, intensity, 0, 0
+      1, 0, 0, 0
     )
     drawTexturedQuad(bx, by, bw, bh, material)
   }

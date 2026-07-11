@@ -19,7 +19,6 @@ local mathCos = math.cos
 local mathRad = math.rad
 local mathSin = math.sin
 local mathSqrt = math.sqrt
-local renderCopyRenderTargetToTexture = render?.CopyRenderTargetToTexture
 local surfaceDrawLine = surface.DrawLine
 local surfaceSetMaterial = surface.SetMaterial
 local surfaceSetDrawColor = surface.SetDrawColor
@@ -30,8 +29,8 @@ local makeColor = Color
 local drawTransformedPoly = geometry.drawTransformedPoly
 local drawTexturedQuad = geometry.drawTexturedQuad
 local drawTexturedQuadUV = geometry.drawTexturedQuadUV
-local backdropBlurIntensity = geometry.blurIntensity
 local hasTransform = geometry.hasTransform
+local prepareBackdropBlur = geometry.prepareBackdropBlur
 local isCulled = frame.isCulled
 local splitStyleTransform = geometry.splitStyleTransform
 local withTransform = geometry.withTransform
@@ -44,7 +43,6 @@ local paramMatrixSetUnpacked = paramMatrixProbe?.SetUnpacked
 local paramMatrices = {}
 local auxParamMatrices = {}
 local primitiveMaterials = {}
-local primitiveBlurRT = nil
 local primitiveMatOK = (material) => material ~= nil and material.IsError ~= nil and not material:IsError()
 local primitiveHasShaders = () => false
 local forceFallbackCvar = nil
@@ -63,7 +61,6 @@ fn configurePrimitives(owner) {
   owner = owner ?? {}
   local materialState = owner._MaterialState ?? {}
   primitiveMaterials = owner._Materials ?? materialState.materials ?? primitiveMaterials ?? {}
-  primitiveBlurRT = owner._BlurRT ?? materialState.blurRT ?? primitiveBlurRT
   primitiveMatOK = owner.MaterialOK ?? materialState.matOK ?? primitiveMatOK
   primitiveHasShaders = owner.hasShaders ?? primitiveHasShaders
   true
@@ -88,25 +85,25 @@ fn setupParamMatrix(material,
   b0, b1, b2, b3,
   c0, c1, c2, c3,
   d0, d1, d2, d3) {
-  if material == nil or paramMatrixSetUnpacked == nil or matrixCtor == nil {
-    return false
-  }
+    if material == nil or paramMatrixSetUnpacked == nil or matrixCtor == nil {
+      return false
+    }
 
-  local matrix = paramMatrices[material]
-  if matrix == nil {
-    matrix = matrixCtor()
-    paramMatrices[material] = matrix
-  }
+    local matrix = paramMatrices[material]
+    if matrix == nil {
+      matrix = matrixCtor()
+      paramMatrices[material] = matrix
+    }
 
-  paramMatrixSetUnpacked(matrix,
-    a0 ?? 0, b0 ?? 0, c0 ?? 0, d0 ?? 0,
-    a1 ?? 0, b1 ?? 0, c1 ?? 0, d1 ?? 0,
-    a2 ?? 0, b2 ?? 0, c2 ?? 0, d2 ?? 0,
-    a3 ?? 0, b3 ?? 0, c3 ?? 0, d3 ?? 0
-  )
-  material:SetMatrix("$viewprojmat", matrix)
-  true
-}
+    paramMatrixSetUnpacked(matrix,
+      a0 ?? 0, b0 ?? 0, c0 ?? 0, d0 ?? 0,
+      a1 ?? 0, b1 ?? 0, c1 ?? 0, d1 ?? 0,
+      a2 ?? 0, b2 ?? 0, c2 ?? 0, d2 ?? 0,
+      a3 ?? 0, b3 ?? 0, c3 ?? 0, d3 ?? 0
+    )
+    material:SetMatrix("$viewprojmat", matrix)
+    true
+  }
 
 fn fillColor(fill, fallback = nil) {
   if style.isColor(fill) {
