@@ -11,7 +11,7 @@ screenspace_general
 	$vertexshader ""
 
 	$basetexture "color/white"
-	$texture1    ""
+	$texture1    "color/white"
 	$texture2    ""
 	$texture3    ""
 
@@ -239,7 +239,7 @@ function MGFX._CreateMaterialState(owner)
 	end
 
 	function owner.hasShaders()
-		if render.GetDXLevel and render.GetDXLevel() < 90 then return false end
+		if system.IsWindows() and render.GetDXLevel and render.GetDXLevel() < 90 then return false end
 		return shaderVersion ~= "" and matOK(materials.roundrect)
 	end
 

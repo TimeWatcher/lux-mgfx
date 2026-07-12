@@ -11,6 +11,7 @@ local makeMaterial = Material
 local printFn = print
 local renderGetDXLevel = render?.GetDXLevel
 local sysTime = SysTime
+local systemIsWindows = system.IsWindows
 local tableCopy = table.Copy
 local toString = tostring
 local typeOf = type
@@ -23,7 +24,7 @@ local shaderKV =
   "  $pixshader \"\"\n" ..
   "  $vertexshader \"\"\n" ..
   "  $basetexture \"color/white\"\n" ..
-  "  $texture1 \"\"\n" ..
+  "  $texture1 \"color/white\"\n" ..
   "  $texture2 \"\"\n" ..
   "  $texture3 \"\"\n" ..
   "  $ignorez 1\n" ..

@@ -10,6 +10,7 @@ return function(__lux_import)
   local printFn
   local renderGetDXLevel
   local sysTime
+  local systemIsWindows
   local tableCopy
   local toString
   local typeOf
@@ -71,6 +72,7 @@ return function(__lux_import)
       renderGetDXLevel = __lux_val_GetDXLevel_8
     end
     sysTime = SysTime
+    systemIsWindows = system.IsWindows
     tableCopy = table.Copy
     toString = tostring
     typeOf = type
@@ -95,7 +97,7 @@ return function(__lux_import)
         "  $pixshader \"\"\n" ..
           "  $vertexshader \"\"\n" ..
             "  $basetexture \"color/white\"\n" ..
-              "  $texture1 \"\"\n" ..
+              "  $texture1 \"color/white\"\n" ..
                 "  $texture2 \"\"\n" ..
                   "  $texture3 \"\"\n" ..
                     "  $ignorez 1\n" ..
@@ -449,7 +451,7 @@ return function(__lux_import)
   end
   do
     hasShaders = function(state)
-      if renderGetDXLevel ~= nil then
+      if systemIsWindows() and renderGetDXLevel ~= nil then
         local dxLevel = renderGetDXLevel()
         if dxLevel ~= nil and dxLevel < 90 then
           return false

@@ -1,5 +1,5 @@
 export client fn hasShaders(state) {
-  if renderGetDXLevel ~= nil {
+  if systemIsWindows() and renderGetDXLevel ~= nil {
     local dxLevel = renderGetDXLevel()
     if dxLevel ~= nil and dxLevel < 90 {
       return false
