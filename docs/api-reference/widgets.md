@@ -2,6 +2,8 @@
 
 These immediate draw helpers cover common HUD meters and radial shapes. They do not store state; pass the current value every frame.
 
+Plain GLua calls `MGFX.*`. Lux calls the same APIs as lowerCamelCase methods on `mgfx.api`.
+
 ## Functions
 
 ```lua
@@ -12,9 +14,16 @@ MGFX.ArcEx(cx, cy, radius, width, startDeg, endDeg, style)
 MGFX.SectorEx(cx, cy, innerRadius, outerRadius, startDeg, endDeg, style)
 ```
 
+These widgets accept the same centered `stroke` record as other shapes,
+including `solid`, `dot`, `dash`, and `dot-dash` kinds. See
+[Shape Stroke Styles](./primitives#shape-stroke-styles). Patterned strokes use
+a separate stroke pass.
+
 ## Progress Bars
 
-```lua
+::: code-group
+
+```lua [GLua]
 MGFX.ProgressBarEx(x, y, w, h, value, {
     radius = h * 0.5,
     track = Color(10, 18, 24, 190),
@@ -22,6 +31,21 @@ MGFX.ProgressBarEx(x, y, w, h, value, {
     padding = 2,
 })
 ```
+
+```lux [Lux]
+import * as mgfx from "@lux/mgfx"
+
+local draw = mgfx.api
+
+draw.progressBarEx(x, y, w, h, value, {
+  radius = h * 0.5,
+  track = Color(10, 18, 24, 190),
+  fill = draw.linearGradient(0, 0, 1, 0, Color(80, 170, 255), Color(90, 220, 180)),
+  padding = 2,
+});
+```
+
+:::
 
 `value` is normally `0..1`. Clamp before drawing if your gameplay value can overshoot.
 

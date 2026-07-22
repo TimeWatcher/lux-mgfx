@@ -17,9 +17,13 @@ fn setupBackdropBlurConstants(material, w, h, vertical, intensity) {
   material:SetMatrix("$viewprojmat", matrix)
 }
 
-export client fn prepareBackdropBlur(amount, recapture = false) {
+export client fn prepareBackdropBlur(amount, recapture = false, level = 0) {
   local currentFrame = frameNumber()
-  if not recapture and backdropBlurPreparedFrame == currentFrame {
+  local intensity = blurIntensity(amount)
+  local normalizedLevel = mathFloor(toNumber(level) ?? 0)
+  local sameFrame = backdropBlurPreparedFrame == currentFrame
+  local sameLevel = backdropBlurPreparedLevel == normalizedLevel
+  if not recapture and sameFrame and sameLevel and mathAbs(backdropBlurPreparedIntensity - intensity) < 0.0001 {
     stats.blurReuses = (stats.blurReuses ?? 0) + 1
     return backdropBlurPreparedIntensity
   }
@@ -37,11 +41,14 @@ export client fn prepareBackdropBlur(amount, recapture = false) {
   local verticalMaterial = materials.backdrop_blur_vertical
   local width = ScrW()
   local height = ScrH()
-  local intensity = blurIntensity(amount)
   local previousR, previousG, previousB = renderGetColorModulation()
   local previousBlend = renderGetBlend()
+  local captureSource = recapture or not sameFrame or not sameLevel
 
-  renderCopyRenderTargetToTexture(sourceRT)
+  if captureSource {
+    renderCopyRenderTargetToTexture(sourceRT)
+    stats.blurCaptures = (stats.blurCaptures ?? 0) + 1
+  }
   renderPushRenderTarget(horizontalRT)
   renderSetScissorRect(0, 0, 0, 0, false)
   renderSetColorModulation(1, 1, 1)
@@ -68,7 +75,7 @@ export client fn prepareBackdropBlur(amount, recapture = false) {
 
   backdropBlurPreparedFrame = currentFrame
   backdropBlurPreparedIntensity = intensity
-  stats.blurCaptures = (stats.blurCaptures ?? 0) + 1
+  backdropBlurPreparedLevel = normalizedLevel
   stats.blurPasses = (stats.blurPasses ?? 0) + 2
   intensity
 }
@@ -125,6 +132,7 @@ export client fn install(owner) {
   geometryOwner = owner
   backdropBlurPreparedFrame = -1
   backdropBlurPreparedIntensity = 0
+  backdropBlurPreparedLevel = nil
   geometryProfiler = owner.Profiler
   bindStats(owner)
   owner.Transform = transform

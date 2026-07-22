@@ -2,19 +2,23 @@
 
 Image APIs draw materials, render targets, texture sources, and icons with optional fit, crop, mask, stroke, shadow, backdrop, and glow.
 
+Plain GLua calls `MGFX.*`. Lux calls the same APIs as lowerCamelCase methods on `mgfx.api`.
+
 ## Functions
 
 ```lua
 MGFX.Image(x, y, w, h, source, radius, tint)
+MGFX.ImageUV(x, y, w, h, source, u0, v0, u1, v1, tint)
 MGFX.ImageEx(x, y, w, h, source, style)
 
 MGFX.Icon(x, y, w, h, source, tint)
 MGFX.IconEx(x, y, w, h, source, style)
 
 MGFX.Mask(kind, options)
-MGFX.MaterialSource(material)
-MGFX.TextureSource(texture)
 ```
+
+`ImageUV` is the allocation-free positional path for an already-known UV
+rectangle. It intentionally skips fit, crop, masks, and effect-style parsing.
 
 ## Image Style Fields
 
@@ -36,7 +40,9 @@ MGFX.TextureSource(texture)
 
 ## Fit Examples
 
-```lua
+::: code-group
+
+```lua [GLua]
 MGFX.ImageEx(x, y, 96, 96, avatarMaterial, {
     fit = "cover",
     mask = MGFX.Mask("chamfer", {cuts = 12}),
@@ -44,6 +50,21 @@ MGFX.ImageEx(x, y, 96, 96, avatarMaterial, {
     strokeWidth = 1,
 })
 ```
+
+```lux [Lux]
+import * as mgfx from "@lux/mgfx"
+
+local draw = mgfx.api
+
+draw.imageEx(x, y, 96, 96, avatarMaterial, {
+  fit = "cover",
+  mask = draw.mask("chamfer", {cuts = 12}),
+  stroke = Color(80, 190, 255, 120),
+  strokeWidth = 1,
+});
+```
+
+:::
 
 Use `cover` for avatars and `contain` for icons or item art that must remain fully visible.
 

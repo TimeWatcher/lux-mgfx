@@ -317,7 +317,7 @@ fn drawImageMaskBackdrop(x, y, w, h, mask, kind, maskTexture, spec) {
 
   if spec.blur > 0 and materialOK(widgetMaterials.image_mask_backdrop) {
     local material = widgetMaterials.image_mask_backdrop
-    prepareBackdropBlur(spec.blur, spec.recapture)
+    prepareBackdropBlur(spec.blur, spec.recapture, spec.level)
     surfaceSetMaterial(material)
     surfaceSetDrawColor(255, 255, 255, 255)
     setupImageMaskBackdropConstants(material, bw, bh, w, h, mask, kind, maskTexture, true, 0)

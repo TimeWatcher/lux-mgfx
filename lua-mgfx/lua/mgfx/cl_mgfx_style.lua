@@ -14,12 +14,22 @@ function MGFX._InstallStyle(owner)
 	local FILL_LINEAR = 1
 	local FILL_RADIAL = 2
 	local FILL_CONIC = 3
+	local STROKE_SOLID = 0
+	local STROKE_DOT = 1
+	local STROKE_DASH = 2
+	local STROKE_DOT_DASH = 3
 	local transparentColor = Color(0, 0, 0, 0)
 	local solidColorCache = setmetatable({}, {__mode = "kv"})
 	local backdropTableCache = setmetatable({}, {__mode = "k"})
 	local backdropColorCache = setmetatable({}, {__mode = "k"})
 	local backdropNumberCache = {}
 	local backdropTrueSpec
+	local patternSeedCache = {}
+	local emptyPatternSpec = {}
+	local defaultPatternColor = Color(255, 255, 255, 24)
+	local defaultPatternTrueColor = Color(255, 255, 255, 20)
+	local defaultWornColor = Color(0, 0, 0, 44)
+	local defaultWornEdgeColor = Color(218, 208, 184, 78)
 
 	local function asColor(value, fallback)
 		if istable(value) and value.r and value.g and value.b then return value end
@@ -47,6 +57,54 @@ function MGFX._InstallStyle(owner)
 		end
 
 		return tonumber(value) or fallback or 0
+	end
+
+	local function strokeKindValue(value)
+		if value == nil or value == "solid" or value == STROKE_SOLID then return STROKE_SOLID end
+		if value == "dot" or value == STROKE_DOT then return STROKE_DOT end
+		if value == "dash" or value == STROKE_DASH then return STROKE_DASH end
+		if value == "dot-dash" or value == STROKE_DOT_DASH then return STROKE_DOT_DASH end
+		error("unsupported MGFX stroke kind: " .. tostring(value), 3)
+	end
+
+	local function strokeRaw(stroke, widthInput, fallbackWidth)
+		if stroke == nil or stroke == false then
+			return false, nil, 0, STROKE_SOLID, 0, 0, 0
+		end
+
+		local isStrokeColor = istable(stroke) and stroke.r ~= nil and stroke.g ~= nil and stroke.b ~= nil
+		local spec = istable(stroke) and not isStrokeColor and stroke or nil
+		local color = spec and (spec.color or spec.tint or spec[1]) or stroke
+		if not (istable(color) and color.r ~= nil and color.g ~= nil and color.b ~= nil) then
+			error("MGFX stroke must be a Color or a stroke style record containing color", 3)
+		end
+
+		local widthSource = widthInput
+		if widthSource == nil and spec then widthSource = spec.width or spec.size end
+		local width = math_max(0, strokeWidthValue(widthSource, fallbackWidth or 0))
+		local kind = strokeKindValue(spec and spec.kind)
+		local length = math_max(0.001, tonumber(spec and (spec.length or spec.dashLength)) or math_max(width * 3, 3))
+		local gap = math_max(0, tonumber(spec and spec.gap) or math_max(width * 1.5, 2))
+		local offset = tonumber(spec and (spec.offset or spec.phase)) or 0
+		local visible = width > 0 and (color.a == nil or color.a > 0)
+		return visible, color, width, kind, length, gap, offset
+	end
+
+	local function strokeColor(stroke)
+		if stroke == nil or stroke == false then return nil end
+		if istable(stroke) and stroke.r ~= nil and stroke.g ~= nil and stroke.b ~= nil then return stroke end
+		local color = istable(stroke) and (stroke.color or stroke.tint or stroke[1]) or nil
+		if not (istable(color) and color.r ~= nil and color.g ~= nil and color.b ~= nil) then
+			error("MGFX stroke must be a Color or a stroke style record containing color", 3)
+		end
+		return color
+	end
+
+	local function strokeKind(stroke)
+		if stroke == nil or stroke == false or (istable(stroke) and stroke.r ~= nil and stroke.g ~= nil and stroke.b ~= nil) then
+			return STROKE_SOLID
+		end
+		return strokeKindValue(istable(stroke) and stroke.kind or nil)
 	end
 
 	local function radiusTuple(radius, w, h)
@@ -295,18 +353,26 @@ end
 	local function patternSeed(seed)
 		if seed == nil then return 0 end
 		local value = tonumber(seed)
+		local stringSeed = isstring(seed) and seed or nil
+		if not value and stringSeed and patternSeedCache[stringSeed] ~= nil then
+			return patternSeedCache[stringSeed]
+		end
 		if not value then
 			value = tonumber(util.CRC(tostring(seed))) or 0
 		end
 		value = math_abs(value) % 65536
-		return value / 65536
+		local normalized = value / 65536
+		if stringSeed then patternSeedCache[stringSeed] = normalized end
+		return normalized
 	end
 
 	function owner.StripePattern(color, spacing, width, angle, offset)
 		if istable(color) and not color.r then
+			if color._mgfxPatternSpec == true and color.kind == "stripe" then return color end
 			return {
 				kind = "stripe",
-				color = asColor(color.color or color.tint, Color(255, 255, 255, 24)),
+				_mgfxPatternSpec = true,
+				color = asColor(color.color or color.tint, defaultPatternColor),
 				spacing = tonumber(color.spacing) or 12,
 				width = tonumber(color.width) or 2,
 				angle = tonumber(color.angle) or 135,
@@ -316,7 +382,8 @@ end
 
 		return {
 			kind = "stripe",
-			color = asColor(color, Color(255, 255, 255, 24)),
+			_mgfxPatternSpec = true,
+			color = asColor(color, defaultPatternColor),
 			spacing = tonumber(spacing) or 12,
 			width = tonumber(width) or 2,
 			angle = tonumber(angle) or 135,
@@ -326,9 +393,11 @@ end
 
 	function owner.SmokePattern(color, scale, density, softness, angle, offset, seed)
 		if istable(color) and not color.r then
+			if color._mgfxPatternSpec == true and color.kind == "smoke" then return color end
 			return {
 				kind = "smoke",
-				color = asColor(color.color or color.tint, Color(255, 255, 255, 24)),
+				_mgfxPatternSpec = true,
+				color = asColor(color.color or color.tint, defaultPatternColor),
 				scale = tonumber(color.scale) or 140,
 				density = tonumber(color.density) or 0.48,
 				softness = tonumber(color.softness) or 0.3,
@@ -342,7 +411,8 @@ end
 
 		return {
 			kind = "smoke",
-			color = asColor(color, Color(255, 255, 255, 24)),
+			_mgfxPatternSpec = true,
+			color = asColor(color, defaultPatternColor),
 			scale = tonumber(scale) or 140,
 			density = tonumber(density) or 0.48,
 			softness = tonumber(softness) or 0.3,
@@ -355,11 +425,13 @@ end
 	end
 
 	function owner.WornPattern(spec)
-		spec = istable(spec) and spec or {}
+		if istable(spec) and spec._mgfxPatternSpec == true and spec.kind == "worn" then return spec end
+		spec = istable(spec) and spec or emptyPatternSpec
 		return {
 			kind = "worn",
-			color = asColor(spec.color or spec.tint, Color(0, 0, 0, 44)),
-			edgeColor = asColor(spec.edgeColor or spec.highlight, Color(218, 208, 184, 78)),
+			_mgfxPatternSpec = true,
+			color = asColor(spec.color or spec.tint, defaultWornColor),
+			edgeColor = asColor(spec.edgeColor or spec.highlight, defaultWornEdgeColor),
 			fractal = math.Clamp(tonumber(spec.fractal) or 0.44, 0, 1),
 			grain = math.Clamp(tonumber(spec.grain) or 0.64, 0, 1),
 			scratches = math.Clamp(tonumber(spec.scratches) or spec.scratch or 0.30, 0, 1),
@@ -488,15 +560,17 @@ end
 	owner.GlowSoftnessToFalloff = glowSoftnessToFalloff
 
 	local function strokeVisible(stroke, strokeWidth)
-		return stroke and strokeWidthValue(strokeWidth, 0) > 0 and (stroke.a == nil or stroke.a > 0)
+		local visible = strokeRaw(stroke, strokeWidth, 1)
+		return visible
 	end
 
 	local function backdropStyle(value)
 		if value == nil or value == false then return nil end
+		if istable(value) and value._mgfxBackdropSpec == true then return value end
 
 		if value == true then
 			if not backdropTrueSpec then
-				backdropTrueSpec = {blur = 4, tint = transparentColor, opacity = 1, padding = 0, recapture = false}
+				backdropTrueSpec = {blur = 4, tint = transparentColor, opacity = 1, padding = 0, recapture = false, level = 0, _mgfxBackdropSpec = true}
 			end
 			return backdropTrueSpec
 		end
@@ -509,7 +583,7 @@ end
 				backdropNumberCache[blurKey] = false
 				return nil
 			end
-			cached = {blur = blurKey, tint = transparentColor, opacity = 1, padding = 0, recapture = false}
+			cached = {blur = blurKey, tint = transparentColor, opacity = 1, padding = 0, recapture = false, level = 0, _mgfxBackdropSpec = true}
 			backdropNumberCache[blurKey] = cached
 			return cached
 		end
@@ -521,7 +595,7 @@ end
 				backdropColorCache[value] = false
 				return nil
 			end
-			cached = {blur = 0, tint = value, opacity = 1, padding = 0, recapture = false}
+			cached = {blur = 0, tint = value, opacity = 1, padding = 0, recapture = false, level = 0, _mgfxBackdropSpec = true}
 			backdropColorCache[value] = cached
 			return cached
 		end
@@ -541,7 +615,8 @@ end
 			and cached._strengthInput == value.strength
 			and cached._paddingInput == value.padding
 			and cached._spreadInput == value.spread
-			and cached._recaptureInput == value.recapture then
+			and cached._recaptureInput == value.recapture
+			and cached._levelInput == value.level then
 			return cached
 		end
 		if cached == false
@@ -554,7 +629,8 @@ end
 			and value.strength == nil
 			and value.padding == nil
 			and value.spread == nil
-			and value.recapture == nil then
+			and value.recapture == nil
+			and value.level == nil then
 			return nil
 		end
 
@@ -563,6 +639,7 @@ end
 		local opacity = math.Clamp(tonumber(value.opacity or value.strength) or 1, 0, 1)
 		local padding = math_max(0, tonumber(value.padding or value.spread) or 0)
 		local recapture = value.recapture == true
+		local level = math_floor(tonumber(value.level) or 0)
 
 		if blur <= 0 and ((tint.a == nil and 255 or tint.a) <= 0 or opacity <= 0) then
 			backdropTableCache[value] = false
@@ -575,6 +652,8 @@ end
 			opacity = opacity,
 			padding = padding,
 			recapture = recapture,
+			level = level,
+			_mgfxBackdropSpec = true,
 		}
 		cached._blurInput = value.blur
 		cached._sizeInput = value.size
@@ -586,6 +665,7 @@ end
 		cached._paddingInput = value.padding
 		cached._spreadInput = value.spread
 		cached._recaptureInput = value.recapture
+		cached._levelInput = value.level
 		backdropTableCache[value] = cached
 		return cached
 	end
@@ -594,6 +674,8 @@ end
 		return backdropStyle(value)
 	end
 
+	owner.CompileBackdrop = backdropStyle
+
 	owner.BackdropStyle = backdropStyle
 
 	return {
@@ -601,10 +683,17 @@ end
 		FILL_LINEAR = FILL_LINEAR,
 		FILL_RADIAL = FILL_RADIAL,
 		FILL_CONIC = FILL_CONIC,
+		STROKE_SOLID = STROKE_SOLID,
+		STROKE_DOT = STROKE_DOT,
+		STROKE_DASH = STROKE_DASH,
+		STROKE_DOT_DASH = STROKE_DOT_DASH,
 		asColor = asColor,
 		color01 = color01,
 		setDrawColor = setDrawColor,
 		strokeWidthValue = strokeWidthValue,
+		strokeRaw = strokeRaw,
+		strokeColor = strokeColor,
+		strokeKind = strokeKind,
 		radiusTuple = radiusTuple,
 		radiusScalar = radiusScalar,
 		normalizeStops = normalizeStops,
@@ -618,6 +707,9 @@ end
 		glowSoftnessToFalloff = glowSoftnessToFalloff,
 		strokeVisible = strokeVisible,
 		backdropStyle = backdropStyle,
+		defaultPatternColor = defaultPatternColor,
+		defaultPatternTrueColor = defaultPatternTrueColor,
+		defaultWornEdgeColor = defaultWornEdgeColor,
 		imageMaskStyle = imageMaskStyle,
 	}
 end

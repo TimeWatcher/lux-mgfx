@@ -71,6 +71,7 @@ local typeOf = type
 local styles = {}
 local fonts = {}
 local nativeFonts = {}
+local fontHeightCache = {}
 local measureCache = {}
 local measureOrder = {}
 local measureOrderHead = 1

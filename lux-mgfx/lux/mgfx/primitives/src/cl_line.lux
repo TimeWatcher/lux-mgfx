@@ -239,3 +239,7 @@ export client fn lineEx(x1, y1, x2, y2, drawStyle = nil) {
 export client fn line(x1, y1, x2, y2, width = 1, fill = nil) {
   drawLineRaw(x1, y1, x2, y2, fill, width, nil, nil, nil, nil, false)
 }
+
+export client fn lineNoCaps(x1, y1, x2, y2, width = 1, fill = nil) {
+  drawLineRaw(x1, y1, x2, y2, fill, width, nil, nil, nil, nil, true)
+}

@@ -16,6 +16,7 @@ export client fn install(owner) {
   owner.WornPattern = wornPattern
   owner.Mask = mask
   owner.Backdrop = backdrop
+  owner.CompileBackdrop = compileBackdrop
   owner.ImageMaskStyle = imageMaskStyle
   owner.FillFromStyle = fillFromStyle
   owner.ColorAtFill = colorAtFill

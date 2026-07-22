@@ -15,6 +15,8 @@ function MGFX._InstallWidgetBars(C)
 	local color01 = C.color01
 	local setDrawColor = C.setDrawColor
 	local strokeWidthValue = C.strokeWidthValue
+	local strokeRaw = C.strokeRaw
+	local STROKE_SOLID = C.STROKE_SOLID or 0
 	local radiusTuple = C.radiusTuple
 	local radiusScalar = C.radiusScalar
 	local fillFromStyle = C.fillFromStyle
@@ -28,6 +30,7 @@ function MGFX._InstallWidgetBars(C)
 	local setupParamMatrix = C.setupParamMatrix
 	local setupConstants = C.setupConstants
 	local drawTexturedQuad = C.drawTexturedQuad
+	local drawTexturedQuadUV = C.drawTexturedQuadUV
 	local withTransform = C.withTransform or function(_, _, _, _, _, fn) return fn() end
 	local splitStyleTransform = C.splitStyleTransform or function(style) return nil, style end
 	local hasTransform = C.hasTransform or function() return false end
@@ -58,6 +61,7 @@ function MGFX._InstallWidgetBars(C)
 	local math_max = math.max
 	local math_min = math.min
 	local math_floor = math.floor
+	local math_ceil = math.ceil
 	local math_rad = math.rad
 	local math_cos = math.cos
 	local math_sin = math.sin
@@ -124,10 +128,11 @@ function MGFX._InstallWidgetBars(C)
 		return fillVisible(fill)
 	end
 
-	local function drawPreparedRoundRectPlain(x, y, w, h, radius, fill, strokeValue, strokeWidth, patternSpec)
+	local function drawPreparedRoundRectPlain(x, y, w, h, radius, fill, strokeValue, strokeWidth, patternSpec, strokeKind, strokeLength, strokeGap, strokeOffset)
 		return drawRoundRectPrepared(
 			x, y, w, h, radius,
 			fill or transparentFill, preparedFillVisible(fill), strokeValue, strokeWidth or 0, preparedStrokeVisible(strokeValue, strokeWidth),
+			strokeKind or STROKE_SOLID, strokeLength or 0, strokeGap or 0, strokeOffset or 0,
 			false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0,
 			false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0,
 			false, 0, 0, 0, 0, 0, 0, 1,
@@ -137,6 +142,7 @@ function MGFX._InstallWidgetBars(C)
 
 	local function drawPreparedRoundRectEffects(
 		x, y, w, h, radius, fill, strokeValue, strokeWidth,
+		strokeKind, strokeLength, strokeGap, strokeOffset,
 		hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread,
 		hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
 		hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff,
@@ -145,6 +151,7 @@ function MGFX._InstallWidgetBars(C)
 		return drawRoundRectPrepared(
 			x, y, w, h, radius,
 			fill or transparentFill, preparedFillVisible(fill), strokeValue, strokeWidth or 0, preparedStrokeVisible(strokeValue, strokeWidth),
+			strokeKind or STROKE_SOLID, strokeLength or 0, strokeGap or 0, strokeOffset or 0,
 			hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread,
 			hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
 			hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff,
@@ -263,21 +270,31 @@ local function setupProgressFxConstants(mat, w, h, value, radius, inset, track, 
 end
 
 local function drawProgressBarFast(x, y, w, h, value, fill, radius, inset, track, stroke, strokeWidth)
-	if not hasTransform() and isCulled(x, y, w, h) then return end
+	local pad = math_ceil(math_max(0, strokeWidth) * 0.5 + 1)
+	if not hasTransform() and isCulled(x - pad, y - pad, w + pad * 2, h + pad * 2) then return end
 
 	local mat = materials.progress
 	setupProgressConstants(mat, w, h, value, radius, inset, track, fill, stroke, strokeWidth)
 	surface_SetMaterial(mat)
-	drawTexturedQuad(x, y, w, h, mat)
+	if pad > 1 and w > 0 and h > 0 then
+		drawTexturedQuadUV(x - pad, y - pad, w + pad * 2, h + pad * 2, -pad / w, -pad / h, 1 + pad / w, 1 + pad / h, mat)
+	else
+		drawTexturedQuad(x, y, w, h, mat)
+	end
 end
 
 local function drawProgressBarFxFast(x, y, w, h, value, fill, radius, inset, track, stroke, strokeWidth, flags, ticks)
-	if not hasTransform() and isCulled(x, y, w, h) then return end
+	local pad = math_ceil(math_max(0, strokeWidth) * 0.5 + 1)
+	if not hasTransform() and isCulled(x - pad, y - pad, w + pad * 2, h + pad * 2) then return end
 
 	local mat = materials.progress_fx
 	setupProgressFxConstants(mat, w, h, value, radius, inset, track, fill, stroke, strokeWidth, flags, ticks)
 	surface_SetMaterial(mat)
-	drawTexturedQuad(x, y, w, h, mat)
+	if pad > 1 and w > 0 and h > 0 then
+		drawTexturedQuadUV(x - pad, y - pad, w + pad * 2, h + pad * 2, -pad / w, -pad / h, 1 + pad / w, 1 + pad / h, mat)
+	else
+		drawTexturedQuad(x, y, w, h, mat)
+	end
 end
 
 	local function drawProgressBarRaw(x, y, w, h, value, radiusInput, trackInput, fillInput, strokeInput, strokeWidthInput, paddingInput, fxInput, shadow, outerGlow, innerGlow, backdrop, pattern, fillPattern, trackPattern)
@@ -287,15 +304,15 @@ end
 		local track = trackInput or defaultProgressTrack
 		local fill = fillFromStyle(fillInput or color_white)
 		local stroke = strokeInput or defaultProgressStroke
-		local strokeWidth = strokeWidthValue(strokeWidthInput, 1)
+		local _, strokeColor, strokeWidth, strokeKind, strokeLength, strokeGap, strokeOffset = strokeRaw(stroke, strokeWidthInput, 1)
 		local flags, ticks = progressFx(fxInput)
 		local hasFx = flags ~= 0 or ticks > 1
 		recordDirectImmediate("DrawProgressBar", "progress")
 
-	if hasFx and canDrawProgressFxFast(fill, inset, strokeWidth, shadow, backdrop, outerGlow, innerGlow, pattern, fillPattern, trackPattern) then
-		return drawProgressBarFxFast(x, y, w, h, frac, fill, radius, inset, track, stroke, strokeWidth, flags, ticks)
-		elseif canDrawProgressFast(fill, flags, ticks, inset, strokeWidth, shadow, backdrop, outerGlow, innerGlow, pattern, fillPattern, trackPattern) then
-			return drawProgressBarFast(x, y, w, h, frac, fill, radius, inset, track, stroke, strokeWidth)
+	if strokeKind == STROKE_SOLID and hasFx and canDrawProgressFxFast(fill, inset, strokeWidth, shadow, backdrop, outerGlow, innerGlow, pattern, fillPattern, trackPattern) then
+		return drawProgressBarFxFast(x, y, w, h, frac, fill, radius, inset, track, strokeColor, strokeWidth, flags, ticks)
+		elseif strokeKind == STROKE_SOLID and canDrawProgressFast(fill, flags, ticks, inset, strokeWidth, shadow, backdrop, outerGlow, innerGlow, pattern, fillPattern, trackPattern) then
+			return drawProgressBarFast(x, y, w, h, frac, fill, radius, inset, track, strokeColor, strokeWidth)
 		end
 
 		local hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread = false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0
@@ -320,9 +337,10 @@ end
 		progressTrackDarkColor.b = math_floor(track.b * 0.65)
 		progressTrackDarkColor.a = track.a or 190
 		local trackFill = setGradientColors(progressTrackGradient, progressTrackDarkColor, track)
-		drawPreparedRoundRectEffects(
-			x, y, w, h, radius,
-			trackFill, stroke, strokeWidth,
+			drawPreparedRoundRectEffects(
+				x, y, w, h, radius,
+				trackFill, strokeColor, strokeWidth,
+				strokeKind, strokeLength, strokeGap, strokeOffset,
 			hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread,
 			hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
 			hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff,
@@ -405,7 +423,7 @@ end
 		local active = math_floor(frac * count + 0.0001)
 		local fill = fillFromStyle(fillInput or colorInput or defaultSegmentFill)
 		local track = trackInput or defaultSegmentTrack
-		local strokeWidth = strokeWidthValue(strokeWidthInput, 0)
+		local _, strokeColor, strokeWidth, strokeKind, strokeLength, strokeGap, strokeOffset = strokeRaw(stroke, strokeWidthInput, 0)
 		local totalGap = gap * (count - 1)
 		local segW = (w - totalGap) / count
 		if segW <= 0 or h <= 0 then return end
@@ -429,6 +447,7 @@ end
 			drawPreparedRoundRectEffects(
 				x, y, w, h, containerRadius,
 				backgroundFill, nil, 0,
+				STROKE_SOLID, 0, 0, 0,
 				hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread,
 				hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
 				hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff,
@@ -448,7 +467,7 @@ end
 			local itemFill = i <= active and solidFillInto(segmentItemFillScratch, color) or trackFill
 			local itemPattern = i <= active and fillPatternSpec or trackPatternSpec
 			if preparedFillVisible(itemFill) or itemPattern then
-				drawPreparedRoundRectPlain(sx, y, segW, h, itemRadius, itemFill, stroke, strokeWidth, itemPattern)
+				drawPreparedRoundRectPlain(sx, y, segW, h, itemRadius, itemFill, strokeColor, strokeWidth, itemPattern, strokeKind, strokeLength, strokeGap, strokeOffset)
 			end
 		end
 	end

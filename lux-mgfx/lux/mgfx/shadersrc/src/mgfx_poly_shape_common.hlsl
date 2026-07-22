@@ -133,9 +133,7 @@ float poly_shape_coverage(float2 p)
 float poly_stroke_coverage_at(float2 p, float strokeWidth, float coverageWidth)
 {
 	float dist = convex_poly_dist(p);
-	float outer = poly_coverage_from_dist(dist, coverageWidth);
-	float inner = poly_coverage_from_dist(dist + strokeWidth, coverageWidth);
-	return outer * (1.0 - inner);
+	return poly_coverage_from_dist(abs(dist) - strokeWidth * 0.5, coverageWidth);
 }
 
 float poly_stroke_coverage(float2 p, float strokeWidth)

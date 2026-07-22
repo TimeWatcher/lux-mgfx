@@ -118,6 +118,7 @@ export client fn registerFont(fontName, spec = nil) {
     atlas = face ~= nil then "__composed" else "__native"
   }
 
+  clearMeasureCache()
   true
 }
 

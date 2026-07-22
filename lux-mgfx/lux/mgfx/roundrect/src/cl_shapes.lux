@@ -15,6 +15,10 @@ export client fn roundedBox(x, y, w, h, radius, fill, stroke = nil, strokeWidth 
   return result
 }
 
+export client fn roundedBoxBackdrop(x, y, w, h, radius, backdrop) {
+  drawRoundRectRaw(x, y, w, h, radius, transparentColor, nil, 0, nil, nil, nil, backdrop)
+}
+
 export client fn circle(cx, cy, radius, fill, stroke = nil, strokeWidth = nil) =
   roundedBox(cx - radius, cy - radius, radius * 2, radius * 2, radius, fill, stroke, strokeWidth)
 

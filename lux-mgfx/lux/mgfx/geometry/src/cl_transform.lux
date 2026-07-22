@@ -213,9 +213,9 @@ export client fn splitStyleTransform(drawStyle) {
     return nil, drawStyle
   }
 
-  local stripped = copyStyle(drawStyle)
-  stripped.transform = nil
-  return nextTransform, stripped
+  -- Draw paths only read their declared style fields, so the transform field
+  -- can remain on the shared style record after it has been pushed.
+  return nextTransform, drawStyle
 }
 
 export client fn transform(spec = nil) =

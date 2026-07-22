@@ -12,6 +12,7 @@ local getConVar = GetConVar
 local matrixCtor = Matrix
 local mathAbs = math.abs
 local mathClamp = math.Clamp
+local mathCeil = math.ceil
 local mathFloor = math.floor
 local mathMax = math.max
 local mathMin = math.min
@@ -150,10 +151,11 @@ fn effectBleedFromDrawRect(x, y, w, h, drawX, drawY, drawW, drawH) {
 fn primitiveStrokeVisible(strokeValue, strokeWidth) =
   strokeValue ~= nil and (strokeValue.a == nil or strokeValue.a > 0) and (strokeWidth ?? 0) > 0
 
-fn drawPreparedRoundRectPlain(x, y, w, h, radius, fill, strokeValue = nil, strokeWidth = 0, patternSpec = nil) {
+fn drawPreparedRoundRectPlain(x, y, w, h, radius, fill, strokeValue = nil, strokeWidth = 0, patternSpec = nil, strokeKind = style.STROKE_SOLID, strokeLength = 0, strokeGap = 0, strokeOffset = 0) {
   roundrect.drawRoundRectPrepared(
     x, y, w, h, radius,
     fill ?? primitiveTransparentFill, hotFillVisible(fill), strokeValue, strokeWidth, primitiveStrokeVisible(strokeValue, strokeWidth),
+    strokeKind, strokeLength, strokeGap, strokeOffset,
     false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0,
     false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0,
     false, 0, 0, 0, 0, 0, 0, 1,
@@ -170,6 +172,7 @@ fn drawPreparedRoundRectEffects(
   roundrect.drawRoundRectPrepared(
     x, y, w, h, radius,
     fill ?? primitiveTransparentFill, hotFillVisible(fill), nil, 0, false,
+    style.STROKE_SOLID, 0, 0, 0,
     hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread,
     hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
     false, 0, 0, 0, 0, 0, 0, 1,

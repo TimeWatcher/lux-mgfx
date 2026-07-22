@@ -91,10 +91,10 @@ Do not fuse layers just because two shaders look similar. Backdrop blur reads th
 
 ## Shared Backdrop Blur
 
-Backdrop blur is a per-engine-frame resource, not a per-widget framebuffer
-capture. The first nonzero backdrop blur performs one capture and the two
-full-screen separable blur axes. Each backdrop shape then reads the completed
-texture once through its own mask.
+Backdrop blur is shared by engine frame and integer `backdrop.level`, not
+captured per widget. The first nonzero blur in a level captures the current
+framebuffer and runs the two full-screen separable axes. Shapes with the same
+level and intensity reuse that result and only perform their masked sample.
 
 For `N` blurred backdrops with no explicit recapture, the expected counters are:
 
@@ -104,12 +104,11 @@ reuses       N - 1
 blur passes  2
 ```
 
-The first capture also establishes the shared blur intensity. A caller that
-must include framebuffer content drawn later, or intentionally changes the
-shared intensity, must set `backdrop.recapture = true`. That operation replaces
-the shared source for following backdrops in the same render frame. Do not set
-`recapture` on every card or row; doing so restores the old per-widget capture
-cost by explicit request.
+Changing intensity inside one level reruns the two blur axes from that level's
+raw capture without another framebuffer copy. Increasing `backdrop.level`
+captures the framebuffer at that point, so the higher layer can include UI
+already drawn below it. Use `backdrop.recapture = true` only to force a newer
+source within the same level. Do not set it on every card or row.
 
 ## Shader and Fallback Routing
 

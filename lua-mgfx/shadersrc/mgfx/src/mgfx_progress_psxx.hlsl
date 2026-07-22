@@ -34,15 +34,11 @@ float4 main(PS_INPUT i) : COLOR
 
 	float trackDist = sd_roundrect(pos - SIZE * 0.5, SIZE * 0.5, radius);
 	float outer = aa_coverage(trackDist);
-	if (outer <= 0.001)
-		discard;
-
-	float inner = 1.0;
+	float strokeMask = 0.0;
 	if (strokeWidth > 0.0 && STROKE_COLOR.a > 0.0)
-		inner = aa_coverage(trackDist + strokeWidth);
+		strokeMask = aa_coverage(abs(trackDist) - strokeWidth * 0.5);
 
-	float trackMask = outer * inner;
-	float strokeMask = outer * (1.0 - inner);
+	float trackMask = outer * (1.0 - strokeMask);
 
 	float2 fillArea = max(SIZE - inset * 2.0, float2(0.0, 0.0));
 	float fillW = fillArea.x * value;
@@ -55,7 +51,7 @@ float4 main(PS_INPUT i) : COLOR
 		float2 fillCenter = float2(inset, inset) + fillSize * 0.5;
 		float fillRadius = min(max(radius - inset, 0.0), min(fillSize.x, fillSize.y) * 0.5);
 		float fillDist = sd_roundrect(pos - fillCenter, fillSize * 0.5, fillRadius);
-		fillMask = aa_coverage(fillDist) * inner;
+		fillMask = aa_coverage(fillDist) * (1.0 - strokeMask);
 
 		float t = saturate((pos.x - inset) / max(fillW, 0.0001));
 		fillColor = mgfx_gradient_lut(t);

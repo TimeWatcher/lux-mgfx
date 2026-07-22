@@ -2,6 +2,8 @@
 
 Paint helpers create records consumed by shape, image, widget, and text style fields.
 
+Plain GLua calls `MGFX.*`. Lux calls the same helpers as lowerCamelCase methods on `mgfx.api`.
+
 ## Paint Functions
 
 ```lua
@@ -22,13 +24,29 @@ MGFX.SectorAngularGradient(stops, rotationDeg)
 
 Stops can use compact or named forms:
 
-```lua
+::: code-group
+
+```lua [GLua]
 local fill = MGFX.LinearGradientStops(0, 0, 1, 0, {
     {0.00, Color(80, 170, 255)},
     {pos = 0.55, color = Color(90, 220, 180)},
     {offset = 1.00, color = Color(255, 210, 90)},
 })
 ```
+
+```lux [Lux]
+import * as mgfx from "@lux/mgfx"
+
+local draw = mgfx.api
+
+local fill = draw.linearGradientStops(0, 0, 1, 0, {
+  {0.00, Color(80, 170, 255)},
+  {pos = 0.55, color = Color(90, 220, 180)},
+  {offset = 1.00, color = Color(255, 210, 90)},
+})
+```
+
+:::
 
 ## Patterns
 

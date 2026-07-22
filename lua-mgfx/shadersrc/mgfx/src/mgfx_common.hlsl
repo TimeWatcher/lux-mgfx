@@ -141,15 +141,11 @@ float4 mgfx_fill(float2 uv, float4 baseColor)
 float4 compose_shape(float dist, float2 uv, float4 baseColor)
 {
 	float outer = aa_coverage(dist);
-	if (outer <= 0.001)
-		discard;
-
-	float inner = 1.0;
+	float borderMask = 0.0;
 	if (STROKE_WIDTH > 0.0 && STROKE_COLOR.a > 0.0)
-		inner = aa_coverage(dist + STROKE_WIDTH);
+		borderMask = aa_coverage(abs(dist) - STROKE_WIDTH * 0.5);
 
-	float borderMask = outer * (1.0 - inner);
-	float fillMask = outer * inner;
+	float fillMask = outer * (1.0 - borderMask);
 	float4 fillColor = mgfx_fill(uv, baseColor);
 
 	float fillAlpha = fillColor.a * fillMask;

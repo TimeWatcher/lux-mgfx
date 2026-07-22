@@ -46,12 +46,25 @@ MGFX.Text(playerName, "DermaDefault", x, y, Color(230, 238, 245), TEXT_ALIGN_LEF
 
 #### 清晰 HUD 数字
 
-```lua
+::: code-group
+
+```lua [GLua]
 MGFX.TextEx("128,450", "ScoreNum", x, y, Color(236, 248, 255), TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER, {
     stroke = {width = 0.45, softness = 0.66, color = Color(0, 0, 0, 120)},
     shadow = {x = 0, y = 2, blur = 4, color = Color(0, 0, 0, 120)},
 })
 ```
+
+```lux [Lux]
+import * as mgfx from "@lux/mgfx"
+
+mgfx.api.textEx("128,450", "ScoreNum", x, y, Color(236, 248, 255), TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER, {
+  stroke = {width = 0.45, softness = 0.66, color = Color(0, 0, 0, 120)},
+  shadow = {x = 0, y = 2, blur = 4, color = Color(0, 0, 0, 120)},
+});
+```
+
+:::
 
 普通字号先用 `stroke.width = 0.3..0.8`。标题可以到 `1.0..1.6`，再高会吃掉字面细节。
 

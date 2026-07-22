@@ -18,13 +18,18 @@ function MGFX._InstallPrimitives(C)
 	local color01 = C.color01
 	local setDrawColor = C.setDrawColor
 	local strokeWidthValue = C.strokeWidthValue
+	local strokeRaw = C.strokeRaw
+	local STROKE_SOLID = C.STROKE_SOLID or 0
 	local strokeVisible = C.strokeVisible
 	local isCulled = C.isCulled
 	local radiusScalar = C.radiusScalar
 	local fillFromStyle = C.fillFromStyle
 	local fillVisible = C.fillVisible
 	local backdropStyle = C.backdropStyle or function() return nil end
+	local defaultPatternColor = C.defaultPatternColor
+	local defaultWornEdgeColor = C.defaultWornEdgeColor
 	local roundRaw = assert(C.roundRaw, "MGFX raw effect helper unavailable")
+	local drawStrokePath = assert(C.drawStrokePath, "MGFX stroke path helper unavailable")
 	local glowBiasPads = C.glowBiasPads or function(base, x, y, minPad)
 		minPad = minPad or 1
 		local pad = math.max(minPad, tonumber(base) or minPad)
@@ -56,6 +61,7 @@ function MGFX._InstallPrimitives(C)
 	local math_max = math.max
 	local math_min = math.min
 	local math_floor = math.floor
+	local math_ceil = math.ceil
 	local math_rad = math.rad
 	local math_cos = math.cos
 	local math_sin = math.sin
@@ -333,7 +339,7 @@ local function drawChamferBackdrop(x, y, w, h, cuts, spec)
 				br, bl, 0, 0,
 				vertical and 1 or 0, intensity or 1, 0, 0
 			)
-		end, spec.recapture)
+		end, spec.recapture, spec.level)
 	end
 
 	local tint = chamferBackdropTintColor(spec)
@@ -356,7 +362,7 @@ end
 local function setupWornPatternExtraParams(mat, spec, angle)
 	if not setupExtraParams then return end
 
-	local edgeColor = asColor(spec.edgeColor, Color(218, 208, 184, 78))
+	local edgeColor = asColor(spec.edgeColor, defaultWornEdgeColor)
 	local er, eg, eb, ea = color01(edgeColor)
 	setupExtraParams(mat,
 		er, eg, eb, ea,
@@ -387,7 +393,7 @@ local function drawChamferPatternPrepared(x, y, w, h, cuts, spec)
 	local smoke = spec.kind == "smoke"
 	local worn = spec.kind == "worn"
 	local mat = materials.chamfer_pattern
-	local r, g, b, a = color01(asColor(spec.color or spec.tint, Color(255, 255, 255, 24)))
+	local r, g, b, a = color01(asColor(spec.color or spec.tint, defaultPatternColor))
 	local function smokeByte(value, fallback)
 		return math.Clamp(math_floor((tonumber(value) or fallback or 0) * 255 + 0.5), 0, 255)
 	end
@@ -423,7 +429,20 @@ local function drawChamferPattern(x, y, w, h, cuts, pattern)
 	return drawChamferPatternPrepared(x, y, w, h, cuts, patternStyle(pattern))
 end
 
-local function drawChamferStroke(x, y, w, h, cuts, stroke, strokeWidth)
+local function drawChamferQuad(x, y, w, h, mat, strokeWidth)
+	local pad = math_ceil(math_max(0, tonumber(strokeWidth) or 0) * 0.5 + 1)
+	if pad <= 1 or w <= 0 or h <= 0 then
+		drawTexturedQuad(x, y, w, h, mat)
+		return
+	end
+	drawTexturedQuadUV(
+		x - pad, y - pad, w + pad * 2, h + pad * 2,
+		-pad / w, -pad / h, 1 + pad / w, 1 + pad / h,
+		mat
+	)
+end
+
+local function drawChamferStroke(x, y, w, h, cuts, stroke, strokeWidth, strokeKind, strokeLength, strokeGap, strokeOffset)
 	if not strokeVisible(stroke, strokeWidth) then return false end
 	if not shadersActive() or not matOK(materials.chamfer_stroke) then return false end
 
@@ -432,13 +451,13 @@ local function drawChamferStroke(x, y, w, h, cuts, stroke, strokeWidth)
 	local r, g, b, a = color01(stroke)
 	setupParamMatrix(mat,
 		r, g, b, a,
-		w, h, math_max(0, strokeWidthValue(strokeWidth, 0)), 0,
+		w, h, math_max(0, strokeWidthValue(strokeWidth, 0)), strokeKind or STROKE_SOLID,
 		tl, tr, br, bl,
-		0, 0, 0, 0
+		strokeLength or 0, strokeGap or 0, strokeOffset or 0, 0
 	)
 	surface_SetMaterial(mat)
 	surface_SetDrawColor(255, 255, 255, 255)
-	drawTexturedQuad(x, y, w, h, mat)
+	drawChamferQuad(x, y, w, h, mat, strokeWidth)
 	return true
 end
 
@@ -462,7 +481,7 @@ drawChamferBasePass = function(x, y, w, h, cuts, fill, stroke, strokeWidth, inne
 	) then return false end
 	setupConstants(mat, w, h, fill or transparentFill, stroke, strokeWidth, 0)
 	surface_SetMaterial(mat)
-	drawTexturedQuad(x, y, w, h, mat)
+	drawChamferQuad(x, y, w, h, mat, stroke and strokeWidth or 0)
 	return true
 end
 
@@ -492,7 +511,10 @@ local function drawChamferBoxRaw(x, y, w, h, resolvedCuts, fillInput, stroke, st
 	if pattern ~= nil and pattern ~= false then
 		patternSpec = patternStyle(pattern)
 	end
-	local cullSpread = 0
+	local strokeIsVisible, strokeColor, strokeWidth, strokeKind, strokeLength, strokeGap, strokeOffset = strokeRaw(stroke, strokeWidthInput, 0)
+	local specialStroke = strokeIsVisible and strokeKind ~= STROKE_SOLID
+	local baseStrokeVisible = strokeIsVisible and not specialStroke
+	local cullSpread = strokeIsVisible and (strokeWidth * 0.5 + 1) or 0
 	if hasShadow then
 		cullSpread = math_max(cullSpread, shadowCullSpread)
 	end
@@ -522,8 +544,6 @@ local function drawChamferBoxRaw(x, y, w, h, resolvedCuts, fillInput, stroke, st
 
 	profile = profiling and profileStart() or nil
 	local fill = fillFromStyle(fillInput)
-	local strokeWidth = strokeWidthValue(strokeWidthInput, 0)
-	local strokeIsVisible = strokeVisible(stroke, strokeWidth)
 	local fillIsVisible = hotFillVisible(fill)
 	local hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff = false, 0, 0, 0, 0, 0, 0, 1
 	if innerGlow ~= nil and innerGlow ~= false then
@@ -532,10 +552,10 @@ local function drawChamferBoxRaw(x, y, w, h, resolvedCuts, fillInput, stroke, st
 	local baseDrawn = false
 	local baseDrewStroke = false
 	local baseDrewInnerGlow = false
-	if fillIsVisible or strokeIsVisible or hasInner then
+	if fillIsVisible or baseStrokeVisible or hasInner then
 		if patternSpec == nil then
-			baseDrawn = drawChamferBasePass(x, y, w, h, resolvedCuts, fill, stroke, strokeWidth, hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff)
-			baseDrewStroke = baseDrawn and strokeIsVisible
+			baseDrawn = drawChamferBasePass(x, y, w, h, resolvedCuts, fill, baseStrokeVisible and strokeColor or nil, baseStrokeVisible and strokeWidth or 0, hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff)
+			baseDrewStroke = baseDrawn and baseStrokeVisible
 			baseDrewInnerGlow = baseDrawn and hasInner
 		elseif fillIsVisible then
 			baseDrawn = drawChamferBasePass(x, y, w, h, resolvedCuts, fill, nil, 0, false)
@@ -550,7 +570,7 @@ local function drawChamferBoxRaw(x, y, w, h, resolvedCuts, fillInput, stroke, st
 
 	if not baseDrawn and fillIsVisible then
 		points = points or chamferPointsProfiled(x, y, w, h, resolvedCuts, profiling)
-		drawPolyFallbackPrepared(points, fill, true, nil, 0, false)
+		drawPolyFallbackPrepared(points, fill, true, nil, 0, false, STROKE_SOLID, 0, 0, 0)
 	end
 	if profiling then profileEnd(baseDrawn and "chamfer.fillShader" or "chamfer.fillPoly", profile) end
 
@@ -564,7 +584,7 @@ local function drawChamferBoxRaw(x, y, w, h, resolvedCuts, fillInput, stroke, st
 	if baseDrewStroke then
 		-- Stroke was composited in the base shader to preserve fill/stroke order.
 	elseif strokeIsVisible then
-		if not drawChamferStroke(x, y, w, h, resolvedCuts, stroke, strokeWidth) then
+		if not drawChamferStroke(x, y, w, h, resolvedCuts, strokeColor, strokeWidth, strokeKind, strokeLength, strokeGap, strokeOffset) then
 			points = points or chamferPointsProfiled(x, y, w, h, resolvedCuts, profiling)
 			drawPolyRaw(points, nil, transparentColor, stroke, strokeWidth, nil, nil, nil, nil)
 		end
@@ -612,6 +632,7 @@ local function drawPreparedRoundRectPlain(x, y, w, h, radius, fill, strokeValue,
 	return drawRoundRectPrepared(
 		x, y, w, h, radius,
 		fill or transparentFill, hotFillVisible(fill), strokeValue, strokeWidth or 0, primitiveStrokeVisible(strokeValue, strokeWidth),
+		STROKE_SOLID, 0, 0, 0,
 		false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0,
 		false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0,
 		false, 0, 0, 0, 0, 0, 0, 1,
@@ -628,6 +649,7 @@ local function drawPreparedRoundRectEffects(
 	return drawRoundRectPrepared(
 		x, y, w, h, radius,
 		fill or transparentFill, hotFillVisible(fill), nil, 0, false,
+		STROKE_SOLID, 0, 0, 0,
 		hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread,
 		hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
 		false, 0, 0, 0, 0, 0, 0, 1,
@@ -813,6 +835,11 @@ function M.Line(x1, y1, x2, y2, width, fill)
 	return drawLineRaw(x1, y1, x2, y2, fill, width, nil, nil, nil, nil, false)
 end
 
+function M.LineNoCaps(x1, y1, x2, y2, width, fill)
+	recordDirectImmediate("DrawLine", "line")
+	return drawLineRaw(x1, y1, x2, y2, fill, width, nil, nil, nil, nil, true)
+end
+
 local function pointXY(point)
 	return tonumber(point.x or point[1]) or 0, tonumber(point.y or point[2]) or 0
 end
@@ -975,30 +1002,15 @@ end
 
 local drawPolyStrokeShader
 
-local function drawPolyStroke(poly, color, strokeWidth)
+local function drawPolyStroke(poly, color, strokeWidth, strokeKind, strokeLength, strokeGap, strokeOffset)
 	strokeWidth = strokeWidthValue(strokeWidth, 1)
-	if shadersActive() and drawPolyStrokeShader(poly, color, strokeWidth) then
+	if shadersActive() and drawPolyStrokeShader(poly, color, strokeWidth, strokeKind, strokeLength, strokeGap, strokeOffset) then
 		return
 	end
-	if drawLineImmediate and (shadersActive() or hasTransform()) then
-		for i = 1, #poly.points do
-			local a = poly.points[i]
-			local b = poly.points[i % #poly.points + 1]
-			drawLineRaw(poly.x + a.x, poly.y + a.y, poly.x + b.x, poly.y + b.y, color, strokeWidth, nil, nil, nil, nil, true)
-		end
-		return
-	end
-
-	setDrawColor(color)
-	for i = 1, #poly.points do
-		local a = poly.points[i]
-		local b = poly.points[i % #poly.points + 1]
-		surface_DrawLine(poly.x + a.x, poly.y + a.y, poly.x + b.x, poly.y + b.y)
-	end
-	M.stats.draws = M.stats.draws + #poly.points
+	drawStrokePath(poly.points, true, color, strokeWidth, strokeKind, strokeLength, strokeGap, strokeOffset, poly.x, poly.y)
 end
 
-local function setupPolyStrokeConstants(mat, poly, color, strokeWidth)
+local function setupPolyStrokeConstants(mat, poly, color, strokeWidth, strokeKind, strokeLength, strokeGap, strokeOffset)
 	local drawRect = polyDrawRect(poly, math_max(2, strokeWidthValue(strokeWidth, 0) + 2))
 	local p1 = poly.points[1]
 	local p2 = poly.points[2]
@@ -1018,19 +1030,19 @@ local function setupPolyStrokeConstants(mat, poly, color, strokeWidth)
 	)
 	setupExtraParams(mat,
 		r, g, b, a,
-		poly.w, poly.h, math_max(0, strokeWidthValue(strokeWidth, 0)), 0,
-		0, 0, 0, 0,
+		poly.w, poly.h, math_max(0, strokeWidthValue(strokeWidth, 0)), strokeKind or STROKE_SOLID,
+		strokeLength or 0, strokeGap or 0, strokeOffset or 0, 0,
 		0, 0, 0, 0
 	)
 
 	return drawRect
 end
 
-drawPolyStrokeShader = function(poly, color, strokeWidth)
+drawPolyStrokeShader = function(poly, color, strokeWidth, strokeKind, strokeLength, strokeGap, strokeOffset)
 	local mat = materials["poly" .. poly.count .. "_stroke"]
 	if not matOK(mat) then return false end
 
-	local drawRect = setupPolyStrokeConstants(mat, poly, color, strokeWidth)
+	local drawRect = setupPolyStrokeConstants(mat, poly, color, strokeWidth, strokeKind, strokeLength, strokeGap, strokeOffset)
 	surface_SetDrawColor(255, 255, 255, 255)
 	surface_SetMaterial(mat)
 	drawTexturedQuadUV(drawRect.x, drawRect.y, drawRect.w, drawRect.h, drawRect.u0, drawRect.v0, drawRect.u1, drawRect.v1, mat)
@@ -1064,7 +1076,7 @@ local function drawPolyBackdrop(poly, spec)
 
 	if spec.blur > 0 then
 		local key = "poly" .. backdropPoly.count .. "_blur"
-		drawBlurredPoly(backdropPoly, materials[key], spec.blur, spec.recapture)
+		drawBlurredPoly(backdropPoly, materials[key], spec.blur, spec.recapture, spec.level)
 	end
 
 	local tint = backdropTintColor(spec)
@@ -1203,7 +1215,7 @@ local function drawPolyPatternPrepared(poly, spec)
 	if color and (color.a or 255) <= 0 then return end
 
 	local mat = materials.poly_pattern
-	local r, g, b, a = color01(asColor(spec.color or spec.tint, Color(255, 255, 255, 24)))
+	local r, g, b, a = color01(asColor(spec.color or spec.tint, defaultPatternColor))
 	local angle = math_rad(tonumber(spec.angle) or 135)
 	local smoke = spec.kind == "smoke"
 	local worn = spec.kind == "worn"
@@ -1263,7 +1275,7 @@ local function setupPolyFillConstants(mat, poly, fill)
 	return drawRect
 end
 
-drawPolyFallbackPrepared = function(points, fill, hasFill, stroke, strokeWidth, hasStroke)
+drawPolyFallbackPrepared = function(points, fill, hasFill, stroke, strokeWidth, hasStroke, strokeKind, strokeLength, strokeGap, strokeOffset)
 	M.stats.fallbacks = M.stats.fallbacks + 1
 
 	if hasFill then
@@ -1273,29 +1285,14 @@ drawPolyFallbackPrepared = function(points, fill, hasFill, stroke, strokeWidth, 
 	end
 
 	if hasStroke then
-		setDrawColor(stroke)
-		if hasTransform() and drawLineImmediate then
-			for i = 1, #points do
-				local a = points[i]
-				local b = points[i % #points + 1]
-				drawLineRaw(a.x or a[1], a.y or a[2], b.x or b[1], b.y or b[2], stroke, strokeWidth, nil, nil, nil, nil, true)
-			end
-		else
-			for i = 1, #points do
-				local a = points[i]
-				local b = points[i % #points + 1]
-				surface_DrawLine(a.x or a[1], a.y or a[2], b.x or b[1], b.y or b[2])
-			end
-			M.stats.draws = M.stats.draws + #points
-		end
+		drawStrokePath(points, true, stroke, strokeWidth, strokeKind, strokeLength, strokeGap, strokeOffset)
 	end
 end
 
 local function drawPolyFallbackRaw(points, fillInput, stroke, strokeWidthInput)
 	local fill = fillFromStyle(fillInput)
-	local strokeWidth = strokeWidthValue(strokeWidthInput, 0)
-	local hasStroke = strokeVisible(stroke, strokeWidth)
-	return drawPolyFallbackPrepared(points, fill, hotFillVisible(fill), stroke, strokeWidth, hasStroke)
+	local hasStroke, strokeColor, strokeWidth, strokeKind, strokeLength, strokeGap, strokeOffset = strokeRaw(stroke, strokeWidthInput, 0)
+	return drawPolyFallbackPrepared(points, fill, hotFillVisible(fill), strokeColor, strokeWidth, hasStroke, strokeKind, strokeLength, strokeGap, strokeOffset)
 end
 
 local function drawPolyRawNormalized(points, poly, fillInput, stroke, strokeWidthInput, shadow, outerGlow, backdropInput, pattern)
@@ -1317,7 +1314,9 @@ local function drawPolyRawNormalized(points, poly, fillInput, stroke, strokeWidt
 	if pattern ~= nil and pattern ~= false then
 		patternSpec = patternStyle(pattern)
 	end
-	local cullX, cullY, cullW, cullH = includeBounds(poly.x, poly.y, poly.w, poly.h, shadowBounds)
+	local hasStroke, strokeColor, strokeWidth, strokeKind, strokeLength, strokeGap, strokeOffset = strokeRaw(stroke, strokeWidthInput, 0)
+	local strokePad = hasStroke and (strokeWidth * 0.5 + 1) or 0
+	local cullX, cullY, cullW, cullH = includeBounds(poly.x - strokePad, poly.y - strokePad, poly.w + strokePad * 2, poly.h + strokePad * 2, shadowBounds)
 	cullX, cullY, cullW, cullH = includeBounds(cullX, cullY, cullW, cullH, outerBounds)
 	if backdropSpec ~= nil then
 		local pad = math_max(0, tonumber(backdropSpec.padding) or 0)
@@ -1334,11 +1333,9 @@ local function drawPolyRawNormalized(points, poly, fillInput, stroke, strokeWidt
 
 	local fill = fillFromStyle(fillInput)
 	local hasFill = hotFillVisible(fill)
-	local strokeWidth = strokeWidthValue(strokeWidthInput, 0)
-	local hasStroke = strokeVisible(stroke, strokeWidth)
 
 	if not shadersActive() then
-		return drawPolyFallbackPrepared(points, fill, hasFill, stroke, strokeWidth, hasStroke)
+		return drawPolyFallbackPrepared(points, fill, hasFill, strokeColor, strokeWidth, hasStroke, strokeKind, strokeLength, strokeGap, strokeOffset)
 	end
 
 	drawPolyShadow(poly, shadowBounds, sr, sg, sb, sa)
@@ -1349,16 +1346,18 @@ local function drawPolyRawNormalized(points, poly, fillInput, stroke, strokeWidt
 	local key = "poly" .. poly.count
 	local mat = materials[key]
 
-	if hasFill then
+	if hasFill and matOK(mat) then
 		local drawRect = setupPolyFillConstants(mat, poly, fill)
 		surface_SetMaterial(mat)
 		drawTexturedQuadUV(drawRect.x, drawRect.y, drawRect.w, drawRect.h, drawRect.u0, drawRect.v0, drawRect.u1, drawRect.v1, mat)
+	elseif hasFill then
+		drawPolyFallbackPrepared(points, fill, true, nil, 0, false, STROKE_SOLID, 0, 0, 0)
 	end
 
 	drawPolyPatternPrepared(poly, patternSpec)
 
 	if hasStroke then
-		drawPolyStroke(poly, stroke, strokeWidth)
+		drawPolyStroke(poly, strokeColor, strokeWidth, strokeKind, strokeLength, strokeGap, strokeOffset)
 	end
 end
 
@@ -1519,6 +1518,8 @@ end
 	C.drawChamferBoxRaw = drawChamferBoxRaw
 	C.drawChamferBoxImmediate = drawChamferBoxImmediate
 	C.drawLineImmediate = drawLineImmediate
+	C.drawLineRaw = drawLineRaw
 	C.normalizePoly = normalizePoly
 	C.drawPolyImmediate = drawPolyImmediate
+	C.drawPolyRaw = drawPolyRaw
 end

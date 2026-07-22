@@ -40,6 +40,7 @@ return function(__lux_import)
   local geometryOwner
   local backdropBlurPreparedFrame
   local backdropBlurPreparedIntensity
+  local backdropBlurPreparedLevel
   local backdropBlurParamMatrices
   local backdropBlurMatrixProbe
   local backdropBlurMatrixSetUnpacked
@@ -144,6 +145,7 @@ return function(__lux_import)
     geometryOwner = nil
     backdropBlurPreparedFrame = -1
     backdropBlurPreparedIntensity = 0
+    backdropBlurPreparedLevel = nil
     backdropBlurParamMatrices = {}
     do
       local __lux_tmp_1
@@ -1047,9 +1049,7 @@ return function(__lux_import)
       if nextTransform == nil then
         return nil, drawStyle
       end
-      local stripped = copyStyle(drawStyle)
-      stripped.transform = nil
-      return nextTransform, stripped
+      return nextTransform, drawStyle
     end
     transform = function(spec)
       local __lux_tmp_spec_70 = spec
@@ -1338,7 +1338,7 @@ return function(__lux_import)
     end
     imageStyle = function(drawStyle)
       if typeOf(drawStyle) == "table" then
-        return copyStyle(drawStyle)
+        return drawStyle
       end
       if drawStyle ~= nil then
         return { radius = drawStyle }
@@ -1703,29 +1703,51 @@ return function(__lux_import)
       end
       return material:SetMatrix("$viewprojmat", matrix)
     end
-    prepareBackdropBlur = function(amount, recapture)
+    prepareBackdropBlur = function(amount, recapture, level)
       if recapture == nil then
         recapture = false
       end
+      if level == nil then
+        level = 0
+      end
       local currentFrame = frameNumber()
-      if not recapture and backdropBlurPreparedFrame == currentFrame then
+      local intensity = blurIntensity(amount)
+      local normalizedLevel
+      do
+        local __lux_tmp_level_113 = toNumber(level)
+        if __lux_tmp_level_113 == nil then
+          __lux_tmp_level_113 = 0
+        end
+        normalizedLevel = mathFloor(__lux_tmp_level_113)
+      end
+      local sameFrame = backdropBlurPreparedFrame == currentFrame
+      local sameLevel = backdropBlurPreparedLevel == normalizedLevel
+      local __lux_tmp_116 = not recapture and sameFrame and sameLevel
+      if __lux_tmp_116 then
+        local __lux_cmp_115 = false
+        if mathAbs(backdropBlurPreparedIntensity - intensity) ~= nil then
+          __lux_cmp_115 = mathAbs(backdropBlurPreparedIntensity - intensity) < 0.0001
+        end
+        __lux_tmp_116 = __lux_cmp_115
+      end
+      if __lux_tmp_116 then
         do
-          local __lux_tmp_blurReuses_113 = stats.blurReuses
-          if __lux_tmp_blurReuses_113 == nil then
-            __lux_tmp_blurReuses_113 = 0
+          local __lux_tmp_blurReuses_117 = stats.blurReuses
+          if __lux_tmp_blurReuses_117 == nil then
+            __lux_tmp_blurReuses_117 = 0
           end
-          stats.blurReuses = __lux_tmp_blurReuses_113 + 1
+          stats.blurReuses = __lux_tmp_blurReuses_117 + 1
         end
         return backdropBlurPreparedIntensity
       end
       local materialState
       do
-        local __lux_obj_geometryOwner_114 = geometryOwner
-        local __lux_val_MaterialState_115 = nil
-        if __lux_obj_geometryOwner_114 ~= nil then
-          __lux_val_MaterialState_115 = __lux_obj_geometryOwner_114._MaterialState
+        local __lux_obj_geometryOwner_118 = geometryOwner
+        local __lux_val_MaterialState_119 = nil
+        if __lux_obj_geometryOwner_118 ~= nil then
+          __lux_val_MaterialState_119 = __lux_obj_geometryOwner_118._MaterialState
         end
-        materialState = __lux_val_MaterialState_115
+        materialState = __lux_val_MaterialState_119
       end
       if materialState == nil then
         errorFn("MGFX material state unavailable for backdrop blur", 2)
@@ -1738,10 +1760,19 @@ return function(__lux_import)
       local verticalMaterial = materials.backdrop_blur_vertical
       local width = ScrW()
       local height = ScrH()
-      local intensity = blurIntensity(amount)
       local previousR, previousG, previousB = renderGetColorModulation()
       local previousBlend = renderGetBlend()
-      renderCopyRenderTargetToTexture(sourceRT)
+      local captureSource = recapture or not sameFrame or not sameLevel
+      if captureSource then
+        renderCopyRenderTargetToTexture(sourceRT)
+        do
+          local __lux_tmp_blurCaptures_120 = stats.blurCaptures
+          if __lux_tmp_blurCaptures_120 == nil then
+            __lux_tmp_blurCaptures_120 = 0
+          end
+          stats.blurCaptures = __lux_tmp_blurCaptures_120 + 1
+        end
+      end
       renderPushRenderTarget(horizontalRT)
       renderSetScissorRect(0, 0, 0, 0, false)
       renderSetColorModulation(1, 1, 1)
@@ -1760,11 +1791,11 @@ return function(__lux_import)
       renderSetMaterial(horizontalMaterial)
       renderDrawScreenQuad()
       do
-        local __lux_tmp_draws_116 = stats.draws
-        if __lux_tmp_draws_116 == nil then
-          __lux_tmp_draws_116 = 0
+        local __lux_tmp_draws_121 = stats.draws
+        if __lux_tmp_draws_121 == nil then
+          __lux_tmp_draws_121 = 0
         end
-        stats.draws = __lux_tmp_draws_116 + 1
+        stats.draws = __lux_tmp_draws_121 + 1
       end
       renderPopRenderTarget()
       renderPushRenderTarget(finalRT)
@@ -1772,11 +1803,11 @@ return function(__lux_import)
       renderSetMaterial(verticalMaterial)
       renderDrawScreenQuad()
       do
-        local __lux_tmp_draws_117 = stats.draws
-        if __lux_tmp_draws_117 == nil then
-          __lux_tmp_draws_117 = 0
+        local __lux_tmp_draws_122 = stats.draws
+        if __lux_tmp_draws_122 == nil then
+          __lux_tmp_draws_122 = 0
         end
-        stats.draws = __lux_tmp_draws_117 + 1
+        stats.draws = __lux_tmp_draws_122 + 1
       end
       renderOverrideBlend(false)
       renderOverrideAlphaWriteEnable(false)
@@ -1786,29 +1817,23 @@ return function(__lux_import)
       frame.restoreScissor()
       backdropBlurPreparedFrame = currentFrame
       backdropBlurPreparedIntensity = intensity
+      backdropBlurPreparedLevel = normalizedLevel
       do
-        local __lux_tmp_blurCaptures_118 = stats.blurCaptures
-        if __lux_tmp_blurCaptures_118 == nil then
-          __lux_tmp_blurCaptures_118 = 0
+        local __lux_tmp_blurPasses_123 = stats.blurPasses
+        if __lux_tmp_blurPasses_123 == nil then
+          __lux_tmp_blurPasses_123 = 0
         end
-        stats.blurCaptures = __lux_tmp_blurCaptures_118 + 1
-      end
-      do
-        local __lux_tmp_blurPasses_119 = stats.blurPasses
-        if __lux_tmp_blurPasses_119 == nil then
-          __lux_tmp_blurPasses_119 = 0
-        end
-        stats.blurPasses = __lux_tmp_blurPasses_119 + 2
+        stats.blurPasses = __lux_tmp_blurPasses_123 + 2
       end
       return intensity
     end
     bindStats = function(owner)
       do
-        local __lux_tmp_stats_120 = owner.stats
-        if __lux_tmp_stats_120 == nil then
-          __lux_tmp_stats_120 = {}
+        local __lux_tmp_stats_124 = owner.stats
+        if __lux_tmp_stats_124 == nil then
+          __lux_tmp_stats_124 = {}
         end
-        owner.stats = __lux_tmp_stats_120
+        owner.stats = __lux_tmp_stats_124
       end
       local targetStats = owner.stats
       for key, value in pairs(stats) do
@@ -1818,46 +1843,46 @@ return function(__lux_import)
       end
       stats = targetStats
       do
-        local __lux_tmp_draws_121 = stats.draws
-        if __lux_tmp_draws_121 == nil then
-          __lux_tmp_draws_121 = 0
+        local __lux_tmp_draws_125 = stats.draws
+        if __lux_tmp_draws_125 == nil then
+          __lux_tmp_draws_125 = 0
         end
-        stats.draws = __lux_tmp_draws_121
+        stats.draws = __lux_tmp_draws_125
       end
       do
-        local __lux_tmp_blurPasses_122 = stats.blurPasses
-        if __lux_tmp_blurPasses_122 == nil then
-          __lux_tmp_blurPasses_122 = 0
+        local __lux_tmp_blurPasses_126 = stats.blurPasses
+        if __lux_tmp_blurPasses_126 == nil then
+          __lux_tmp_blurPasses_126 = 0
         end
-        stats.blurPasses = __lux_tmp_blurPasses_122
+        stats.blurPasses = __lux_tmp_blurPasses_126
       end
       do
-        local __lux_tmp_blurCaptures_123 = stats.blurCaptures
-        if __lux_tmp_blurCaptures_123 == nil then
-          __lux_tmp_blurCaptures_123 = 0
+        local __lux_tmp_blurCaptures_127 = stats.blurCaptures
+        if __lux_tmp_blurCaptures_127 == nil then
+          __lux_tmp_blurCaptures_127 = 0
         end
-        stats.blurCaptures = __lux_tmp_blurCaptures_123
+        stats.blurCaptures = __lux_tmp_blurCaptures_127
       end
       do
-        local __lux_tmp_blurReuses_124 = stats.blurReuses
-        if __lux_tmp_blurReuses_124 == nil then
-          __lux_tmp_blurReuses_124 = 0
+        local __lux_tmp_blurReuses_128 = stats.blurReuses
+        if __lux_tmp_blurReuses_128 == nil then
+          __lux_tmp_blurReuses_128 = 0
         end
-        stats.blurReuses = __lux_tmp_blurReuses_124
+        stats.blurReuses = __lux_tmp_blurReuses_128
       end
       do
-        local __lux_tmp_fallbacks_125 = stats.fallbacks
-        if __lux_tmp_fallbacks_125 == nil then
-          __lux_tmp_fallbacks_125 = 0
+        local __lux_tmp_fallbacks_129 = stats.fallbacks
+        if __lux_tmp_fallbacks_129 == nil then
+          __lux_tmp_fallbacks_129 = 0
         end
-        stats.fallbacks = __lux_tmp_fallbacks_125
+        stats.fallbacks = __lux_tmp_fallbacks_129
       end
       do
-        local __lux_tmp_culled_126 = stats.culled
-        if __lux_tmp_culled_126 == nil then
-          __lux_tmp_culled_126 = 0
+        local __lux_tmp_culled_130 = stats.culled
+        if __lux_tmp_culled_130 == nil then
+          __lux_tmp_culled_130 = 0
         end
-        stats.culled = __lux_tmp_culled_126
+        stats.culled = __lux_tmp_culled_130
       end
       return stats
     end
@@ -1875,15 +1900,15 @@ return function(__lux_import)
         amount = 1
       end
       do
-        local __lux_tmp_draws_127 = stats.draws
-        if __lux_tmp_draws_127 == nil then
-          __lux_tmp_draws_127 = 0
+        local __lux_tmp_draws_131 = stats.draws
+        if __lux_tmp_draws_131 == nil then
+          __lux_tmp_draws_131 = 0
         end
-        local __lux_tmp_amount_128 = amount
-        if __lux_tmp_amount_128 == nil then
-          __lux_tmp_amount_128 = 1
+        local __lux_tmp_amount_132 = amount
+        if __lux_tmp_amount_132 == nil then
+          __lux_tmp_amount_132 = 1
         end
-        stats.draws = __lux_tmp_draws_127 + __lux_tmp_amount_128
+        stats.draws = __lux_tmp_draws_131 + __lux_tmp_amount_132
       end
       return stats.draws
     end
@@ -1892,15 +1917,15 @@ return function(__lux_import)
         amount = 1
       end
       do
-        local __lux_tmp_fallbacks_129 = stats.fallbacks
-        if __lux_tmp_fallbacks_129 == nil then
-          __lux_tmp_fallbacks_129 = 0
+        local __lux_tmp_fallbacks_133 = stats.fallbacks
+        if __lux_tmp_fallbacks_133 == nil then
+          __lux_tmp_fallbacks_133 = 0
         end
-        local __lux_tmp_amount_130 = amount
-        if __lux_tmp_amount_130 == nil then
-          __lux_tmp_amount_130 = 1
+        local __lux_tmp_amount_134 = amount
+        if __lux_tmp_amount_134 == nil then
+          __lux_tmp_amount_134 = 1
         end
-        stats.fallbacks = __lux_tmp_fallbacks_129 + __lux_tmp_amount_130
+        stats.fallbacks = __lux_tmp_fallbacks_133 + __lux_tmp_amount_134
       end
       return stats.fallbacks
     end
@@ -1918,6 +1943,7 @@ return function(__lux_import)
       geometryOwner = owner
       backdropBlurPreparedFrame = -1
       backdropBlurPreparedIntensity = 0
+      backdropBlurPreparedLevel = nil
       geometryProfiler = owner.Profiler
       bindStats(owner)
       owner.Transform = transform
@@ -1940,11 +1966,11 @@ return function(__lux_import)
       owner.ResetGeometryFrameStats = resetFrameStats
       owner.GetGeometryProfileSnapshot = profileSnapshot
       do
-        local __lux_tmp_internal_131 = owner._internal
-        if __lux_tmp_internal_131 == nil then
-          __lux_tmp_internal_131 = {}
+        local __lux_tmp_internal_135 = owner._internal
+        if __lux_tmp_internal_135 == nil then
+          __lux_tmp_internal_135 = {}
         end
-        owner._internal = __lux_tmp_internal_131
+        owner._internal = __lux_tmp_internal_135
       end
       owner._Geometry = {
         blurIntensity = blurIntensity,

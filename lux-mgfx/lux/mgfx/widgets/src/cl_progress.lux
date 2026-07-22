@@ -146,7 +146,16 @@ fn drawProgressFast(x, y, w, h, value, fill, radius, inset, track, stroke, strok
     setupProgressConstants(material, w, h, value, radius, inset, track, fill, stroke, strokeWidth)
   }
   surfaceSetMaterial(material)
-  drawTexturedQuad(x, y, w, h, material)
+  local pad = mathCeil(mathMax(0, strokeWidth) * 0.5 + 1)
+  if pad > 1 and w > 0 and h > 0 {
+    drawTexturedQuadUV(
+      x - pad, y - pad, w + pad * 2, h + pad * 2,
+      -pad / w, -pad / h, 1 + pad / w, 1 + pad / h,
+      material
+    )
+  } else {
+    drawTexturedQuad(x, y, w, h, material)
+  }
   true
 }
 
@@ -239,10 +248,10 @@ export client fn progressBarRaw(x, y, w, h, value, radiusInput = nil, trackInput
   local track = trackInput ?? defaultProgressTrack
   local fill = fillInput ?? color_white
   local stroke = strokeInput ?? defaultProgressStroke
-  local strokeWidth = style.strokeWidth(strokeWidthInput, 1)
+  local hasStroke, strokeColor, strokeWidth, strokeKind, strokeLength, strokeGap, strokeOffset = style.strokeRaw(stroke, strokeWidthInput, 1)
   local flags, shaderTicks = progressFxBits(fxInput)
   local fillObj = style.fillFromStyle(fill)
-  if drawProgressFast(x, y, w, h, frac, fillObj, radius, inset, track, stroke, strokeWidth, flags, shaderTicks, shadow, backdrop, outerGlow, innerGlow, pattern, fillPattern, trackPattern) {
+  if strokeKind == style.STROKE_SOLID and drawProgressFast(x, y, w, h, frac, fillObj, radius, inset, track, strokeColor, strokeWidth, flags, shaderTicks, shadow, backdrop, outerGlow, innerGlow, pattern, fillPattern, trackPattern) {
     return
   }
 
@@ -307,7 +316,8 @@ export client fn progressBarRaw(x, y, w, h, value, radiusInput = nil, trackInput
   local trackFill = setGradientColors(progressTrackGradient, progressTrackDarkColor, track)
   drawPreparedRoundRectEffects(
     x, y, w, h, radius,
-    trackFill, stroke, strokeWidth,
+    trackFill, strokeColor, strokeWidth,
+    strokeKind, strokeLength, strokeGap, strokeOffset,
     hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread,
     hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
     hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff,
@@ -354,7 +364,7 @@ export client fn progressBarEx(x, y, w, h, value, drawStyle = nil) {
   local resolved = drawStyle ?? {}
   local transform, stripped = geometry.splitStyleTransform(resolved)
   if transform ~= nil {
-    return geometry.withTransform(transform, x, y, w, h, () => progressBarEx(x, y, w, h, value, stripped))
+    return geometry.withTransform(transform, x, y, w, h, () => progressBarRaw(x, y, w, h, value, stripped.radius, stripped.track, stripped.fill ?? stripped.color, stripped.stroke, stripped.strokeWidth, stripped.padding, stripped.fx, stripped.shadow, stripped.outerGlow, stripped.innerGlow, stripped.backdrop, stripped.pattern, stripped.fillPattern, stripped.trackPattern))
   }
 
   progressBarRaw(x, y, w, h, value, stripped.radius, stripped.track, stripped.fill ?? stripped.color, stripped.stroke, stripped.strokeWidth, stripped.padding, stripped.fx, stripped.shadow, stripped.outerGlow, stripped.innerGlow, stripped.backdrop, stripped.pattern, stripped.fillPattern, stripped.trackPattern)
@@ -371,8 +381,8 @@ export client fn segmentBarRaw(x, y, w, h, value, segments = nil, fillInput = ni
   local active = mathFloor(frac * count + 0.0001)
   local fill = style.fillFromStyle(fillInput ?? colorInput ?? defaultSegmentFill)
   local track = trackInput ?? defaultSegmentTrack
-  local strokeWidthValue = style.strokeWidth(strokeWidth, 0)
-  if drawSegmentBarShaderRaw(x, y, w, h, frac, count, gap, fill, track, radius, background, stroke, strokeWidthValue, shadow, backdrop, outerGlow, innerGlow, pattern, fillPattern, trackPattern) {
+  local hasStroke, strokeColor, strokeWidthValue, strokeKind, strokeLength, strokeGap, strokeOffset = style.strokeRaw(stroke, strokeWidth)
+  if drawSegmentBarShaderRaw(x, y, w, h, frac, count, gap, fill, track, radius, background, strokeColor, strokeWidthValue, shadow, backdrop, outerGlow, innerGlow, pattern, fillPattern, trackPattern) {
     return
   }
   local totalGap = gap * (count - 1)
@@ -436,6 +446,7 @@ export client fn segmentBarRaw(x, y, w, h, value, segments = nil, fillInput = ni
     drawPreparedRoundRectEffects(
       x, y, w, h, containerRadius,
       backgroundFill, nil, 0,
+      style.STROKE_SOLID, 0, 0, 0,
       hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread,
       hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
       hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff,
@@ -456,7 +467,7 @@ export client fn segmentBarRaw(x, y, w, h, value, segments = nil, fillInput = ni
     local itemFill = filled then solidFillInto(segmentItemFillScratch, color) else trackFill
     local itemPattern = filled then fillPatternSpec else trackPatternSpec
     if preparedFillVisible(itemFill) or itemPattern ~= nil {
-      drawPreparedRoundRectPlain(sx, y, segmentW, h, itemRadius, itemFill, stroke, strokeWidthValue, itemPattern)
+      drawPreparedRoundRectPlain(sx, y, segmentW, h, itemRadius, itemFill, strokeColor, strokeWidthValue, itemPattern, strokeKind, strokeLength, strokeGap, strokeOffset)
     }
   }
 }
@@ -465,7 +476,7 @@ export client fn segmentBarEx(x, y, w, h, value, drawStyle = nil) {
   local resolved = drawStyle ?? {}
   local transform, stripped = geometry.splitStyleTransform(resolved)
   if transform ~= nil {
-    return geometry.withTransform(transform, x, y, w, h, () => segmentBarEx(x, y, w, h, value, stripped))
+    return geometry.withTransform(transform, x, y, w, h, () => segmentBarRaw(x, y, w, h, value, stripped.segments, stripped.fill, stripped.color, stripped.track, stripped.radius, stripped.gap, stripped.backgroundRadius, stripped.background, stripped.stroke, stripped.strokeWidth, stripped.shadow, stripped.outerGlow, stripped.innerGlow, stripped.backdrop, stripped.pattern, stripped.fillPattern, stripped.trackPattern))
   }
 
   segmentBarRaw(x, y, w, h, value, stripped.segments, stripped.fill, stripped.color, stripped.track, stripped.radius, stripped.gap, stripped.backgroundRadius, stripped.background, stripped.stroke, stripped.strokeWidth, stripped.shadow, stripped.outerGlow, stripped.innerGlow, stripped.backdrop, stripped.pattern, stripped.fillPattern, stripped.trackPattern)

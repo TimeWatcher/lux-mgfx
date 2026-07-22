@@ -31,13 +31,8 @@ float4 base_layer(float2 pos, float2 uv)
 {
 	float dist = roundrect_dist_px(pos);
 	float outer = roundrect_coverage_from_dist(dist);
-
-	float inner = 1.0;
-	if (STROKE_WIDTH > 0.0 && STROKE_COLOR.a > 0.0)
-		inner = roundrect_coverage_from_dist(dist + STROKE_WIDTH);
-
-	float borderMask = outer * (1.0 - inner);
-	float fillMask = outer * inner;
+	float borderMask = STROKE_COLOR.a > 0.0 ? roundrect_stroke_coverage_from_dist(dist, STROKE_WIDTH) : 0.0;
+	float fillMask = outer * (1.0 - borderMask);
 	float4 fillColor = mgfx_fill(uv, float4(1.0, 1.0, 1.0, 1.0));
 	float fillAlpha = fillColor.a * fillMask;
 	float strokeAlpha = STROKE_COLOR.a * borderMask;

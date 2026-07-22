@@ -4,6 +4,7 @@ export client const FILL_RADIAL = 2
 export client const FILL_CONIC = 3
 export client const PATTERN_STRIPE = "stripe"
 export client const PATTERN_SMOKE = "smoke"
+export client const PATTERN_WORN = "worn"
 
 local bitBor = bit?.bor
 local camStart2D = cam?.Start2D
@@ -46,6 +47,11 @@ local backdropTableCache = setmetatable({}, { __mode = "k" })
 local backdropTrueSpec = nil
 local backdropNumberCache = {}
 local backdropColorCache = setmetatable({}, { __mode = "k" })
+
+export client const DEFAULT_PATTERN_COLOR = makeColor(255, 255, 255, 24)
+export client const DEFAULT_PATTERN_TRUE_COLOR = makeColor(255, 255, 255, 20)
+export client const DEFAULT_WORN_COLOR = makeColor(0, 0, 0, 44)
+export client const DEFAULT_WORN_EDGE_COLOR = makeColor(218, 208, 184, 78)
 
 fn ensureSolidCache() {
   if solidCache == nil {

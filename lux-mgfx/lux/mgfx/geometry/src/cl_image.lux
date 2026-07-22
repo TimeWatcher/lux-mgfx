@@ -24,7 +24,7 @@ export client fn imageTint(drawStyle = nil) {
 
 export client fn imageStyle(drawStyle = nil) {
   if typeOf(drawStyle) == "table" {
-    return copyStyle(drawStyle)
+    return drawStyle
   }
 
   if drawStyle ~= nil {

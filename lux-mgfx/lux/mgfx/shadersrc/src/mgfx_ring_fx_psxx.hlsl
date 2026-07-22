@@ -197,9 +197,8 @@ float4 main(PS_INPUT i) : COLOR
 
 	if (RING_STROKE_COLOR.a > 0.0 && RING_STROKE_WIDTH > 0.0)
 	{
-		float outer = aa_coverage(dist);
-		float inner = aa_coverage(dist + max(RING_STROKE_WIDTH, 0.0));
-		float4 strokeColor = float4(saturate(RING_STROKE_COLOR.rgb), saturate(RING_STROKE_COLOR.a * outer * (1.0 - inner)));
+		float strokeMask = aa_coverage(abs(dist) - max(RING_STROKE_WIDTH, 0.0) * 0.5);
+		float4 strokeColor = float4(saturate(RING_STROKE_COLOR.rgb), saturate(RING_STROKE_COLOR.a * strokeMask));
 		outColor = source_over(strokeColor, outColor);
 	}
 

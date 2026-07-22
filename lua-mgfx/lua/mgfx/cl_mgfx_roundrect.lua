@@ -15,9 +15,16 @@ function MGFX._InstallRoundRect(C)
 	local color01 = C.color01
 	local setDrawColor = C.setDrawColor
 	local strokeWidthValue = C.strokeWidthValue
+	local strokeRaw = C.strokeRaw
+	local STROKE_SOLID = C.STROKE_SOLID or 0
+	local STROKE_DOT = C.STROKE_DOT or 1
+	local STROKE_DASH = C.STROKE_DASH or 2
 	local radiusScalar = C.radiusScalar
 	local strokeVisible = C.strokeVisible
 	local backdropStyle = C.backdropStyle or function() return nil end
+	local defaultPatternColor = C.defaultPatternColor
+	local defaultPatternTrueColor = C.defaultPatternTrueColor
+	local defaultWornEdgeColor = C.defaultWornEdgeColor
 	local glowSoftnessToFalloff = C.glowSoftnessToFalloff
 	local FILL_SOLID = C.FILL_SOLID
 	local FILL_LINEAR = C.FILL_LINEAR
@@ -40,12 +47,14 @@ function MGFX._InstallRoundRect(C)
 	local beginPanelEffectDraw = assert(C.beginPanelEffectDraw, "MGFX panel effect draw helper unavailable")
 	local endPanelEffectBleed = assert(C.endPanelEffectBleed, "MGFX panel bleed end helper unavailable")
 	local math_floor = math.floor
+	local math_ceil = math.ceil
 	local math_abs = math.abs
 	local math_max = math.max
 	local math_min = math.min
 	local math_rad = math.rad
 	local math_cos = math.cos
 	local math_sin = math.sin
+	local math_sqrt = math.sqrt
 	local SysTime = SysTime
 	local surface_SetDrawColor = surface.SetDrawColor
 	local surface_SetMaterial = surface.SetMaterial
@@ -180,12 +189,28 @@ local function drawSolidRoundFast(x, y, w, h, radiusValue, fill)
 	return true
 end
 
+local function drawRoundRectBaseQuad(x, y, w, h, mat, strokeWidth)
+	local pad = math_ceil(math_max(0, tonumber(strokeWidth) or 0) * 0.5 + 1)
+	if pad <= 1 or w <= 0 or h <= 0 then
+		drawTexturedQuad(x, y, w, h, mat)
+		return
+	end
+	drawTexturedQuadUV(
+		x - pad, y - pad, w + pad * 2, h + pad * 2,
+		-pad / w, -pad / h, 1 + pad / w, 1 + pad / h,
+		mat
+	)
+end
+
 local transparentFillColor = Color(0, 0, 0, 0)
 local transparentFill = {kind = FILL_SOLID, colorA = transparentFillColor, colorB = transparentFillColor}
 local emptyRoundRectStyle = {}
 local solidFillScratch = {kind = FILL_SOLID, colorA = color_white, colorB = color_white}
 local fallbackRoundRectVerts = {}
 local fallbackStrokeVerts = {{}, {}, {}, {}}
+local strokeCircleVerts = {{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}}
+local strokePathLengths = {}
+local STROKE_CIRCLE_STEPS = #strokeCircleVerts
 local roundRaw = {}
 local defaultInnerGlowColor = Color(76, 190, 255, 34)
 local defaultOuterGlowColor = Color(76, 190, 255, 88)
@@ -313,27 +338,151 @@ local function fallbackRoundRectPoints(x, y, w, h, radius)
 	return verts
 end
 
-local function drawFallbackStroke(points, color, width)
-	width = math_max(1, tonumber(width) or 1)
-	setDrawColor(color)
+local function strokePathPoint(point, offsetX, offsetY)
+	return (tonumber(point.x or point[1]) or 0) + offsetX,
+		(tonumber(point.y or point[2]) or 0) + offsetY
+end
 
-	for i = 1, #points do
-		local a = points[i]
-		local b = points[i % #points + 1]
-		local dx, dy = b.x - a.x, b.y - a.y
-		local len = math_max(0.0001, (dx * dx + dy * dy) ^ 0.5)
-		local nx, ny = -dy / len * width * 0.5, dx / len * width * 0.5
-		local verts = fallbackStrokeVerts
-		verts[1].x, verts[1].y = a.x + nx, a.y + ny
-		verts[2].x, verts[2].y = b.x + nx, b.y + ny
-		verts[3].x, verts[3].y = b.x - nx, b.y - ny
-		verts[4].x, verts[4].y = a.x - nx, a.y - ny
-		drawTransformedPoly(verts)
-		M.stats.draws = M.stats.draws + 1
+local function drawStrokeCircle(x, y, radius, color)
+	if radius <= 0 then return end
+	for index = 1, STROKE_CIRCLE_STEPS do
+		local angle = (index - 1) / STROKE_CIRCLE_STEPS * math.pi * 2
+		local point = strokeCircleVerts[index]
+		point.x = x + math_cos(angle) * radius
+		point.y = y + math_sin(angle) * radius
+		point.u, point.v, point.color = nil, nil, nil
+	end
+	setDrawColor(color)
+	drawTransformedPoly(strokeCircleVerts)
+	M.stats.draws = M.stats.draws + 1
+end
+
+local function drawStrokeCapsule(ax, ay, bx, by, width, color)
+	local dx, dy = bx - ax, by - ay
+	local length = math_sqrt(dx * dx + dy * dy)
+	local halfWidth = width * 0.5
+	if length <= 0.0001 then
+		drawStrokeCircle(ax, ay, halfWidth, color)
+		return
+	end
+
+	local nx, ny = -dy / length * halfWidth, dx / length * halfWidth
+	local verts = fallbackStrokeVerts
+	verts[1].x, verts[1].y = ax + nx, ay + ny
+	verts[2].x, verts[2].y = bx + nx, by + ny
+	verts[3].x, verts[3].y = bx - nx, by - ny
+	verts[4].x, verts[4].y = ax - nx, ay - ny
+	setDrawColor(color)
+	drawTransformedPoly(verts)
+	M.stats.draws = M.stats.draws + 1
+	drawStrokeCircle(ax, ay, halfWidth, color)
+	drawStrokeCircle(bx, by, halfWidth, color)
+end
+
+local function strokePathMeasure(points, closed)
+	local count = #(points or {})
+	local edgeCount = closed and count or math_max(0, count - 1)
+	local total = 0
+	for index = 1, edgeCount do
+		local ax, ay = strokePathPoint(points[index], 0, 0)
+		local bx, by = strokePathPoint(points[index % count + 1], 0, 0)
+		local dx, dy = bx - ax, by - ay
+		local length = math_sqrt(dx * dx + dy * dy)
+		strokePathLengths[index] = length
+		total = total + length
+	end
+	for index = edgeCount + 1, #strokePathLengths do strokePathLengths[index] = nil end
+	return total, edgeCount
+end
+
+local function drawStrokePathRange(points, edgeCount, fromDistance, toDistance, color, width, offsetX, offsetY)
+	if toDistance <= fromDistance then return end
+	local cursor = 0
+	local count = #points
+	for index = 1, edgeCount do
+		local edgeLength = strokePathLengths[index]
+		local edgeEnd = cursor + edgeLength
+		if edgeLength > 0.0001 and toDistance > cursor and fromDistance < edgeEnd then
+			local localStart = math.Clamp((math_max(fromDistance, cursor) - cursor) / edgeLength, 0, 1)
+			local localEnd = math.Clamp((math_min(toDistance, edgeEnd) - cursor) / edgeLength, 0, 1)
+			local ax, ay = strokePathPoint(points[index], offsetX, offsetY)
+			local bx, by = strokePathPoint(points[index % count + 1], offsetX, offsetY)
+			drawStrokeCapsule(
+				ax + (bx - ax) * localStart, ay + (by - ay) * localStart,
+				ax + (bx - ax) * localEnd, ay + (by - ay) * localEnd,
+				width, color
+			)
+		end
+		cursor = edgeEnd
 	end
 end
 
-local function drawRoundRectFallbackPrepared(x, y, w, h, radius, fill, hasFill, stroke, strokeWidth, hasStroke)
+local function drawStrokePathDot(points, edgeCount, distance, color, width, offsetX, offsetY)
+	local cursor = 0
+	local count = #points
+	for index = 1, edgeCount do
+		local edgeLength = strokePathLengths[index]
+		local edgeEnd = cursor + edgeLength
+		if distance <= edgeEnd or index == edgeCount then
+			local t = edgeLength > 0.0001 and math.Clamp((distance - cursor) / edgeLength, 0, 1) or 0
+			local ax, ay = strokePathPoint(points[index], offsetX, offsetY)
+			local bx, by = strokePathPoint(points[index % count + 1], offsetX, offsetY)
+			drawStrokeCircle(ax + (bx - ax) * t, ay + (by - ay) * t, width * 0.5, color)
+			return
+		end
+		cursor = edgeEnd
+	end
+end
+
+local function drawStrokePath(points, closed, color, width, kind, dashLength, gap, offset, offsetX, offsetY)
+	width = math_max(0, tonumber(width) or 0)
+	if width <= 0 or color == nil or #points < 2 then return false end
+	local total, edgeCount = strokePathMeasure(points, closed == true)
+	if total <= 0 or edgeCount <= 0 then return false end
+
+	offsetX, offsetY = tonumber(offsetX) or 0, tonumber(offsetY) or 0
+	dashLength = math_max(width, tonumber(dashLength) or width * 3)
+	gap = math_max(0, tonumber(gap) or width * 1.5)
+	offset = tonumber(offset) or 0
+	kind = kind or STROKE_SOLID
+
+	if kind == STROKE_SOLID then
+		drawStrokePathRange(points, edgeCount, 0, total, color, width, offsetX, offsetY)
+		return true
+	end
+	if kind == STROKE_DOT then
+		local period = math_max(width + gap, width)
+		local center = (-offset) % period
+		while center <= total do
+			drawStrokePathDot(points, edgeCount, center, color, width, offsetX, offsetY)
+			center = center + period
+		end
+		return true
+	end
+	if kind == STROKE_DASH then
+		local period = math_max(dashLength + gap, dashLength)
+		local center = (-offset) % period - period
+		while center - dashLength * 0.5 <= total do
+			drawStrokePathRange(points, edgeCount, math_max(0, center - dashLength * 0.5), math_min(total, center + dashLength * 0.5), color, width, offsetX, offsetY)
+			center = center + period
+		end
+		return true
+	end
+
+	local period = math_max(width + dashLength + gap * 2, width + dashLength)
+	local base = (-offset) % period - period
+	while base - width * 0.5 <= total do
+		if base >= 0 and base <= total then
+			drawStrokePathDot(points, edgeCount, base, color, width, offsetX, offsetY)
+		end
+		local dashCenter = base + width * 0.5 + gap + dashLength * 0.5
+		drawStrokePathRange(points, edgeCount, math_max(0, dashCenter - dashLength * 0.5), math_min(total, dashCenter + dashLength * 0.5), color, width, offsetX, offsetY)
+		base = base + period
+	end
+	return true
+end
+
+local function drawRoundRectFallbackPrepared(x, y, w, h, radius, fill, hasFill, stroke, strokeWidth, hasStroke, strokeKind, strokeLength, strokeGap, strokeOffset)
 	M.stats.fallbacks = M.stats.fallbacks + 1
 	radius = radius or 0
 	if hasTransform() then
@@ -345,7 +494,7 @@ local function drawRoundRectFallbackPrepared(x, y, w, h, radius, fill, hasFill, 
 		end
 
 		if hasStroke then
-			drawFallbackStroke(points, stroke, math_max(1, math_floor(strokeWidth)))
+			drawStrokePath(points, true, stroke, math_max(1, strokeWidth), strokeKind, strokeLength, strokeGap, strokeOffset)
 		end
 		return
 	end
@@ -356,21 +505,14 @@ local function drawRoundRectFallbackPrepared(x, y, w, h, radius, fill, hasFill, 
 	end
 
 	if hasStroke then
-		setDrawColor(stroke)
-		surface.DrawOutlinedRect(x, y, w, h, math_max(1, math_floor(strokeWidth)))
-		M.stats.draws = M.stats.draws + 1
+		drawStrokePath(fallbackRoundRectPoints(x, y, w, h, radius), true, stroke, math_max(1, strokeWidth), strokeKind, strokeLength, strokeGap, strokeOffset)
 	end
 end
 
 local function drawRoundRectFallbackRaw(x, y, w, h, radius, fillInput, stroke, strokeWidthInput)
 	local fill = hotFillFromStyle(fillInput)
-	local strokeWidth = 0
-	local hasStroke = false
-	if stroke then
-		strokeWidth = strokeWidthValue(strokeWidthInput, 0)
-		hasStroke = strokeWidth > 0 and (stroke.a == nil or stroke.a > 0)
-	end
-	return drawRoundRectFallbackPrepared(x, y, w, h, radius, fill, hotFillVisible(fill), stroke, strokeWidth, hasStroke)
+	local hasStroke, strokeColor, strokeWidth, strokeKind, strokeLength, strokeGap, strokeOffset = strokeRaw(stroke, strokeWidthInput, 0)
+	return drawRoundRectFallbackPrepared(x, y, w, h, radius, fill, hotFillVisible(fill), strokeColor, strokeWidth, hasStroke, strokeKind, strokeLength, strokeGap, strokeOffset)
 end
 
 function roundRaw.innerGlow(glow)
@@ -623,7 +765,7 @@ end
 
 local function patternStyle(pattern)
 	if not pattern then return nil end
-	if pattern == true then return M.StripePattern(Color(255, 255, 255, 20), 10, 2, 135) end
+	if pattern == true then return M.StripePattern(defaultPatternTrueColor, 10, 2, 135) end
 	if istable(pattern) and (pattern.kind == "stripe" or pattern.kind == "smoke" or pattern.kind == "worn") then return pattern end
 	if istable(pattern) then return M.StripePattern(pattern) end
 	return nil
@@ -637,7 +779,7 @@ local function patternOffset(pattern)
 end
 
 local function setupPatternConstants(mat, w, h, radius, pattern)
-	local color = asColor(pattern.color or pattern.tint, Color(255, 255, 255, 24))
+	local color = asColor(pattern.color or pattern.tint, defaultPatternColor)
 	local r, g, b, a = color01(color)
 	local angle = math_rad(tonumber(pattern.angle) or 135)
 	local smoke = pattern.kind == "smoke"
@@ -663,7 +805,7 @@ local function setupPatternConstants(mat, w, h, radius, pattern)
 		ox, oy, oz, ow
 	)
 	if worn and setupExtraParams then
-		local edgeColor = asColor(pattern.edgeColor, Color(218, 208, 184, 78))
+		local edgeColor = asColor(pattern.edgeColor, defaultWornEdgeColor)
 		local er, eg, eb, ea = color01(edgeColor)
 		setupExtraParams(mat,
 			er, eg, eb, ea,
@@ -994,7 +1136,7 @@ local function drawRoundRectBackdrop(x, y, w, h, radius, spec)
 	local blurred = false
 
 	if spec.blur > 0 and shadersActive() and matOK(materials.roundrect_blur) and drawBlurredQuad then
-		drawBlurredQuad(materials.roundrect_blur, bx, by, bw, bh, roundRectRadiusScalar(br, bw, bh), spec.blur, tint, spec.recapture)
+		drawBlurredQuad(materials.roundrect_blur, bx, by, bw, bh, roundRectRadiusScalar(br, bw, bh), spec.blur, tint, spec.recapture, spec.level)
 		blurred = true
 	end
 
@@ -1014,28 +1156,36 @@ drawRoundRectFillPass = function(x, y, w, h, radius, fill)
 	drawTexturedQuad(x, y, w, h, mat)
 end
 
-local function drawRoundRectStrokePass(x, y, w, h, radius, stroke, strokeWidth)
-	if not strokeVisible(stroke, strokeWidth) then return end
-	if shadersActive() and matOK(materials.roundrect_stroke) then
+local function drawRoundRectStrokePass(x, y, w, h, radius, stroke, strokeWidth, strokeKind, strokeLength, strokeGap, strokeOffset)
+	if not strokeVisible(stroke, strokeWidth) then return false end
+	strokeKind = strokeKind or STROKE_SOLID
+	if matOK(materials.roundrect_stroke) then
 		local mat = materials.roundrect_stroke
 		local r, g, b, a = color01(stroke)
 		setupParamMatrix(mat,
 			r, g, b, a,
 			w, h, math_max(0, strokeWidthValue(strokeWidth, 0)), roundRectRadiusScalar(radius, w, h),
-			0, 0, 1, 0,
+			strokeKind, strokeLength or 0, strokeGap or 0, strokeOffset or 0,
 			0, 0, 0, 0
 		)
 		surface_SetMaterial(mat)
 		surface_SetDrawColor(255, 255, 255, 255)
-		drawTexturedQuad(x, y, w, h, mat)
-		return
+		drawRoundRectBaseQuad(x, y, w, h, mat, strokeWidth)
+		return true
+	end
+
+	if strokeKind ~= STROKE_SOLID then
+		drawRoundRectFallbackPrepared(x, y, w, h, radius, transparentFill, false, stroke, strokeWidth, true, strokeKind, strokeLength, strokeGap, strokeOffset)
+		return true
 	end
 
 	local mat = materials.roundrect
+	if not matOK(mat) then return false end
 	setupRoundRectConstants(mat, w, h, transparentFill, stroke, strokeWidth, roundRectRadiusScalar(radius, w, h))
 	surface_SetMaterial(mat)
 	surface_SetDrawColor(255, 255, 255, 255)
-	drawTexturedQuad(x, y, w, h, mat)
+	drawRoundRectBaseQuad(x, y, w, h, mat, strokeWidth)
+	return true
 end
 
 function roundRaw.drawFxPass(x, y, w, h, radius, fill, stroke, strokeWidth, innerEnabled, gr, gg, gb, ga, glowWidth, glowStrength, glowFalloff)
@@ -1068,7 +1218,7 @@ function roundRaw.drawFxPass(x, y, w, h, radius, fill, stroke, strokeWidth, inne
 	surface_SetDrawColor(255, 255, 255, 255)
 	if profiling then profileEnd("round.base.fx.setup", setupProfile) end
 	local drawProfile = profiling and profileStart() or nil
-	drawTexturedQuad(x, y, w, h, mat)
+	drawRoundRectBaseQuad(x, y, w, h, mat, stroke and strokeWidth or 0)
 	if profiling then profileEnd("round.base.fx.draw", drawProfile) end
 	return true
 end
@@ -1077,6 +1227,7 @@ drawRoundRectPrepared = function(
 	x, y, w, h, radius,
 	fill, hasFill,
 	stroke, strokeWidth, hasStroke,
+	strokeKind, strokeLength, strokeGap, strokeOffset,
 	hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread,
 	hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
 	hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff,
@@ -1096,6 +1247,9 @@ drawRoundRectPrepared = function(
 	fill = fill or transparentFill
 	hasFill = hasFill == true
 	hasStroke = hasStroke == true
+	strokeKind = strokeKind or STROKE_SOLID
+	local specialStroke = hasStroke and strokeKind ~= STROKE_SOLID
+	local baseHasStroke = hasStroke and not specialStroke
 	hasShadow = hasShadow == true
 	hasOuter = hasOuter == true
 	hasInner = hasInner == true
@@ -1156,6 +1310,9 @@ drawRoundRectPrepared = function(
 		stageProfile = now
 	end
 	local cullSpread = 0
+	if hasStroke then
+		cullSpread = math_max(cullSpread, strokeWidth * 0.5 + 1)
+	end
 	if shaderReady then
 		if hasShadow then
 			cullSpread = math_max(cullSpread, shadowCullSpread or 0)
@@ -1183,7 +1340,7 @@ drawRoundRectPrepared = function(
 
 	if not shaderReady then
 		local profile = profiling and profileStart() or nil
-		drawRoundRectFallbackPrepared(x, y, w, h, radius, fill, hasFill, stroke, strokeWidth, hasStroke)
+		drawRoundRectFallbackPrepared(x, y, w, h, radius, fill, hasFill, stroke, strokeWidth, hasStroke, strokeKind, strokeLength, strokeGap, strokeOffset)
 		roundRaw.drawInnerGlow(x, y, w, h, radius, hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff)
 		if profiling then
 			profileEnd("round.fallback", profile)
@@ -1203,15 +1360,16 @@ drawRoundRectPrepared = function(
 	local canTryFused = backdropSpec == nil
 		and patternSpec == nil
 		and not hasInner
+		and not specialStroke
 		and not transformActive
 		and not hasShadowLayers
-		and (hasFill or hasStroke)
+		and (hasFill or baseHasStroke)
 		and (hasShadow or hasOuter)
 	if canTryFused then
 		profile = profiling and profileStart() or nil
 		local radiusValue = roundRectRadiusScalar(radius, w, h)
 		if roundRaw.drawFused(
-			x, y, w, h, radius, hasFill and fill or transparentFill, stroke, strokeWidth, radiusValue,
+			x, y, w, h, radius, hasFill and fill or transparentFill, baseHasStroke and stroke or nil, baseHasStroke and strokeWidth or 0, radiusValue,
 			hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowExtent, shadowGrow, shadowStrength, shadowFalloff,
 			hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerExtent, outerGrow, outerStrength, outerFalloff
 		) then
@@ -1247,33 +1405,20 @@ drawRoundRectPrepared = function(
 		if profiling then profileEnd("round.shadowOuter", shadowOuterProfile) end
 	end
 
-	local backdrop
 	if backdropSpec then
 		profile = profiling and profileStart() or nil
-		backdrop = drawRoundRectBackdrop(x, y, w, h, radius, backdropSpec)
+		drawRoundRectBackdrop(x, y, w, h, radius, backdropSpec)
 		if profiling then profileEnd("round.backdrop", profile) end
 	end
 
-	if backdrop then
-		-- Backdrop alone is a valid shape pass; fill/stroke may be fully transparent.
-	end
-
-	local effectOnly = not backdrop
-		and not hasStroke
-		and patternSpec == nil
-		and not hasInner
-		and (hasShadow or hasOuter or hasShadowLayers)
-	if effectOnly and not hasFill then
-		finishImmediateProfile(profiling, totalProfile)
-		return
-	end
-
-	if not backdrop and not hasFill and not hasStroke and patternSpec == nil and not hasInner then
+	if not hasFill and not hasStroke and patternSpec == nil and not hasInner then
 		finishImmediateProfile(profiling, totalProfile)
 		return
 	end
 
 	local drawFill = hasFill and fill or transparentFill
+	local baseStroke = baseHasStroke and stroke or nil
+	local baseStrokeWidth = baseHasStroke and strokeWidth or 0
 	local mat = materials.roundrect
 	local useLayered = patternSpec ~= nil
 	local innerGlowDrawn = false
@@ -1284,7 +1429,7 @@ drawRoundRectPrepared = function(
 		end
 		drawRoundRectPatternPrepared(x, y, w, h, radius, patternSpec)
 		if hasStroke then
-			drawRoundRectStrokePass(x, y, w, h, radius, stroke, strokeWidth)
+			drawRoundRectStrokePass(x, y, w, h, radius, stroke, strokeWidth, strokeKind, strokeLength, strokeGap, strokeOffset)
 		end
 		if profiling then profileEnd("round.layered", profile) end
 	else
@@ -1293,14 +1438,14 @@ drawRoundRectPrepared = function(
 		local baseKind
 		if drawFill.kind == FILL_LINEAR then
 			baseKind = "round.base.gradient"
-		elseif hasStroke then
+		elseif baseHasStroke then
 			baseKind = "round.base.stroke"
 		elseif radiusValue <= 0 then
 			baseKind = "round.base.solidRect"
 		else
 			baseKind = "round.base.solidRound"
 		end
-		if hasInner and roundRaw.drawFxPass(x, y, w, h, radius, drawFill, stroke, strokeWidth, true, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff) then
+		if hasInner and roundRaw.drawFxPass(x, y, w, h, radius, drawFill, baseStroke, baseStrokeWidth, true, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff) then
 			baseKind = "round.base.fx"
 			innerGlowDrawn = true
 		elseif baseKind == "round.base.solidRect"
@@ -1316,17 +1461,20 @@ drawRoundRectPrepared = function(
 			and fill.kind == FILL_SOLID
 			and drawSolidRoundFast(x, y, w, h, radiusValue, fill) then
 			baseKind = "round.base.solidRoundFast"
-		else
+		elseif hasFill or baseHasStroke then
 			local setupProfile = profiling and profileStart() or nil
-			setupRoundRectConstants(mat, w, h, drawFill, stroke, strokeWidth, radiusValue)
+			setupRoundRectConstants(mat, w, h, drawFill, baseStroke, baseStrokeWidth, radiusValue)
 			surface_SetMaterial(mat)
 			surface_SetDrawColor(255, 255, 255, 255)
 			if profiling then profileEnd("round.base.setup", setupProfile) end
 			local drawProfile = profiling and profileStart() or nil
-			drawTexturedQuad(x, y, w, h, mat)
+			drawRoundRectBaseQuad(x, y, w, h, mat, baseStrokeWidth)
 			if profiling then profileEnd("round.base.draw", drawProfile) end
 		end
 		if profiling then profileEndBase(baseKind, profile) end
+		if specialStroke then
+			drawRoundRectStrokePass(x, y, w, h, radius, stroke, strokeWidth, strokeKind, strokeLength, strokeGap, strokeOffset)
+		end
 	end
 
 	if hasInner and not innerGlowDrawn then
@@ -1345,12 +1493,7 @@ drawRoundRectRaw = function(x, y, w, h, radius, fillInput, stroke, strokeWidthIn
 	local totalProfile = profiling and profileStart() or nil
 	local fill = hotFillFromStyle(fillInput)
 	local hasFill = hotFillVisible(fill)
-	local strokeWidth = 0
-	local hasStroke = false
-	if stroke then
-		strokeWidth = strokeWidthValue(strokeWidthInput, 0)
-		hasStroke = strokeWidth > 0 and (stroke.a == nil or stroke.a > 0)
-	end
+	local hasStroke, strokeColor, strokeWidth, strokeKind, strokeLength, strokeGap, strokeOffset = strokeRaw(stroke, strokeWidthInput, 0)
 
 	local hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread = false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0
 	local shadowLayers, shadowLayerCount, shadowLayersCullSpread = nil, 0, 0
@@ -1398,7 +1541,8 @@ drawRoundRectRaw = function(x, y, w, h, radius, fillInput, stroke, strokeWidthIn
 	return drawRoundRectPrepared(
 		x, y, w, h, radius,
 		fill, hasFill,
-		stroke, strokeWidth, hasStroke,
+		strokeColor, strokeWidth, hasStroke,
+		strokeKind, strokeLength, strokeGap, strokeOffset,
 		hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread,
 		hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
 		hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff,
@@ -1436,6 +1580,11 @@ function M.RoundedBox(x, y, w, h, radius, fill, stroke, strokeWidth)
 	recordDirectImmediate("DrawRoundedBox", "round")
 	local result = drawRoundRectRaw(x, y, w, h, radius, fill, stroke, strokeWidth, nil, nil, nil, nil, nil)
 	return result
+end
+
+function M.RoundedBoxBackdrop(x, y, w, h, radius, backdrop)
+	recordDirectImmediate("DrawRoundedBox", "round")
+	return drawRoundRectRaw(x, y, w, h, radius, transparentFillColor, nil, 0, nil, nil, nil, backdrop, nil)
 end
 
 function M.Circle(cx, cy, radius, fill, stroke, strokeWidth)
@@ -1478,6 +1627,7 @@ end
 
 	return {
 		drawRoundRectFallback = drawRoundRectFallbackRaw,
+		drawStrokePath = drawStrokePath,
 		patternStyle = patternStyle,
 		patternOffset = patternOffset,
 		setupPatternConstants = setupPatternConstants,

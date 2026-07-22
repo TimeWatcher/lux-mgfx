@@ -20,6 +20,14 @@ local COLORS = {
 	track = Color(10, 18, 24, 190),
 }
 
+local STROKE_DEMO_KINDS = {"solid", "dot", "dash", "dot-dash"}
+local STROKE_DEMO_COLORS = {
+	Color(112, 205, 255, 235),
+	Color(255, 194, 92, 235),
+	Color(128, 235, 176, 235),
+	Color(238, 128, 208, 235),
+}
+
 local CJK_FACE = "Noto Sans SC"
 
 local function ensureFonts(scale)
@@ -560,49 +568,27 @@ function PANEL:Paint(w, h)
 			drawGradientShowcase()
 		else
 		local x, y, cw, ch
-		x, y, cw, ch = card(1, "Immediate Shapes", "RegularPoly / Diamond / Caret", COLORS.green)
-		for row = 0, 2 do
-			for col = 0, 6 do
-				local t = (row * 7 + col) / 20
-				local px = x + 18 + col * ((cw - 36) / 7)
-				local py = y + 46 + row * 16
-				local pw = math.max(12, (cw - 54) / 7)
-				MGFX.RoundedBoxEx(px, py, pw, 9, {
-					radius = 5,
-					fill = Color(28 + 160 * t, 118 + 64 * math.sin(t * 6), 220 - 150 * t, 205),
-					stroke = Color(255, 255, 255, 28),
-					strokeWidth = 1,
-				})
-			end
-		end
-		for i = 0, 4 do
-			local ly = y + 96 + i * 5
-			MGFX.LineEx(x + 18, ly, x + cw - 72, ly, {
-				width = 2,
-				fill = MGFX.LinearGradient(0, 0, 1, 0, Color(80, 220, 255, 210), Color(255, 190, 66, 180)),
+		x, y, cw, ch = card(1, "Stroke Variants", "solid / dot / dash / dot-dash", COLORS.green)
+		local strokeGap = 7
+		local strokeW = (cw - 36 - strokeGap * 3) / 4
+		local strokePhase = RealTime() * 18
+		for index, kind in ipairs(STROKE_DEMO_KINDS) do
+			local color = STROKE_DEMO_COLORS[index]
+			local sx = x + 18 + (index - 1) * (strokeW + strokeGap)
+			MGFX.RoundedBoxEx(sx, y + 54, strokeW, 42, {
+				radius = 10,
+				fill = Color(14, 24, 30, 218),
+				stroke = {
+					color = color,
+					width = 3,
+					kind = kind,
+					length = 10,
+					gap = 5,
+					offset = strokePhase,
+				},
 			})
+			addText(kind, "MGFXDemoTiny", sx + strokeW * 0.5, y + 108, color, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 		end
-		MGFX.RegularPolyEx(x + cw - 54, y + 106, 10, 5, {
-			rotation = -90,
-			fill = Color(68, 232, 146, 218),
-			stroke = Color(255, 255, 255, 44),
-			strokeWidth = 1,
-			shadow = {x = 0, y = 4, blur = 10, spread = 1, color = Color(0, 0, 0, 148), softness = 0.7},
-		})
-		MGFX.DiamondEx(x + cw - 42, y + 97, 18, 18, {
-			fill = MGFX.LinearGradient(0, 0, 1, 1, Color(80, 220, 255, 224), Color(255, 190, 66, 208)),
-			stroke = Color(255, 255, 255, 48),
-			strokeWidth = 1,
-			shadow = {x = 0, y = 4, blur = 9, spread = 1, color = Color(0, 0, 0, 122), softness = 0.72},
-			outerGlow = showOuterGlow and {color = Color(80, 220, 255, 58), size = 8, opacity = 0.72, softness = 0.64} or nil,
-		})
-		MGFX.CaretEx(x + cw - 17, y + 98, 17, 17, {
-			direction = "right",
-			fill = Color(255, 112, 92, 220),
-			stroke = Color(255, 255, 255, 42),
-			strokeWidth = 1,
-			shadow = {x = 0, y = 4, blur = 8, color = Color(0, 0, 0, 116), softness = 0.7},
-		})
 
 		x, y, cw, ch = card(2, "Multi-stop Gradient", "LinearGradientStops + LineEx", COLORS.cyan)
 

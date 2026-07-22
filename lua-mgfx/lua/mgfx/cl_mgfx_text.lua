@@ -73,6 +73,7 @@ function M._CreateTextRenderer(deps)
 	local measureOrderHead = 1
 	local measureOrderTail = 0
 	local measureOrderCount = 0
+	local fontHeightCache = {}
 	local namedStyles = {}
 	local styleStack = {}
 	local fontAliases = {}
@@ -252,6 +253,16 @@ function M._CreateTextRenderer(deps)
 	end
 
 	initStats()
+
+	local function clearMeasureCaches()
+		measureCache = {}
+		measureOrder = {}
+		measureOrderHead = 1
+		measureOrderTail = 0
+		measureOrderCount = 0
+		fontHeightCache = {}
+		stats.textCacheSize = 0
+	end
 
 	function renderer.SetProfileActive(active)
 		stats.textProfileActive = active and true or false
@@ -530,6 +541,7 @@ function M._CreateTextRenderer(deps)
 			tracking = tonumber(spec.tracking or spec.letterSpacing) or 0,
 			atlas = "__composed",
 		}
+		clearMeasureCaches()
 		return true
 	end
 
@@ -566,11 +578,20 @@ function M._CreateTextRenderer(deps)
 	end
 
 	local function lineHeightFor(nativeFont, alias, style, oversample)
-		if style and tonumber(style.lineHeight) then return tonumber(style.lineHeight) end
+		local declared = style and tonumber(style.lineHeight or style.lineheight) or nil
+		if declared then return declared end
 		if alias and alias.lineHeight then return alias.lineHeight end
-		setFontSafe(nativeFont)
-		local _, h = surface_GetTextSize("Hg")
-		return math_max(1, (h or 16) / normalizeOversample(oversample))
+
+		local font = nativeFont or "DermaDefault"
+		local height = fontHeightCache[font]
+		if height == nil then
+			local resolvedFont = setFontSafe(font)
+			local _, measuredHeight = surface_GetTextSize("Hg")
+			height = measuredHeight or 16
+			fontHeightCache[font] = height
+			fontHeightCache[resolvedFont] = height
+		end
+		return math_max(1, height / normalizeOversample(oversample))
 	end
 
 	local function measureLine(nativeFont, text, tracking, oversample)
@@ -628,7 +649,19 @@ function M._CreateTextRenderer(deps)
 		return maxW, h
 	end
 
-	local function layoutFor(text, font, style, noOversample, plainFace)
+	local function prepareLineCharacters(line)
+		local chars = textChars(line.text)
+		local widths = {}
+		for i = 1, #chars do
+			local width = surface_GetTextSize(chars[i])
+			widths[i] = width or 0
+		end
+		line.chars = chars
+		line.charWidths = widths
+		return line
+	end
+
+	local function layoutFor(text, font, style, noOversample, plainFace, characterLayout)
 		local profile = profileStart()
 		style = style or {}
 		local nativeFont, alias, oversample = nativeFor(font, style, noOversample, plainFace)
@@ -636,9 +669,12 @@ function M._CreateTextRenderer(deps)
 		local lineHeight = lineHeightFor(nativeFont, alias, style, oversample)
 		local lines = string.Explode("\n", tostring(text or ""), false)
 		local maxW = 0
+		local needsCharacters = characterLayout or tracking ~= 0
 		for i, line in ipairs(lines) do
 			local w = measureLine(nativeFont, line, tracking, oversample)
-			lines[i] = {text = line, w = w, y = (i - 1) * lineHeight}
+			local lineRecord = {text = line, w = w, y = (i - 1) * lineHeight}
+			if needsCharacters then prepareLineCharacters(lineRecord) end
+			lines[i] = lineRecord
 			maxW = math_max(maxW, w)
 		end
 		local layout = {
@@ -713,15 +749,19 @@ function M._CreateTextRenderer(deps)
 				surface_SetTextPos(lx, ly)
 				surface_DrawText(line.text)
 			else
-				local chars = textChars(line.text)
+				local chars = line.chars
+				local widths = line.charWidths
+				if not chars or not widths then
+					error("MGFX text character layout missing", 2)
+				end
 				local advance = 0
-				for i, ch in ipairs(chars) do
+				for i = 1, #chars do
+					local ch = chars[i]
 					local t = line.w > 0 and advance / line.w or 0
 					setTextColor(istable(fill) and colorAtFill(fill, t) or (fallbackColor or fill or white))
 					surface_SetTextPos(lx, ly)
 					surface_DrawText(ch)
-					local cw = surface_GetTextSize(ch)
-					cw = cw or 0
+					local cw = widths[i]
 					lx = lx + cw + layout.tracking * oversample
 					advance = advance + cw / oversample + layout.tracking
 				end
@@ -1128,11 +1168,11 @@ function M._CreateTextRenderer(deps)
 	local function drawNativeFallback(record)
 		local profile = profileStart()
 		local style = record.style or {}
-		local layout = layoutFor(record.text, record.font, style, true)
+		local fill = style.fill or style.color or record.color or white
+		local layout = layoutFor(record.text, record.font, style, true, false, fillNeedsShader(fill))
 		local x = (record.x or 0) - layout.w * alignFactor(record.alignX)
 		local y = (record.y or 0) - layout.h * alignFactor(record.alignY, true)
 		x, y = snapTextPos(x, y, style)
-		local fill = style.fill or style.color or record.color or white
 		local shadow = normalizeShadow(style.shadow)
 		local stroke = normalizeStroke(style.stroke or style.outline)
 		local glow = normalizeGlow(style.glow)
@@ -1821,12 +1861,7 @@ function M._CreateTextRenderer(deps)
 	end
 
 	function renderer.ClearMeasureCache()
-		measureCache = {}
-		measureOrder = {}
-		measureOrderHead = 1
-		measureOrderTail = 0
-		measureOrderCount = 0
-		stats.textCacheSize = 0
+		clearMeasureCaches()
 	end
 
 	renderer.ClearComposedCache = clearCache

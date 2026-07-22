@@ -1,1 +1,1 @@
-part order { "module", "cl_base", "cl_gradients", "cl_patterns", "cl_masks", "cl_fill", "cl_lut", "cl_install" }
+part order { "module", "cl_base", "cl_gradients", "cl_patterns", "cl_masks", "cl_strokes", "cl_fill", "cl_lut", "cl_install" }

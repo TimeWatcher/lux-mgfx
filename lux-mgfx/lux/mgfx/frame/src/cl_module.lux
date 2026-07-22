@@ -29,6 +29,8 @@ local state = {
 }
 local bleedStateStack = {}
 local bleedStateTop = 0
+local clipRecordPool = {}
+local commandStackPool = {}
 
 fn profiler() =
   state.owner?.Profiler
@@ -43,12 +45,12 @@ fn profileActive() {
   cvar ~= nil and cvar.GetBool ~= nil and cvar:GetBool() or false
 }
 
-fn profileCallsite() {
+fn profileCallsite(level = 3) {
   if not profileActive() or debugLib == nil or debugLib.getinfo == nil {
     return nil
   }
 
-  debugLib.getinfo(3, "Sln")
+  debugLib.getinfo(level, "Sln")
 }
 
 fn profileStart() {
@@ -80,6 +82,56 @@ fn clearArray(items) {
   }
 
   items
+}
+
+fn acquireClipRecord() {
+  local index = #clipRecordPool
+  local clip = clipRecordPool[index]
+  if clip ~= nil {
+    clipRecordPool[index] = nil
+    return clip
+  }
+
+  {}
+}
+
+fn releaseClipRecord(clip) {
+  stopif clip == nil
+
+  clip.localX = nil
+  clip.localY = nil
+  clip.x = nil
+  clip.y = nil
+  clip.w = nil
+  clip.h = nil
+  clip.frame = nil
+  clipRecordPool[#clipRecordPool + 1] = clip
+}
+
+fn clearClipStack() {
+  for index = #state.clipStack, 1, -1 {
+    local clip = state.clipStack[index]
+    state.clipStack[index] = nil
+    releaseClipRecord(clip)
+  }
+}
+
+fn acquireCommandStack() {
+  local index = #commandStackPool
+  local stack = commandStackPool[index]
+  if stack ~= nil {
+    commandStackPool[index] = nil
+    return stack
+  }
+
+  {}
+}
+
+fn releaseCommandStack(stack) {
+  stopif stack == nil
+
+  clearArray(stack)
+  commandStackPool[#commandStackPool + 1] = stack
 }
 
 export client fn restoreScissor() {
@@ -155,7 +207,7 @@ export client fn isCulled(x, y, w, h) {
 }
 
 fn installFrameClip() {
-  clearArray(state.clipStack)
+  clearClipStack()
   if not state.clipToFrame {
     renderSetScissorRect(0, 0, 0, 0, false)
     return
@@ -169,20 +221,24 @@ fn installFrameClip() {
 
   local sx = state.screenX ?? 0
   local sy = state.screenY ?? 0
-  state.clipStack[#state.clipStack + 1] = {
-    localX = 0,
-    localY = 0,
-    x = sx,
-    y = sy,
-    w = fw,
-    h = fh,
-    frame = true
-  }
+  local clip = acquireClipRecord()
+  clip.localX = 0
+  clip.localY = 0
+  clip.x = sx
+  clip.y = sy
+  clip.w = fw
+  clip.h = fh
+  clip.frame = true
+  state.clipStack[#state.clipStack + 1] = clip
   renderSetScissorRect(sx, sy, sx + fw, sy + fh, true)
 }
 
 fn beginCommandFrame() {
-  state.commandStack = {}
+  if state.commandStack ~= nil {
+    return state.commandStack
+  }
+
+  state.commandStack = acquireCommandStack()
   state.replaying = false
   state.commandStack
 }
@@ -248,7 +304,13 @@ fn flushQueuedCommands() {
     return 0
   }
 
+  local count = #stack
   state.commandStack = nil
+  if count <= 0 {
+    releaseCommandStack(stack)
+    return 0
+  }
+
   state.replaying = true
   installFrameClip()
 
@@ -286,8 +348,7 @@ fn flushQueuedCommands() {
   profileEnd("commandLoop", loopProfile)
   flushTextBatch(textBatch, "end")
 
-  local count = #stack
-  clearArray(stack)
+  releaseCommandStack(stack)
   state.replaying = false
   count
 }
@@ -302,7 +363,7 @@ fn finishFrame() {
   if api ~= nil and api.EndFrame ~= nil {
     api.EndFrame()
   }
-  clearArray(state.clipStack)
+  clearClipStack()
   renderSetScissorRect(0, 0, 0, 0, false)
   state.active = false
   state.w = 0
@@ -316,10 +377,15 @@ fn finishFrame() {
   state
 }
 
-fn beginFrameProfile(kind, subject, info) {
-  local api = profiler()
+fn beginFrameProfile(kind, subject, label = nil) {
+  local enabled = profileActive()
+  local api = enabled then profiler() else nil
   local active = false
   if api ~= nil and api.BeginFrame ~= nil {
+    local info = { callsite = profileCallsite(4) }
+    if label ~= nil {
+      info.label = label
+    }
     active = api.BeginFrame(kind, subject, info)
   }
   state.drawCountsActive = do {
@@ -344,10 +410,7 @@ export client fn startScreen(w = ScrW(), h = ScrH()) {
   state.clipToFrame = false
   state.commandStack = nil
   state.replaying = false
-  beginFrameProfile("screen", nil, {
-    callsite = profileCallsite(),
-    label = "screen"
-  })
+  beginFrameProfile("screen", nil, "screen")
   installFrameClip()
   return state
 }
@@ -381,9 +444,7 @@ export client fn startPanel(panel, w, h) {
   state.clipToFrame = true
   state.commandStack = nil
   state.replaying = false
-  beginFrameProfile("panel", panel, {
-    callsite = profileCallsite()
-  })
+  beginFrameProfile("panel", panel)
   installFrameClip()
   return state
 }
@@ -419,27 +480,27 @@ export client fn pushClip(x, y, w, h) {
   }
 
   if ex <= sx or ey <= sy {
-    local clip = {
-      localX = x,
-      localY = y,
-      x = sx,
-      y = sy,
-      w = 0,
-      h = 0
-    }
+    local clip = acquireClipRecord()
+    clip.localX = x
+    clip.localY = y
+    clip.x = sx
+    clip.y = sy
+    clip.w = 0
+    clip.h = 0
+    clip.frame = nil
     state.clipStack[#state.clipStack + 1] = clip
     renderSetScissorRect(0, 0, 0, 0, true)
     return clip
   }
 
-  local clip = {
-    localX = sx - (state.screenX ?? 0),
-    localY = sy - (state.screenY ?? 0),
-    x = sx,
-    y = sy,
-    w = ex - sx,
-    h = ey - sy
-  }
+  local clip = acquireClipRecord()
+  clip.localX = sx - (state.screenX ?? 0)
+  clip.localY = sy - (state.screenY ?? 0)
+  clip.x = sx
+  clip.y = sy
+  clip.w = ex - sx
+  clip.h = ey - sy
+  clip.frame = nil
 
   state.clipStack[#state.clipStack + 1] = clip
   renderSetScissorRect(clip.x, clip.y, clip.x + clip.w, clip.y + clip.h, true)
@@ -452,7 +513,10 @@ export client fn popClip() {
   }
 
   if #state.clipStack > 0 {
-    state.clipStack[#state.clipStack] = nil
+    local index = #state.clipStack
+    local clip = state.clipStack[index]
+    state.clipStack[index] = nil
+    releaseClipRecord(clip)
   }
 
   restoreScissor()

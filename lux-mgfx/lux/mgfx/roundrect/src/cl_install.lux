@@ -21,6 +21,7 @@ export client fn install(owner) {
   }
   owner.RoundedBox = roundedBox
   owner.RoundedBoxEx = roundedBoxEx
+  owner.RoundedBoxBackdrop = roundedBoxBackdrop
   owner.Circle = circle
   owner.CircleEx = circleEx
   owner.Capsule = capsule

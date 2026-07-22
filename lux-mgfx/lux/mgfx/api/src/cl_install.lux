@@ -104,6 +104,7 @@ fn normalizeDrawStyle(drawStyle, target) {
   }
 
   stopif typeOf(drawStyle) ~= "table", nil
+  stopif drawStyle._mgfxCompiledStyle == true, drawStyle
 
   local fill = drawStyle.fill
   local fillKind = typeOf(fill) == "table" then fill.kind else nil
@@ -124,6 +125,30 @@ fn normalizeDrawStyle(drawStyle, target) {
   local out = { ...drawStyle }
   out.pattern = fill
   out.fill = drawStyle.patternBase ?? drawStyle.baseFill ?? transparentFillColor
+  out
+}
+
+fn compileDrawStyle(drawStyle, target = nil) {
+  stopif drawStyle == nil, nil
+  stopif style.isColor(drawStyle), colorDrawStyle(drawStyle)
+  stopif typeOf(drawStyle) ~= "table", nil
+  stopif drawStyle._mgfxCompiledStyle == true, drawStyle
+
+  local normalized = normalizeDrawStyle(drawStyle, target) ?? drawStyle
+  local out = { ...normalized }
+  if out.backdrop ~= nil and out.backdrop ~= false {
+    out.backdrop = style.compileBackdrop(out.backdrop)
+  }
+  if out.pattern ~= nil and out.pattern ~= false {
+    out.pattern = roundrect.patternStyle(out.pattern)
+  }
+  if out.fillPattern ~= nil and out.fillPattern ~= false {
+    out.fillPattern = roundrect.patternStyle(out.fillPattern)
+  }
+  if out.trackPattern ~= nil and out.trackPattern ~= false {
+    out.trackPattern = roundrect.patternStyle(out.trackPattern)
+  }
+  out._mgfxCompiledStyle = true
   out
 }
 
@@ -203,8 +228,9 @@ fn installProfileWrappers(owner) {
   }
 
   api.InstallApiWrappers(owner, {
-    "RoundedBox",
-    "RoundedBoxEx",
+	"RoundedBox",
+	"RoundedBoxBackdrop",
+	"RoundedBoxEx",
     "ChamferBox",
     "ChamferBoxEx",
     "RegularPoly",
@@ -215,8 +241,9 @@ fn installProfileWrappers(owner) {
     "CaretEx",
     "Poly",
     "PolyEx",
-    "Image",
-    "ImageEx",
+	"Image",
+	"ImageUV",
+	"ImageEx",
     "Icon",
     "IconEx",
     "Text",
@@ -228,8 +255,9 @@ fn installProfileWrappers(owner) {
     "ProgressBarEx",
     "SegmentBar",
     "SegmentBarEx",
-    "Line",
-    "LineEx",
+	"Line",
+	"LineNoCaps",
+	"LineEx",
     "Ring",
     "RingEx",
     "Arc",
@@ -256,6 +284,8 @@ fn installProfileWrappers(owner) {
     "WornPattern",
     "Mask",
     "Backdrop",
+    "CompileBackdrop",
+    "CompileStyle",
     "ImageMaskStyle",
     "BackdropStyle",
     "FillFromStyle",
@@ -308,6 +338,7 @@ export client fn install(owner = nil) {
   primitives.install(out)
   widgets.install(out)
   installNormalizedDrawApi(out)
+  out.CompileStyle = compileDrawStyle
   installFrameStatsReset(out)
   installProfileWrappers(out)
 

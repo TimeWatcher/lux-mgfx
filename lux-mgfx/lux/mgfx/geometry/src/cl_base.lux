@@ -48,6 +48,7 @@ local geometryProfiler = nil
 local geometryOwner = nil
 local backdropBlurPreparedFrame = -1
 local backdropBlurPreparedIntensity = 0
+local backdropBlurPreparedLevel = nil
 local backdropBlurParamMatrices = {}
 local backdropBlurMatrixProbe = matrixCtor ~= nil then matrixCtor() else nil
 local backdropBlurMatrixSetUnpacked = backdropBlurMatrixProbe?.SetUnpacked

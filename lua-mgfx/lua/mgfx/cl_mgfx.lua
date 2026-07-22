@@ -216,6 +216,7 @@ end
 local function resolveDrawStyle(style, target)
 	if style == nil then return emptyDrawStyle end
 	if not istable(style) then return emptyDrawStyle end
+	if style._mgfxCompiledStyle == true then return style end
 	if style.r ~= nil and style.g ~= nil and style.b ~= nil then
 		local cached = colorDrawStyleCache[style]
 		if cached then return cached end
@@ -372,6 +373,9 @@ local asColor = styleApi.asColor
 local color01 = styleApi.color01
 local setDrawColor = styleApi.setDrawColor
 local strokeWidthValue = styleApi.strokeWidthValue
+local strokeRaw = styleApi.strokeRaw
+local strokeColor = styleApi.strokeColor
+local strokeKind = styleApi.strokeKind
 local radiusTuple = styleApi.radiusTuple
 local radiusScalar = styleApi.radiusScalar
 local normalizeStops = styleApi.normalizeStops
@@ -385,11 +389,18 @@ local normalizedRotation = styleApi.normalizedRotation
 local glowSoftnessToFalloff = styleApi.glowSoftnessToFalloff
 local strokeVisible = styleApi.strokeVisible
 local backdropStyle = styleApi.backdropStyle
+local defaultPatternColor = styleApi.defaultPatternColor
+local defaultPatternTrueColor = styleApi.defaultPatternTrueColor
+local defaultWornEdgeColor = styleApi.defaultWornEdgeColor
 local imageMaskStyle = styleApi.imageMaskStyle
 local FILL_SOLID = styleApi.FILL_SOLID
 local FILL_LINEAR = styleApi.FILL_LINEAR
 local FILL_RADIAL = styleApi.FILL_RADIAL
 local FILL_CONIC = styleApi.FILL_CONIC
+local STROKE_SOLID = styleApi.STROKE_SOLID
+local STROKE_DOT = styleApi.STROKE_DOT
+local STROKE_DASH = styleApi.STROKE_DASH
+local STROKE_DOT_DASH = styleApi.STROKE_DOT_DASH
 
 local GRADIENT_LUT_W = 256
 local GRADIENT_LUT_H = 4
@@ -916,27 +927,34 @@ end
 
 local backdropBlurPreparedFrame = -1
 local backdropBlurPreparedIntensity = 0
+local backdropBlurPreparedLevel = nil
 
--- Backdrop blur is a frame resource, not a per-widget operation. The first
--- backdrop in an engine render frame captures the screen and completes the
--- horizontal and vertical full-screen passes. Every shape then samples that
--- final texture once through its own mask. A caller that genuinely needs a newer
--- source after drawing into the frame must request `backdrop.recapture = true`.
-local function prepareBackdropBlur(amount, recapture)
+-- The raw capture is reused while intensity changes only rerun the separable
+-- passes. A new level captures the framebuffer again so higher UI layers can
+-- include content already drawn below them.
+local function prepareBackdropBlur(amount, recapture, level)
 	local frame = FrameNumber()
-	if not recapture and backdropBlurPreparedFrame == frame then
+	local intensity = blurIntensity(amount)
+	level = math_floor(tonumber(level) or 0)
+	local sameFrame = backdropBlurPreparedFrame == frame
+	local sameLevel = backdropBlurPreparedLevel == level
+	if not recapture and sameFrame and sameLevel
+		and math_abs(backdropBlurPreparedIntensity - intensity) < 0.0001 then
 		M.stats.blurReuses = M.stats.blurReuses + 1
 		return backdropBlurPreparedIntensity
 	end
 
 	local sw, sh = ScrW(), ScrH()
-	local intensity = blurIntensity(amount)
 	local horizontalMat = materials.backdrop_blur_horizontal
 	local verticalMat = materials.backdrop_blur_vertical
 	local prevR, prevG, prevB = render_GetColorModulation()
 	local prevBlend = render_GetBlend()
+	local captureSource = recapture or not sameFrame or not sameLevel
 
-	render_CopyRenderTargetToTexture(blurRT)
+	if captureSource then
+		render_CopyRenderTargetToTexture(blurRT)
+		M.stats.blurCaptures = M.stats.blurCaptures + 1
+	end
 	render_PushRenderTarget(backdropBlurHorizontalRT)
 	render_SetScissorRect(0, 0, 0, 0, false)
 	render_SetColorModulation(1, 1, 1)
@@ -963,13 +981,13 @@ local function prepareBackdropBlur(amount, recapture)
 
 	backdropBlurPreparedFrame = frame
 	backdropBlurPreparedIntensity = intensity
-	M.stats.blurCaptures = M.stats.blurCaptures + 1
+	backdropBlurPreparedLevel = level
 	M.stats.blurPasses = M.stats.blurPasses + 2
 	return intensity
 end
 
-local function drawBlurredQuad(mat, x, y, w, h, radius, amount, tint, recapture)
-	prepareBackdropBlur(amount, recapture)
+local function drawBlurredQuad(mat, x, y, w, h, radius, amount, tint, recapture, level)
+	prepareBackdropBlur(amount, recapture, level)
 	surface_SetMaterial(mat)
 	surface_SetDrawColor(255, 255, 255, 255)
 
@@ -995,18 +1013,18 @@ local function drawBlurredQuad(mat, x, y, w, h, radius, amount, tint, recapture)
 	drawTexturedQuad(x, y, w, h, mat)
 end
 
-local function drawBlurredCustomQuad(mat, x, y, w, h, amount, setup, recapture)
-	prepareBackdropBlur(amount, recapture)
+local function drawBlurredCustomQuad(mat, x, y, w, h, amount, setup, recapture, level)
+	prepareBackdropBlur(amount, recapture, level)
 	surface_SetMaterial(mat)
 	surface_SetDrawColor(255, 255, 255, 255)
 	setup(mat, true, 0)
 	drawTexturedQuad(x, y, w, h, mat)
 end
 
-local function drawBlurredPoly(poly, mat, amount, recapture)
+local function drawBlurredPoly(poly, mat, amount, recapture, level)
 	if not poly or not mat then return false end
 
-	prepareBackdropBlur(amount, recapture)
+	prepareBackdropBlur(amount, recapture, level)
 	surface_SetDrawColor(255, 255, 255, 255)
 	setupBlurConstants(mat, poly.w, poly.h, true, 0, 0)
 	drawMaterialPoly(poly, mat)
@@ -1026,11 +1044,21 @@ local roundRectApi = assert(M._InstallRoundRect and M._InstallRoundRect({
 	color01 = color01,
 	setDrawColor = setDrawColor,
 	strokeWidthValue = strokeWidthValue,
+	strokeRaw = strokeRaw,
+	strokeColor = strokeColor,
+	strokeKind = strokeKind,
+	STROKE_SOLID = STROKE_SOLID,
+	STROKE_DOT = STROKE_DOT,
+	STROKE_DASH = STROKE_DASH,
+	STROKE_DOT_DASH = STROKE_DOT_DASH,
 	radiusScalar = radiusScalar,
 	fillFromStyle = fillFromStyle,
 	fillVisible = fillVisible,
 	strokeVisible = strokeVisible,
 	backdropStyle = backdropStyle,
+	defaultPatternColor = defaultPatternColor,
+	defaultPatternTrueColor = defaultPatternTrueColor,
+	defaultWornEdgeColor = defaultWornEdgeColor,
 	glowSoftnessToFalloff = glowSoftnessToFalloff,
 	FILL_SOLID = FILL_SOLID,
 	FILL_LINEAR = FILL_LINEAR,
@@ -1057,6 +1085,7 @@ local roundRectApi = assert(M._InstallRoundRect and M._InstallRoundRect({
 	drawBlurredQuad = drawBlurredQuad,
 }), "MGFX roundrect module unavailable")
 local drawRoundRectFallback = roundRectApi.drawRoundRectFallback
+local drawStrokePath = roundRectApi.drawStrokePath
 local patternStyle = roundRectApi.patternStyle
 local patternOffset = roundRectApi.patternOffset
 local setupPatternConstants = roundRectApi.setupPatternConstants
@@ -1070,6 +1099,33 @@ local drawRoundRectPrepared = roundRectApi.drawRoundRectPrepared
 local drawRoundRectImmediate = roundRectApi.drawRoundRectImmediate
 local roundRaw = roundRectApi.roundRaw
 local glowBiasPads = roundRectApi.glowBiasPads
+
+function M.CompileStyle(style, target)
+	if style == nil then return nil end
+	if not istable(style) then return nil end
+	if style.r ~= nil and style.g ~= nil and style.b ~= nil then
+		return resolveDrawStyle(style, target)
+	end
+	if style._mgfxCompiledStyle == true then return style end
+
+	local normalized = resolveDrawStyle(style, target)
+	local out = {}
+	for key, value in pairs(normalized) do out[key] = value end
+	if out.backdrop ~= nil and out.backdrop ~= false then
+		out.backdrop = backdropStyle(out.backdrop)
+	end
+	if out.pattern ~= nil and out.pattern ~= false then
+		out.pattern = patternStyle(out.pattern)
+	end
+	if out.fillPattern ~= nil and out.fillPattern ~= false then
+		out.fillPattern = patternStyle(out.fillPattern)
+	end
+	if out.trackPattern ~= nil and out.trackPattern ~= false then
+		out.trackPattern = patternStyle(out.trackPattern)
+	end
+	out._mgfxCompiledStyle = true
+	return out
+end
 M._internal.drawRoundRectRaw = drawRoundRectRaw
 M._internal.drawRoundRectPrepared = drawRoundRectPrepared
 M._internal.drawRoundRectImmediate = drawRoundRectImmediate
@@ -1116,6 +1172,13 @@ local context = {
 	color01 = color01,
 	setDrawColor = setDrawColor,
 	strokeWidthValue = strokeWidthValue,
+	strokeRaw = strokeRaw,
+	strokeColor = strokeColor,
+	strokeKind = strokeKind,
+	STROKE_SOLID = STROKE_SOLID,
+	STROKE_DOT = STROKE_DOT,
+	STROKE_DASH = STROKE_DASH,
+	STROKE_DOT_DASH = STROKE_DOT_DASH,
 	radiusTuple = radiusTuple,
 	radiusScalar = radiusScalar,
 	normalizeStops = normalizeStops,
@@ -1129,6 +1192,9 @@ local context = {
 	glowSoftnessToFalloff = glowSoftnessToFalloff,
 	strokeVisible = strokeVisible,
 	backdropStyle = backdropStyle,
+	defaultPatternColor = defaultPatternColor,
+	defaultPatternTrueColor = defaultPatternTrueColor,
+	defaultWornEdgeColor = defaultWornEdgeColor,
 	imageMaskStyle = imageMaskStyle,
 	fillFromStyle = fillFromStyle,
 	fillVisible = fillVisible,
@@ -1175,6 +1241,7 @@ local context = {
 	drawRoundRectRaw = drawRoundRectRaw,
 	drawRoundRectPrepared = drawRoundRectPrepared,
 	drawRoundRectImmediate = drawRoundRectImmediate,
+	drawStrokePath = drawStrokePath,
 	roundRaw = roundRaw,
 	glowBiasPads = glowBiasPads,
 	textureFallbackMaterial = textureFallbackMaterial,
@@ -1205,6 +1272,7 @@ end
 if profiler and profiler.InstallApiWrappers then
 	profiler.InstallApiWrappers(M, {
 		"RoundedBox",
+		"RoundedBoxBackdrop",
 		"RoundedBoxEx",
 		"ChamferBox",
 		"ChamferBoxEx",
@@ -1217,6 +1285,7 @@ if profiler and profiler.InstallApiWrappers then
 		"Poly",
 		"PolyEx",
 		"Image",
+		"ImageUV",
 		"ImageEx",
 		"Icon",
 		"IconEx",
@@ -1230,6 +1299,7 @@ if profiler and profiler.InstallApiWrappers then
 		"SegmentBar",
 		"SegmentBarEx",
 		"Line",
+		"LineNoCaps",
 		"LineEx",
 		"Ring",
 		"RingEx",
@@ -1261,6 +1331,8 @@ if profiler and profiler.InstallApiWrappers then
 		"WornPattern",
 		"Mask",
 		"Backdrop",
+		"CompileBackdrop",
+		"CompileStyle",
 		"ImageMaskStyle",
 		"BackdropStyle",
 		"FillFromStyle",

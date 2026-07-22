@@ -7,6 +7,7 @@ ProgressBar、SegmentBar、Ring、Arc、Sector 都是 renderer-level immediate h
 - `RingEx(cx, cy, radius, width, style)` 和 `ArcEx(cx, cy, radius, width, startDeg, endDeg, style)` 把宽度放在几何参数里。
 - `SectorEx(cx, cy, innerRadius, outerRadius, startDeg, endDeg, style)` 是真正扇区，不是圆弧加宽。
 - 周向渐变使用 shape-local angular gradient，不要把它和全局 conic gradient 混为一谈。
+- 这些组件支持统一的居中 `stroke` record，包括 `solid`、`dot`、`dash` 和 `dot-dash`；非实线走独立 stroke pass。字段详见[形状 style.stroke](./primitives#style-stroke)。
 
 ## 本页 API
 
@@ -25,7 +26,9 @@ ProgressBar、SegmentBar、Ring、Arc、Sector 都是 renderer-level immediate h
 
 #### HUD 血条 / 装填条
 
-```lua
+::: code-group
+
+```lua [GLua]
 MGFX.ProgressBarEx(x, y, w, 14, health / maxHealth, {
     radius = 7,
     padding = 2,
@@ -36,6 +39,23 @@ MGFX.ProgressBarEx(x, y, w, 14, health / maxHealth, {
     fx = {sheen = true, marker = true},
 })
 ```
+
+```lux [Lux]
+import * as mgfx from "@lux/mgfx"
+
+local draw = mgfx.api
+draw.progressBarEx(x, y, w, 14, health / maxHealth, {
+  radius = 7,
+  padding = 2,
+  track = Color(255, 255, 255, 24),
+  fill = draw.linearGradient(0, 0, 1, 0, Color(255, 92, 72), Color(255, 190, 66)),
+  stroke = Color(255, 255, 255, 28),
+  strokeWidth = 1,
+  fx = {sheen = true, marker = true},
+});
+```
+
+:::
 
 常用高度 `8..18`。`radius = h * 0.5` 是胶囊条；`padding = 1..3` 能让填充和轨道分开，但高度低于 8 时应少用 padding。
 

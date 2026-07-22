@@ -2,6 +2,7 @@ export client fn drawRoundRectPrepared(
   x, y, w, h, radius,
   fill, hasFill,
   strokeValue, strokeWidth, hasStroke,
+  strokeKind, strokeLength, strokeGap, strokeOffset,
   hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread,
   hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
   hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff,
@@ -21,6 +22,9 @@ export client fn drawRoundRectPrepared(
   fill = fill ?? transparentFill
   hasFill = hasFill == true
   hasStroke = hasStroke == true
+  strokeKind = strokeKind ?? style.STROKE_SOLID
+  local specialStroke = hasStroke and strokeKind ~= style.STROKE_SOLID
+  local baseHasStroke = hasStroke and not specialStroke
   hasShadow = hasShadow == true
   hasOuter = hasOuter == true
   hasInner = hasInner == true
@@ -84,6 +88,9 @@ export client fn drawRoundRectPrepared(
   }
 
   local cullSpread = 0
+  if hasStroke {
+    cullSpread = mathMax(cullSpread, strokeWidth * 0.5 + 1)
+  }
   if shaderReady {
     if hasShadow {
       cullSpread = mathMax(cullSpread, shadowCullSpread ?? 0)
@@ -113,7 +120,7 @@ export client fn drawRoundRectPrepared(
 
   if not shaderReady {
     local profile = profiling then roundRectProfileStart() else nil
-    drawRoundRectFallbackPrepared(x, y, w, h, radius, fill, hasFill, strokeValue, strokeWidth, hasStroke)
+    drawRoundRectFallbackPrepared(x, y, w, h, radius, fill, hasFill, strokeValue, strokeWidth, hasStroke, strokeKind, strokeLength, strokeGap, strokeOffset)
     drawRoundRectInnerGlowRaw(x, y, w, h, radius, hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff)
     if profiling {
       roundRectProfileEnd("round.fallback", profile)
@@ -135,9 +142,10 @@ export client fn drawRoundRectPrepared(
   local canTryFused = backdropSpec == nil
     and patternSpec == nil
     and not hasInner
+    and not specialStroke
     and not transformActive
     and not hasShadowLayers
-    and (hasFill or hasStroke)
+    and (hasFill or baseHasStroke)
     and (hasShadow or hasOuter)
   if canTryFused {
     profile = profiling then roundRectProfileStart() else nil
@@ -188,31 +196,22 @@ export client fn drawRoundRectPrepared(
     }
   }
 
-  local backdrop = nil
   if backdropSpec ~= nil {
     profile = profiling then roundRectProfileStart() else nil
-    backdrop = drawRoundRectBackdrop(x, y, w, h, radius, backdropSpec)
+    drawRoundRectBackdrop(x, y, w, h, radius, backdropSpec)
     if profiling {
       roundRectProfileEnd("round.backdrop", profile)
     }
   }
 
-  local effectOnly = backdrop == nil
-    and not hasStroke
-    and patternSpec == nil
-    and not hasInner
-    and (hasShadow or hasOuter or hasShadowLayers)
-  if effectOnly and not hasFill {
-    finishImmediateProfile(profiling, totalProfile)
-    return
-  }
-
-  if backdrop == nil and not hasFill and not hasStroke and patternSpec == nil and not hasInner {
+  if not hasFill and not hasStroke and patternSpec == nil and not hasInner {
     finishImmediateProfile(profiling, totalProfile)
     return
   }
 
   local drawFill = hasFill then fill else transparentFill
+  local baseStrokeValue = baseHasStroke then strokeValue else nil
+  local baseStrokeWidth = baseHasStroke then strokeWidth else 0
   local innerGlowDrawn = false
   if patternSpec ~= nil {
     profile = profiling then roundRectProfileStart() else nil
@@ -221,7 +220,7 @@ export client fn drawRoundRectPrepared(
     }
     drawRoundRectPatternPrepared(x, y, w, h, radius, patternSpec)
     if hasStroke {
-      drawRoundRectStrokePass(x, y, w, h, radius, strokeValue, strokeWidth)
+      drawRoundRectStrokePass(x, y, w, h, radius, strokeValue, strokeWidth, strokeKind, strokeLength, strokeGap, strokeOffset)
     }
     if profiling {
       roundRectProfileEnd("round.layered", profile)
@@ -231,7 +230,7 @@ export client fn drawRoundRectPrepared(
     local radiusValue = roundRectRadiusScalar(radius, w, h)
     local baseKind = if drawFill.kind == style.FILL_LINEAR {
       "round.base.gradient"
-    } else if hasStroke {
+    } else if baseHasStroke {
       "round.base.stroke"
     } else if radiusValue <= 0 {
       "round.base.solidRect"
@@ -239,7 +238,7 @@ export client fn drawRoundRectPrepared(
       "round.base.solidRound"
     }
 
-    if hasInner and drawRoundRectFxPassRaw(x, y, w, h, radius, drawFill, strokeValue, strokeWidth, true, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff) {
+    if hasInner and drawRoundRectFxPassRaw(x, y, w, h, radius, drawFill, baseStrokeValue, baseStrokeWidth, true, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff) {
       baseKind = "round.base.fx"
       innerGlowDrawn = true
     } else if baseKind == "round.base.solidRect"
@@ -257,16 +256,16 @@ export client fn drawRoundRectPrepared(
       and fill.kind == style.FILL_SOLID
       and drawSolidRoundFast(x, y, w, h, radiusValue, fill) {
       baseKind = "round.base.solidRoundFast"
-    } else if hasFill or hasStroke or backdrop ~= nil {
+    } else if hasFill or baseHasStroke {
       local setupProfile = profiling then roundRectProfileStart() else nil
-      setupRoundRectConstants(roundRectMaterials.roundrect, w, h, drawFill, strokeValue, strokeWidth, radiusValue)
+      setupRoundRectConstants(roundRectMaterials.roundrect, w, h, drawFill, baseStrokeValue, baseStrokeWidth, radiusValue)
       surfaceSetMaterial(roundRectMaterials.roundrect)
       surfaceSetDrawColor(255, 255, 255, 255)
       if profiling {
         roundRectProfileEnd("round.base.setup", setupProfile)
       }
       local drawProfile = profiling then roundRectProfileStart() else nil
-      drawTexturedQuad(x, y, w, h, roundRectMaterials.roundrect)
+      drawRoundRectBaseQuad(x, y, w, h, roundRectMaterials.roundrect, baseStrokeWidth)
       if profiling {
         roundRectProfileEnd("round.base.draw", drawProfile)
       }
@@ -274,6 +273,10 @@ export client fn drawRoundRectPrepared(
 
     if profiling {
       roundRectProfileEndBase(baseKind, profile)
+    }
+
+    if specialStroke {
+      drawRoundRectStrokePass(x, y, w, h, radius, strokeValue, strokeWidth, strokeKind, strokeLength, strokeGap, strokeOffset)
     }
   }
 
@@ -295,12 +298,7 @@ export client fn drawRoundRectRaw(x, y, w, h, radius = 0, fillInput = nil, strok
   local totalProfile = profiling then roundRectProfileStart() else nil
   local fill = hotFillFromStyle(fillInput)
   local hasFill = hotFillVisible(fill)
-  local strokeWidth = 0
-  local hasStroke = false
-  if strokeValue ~= nil {
-    strokeWidth = style.strokeWidth(strokeWidthInput, 0)
-    hasStroke = strokeWidth > 0 and (strokeValue.a == nil or strokeValue.a > 0)
-  }
+  local hasStroke, strokeColor, strokeWidth, strokeKind, strokeLength, strokeGap, strokeOffset = style.strokeRaw(strokeValue, strokeWidthInput)
 
   local hasShadow = false
   local sr = 0
@@ -384,7 +382,8 @@ export client fn drawRoundRectRaw(x, y, w, h, radius = 0, fillInput = nil, strok
   drawRoundRectPrepared(
     x, y, w, h, radius,
     fill, hasFill,
-    strokeValue, strokeWidth, hasStroke,
+    strokeColor, strokeWidth, hasStroke,
+    strokeKind, strokeLength, strokeGap, strokeOffset,
     hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread,
     hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
     hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff,

@@ -15,11 +15,15 @@ function MGFX._InstallWidgetRings(C)
 	local color01 = C.color01
 	local setDrawColor = C.setDrawColor
 	local strokeWidthValue = C.strokeWidthValue
+	local strokeRaw = C.strokeRaw
+	local STROKE_SOLID = C.STROKE_SOLID or 0
 	local radiusTuple = C.radiusTuple
 	local radiusScalar = C.radiusScalar
 	local fillFromStyle = C.fillFromStyle
 	local fillVisible = C.fillVisible
 	local backdropStyle = C.backdropStyle or function() return nil end
+	local defaultPatternColor = C.defaultPatternColor
+	local defaultWornEdgeColor = C.defaultWornEdgeColor
 	local strokeVisible = C.strokeVisible
 	local colorAtFill = C.colorAtFill
 	local bindGradientLut = C.bindGradientLut or function() end
@@ -29,6 +33,7 @@ function MGFX._InstallWidgetRings(C)
 	local setupConstants = C.setupConstants
 	local setupParamMatrix = C.setupParamMatrix
 	local drawTexturedQuad = C.drawTexturedQuad
+	local drawTexturedQuadUV = C.drawTexturedQuadUV
 	local withTransform = C.withTransform or function(_, _, _, _, _, fn) return fn() end
 	local splitStyleTransform = C.splitStyleTransform or function(style) return nil, style end
 	local hasTransform = C.hasTransform or function() return false end
@@ -45,6 +50,9 @@ function MGFX._InstallWidgetRings(C)
 	local drawRoundRectImmediate = C.drawRoundRectImmediate
 	local drawRoundRectOuterGlow = C.drawRoundRectOuterGlow
 	local roundRaw = assert(C.roundRaw, "MGFX raw effect helper unavailable")
+	local drawStrokePath = assert(C.drawStrokePath, "MGFX stroke path helper unavailable")
+	local drawLineRaw = assert(C.drawLineRaw, "MGFX raw line helper unavailable")
+	local drawPolyRaw = assert(C.drawPolyRaw, "MGFX raw polygon helper unavailable")
 	local chamferTuple = C.chamferTuple
 	local drawChamferOuterGlow = C.drawChamferOuterGlow
 	local drawChamferPattern = C.drawChamferPattern
@@ -65,6 +73,7 @@ function MGFX._InstallWidgetRings(C)
 	local math_max = math.max
 	local math_min = math.min
 	local math_floor = math.floor
+	local math_ceil = math.ceil
 	local math_rad = math.rad
 	local math_cos = math.cos
 	local math_sin = math.sin
@@ -135,6 +144,60 @@ local function setupRingShapeConstants(mat, w, h, innerRadius, outerRadius, star
 		ringModeValue(mode)
 end
 
+local function drawRingFallbackRaw(cx, cy, outerRadius, arcWidth, startDeg, endDeg, mode, innerRadiusInput, fill, stroke, strokeWidth, shadow, outerGlow, backdrop)
+	local sweep = math_abs((tonumber(endDeg) or 360) - (tonumber(startDeg) or 0))
+	local segments = math.Clamp(math_floor(sweep / 360 * 64), 3, 64)
+	local startRad = math_rad(tonumber(startDeg) or 0)
+	local endRad = math_rad(tonumber(endDeg) or 360)
+	local hasStroke, strokeColor, resolvedStrokeWidth, strokeKind, strokeLength, strokeGap, strokeOffset = strokeRaw(stroke, strokeWidth, 0)
+	local innerRadius = math.Clamp(tonumber(innerRadiusInput) or math_max(0, outerRadius - arcWidth), 0, outerRadius)
+
+	if mode == RING_MODE_SECTOR then
+		local points = {}
+		for index = 1, segments + 1 do
+			local t = (index - 1) / segments
+			local angle = startRad + (endRad - startRad) * t
+			points[#points + 1] = {x = cx + math_cos(angle) * outerRadius, y = cy + math_sin(angle) * outerRadius}
+		end
+		for index = segments + 1, 1, -1 do
+			local t = (index - 1) / segments
+			local angle = startRad + (endRad - startRad) * t
+			points[#points + 1] = {x = cx + math_cos(angle) * innerRadius, y = cy + math_sin(angle) * innerRadius}
+		end
+		return drawPolyRaw(points, nil, fill, stroke, strokeWidth, shadow, outerGlow, backdrop, nil)
+	end
+
+	local outerPoints, innerPoints = {}, {}
+	for index = 1, segments do
+		local t1, t2 = (index - 1) / segments, index / segments
+		local a1 = startRad + (endRad - startRad) * t1
+		local a2 = startRad + (endRad - startRad) * t2
+		drawLineRaw(
+			cx + math_cos(a1) * outerRadius, cy + math_sin(a1) * outerRadius,
+			cx + math_cos(a2) * outerRadius, cy + math_sin(a2) * outerRadius,
+			fill, arcWidth, nil, nil, outerGlow, backdrop, false
+		)
+	end
+
+	if hasStroke then
+		for index = 0, segments do
+			local t = index / segments
+			local angle = startRad + (endRad - startRad) * t
+			outerPoints[#outerPoints + 1] = {x = cx + math_cos(angle) * outerRadius, y = cy + math_sin(angle) * outerRadius}
+			innerPoints[#innerPoints + 1] = {x = cx + math_cos(angle) * innerRadius, y = cy + math_sin(angle) * innerRadius}
+		end
+		if mode == RING_MODE_FULL then
+			drawStrokePath(outerPoints, true, strokeColor, resolvedStrokeWidth, strokeKind, strokeLength, strokeGap, strokeOffset)
+			if innerRadius > 0.001 then
+				drawStrokePath(innerPoints, true, strokeColor, resolvedStrokeWidth, strokeKind, strokeLength, strokeGap, strokeOffset)
+			end
+		else
+			for index = #innerPoints, 1, -1 do outerPoints[#outerPoints + 1] = innerPoints[index] end
+			drawStrokePath(outerPoints, true, strokeColor, resolvedStrokeWidth, strokeKind, strokeLength, strokeGap, strokeOffset)
+		end
+	end
+end
+
 local function ringFillParams(fill)
 	if fill.kind == FILL_LINEAR then
 		return fill.x1 or 0, fill.y1 or 0, fill.x2 or 1, fill.y2 or 0
@@ -186,7 +249,20 @@ local function drawRingFillPass(x, y, w, h, innerRadius, outerRadius, startDeg, 
 	drawTexturedQuad(x, y, w, h, mat)
 end
 
-local function drawRingStrokePass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, stroke, strokeWidth)
+local function drawRingStrokeQuad(x, y, w, h, mat, strokeWidth)
+	local pad = math_ceil(math_max(0, tonumber(strokeWidth) or 0) * 0.5 + 1)
+	if pad <= 1 or w <= 0 or h <= 0 then
+		drawTexturedQuad(x, y, w, h, mat)
+		return
+	end
+	drawTexturedQuadUV(
+		x - pad, y - pad, w + pad * 2, h + pad * 2,
+		-pad / w, -pad / h, 1 + pad / w, 1 + pad / h,
+		mat
+	)
+end
+
+local function drawRingStrokePass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, stroke, strokeWidth, strokeKind, strokeLength, strokeGap, strokeOffset)
 	local width = strokeWidthValue(strokeWidth, 0)
 	if not strokeVisible(stroke, width) then return end
 	if not shadersActive() or not matOK(materials.ring_stroke) then return end
@@ -198,11 +274,11 @@ local function drawRingStrokePass(x, y, w, h, innerRadius, outerRadius, startDeg
 		r, g, b, a,
 		sw, sh, ir, orad,
 		sr, er, modeValue, math_max(0, width),
-		0, 0, 0, 0
+		strokeKind or STROKE_SOLID, strokeLength or 0, strokeGap or 0, strokeOffset or 0
 	)
 	surface_SetMaterial(mat)
 	surface_SetDrawColor(255, 255, 255, 255)
-	drawTexturedQuad(x, y, w, h, mat)
+	drawRingStrokeQuad(x, y, w, h, mat, width)
 end
 
 local function drawRingFxPass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, fill, stroke, strokeWidth, innerEnabled, gr, gg, gb, ga, glowWidth, glowStrength, glowFalloff)
@@ -407,7 +483,7 @@ local function drawRingPatternPass(x, y, w, h, innerRadius, outerRadius, startDe
 			math_cos(angle), math_sin(angle), pz, pw
 		)
 		if worn and setupExtraParams then
-			local edgeColor = asColor(spec.edgeColor, Color(218, 208, 184, 78))
+			local edgeColor = asColor(spec.edgeColor, defaultWornEdgeColor)
 			local er, eg, eb, ea = color01(edgeColor)
 			setupExtraParams(pmat,
 				er, eg, eb, ea,
@@ -425,7 +501,7 @@ local function drawRingPatternPass(x, y, w, h, innerRadius, outerRadius, startDe
 				math_max(0, tonumber(spec.warp) or 0.035)
 			)
 		end
-		setDrawColor(spec.color or spec.tint or Color(255, 255, 255, 24))
+		setDrawColor(spec.color or spec.tint or defaultPatternColor)
 		surface_SetMaterial(pmat)
 		drawTexturedQuad(x, y, w, h, pmat)
 	end
@@ -470,7 +546,7 @@ local function drawRingBackdropPass(x, y, w, h, innerRadius, outerRadius, startD
 		local mat = materials.ring_backdrop
 		drawBlurredCustomQuad(mat, bx, by, bw, bh, spec.blur, function(passMat, vertical, intensity)
 			setupRingBackdropConstants(passMat, bw, bh, bi, bo, startDeg, endDeg, mode, vertical, intensity)
-		end, spec.recapture)
+		end, spec.recapture, spec.level)
 	end
 
 	local tint = backdropTintColor(spec)
@@ -485,8 +561,12 @@ local function drawRingBoxRaw(x, y, w, h, innerRadius, outerRadius, startDeg, en
 	local hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, _, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread = roundRaw.shadow(shadow)
 	local hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, _, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread = roundRaw.outerGlow(outerGlow)
 	local backdropSpec = backdropStyle(backdrop)
+	local fill = hotFillFromStyle(fillInput or colorInput, defaultRingFillColor)
+	local hasStroke, strokeColor, strokeWidth, strokeKind, strokeLength, strokeGap, strokeOffset = strokeRaw(stroke, strokeWidthInput, 0)
+	local specialStroke = hasStroke and strokeKind ~= STROKE_SOLID
+	local baseStroke = hasStroke and not specialStroke
 	local shaderReady = shadersActive()
-	local cullSpread = 0
+	local cullSpread = hasStroke and (strokeWidth * 0.5 + 1) or 0
 	if shaderReady then
 		if hasShadow then
 			cullSpread = math_max(cullSpread, shadowCullSpread)
@@ -499,6 +579,9 @@ local function drawRingBoxRaw(x, y, w, h, innerRadius, outerRadius, startDeg, en
 		end
 	end
 	if not hasTransform() and isCulled(x - cullSpread, y - cullSpread, w + cullSpread * 2, h + cullSpread * 2) then return end
+	if not shaderReady or not matOK(materials.ring) then
+		return drawRingFallbackRaw(x + w * 0.5, y + h * 0.5, outerRadius, outerRadius - innerRadius, startDeg, endDeg, mode, innerRadius, fill, stroke, strokeWidthInput, shadow, outerGlow, backdrop)
+	end
 
 	if hasShadow or hasOuter then
 		drawRingShadowOuterPass(
@@ -510,11 +593,13 @@ local function drawRingBoxRaw(x, y, w, h, innerRadius, outerRadius, startDeg, en
 	if backdrop ~= nil then
 		drawRingBackdropPass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, backdrop)
 	end
-	local fill = hotFillFromStyle(fillInput or colorInput, defaultRingFillColor)
 	local hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff = roundRaw.innerGlow(innerGlow)
-	local strokeWidth = strokeWidthValue(strokeWidthInput, 0)
-	local hasStroke = strokeVisible(stroke, strokeWidth)
-	if pattern == nil and (hasStroke or hasInner) and drawRingFxPass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, fill, stroke, strokeWidth, hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff) then
+	local baseStrokeColor = baseStroke and strokeColor or nil
+	local baseStrokeWidth = baseStroke and strokeWidth or 0
+	if pattern == nil and (baseStroke or hasInner) and drawRingFxPass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, fill, baseStrokeColor, baseStrokeWidth, hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff) then
+		if specialStroke then
+			drawRingStrokePass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, strokeColor, strokeWidth, strokeKind, strokeLength, strokeGap, strokeOffset)
+		end
 		return
 	end
 
@@ -526,7 +611,7 @@ local function drawRingBoxRaw(x, y, w, h, innerRadius, outerRadius, startDeg, en
 		drawRingInnerGlowPass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, true, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff)
 	end
 	if hasStroke then
-		drawRingStrokePass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, stroke, strokeWidth)
+		drawRingStrokePass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, strokeColor, strokeWidth, strokeKind, strokeLength, strokeGap, strokeOffset)
 	end
 end
 

@@ -4,122 +4,125 @@ layout: home
 hero:
   name: "MGFX"
   text: "Modern GMod FX"
-  tagline: "A shader-backed immediate renderer for Garry's Mod UI. MGFX keeps the direct drawing model you already know, while adding anti-aliased shapes, gradients, masks, glow, backdrop blur, rings, sectors, images, and optional shader text effects."
+  tagline: "Shader-backed immediate rendering for Garry's Mod UI. Start with your runtime, then use the same renderer concepts for shapes, images, meters, text effects, gradients, masks, glow, and backdrop blur."
   actions:
     - theme: brand
-      text: Read the API
-      link: /API
+      text: Start With GLua
+      link: /guide/glua
     - theme: alt
-      text: Plain GLua Usage
-      link: /API#plain-glua-usage
+      text: Start With Lux
+      link: /guide/lux
+    - theme: alt
+      text: API Reference
+      link: /api-reference/
     - theme: alt
       text: 中文文档
       link: /zh-CN/
 
 features:
-  - title: Immediate first
-    details: Shapes and HUD meters use direct shader/fallback paths with prepared scalar parameters below the public API boundary.
+  - title: Pick your runtime first
+    details: Plain GLua projects use lua-mgfx and MGFX.*. Lux projects import @lux/mgfx and use mgfx.api.*.
+  - title: Immediate renderer, not framework
+    details: MGFX draws the explicit visual state you pass every frame. Layout, input, focus, animation, and hit testing stay in caller code.
   - title: Shape-aware effects
-    details: Rounded boxes, chamfer boxes, circles, capsules, rings, arcs, sectors, convex polygons, and image masks clip shadow, glow, and backdrop effects to their own coverage.
-  - title: Real paint records
-    details: Linear, radial, conic, ring/sector radial, angular gradients, stripe, smoke, and worn material patterns are paint slots instead of hand-expanded geometry.
-  - title: Lux and plain GLua
-    details: Lux projects import @lux/mgfx. Non-Lux projects can load the bundled runtime and call MGFX.* directly.
-  - title: Measured shop performance
-    details: Recent complex shop UI testing holds 130+ FPS with a full item list and 160+ FPS in lighter categories with diagnostics disabled.
+    details: Rounded boxes, chamfers, polygons, rings, sectors, images, and masks clip shadow, glow, backdrop, and patterns to their own coverage.
+  - title: Paired examples
+    details: User-facing guides show GLua and Lux equivalents so readers do not need to translate API names by guesswork.
 ---
 
 ## Quick Start
 
-```lua
+::: code-group
+
+```lua [GLua]
 function PANEL:Paint(w, h)
     MGFX.StartPanel(self, w, h)
 
     MGFX.RoundedBoxEx(0, 0, w, h, {
         radius = 10,
         fill = Color(8, 14, 20, 170),
-        backdrop = {
-            blur = 8,
-            tint = Color(0, 8, 12, 120),
-        },
-        outerGlow = {
-            color = Color(70, 205, 255, 64),
-            width = 12,
-            softness = 0.58,
-        },
+        backdrop = {blur = 8, tint = Color(0, 8, 12, 120)},
+        outerGlow = {color = Color(70, 205, 255, 64), width = 12},
     })
 
     MGFX.ProgressBarEx(24, 84, w - 48, 10, 0.72, {
         radius = 5,
         track = Color(10, 18, 24, 190),
-        fill = MGFX.LinearGradient(0, 0, 1, 0, {
-            {0.00, Color(30, 130, 255, 230)},
-            {0.55, Color(60, 200, 255, 230)},
-            {1.00, Color(255, 210, 110, 230)},
-        }),
+        fill = MGFX.LinearGradient(0, 0, 1, 0, Color(30, 130, 255), Color(255, 210, 110)),
     })
 
     MGFX.EndPanel()
 end
 ```
 
-## Documentation
+```lux [Lux]
+import * as mgfx from "@lux/mgfx"
+
+fn PANEL:Paint(w, h) {
+  local draw = mgfx.api
+  draw.startPanel(self, w, h)
+
+  draw.roundedBoxEx(0, 0, w, h, {
+    radius = 10,
+    fill = Color(8, 14, 20, 170),
+    backdrop = {blur = 8, tint = Color(0, 8, 12, 120)},
+    outerGlow = {color = Color(70, 205, 255, 64), width = 12},
+  })
+
+  draw.progressBarEx(24, 84, w - 48, 10, 0.72, {
+    radius = 5,
+    track = Color(10, 18, 24, 190),
+    fill = draw.linearGradient(0, 0, 1, 0, Color(30, 130, 255), Color(255, 210, 110)),
+  })
+
+  draw.endPanel();
+}
+```
+
+:::
+
+## Start Here
 
 <div class="mgfx-capability-grid">
-  <a href="./API">
-    <span>API</span>
-    <strong>Overview</strong>
-    <small>Frame scope, shapes, images, HUD meters, text, paint records, transforms, and capability queries.</small>
+  <a href="./guide/glua">
+    <span>GLua</span>
+    <strong>Plain GLua Quick Start</strong>
+    <small>Install lua-mgfx as a normal Garry's Mod addon and call MGFX.* from client drawing code.</small>
+  </a>
+  <a href="./guide/lux">
+    <span>Lux</span>
+    <strong>Lux Quick Start</strong>
+    <small>Install @lux/mgfx, import mgfx.api, and use the lowerCamelCase facade.</small>
+  </a>
+  <a href="./guide/concepts">
+    <span>Guide</span>
+    <strong>Core Concepts</strong>
+    <small>Frame scope, Name/NameEx, style tables, text routing, and API naming.</small>
   </a>
   <a href="./api-reference/">
     <span>Reference</span>
     <strong>API Reference</strong>
-    <small>Function signatures, style fields, return values, examples, and caveats organized by drawing task.</small>
-  </a>
-  <a href="./PERFORMANCE">
-    <span>Runtime</span>
-    <strong>Performance Model</strong>
-    <small>Immediate paths, matrix parameter upload, shader/fallback routing, and allocation rules.</small>
-  </a>
-  <a href="./SHADERS">
-    <span>Shaders</span>
-    <strong>Build and Packaging</strong>
-    <small>Shaderpack generation, parameter layout, gradient LUTs, GMA mounting, and Source engine limits.</small>
+    <small>Exact signatures, parameter tables, style fields, return values, and caveats.</small>
   </a>
 </div>
 
+## Reading Order
+
+1. Pick [Plain GLua](./guide/glua) or [Lux](./guide/lux).
+2. Read [Core Concepts](./guide/concepts) before copying advanced effects.
+3. Use [Effects](./guide/effects) for shadow, glow, backdrop, and patterns.
+4. Open the [API Reference](./api-reference/) only when you need exact fields.
+
 ## Scope
 
-MGFX is a renderer, not a UI framework. It does not own layout, input, focus, component lifecycle, transition state, or hit testing. Callers compute the current visual state every frame and pass explicit draw arguments to `MGFX.*`.
+MGFX is a renderer, not a UI framework. It does not own layout, input, focus, component lifecycle, transition state, or hit testing. Callers compute the current visual state every frame and pass explicit draw arguments to `MGFX.*` or `mgfx.api.*`.
 
-Text is also not forced through MGFX. Plain labels should use native GMod text. Use `MGFX.TextEx` only when you need shader text effects such as gradient faces, glow, stroke, or high-quality shadow.
+Plain labels should usually use native GMod text or `Text`. Use `TextEx` only when you need shader text effects such as gradient faces, glow, stroke, or high-quality shadow.
 
 ## Maintenance Rules
 
-- Public API changes must update [API Overview](./API) and the matching [API Reference task page](./api-reference/).
+- Public API changes must update [Core Concepts](./guide/concepts) and the matching [API Reference task page](./api-reference/).
+- User-facing examples should show GLua and Lux equivalents unless the page is explicitly runtime-specific.
 - Shader parameter layout, gradient LUT, alpha, or shaderpack changes must update [Shaders and Packaging](./SHADERS).
 - Runtime performance changes must update [Performance Model](./PERFORMANCE).
 - Do not edit `docs-site/` by hand. Update `docs/` and rebuild the site.
-
-## Example: Wheel Sector
-
-```lua
-local fill = MGFX.SectorAngularGradient({
-    {0.00, Color(35, 212, 232, 170)},
-    {0.52, Color(80, 220, 160, 150)},
-    {1.00, Color(245, 158, 11, 135)},
-})
-
-MGFX.SectorEx(cx, cy, innerR, outerR, startDeg, endDeg, {
-    fill = fill,
-    stroke = Color(255, 255, 255, 34),
-    strokeWidth = 1,
-    backdrop = {blur = 7, tint = Color(4, 10, 14, 120)},
-    innerGlow = {color = Color(255, 96, 78, 90), width = 28},
-    transform = MGFX.PointerTilt(mx, my, {
-        perspective = 900,
-        maxRotateX = 4,
-        maxRotateY = 6,
-    }),
-})
-```

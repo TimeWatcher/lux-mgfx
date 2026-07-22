@@ -254,6 +254,7 @@ return function(__lux_import)
     __lux_module_1.styles = {}
     __lux_module_1.fonts = {}
     __lux_module_1.nativeFonts = {}
+    __lux_module_1.fontHeightCache = {}
     __lux_module_1.measureCache = {}
     __lux_module_1.measureOrder = {}
     __lux_module_1.measureOrderHead = 1
@@ -908,6 +909,7 @@ return function(__lux_import)
           atlas = __lux_tmp_116,
         }
       end
+      __lux_module_1.clearMeasureCache()
       return true
     end
     __lux_module_1.aliasFor = function(font)
@@ -1170,16 +1172,25 @@ return function(__lux_import)
       if declared ~= nil then
         return declared
       end
-      __lux_module_1.setFontSafe(nativeFont)
-      local _, h = __lux_module_1.surfaceGetTextSize("Mg")
-      local __lux_tmp_h_152 = h
-      if __lux_tmp_h_152 == nil then
-        __lux_tmp_h_152 = 16
+      local font = nativeFont
+      if font == nil then
+        font = "DermaDefault"
       end
-      return __lux_module_1.mathMax(
-        1,
-        __lux_tmp_h_152 / __lux_module_1.normalizeOversample(oversample)
-      )
+      local height = __lux_module_1.fontHeightCache[font]
+      if height == nil then
+        local resolvedFont = __lux_module_1.setFontSafe(font)
+        local _, measuredHeight = __lux_module_1.surfaceGetTextSize("Hg")
+        do
+          local __lux_tmp_measuredHeight_152 = measuredHeight
+          if __lux_tmp_measuredHeight_152 == nil then
+            __lux_tmp_measuredHeight_152 = 16
+          end
+          height = __lux_tmp_measuredHeight_152
+        end
+        __lux_module_1.fontHeightCache[font] = height
+        __lux_module_1.fontHeightCache[resolvedFont] = height
+      end
+      return __lux_module_1.mathMax(1, height / __lux_module_1.normalizeOversample(oversample))
     end
     __lux_module_1.measureLine = function(nativeFont, text, tracking, oversample)
       if tracking == nil then
@@ -1210,7 +1221,24 @@ return function(__lux_import)
       end
       return w / __lux_module_1.normalizeOversample(oversample)
     end
-    __lux_module_1.layoutFor = function(value, font, textStyle, noOversample, plainFace)
+    __lux_module_1.prepareLineCharacters = function(line)
+      local chars = __lux_module_1.textChars(line.text)
+      local widths = {}
+      for index = 1, #chars do
+        local width = __lux_module_1.surfaceGetTextSize(chars[index])
+        do
+          local __lux_tmp_width_154 = width
+          if __lux_tmp_width_154 == nil then
+            __lux_tmp_width_154 = 0
+          end
+          widths[index] = __lux_tmp_width_154
+        end
+      end
+      line.chars = chars
+      line.charWidths = widths
+      return line
+    end
+    __lux_module_1.layoutFor = function(value, font, textStyle, noOversample, plainFace, characterLayout)
       if font == nil then
         font = "DermaDefault"
       end
@@ -1220,22 +1248,25 @@ return function(__lux_import)
       if plainFace == nil then
         plainFace = false
       end
+      if characterLayout == nil then
+        characterLayout = false
+      end
       local resolved
       do
-        local __lux_tmp_textStyle_154 = textStyle
-        if __lux_tmp_textStyle_154 == nil then
-          __lux_tmp_textStyle_154 = {}
+        local __lux_tmp_textStyle_155 = textStyle
+        if __lux_tmp_textStyle_155 == nil then
+          __lux_tmp_textStyle_155 = {}
         end
-        resolved = __lux_module_1.resolveStyle(__lux_tmp_textStyle_154)
+        resolved = __lux_module_1.resolveStyle(__lux_tmp_textStyle_155)
       end
       local nativeFont, alias, oversample = __lux_module_1.nativeFor(font, resolved, noOversample, plainFace)
       local tracking
       do
-        local __lux_tmp_tracking_155 = resolved.tracking
-        if __lux_tmp_tracking_155 == nil then
-          __lux_tmp_tracking_155 = resolved.letterSpacing
+        local __lux_tmp_tracking_156 = resolved.tracking
+        if __lux_tmp_tracking_156 == nil then
+          __lux_tmp_tracking_156 = resolved.letterSpacing
         end
-        tracking = __lux_module_1.toNumber(__lux_tmp_tracking_155)
+        tracking = __lux_module_1.toNumber(__lux_tmp_tracking_156)
         if tracking == nil then
           tracking = alias.tracking
           if tracking == nil then
@@ -1246,17 +1277,22 @@ return function(__lux_import)
       local lineHeight = __lux_module_1.lineHeightFor(nativeFont, alias, resolved, oversample)
       local lines
       do
-        local __lux_tmp_value_156 = value
-        if __lux_tmp_value_156 == nil then
-          __lux_tmp_value_156 = ""
+        local __lux_tmp_value_157 = value
+        if __lux_tmp_value_157 == nil then
+          __lux_tmp_value_157 = ""
         end
-        lines = __lux_module_1.stringExplode("\n", __lux_module_1.toString(__lux_tmp_value_156), false)
+        lines = __lux_module_1.stringExplode("\n", __lux_module_1.toString(__lux_tmp_value_157), false)
       end
       local maxW = 0
+      local needsCharacters = characterLayout or tracking ~= 0
       for index = 1, #lines do
         local text = lines[index]
         local w = __lux_module_1.measureLine(nativeFont, text, tracking, oversample)
-        lines[index] = { text = text, w = w, y = (index - 1) * lineHeight }
+        local line = { text = text, w = w, y = (index - 1) * lineHeight }
+        if needsCharacters then
+          __lux_module_1.prepareLineCharacters(line)
+        end
+        lines[index] = line
         maxW = __lux_module_1.mathMax(maxW, w)
       end
       return {
@@ -1281,21 +1317,21 @@ return function(__lux_import)
       end
       local key
       do
-        local __lux_tmp_font_157 = font
-        if __lux_tmp_font_157 == nil then
-          __lux_tmp_font_157 = ""
+        local __lux_tmp_font_158 = font
+        if __lux_tmp_font_158 == nil then
+          __lux_tmp_font_158 = ""
         end
-        local __lux_tmp_value_158 = value
-        if __lux_tmp_value_158 == nil then
-          __lux_tmp_value_158 = ""
+        local __lux_tmp_value_159 = value
+        if __lux_tmp_value_159 == nil then
+          __lux_tmp_value_159 = ""
         end
         key = __lux_module_1.tableConcat(
           {
-            __lux_module_1.toString(__lux_tmp_font_157),
+            __lux_module_1.toString(__lux_tmp_font_158),
             nativeFont,
             __lux_module_1.toString(tracking),
             __lux_module_1.toString(oversample),
-            __lux_module_1.toString(__lux_tmp_value_158),
+            __lux_module_1.toString(__lux_tmp_value_159),
           },
           "31"
         )
@@ -1314,11 +1350,11 @@ return function(__lux_import)
     __lux_module_1.ellipsize = function(value, font, maxW)
       local text
       do
-        local __lux_tmp_value_159 = value
-        if __lux_tmp_value_159 == nil then
-          __lux_tmp_value_159 = ""
+        local __lux_tmp_value_160 = value
+        if __lux_tmp_value_160 == nil then
+          __lux_tmp_value_160 = ""
         end
-        text = __lux_module_1.toString(__lux_tmp_value_159)
+        text = __lux_module_1.toString(__lux_tmp_value_160)
       end
       if maxW <= 0 then
         return text
@@ -1346,11 +1382,11 @@ return function(__lux_import)
     __lux_module_1.wrapText = function(value, font, maxW, overflow)
       local text
       do
-        local __lux_tmp_value_160 = value
-        if __lux_tmp_value_160 == nil then
-          __lux_tmp_value_160 = ""
+        local __lux_tmp_value_161 = value
+        if __lux_tmp_value_161 == nil then
+          __lux_tmp_value_161 = ""
         end
-        text = __lux_module_1.toString(__lux_tmp_value_160)
+        text = __lux_module_1.toString(__lux_tmp_value_161)
       end
       local width = __lux_module_1.toNumber(maxW)
       if width == nil then
@@ -1390,57 +1426,58 @@ return function(__lux_import)
     __lux_module_1.measureBox = function(value, font, w, textStyle)
       local resolved
       do
-        local __lux_tmp_textStyle_161 = textStyle
-        if __lux_tmp_textStyle_161 == nil then
-          __lux_tmp_textStyle_161 = {}
+        local __lux_tmp_textStyle_162 = textStyle
+        if __lux_tmp_textStyle_162 == nil then
+          __lux_tmp_textStyle_162 = {}
         end
-        resolved = __lux_module_1.resolveStyle(__lux_tmp_textStyle_161)
+        resolved = __lux_module_1.resolveStyle(__lux_tmp_textStyle_162)
       end
       local lines
       do
-        local __lux_tmp_font_162 = font
-        if __lux_tmp_font_162 == nil then
-          __lux_tmp_font_162 = resolved.font
+        local __lux_tmp_font_163 = font
+        if __lux_tmp_font_163 == nil then
+          __lux_tmp_font_163 = resolved.font
         end
-        if __lux_tmp_font_162 == nil then
-          __lux_tmp_font_162 = "DermaDefault"
+        if __lux_tmp_font_163 == nil then
+          __lux_tmp_font_163 = "DermaDefault"
         end
-        local __lux_tmp_w_163 = __lux_module_1.toNumber(w)
-        if __lux_tmp_w_163 == nil then
-          __lux_tmp_w_163 = 0
+        local __lux_tmp_w_164 = __lux_module_1.toNumber(w)
+        if __lux_tmp_w_164 == nil then
+          __lux_tmp_w_164 = 0
         end
-        lines = __lux_module_1.wrapText(value, __lux_tmp_font_162, __lux_tmp_w_163, resolved.overflow)
+        lines = __lux_module_1.wrapText(value, __lux_tmp_font_163, __lux_tmp_w_164, resolved.overflow)
       end
       local maxW = 0
       for index = 1, #lines do
         local lw
         do
-          local __lux_tmp_font_164 = font
-          if __lux_tmp_font_164 == nil then
-            __lux_tmp_font_164 = resolved.font
+          local __lux_tmp_font_165 = font
+          if __lux_tmp_font_165 == nil then
+            __lux_tmp_font_165 = resolved.font
           end
-          if __lux_tmp_font_164 == nil then
-            __lux_tmp_font_164 = "DermaDefault"
+          if __lux_tmp_font_165 == nil then
+            __lux_tmp_font_165 = "DermaDefault"
           end
-          lw = __lux_module_1.measure(lines[index], __lux_tmp_font_164)
+          lw = __lux_module_1.measure(lines[index], __lux_tmp_font_165)
         end
         maxW = __lux_module_1.mathMax(maxW, lw)
       end
       local nativeFont, alias, oversample
       do
-        local __lux_tmp_font_165 = font
-        if __lux_tmp_font_165 == nil then
-          __lux_tmp_font_165 = resolved.font
+        local __lux_tmp_font_166 = font
+        if __lux_tmp_font_166 == nil then
+          __lux_tmp_font_166 = resolved.font
         end
-        if __lux_tmp_font_165 == nil then
-          __lux_tmp_font_165 = "DermaDefault"
+        if __lux_tmp_font_166 == nil then
+          __lux_tmp_font_166 = "DermaDefault"
         end
-        nativeFont, alias, oversample = __lux_module_1.nativeFor(__lux_tmp_font_165, resolved)
+        nativeFont, alias, oversample = __lux_module_1.nativeFor(__lux_tmp_font_166, resolved)
       end
       local lineHeight = __lux_module_1.lineHeightFor(nativeFont, alias, resolved, oversample)
       return maxW, #lines * lineHeight, lines
     end
     __lux_module_1.clearMeasureCache = function()
+      __lux_module_1.clearTable(__lux_module_1.fontHeightCache)
       __lux_module_1.clearTable(__lux_module_1.measureCache)
       __lux_module_1.clearTable(__lux_module_1.measureOrder)
       __lux_module_1.measureOrderHead = 1
@@ -1453,10 +1490,10 @@ return function(__lux_import)
       if vertical == nil then
         vertical = false
       end
-      local __lux_match_166 = value
-      if __lux_match_166 == "center" or __lux_match_166 == "middle" then
+      local __lux_match_167 = value
+      if __lux_match_167 == "center" or __lux_match_167 == "middle" then
         return 0.5
-      elseif __lux_match_166 == "right" or __lux_match_166 == "bottom" then
+      elseif __lux_match_167 == "right" or __lux_match_167 == "bottom" then
         return 1
       else
         if value == TEXT_ALIGN_CENTER or vertical and value == TEXT_ALIGN_CENTER then
@@ -1482,84 +1519,109 @@ return function(__lux_import)
       if __lux_module_1.style.colorAtFill ~= nil then
         return __lux_module_1.style.colorAtFill(fill, t)
       end
-      local __lux_tmp_colorA_167 = fill.colorA
-      if __lux_tmp_colorA_167 == nil then
-        __lux_tmp_colorA_167 = fill.color
+      local __lux_tmp_colorA_168 = fill.colorA
+      if __lux_tmp_colorA_168 == nil then
+        __lux_tmp_colorA_168 = fill.color
       end
-      if __lux_tmp_colorA_167 == nil then
-        __lux_tmp_colorA_167 = fill.fill
+      if __lux_tmp_colorA_168 == nil then
+        __lux_tmp_colorA_168 = fill.fill
       end
-      return __lux_module_1.style.colorOr(__lux_tmp_colorA_167, __lux_module_1.white)
+      return __lux_module_1.style.colorOr(__lux_tmp_colorA_168, __lux_module_1.white)
     end
     __lux_module_1.setTextColor = function(color)
       local c = __lux_module_1.style.colorOr(color, __lux_module_1.white)
       if __lux_module_1.surfaceSetTextColor ~= nil then
         do
-          local __lux_tmp_r_168 = c.r
-          if __lux_tmp_r_168 == nil then
-            __lux_tmp_r_168 = 255
+          local __lux_tmp_r_169 = c.r
+          if __lux_tmp_r_169 == nil then
+            __lux_tmp_r_169 = 255
           end
-          local __lux_tmp_g_169 = c.g
-          if __lux_tmp_g_169 == nil then
-            __lux_tmp_g_169 = 255
+          local __lux_tmp_g_170 = c.g
+          if __lux_tmp_g_170 == nil then
+            __lux_tmp_g_170 = 255
           end
-          local __lux_tmp_b_170 = c.b
-          if __lux_tmp_b_170 == nil then
-            __lux_tmp_b_170 = 255
+          local __lux_tmp_b_171 = c.b
+          if __lux_tmp_b_171 == nil then
+            __lux_tmp_b_171 = 255
           end
-          local __lux_tmp_a_171 = c.a
-          if __lux_tmp_a_171 == nil then
-            __lux_tmp_a_171 = 255
+          local __lux_tmp_a_172 = c.a
+          if __lux_tmp_a_172 == nil then
+            __lux_tmp_a_172 = 255
           end
           __lux_module_1.surfaceSetTextColor(
-            __lux_tmp_r_168,
-            __lux_tmp_g_169,
-            __lux_tmp_b_170,
-            __lux_tmp_a_171
+            __lux_tmp_r_169,
+            __lux_tmp_g_170,
+            __lux_tmp_b_171,
+            __lux_tmp_a_172
           )
         end
       end
     end
-    __lux_module_1.drawLineText = function(nativeFont, text, x, y, color, tracking, oversample)
+    __lux_module_1.fillNeedsCharacters = function(fill)
+      return __lux_module_1.typeOf(fill) == "table" and not __lux_module_1.style.isColor(fill) and fill.kind ~= nil
+    end
+    __lux_module_1.drawLineText = function(line, x, y, fill, fallbackColor, tracking, oversample)
       if tracking == nil then
         tracking = 0
       end
       if oversample == nil then
         oversample = 1
       end
-      __lux_module_1.setFontSafe(nativeFont)
-      __lux_module_1.setTextColor(color)
-      local raw
-      do
-        local __lux_tmp_text_172 = text
-        if __lux_tmp_text_172 == nil then
-          __lux_tmp_text_172 = ""
-        end
-        raw = __lux_module_1.toString(__lux_tmp_text_172)
-      end
       local extra = __lux_module_1.toNumber(tracking)
       if extra == nil then
         extra = 0
       end
-      if extra == 0 then
+      local characterFill = __lux_module_1.fillNeedsCharacters(fill)
+      if extra == 0 and not characterFill then
+        do
+          local __lux_tmp_fallbackColor_173 = fallbackColor
+          if __lux_tmp_fallbackColor_173 == nil then
+            __lux_tmp_fallbackColor_173 = fill
+          end
+          if __lux_tmp_fallbackColor_173 == nil then
+            __lux_tmp_fallbackColor_173 = __lux_module_1.white
+          end
+          __lux_module_1.setTextColor(__lux_tmp_fallbackColor_173)
+        end
         __lux_module_1.surfaceSetTextPos(x, y)
-        __lux_module_1.surfaceDrawText(raw)
+        __lux_module_1.surfaceDrawText(line.text)
         return
       end
+      local chars = line.chars
+      local widths = line.charWidths
+      if chars == nil or widths == nil then
+        __lux_module_1.errorFn("MGFX text character layout missing", 2)
+      end
       local cursor = x
-      local chars = __lux_module_1.textChars(raw)
+      local advance = 0
       for index = 1, #chars do
         local ch = chars[index]
+        local t
+        if line.w > 0 then
+          t = advance / line.w
+        else
+          t = 0
+        end
+        do
+          local __lux_tmp_174
+          if characterFill then
+            __lux_tmp_174 = __lux_module_1.colorAtFill(fill, t)
+          else
+            __lux_tmp_174 = fallbackColor
+            if __lux_tmp_174 == nil then
+              __lux_tmp_174 = fill
+              if __lux_tmp_174 == nil then
+                __lux_tmp_174 = __lux_module_1.white
+              end
+            end
+          end
+          __lux_module_1.setTextColor(__lux_tmp_174)
+        end
         __lux_module_1.surfaceSetTextPos(cursor, y)
         __lux_module_1.surfaceDrawText(ch)
-        local cw = __lux_module_1.surfaceGetTextSize(ch)
-        do
-          local __lux_tmp_cw_173 = cw
-          if __lux_tmp_cw_173 == nil then
-            __lux_tmp_cw_173 = 0
-          end
-          cursor = cursor + __lux_tmp_cw_173 + extra * __lux_module_1.normalizeOversample(oversample)
-        end
+        local width = widths[index]
+        cursor = cursor + width + extra * oversample
+        advance = advance + width / oversample + extra
       end
     end
     __lux_module_1.drawLayout = function(layout, x, y, fill, fallbackColor)
@@ -1567,29 +1629,18 @@ return function(__lux_import)
         fallbackColor = __lux_module_1.white
       end
       local oversample = __lux_module_1.normalizeOversample(layout.oversample)
+      __lux_module_1.setFontSafe(layout.font)
       for index = 1, #layout.lines do
         local line = layout.lines[index]
-        local t
-        if #layout.lines <= 1 then
-          t = 0
-        else
-          t = (index - 1) / (#layout.lines - 1)
-        end
-        do
-          local __lux_tmp_fill_174 = fill
-          if __lux_tmp_fill_174 == nil then
-            __lux_tmp_fill_174 = fallbackColor
-          end
-          __lux_module_1.drawLineText(
-            layout.font,
-            line.text,
-            x,
-            y + line.y * oversample,
-            __lux_module_1.colorAtFill(__lux_tmp_fill_174, t),
-            layout.tracking,
-            oversample
-          )
-        end
+        __lux_module_1.drawLineText(
+          line,
+          x,
+          y + line.y * oversample,
+          fill,
+          fallbackColor,
+          layout.tracking,
+          oversample
+        )
       end
     end
     __lux_module_1.normalizeShadow = function(value)
@@ -1837,7 +1888,24 @@ return function(__lux_import)
       if textStyle == nil then
         textStyle = {}
       end
-      local layout = __lux_module_1.layoutFor(record.text, record.font, textStyle, true)
+      local fill = textStyle.fill
+      if fill == nil then
+        fill = textStyle.color
+        if fill == nil then
+          fill = record.color
+          if fill == nil then
+            fill = __lux_module_1.white
+          end
+        end
+      end
+      local layout = __lux_module_1.layoutFor(
+        record.text,
+        record.font,
+        textStyle,
+        true,
+        false,
+        __lux_module_1.fillNeedsCharacters(fill)
+      )
       local x
       do
         local __lux_tmp_x_206 = record.x
@@ -1855,16 +1923,6 @@ return function(__lux_import)
         y = __lux_tmp_y_207 - layout.h * __lux_module_1.alignFactor(record.alignY, true)
       end
       x, y = __lux_module_1.snapTextPos(x, y, textStyle)
-      local fill = textStyle.fill
-      if fill == nil then
-        fill = textStyle.color
-        if fill == nil then
-          fill = record.color
-          if fill == nil then
-            fill = __lux_module_1.white
-          end
-        end
-      end
       local shadow = __lux_module_1.normalizeShadow(textStyle.shadow)
       local stroke
       do

@@ -199,7 +199,9 @@ item list and 160+ FPS in lighter categories.
 Shared MGFX documentation lives one level up in `../docs`:
 
 - [Online Documentation](https://timewatcher.github.io/mgfx-docs-site/)
-- [API Reference](../docs/API.md)
+- [Plain GLua Quick Start](../docs/guide/glua.md)
+- [Core Concepts](../docs/guide/concepts.md)
+- [API Reference](../docs/api-reference/index.md)
 - [Performance Notes](../docs/PERFORMANCE.md)
 - [Internal Architecture](../docs/ARCHITECTURE.md)
 - [Retired Batching Notes](../docs/BATCHING.md)

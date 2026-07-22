@@ -75,6 +75,12 @@ export client fn mask(kind, spec = nil) =
 export client fn backdrop(value) =
   defaultRuntime.Backdrop(value)
 
+export client fn compileBackdrop(value) =
+  defaultRuntime.CompileBackdrop(value)
+
+export client fn compileStyle(drawStyle, target = nil) =
+  defaultRuntime.CompileStyle(drawStyle, target)
+
 export client fn backdropStyle(value) =
   defaultRuntime.BackdropStyle(value)
 
@@ -159,6 +165,9 @@ export client fn roundedBoxEx(x, y, w, h, drawStyle = nil) =
 export client fn roundedBox(x, y, w, h, radius, fill, stroke = nil, strokeWidth = nil) =
   defaultRuntime.RoundedBox(x, y, w, h, radius, fill, stroke, strokeWidth)
 
+export client fn roundedBoxBackdrop(x, y, w, h, radius, backdrop) =
+  defaultRuntime.RoundedBoxBackdrop(x, y, w, h, radius, backdrop)
+
 export client fn circleEx(cx, cy, radius, drawStyle = nil) =
   defaultRuntime.CircleEx(cx, cy, radius, drawStyle)
 
@@ -207,6 +216,9 @@ export client fn lineEx(x1, y1, x2, y2, drawStyle = nil) =
 export client fn line(x1, y1, x2, y2, width = 1, fill = nil) =
   defaultRuntime.Line(x1, y1, x2, y2, width, fill)
 
+export client fn lineNoCaps(x1, y1, x2, y2, width = 1, fill = nil) =
+  defaultRuntime.LineNoCaps(x1, y1, x2, y2, width, fill)
+
 export client fn progressBarEx(x, y, w, h, value, drawStyle = nil) =
   defaultRuntime.ProgressBarEx(x, y, w, h, value, drawStyle)
 
@@ -242,6 +254,9 @@ export client fn imageEx(x, y, w, h, source, drawStyle = nil) =
 
 export client fn image(x, y, w, h, source, radius = nil, tint = nil) =
   defaultRuntime.Image(x, y, w, h, source, radius, tint)
+
+export client fn imageUV(x, y, w, h, source, u0 = 0, v0 = 0, u1 = 1, v1 = 1, tint = nil) =
+  defaultRuntime.ImageUV(x, y, w, h, source, u0, v0, u1, v1, tint)
 
 export client fn iconEx(x, y, w, h, source, drawStyle = nil) =
   defaultRuntime.IconEx(x, y, w, h, source, drawStyle)

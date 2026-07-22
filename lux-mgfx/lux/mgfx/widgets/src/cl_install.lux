@@ -12,6 +12,7 @@ export client fn install(owner) {
   owner.SectorEx = sectorEx
   owner.Image = image
   owner.ImageEx = imageEx
+  owner.ImageUV = imageUV
   owner.Icon = icon
   owner.IconEx = iconEx
   owner._Widgets = {

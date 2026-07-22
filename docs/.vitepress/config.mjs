@@ -120,7 +120,10 @@ const englishSidebar = [
     text: "User Guide",
     items: [
       { text: "Overview", link: "/" },
-      { text: "API Overview", link: "/API" },
+      { text: "Plain GLua Quick Start", link: "/guide/glua" },
+      { text: "Lux Quick Start", link: "/guide/lux" },
+      { text: "Core Concepts", link: "/guide/concepts" },
+      { text: "Effects", link: "/guide/effects" },
       {
         text: "API Reference",
         collapsed: false,
@@ -161,7 +164,10 @@ const chineseSidebar = [
     text: "使用文档",
     items: [
       { text: "总览", link: "/zh-CN/" },
-      { text: "API 总览", link: "/zh-CN/API" },
+      { text: "普通 GLua 快速开始", link: "/zh-CN/guide/glua" },
+      { text: "Lux 快速开始", link: "/zh-CN/guide/lux" },
+      { text: "核心概念", link: "/zh-CN/guide/concepts" },
+      { text: "特效指南", link: "/zh-CN/guide/effects" },
       {
         text: "详细 API",
         collapsed: false,
@@ -205,6 +211,9 @@ export default defineConfig({
   outDir: "../docs-site",
   lastUpdated: true,
   markdown: {
+    languageAlias: {
+      lux: "lua",
+    },
     theme: {
       light: "github-light",
       dark: "github-dark",
@@ -224,8 +233,15 @@ export default defineConfig({
       options: searchOptions,
     },
     nav: [
-      { text: "Guide", link: "/" },
-      { text: "API Overview", link: "/API" },
+      {
+        text: "Get Started",
+        items: [
+          { text: "Plain GLua", link: "/guide/glua" },
+          { text: "Lux", link: "/guide/lux" },
+          { text: "Core Concepts", link: "/guide/concepts" },
+          { text: "Effects", link: "/guide/effects" },
+        ],
+      },
       { text: "API Reference", link: "/api-reference/" },
       { text: "Performance", link: "/PERFORMANCE" },
       { text: "Shaders", link: "/SHADERS" },
@@ -288,8 +304,15 @@ export default defineConfig({
           },
         },
         nav: [
-          { text: "指南", link: "/zh-CN/" },
-          { text: "API 总览", link: "/zh-CN/API" },
+          {
+            text: "开始使用",
+            items: [
+              { text: "普通 GLua", link: "/zh-CN/guide/glua" },
+              { text: "Lux", link: "/zh-CN/guide/lux" },
+              { text: "核心概念", link: "/zh-CN/guide/concepts" },
+              { text: "特效指南", link: "/zh-CN/guide/effects" },
+            ],
+          },
           { text: "详细 API", link: "/zh-CN/api-reference/" },
           { text: "性能", link: "/zh-CN/PERFORMANCE" },
           { text: "Shader 与打包", link: "/zh-CN/SHADERS" },

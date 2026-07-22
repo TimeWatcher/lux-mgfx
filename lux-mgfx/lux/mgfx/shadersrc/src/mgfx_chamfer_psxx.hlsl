@@ -61,7 +61,8 @@ float4 main(PS_INPUT i) : COLOR
 	{
 		float edgeDist = abs(dist);
 		float aa = max(fwidth(edgeDist), 1.0);
-		strokeAlpha = STROKE_COLOR.a * (1.0 - smoothstep(STROKE_WIDTH - aa, STROKE_WIDTH + aa, edgeDist));
+		float halfWidth = STROKE_WIDTH * 0.5;
+		strokeAlpha = STROKE_COLOR.a * (1.0 - smoothstep(halfWidth - aa, halfWidth + aa, edgeDist));
 	}
 
 	float alpha = strokeAlpha + fillAlpha * (1.0 - strokeAlpha);

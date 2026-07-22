@@ -2,16 +2,18 @@
 
 MGFX text keeps plain text cheap and routes shader effects through a composer only when needed.
 
+Plain GLua calls `MGFX.*`. Lux calls the same APIs as lowerCamelCase methods on `mgfx.api`.
+
 ## Functions
 
 ```lua
 MGFX.Text(text, font, x, y, color, alignX, alignY)
-MGFX.TextEx(text, font, x, y, style)
+MGFX.TextEx(text, font, x, y, color, alignX, alignY, style)
 
 MGFX.TextBox(text, font, x, y, w, h, color, alignX, alignY)
 MGFX.TextBoxEx(text, font, x, y, w, h, style)
 
-MGFX.MeasureText(text, font, style)
+MGFX.MeasureText(text, font)
 MGFX.MeasureTextBox(text, font, w, style)
 MGFX.PrewarmText(text, font, style)
 ```
@@ -26,15 +28,29 @@ Plain text should remain native where possible. This is the correct path for pla
 
 ## Effect Text
 
-```lua
-MGFX.TextEx("OVERTIME", "DermaLarge", x, y, {
-    alignX = TEXT_ALIGN_CENTER,
-    alignY = TEXT_ALIGN_CENTER,
+::: code-group
+
+```lua [GLua]
+MGFX.TextEx("OVERTIME", "DermaLarge", x, y, nil, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, {
     fill = MGFX.LinearGradient(0, 0, 1, 0, Color(255, 210, 90), Color(255, 80, 70)),
     glow = {color = Color(255, 96, 78, 120), blur = 10},
     shadow = {x = 0, y = 2, blur = 4, color = Color(0, 0, 0, 150)},
 })
 ```
+
+```lux [Lux]
+import * as mgfx from "@lux/mgfx"
+
+local draw = mgfx.api
+
+draw.textEx("OVERTIME", "DermaLarge", x, y, nil, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, {
+  fill = draw.linearGradient(0, 0, 1, 0, Color(255, 210, 90), Color(255, 80, 70)),
+  glow = {color = Color(255, 96, 78, 120), blur = 10},
+  shadow = {x = 0, y = 2, blur = 4, color = Color(0, 0, 0, 150)},
+});
+```
+
+:::
 
 Use effect text for headings, status words, scoreboard headers, and other stable display text.
 

@@ -11,6 +11,7 @@ return function(__lux_import)
   local installFrameStatsReset
   local colorDrawStyle
   local normalizeDrawStyle
+  local compileDrawStyle
   local installNormalizedDrawApi
   local installProfileWrappers
   local install
@@ -47,6 +48,8 @@ return function(__lux_import)
   local wornPattern
   local mask
   local backdrop
+  local compileBackdrop
+  local compileStyle
   local backdropStyle
   local imageMaskStyle
   local fillFromStyle
@@ -75,6 +78,7 @@ return function(__lux_import)
   local untransformPoint
   local roundedBoxEx
   local roundedBox
+  local roundedBoxBackdrop
   local circleEx
   local circle
   local capsuleEx
@@ -91,6 +95,7 @@ return function(__lux_import)
   local poly
   local lineEx
   local line
+  local lineNoCaps
   local progressBarEx
   local progressBar
   local segmentBarEx
@@ -103,6 +108,7 @@ return function(__lux_import)
   local sector
   local imageEx
   local image
+  local imageUV
   local iconEx
   local icon
   local registerTextFont
@@ -242,6 +248,9 @@ return function(__lux_import)
       if typeOf(drawStyle) ~= "table" then
         return nil
       end
+      if drawStyle._mgfxCompiledStyle == true then
+        return drawStyle
+      end
       local fill = drawStyle.fill
       local fillKind
       if typeOf(fill) == "table" then
@@ -302,6 +311,49 @@ return function(__lux_import)
         end
         out.fill = __lux_tmp_patternBase_15
       end
+      return out
+    end
+    compileDrawStyle = function(drawStyle, target)
+      if drawStyle == nil then
+        return nil
+      end
+      if style.isColor(drawStyle) then
+        return colorDrawStyle(drawStyle)
+      end
+      if typeOf(drawStyle) ~= "table" then
+        return nil
+      end
+      if drawStyle._mgfxCompiledStyle == true then
+        return drawStyle
+      end
+      local normalized = normalizeDrawStyle(drawStyle, target)
+      if normalized == nil then
+        normalized = drawStyle
+      end
+      local out
+      do
+        local __lux_table_16 = {}
+        local __lux_spread_17 = normalized
+        if __lux_spread_17 ~= nil then
+          for __lux_k_18, __lux_v_19 in pairs(__lux_spread_17) do
+            __lux_table_16[__lux_k_18] = __lux_v_19
+          end
+        end
+        out = __lux_table_16
+      end
+      if out.backdrop ~= nil and out.backdrop ~= false then
+        out.backdrop = style.compileBackdrop(out.backdrop)
+      end
+      if out.pattern ~= nil and out.pattern ~= false then
+        out.pattern = roundrect.patternStyle(out.pattern)
+      end
+      if out.fillPattern ~= nil and out.fillPattern ~= false then
+        out.fillPattern = roundrect.patternStyle(out.fillPattern)
+      end
+      if out.trackPattern ~= nil and out.trackPattern ~= false then
+        out.trackPattern = roundrect.patternStyle(out.trackPattern)
+      end
+      out._mgfxCompiledStyle = true
       return out
     end
     installNormalizedDrawApi = function(owner)
@@ -434,6 +486,7 @@ return function(__lux_import)
         owner,
         {
           "RoundedBox",
+          "RoundedBoxBackdrop",
           "RoundedBoxEx",
           "ChamferBox",
           "ChamferBoxEx",
@@ -446,6 +499,7 @@ return function(__lux_import)
           "Poly",
           "PolyEx",
           "Image",
+          "ImageUV",
           "ImageEx",
           "Icon",
           "IconEx",
@@ -459,6 +513,7 @@ return function(__lux_import)
           "SegmentBar",
           "SegmentBarEx",
           "Line",
+          "LineNoCaps",
           "LineEx",
           "Ring",
           "RingEx",
@@ -486,6 +541,8 @@ return function(__lux_import)
           "WornPattern",
           "Mask",
           "Backdrop",
+          "CompileBackdrop",
+          "CompileStyle",
           "ImageMaskStyle",
           "BackdropStyle",
           "FillFromStyle",
@@ -544,6 +601,7 @@ return function(__lux_import)
       primitives.install(out)
       widgets.install(out)
       installNormalizedDrawApi(out)
+      out.CompileStyle = compileDrawStyle
       installFrameStatsReset(out)
       installProfileWrappers(out)
       return out
@@ -669,6 +727,12 @@ return function(__lux_import)
     backdrop = function(value)
       return defaultRuntime.Backdrop(value)
     end
+    compileBackdrop = function(value)
+      return defaultRuntime.CompileBackdrop(value)
+    end
+    compileStyle = function(drawStyle, target)
+      return defaultRuntime.CompileStyle(drawStyle, target)
+    end
     backdropStyle = function(value)
       return defaultRuntime.BackdropStyle(value)
     end
@@ -762,6 +826,9 @@ return function(__lux_import)
     roundedBox = function(x, y, w, h, radius, fill, stroke, strokeWidth)
       return defaultRuntime.RoundedBox(x, y, w, h, radius, fill, stroke, strokeWidth)
     end
+    roundedBoxBackdrop = function(x, y, w, h, radius, backdrop)
+      return defaultRuntime.RoundedBoxBackdrop(x, y, w, h, radius, backdrop)
+    end
     circleEx = function(cx, cy, radius, drawStyle)
       return defaultRuntime.CircleEx(cx, cy, radius, drawStyle)
     end
@@ -813,6 +880,12 @@ return function(__lux_import)
       end
       return defaultRuntime.Line(x1, y1, x2, y2, width, fill)
     end
+    lineNoCaps = function(x1, y1, x2, y2, width, fill)
+      if width == nil then
+        width = 1
+      end
+      return defaultRuntime.LineNoCaps(x1, y1, x2, y2, width, fill)
+    end
     progressBarEx = function(x, y, w, h, value, drawStyle)
       return defaultRuntime.ProgressBarEx(x, y, w, h, value, drawStyle)
     end
@@ -848,6 +921,21 @@ return function(__lux_import)
     end
     image = function(x, y, w, h, source, radius, tint)
       return defaultRuntime.Image(x, y, w, h, source, radius, tint)
+    end
+    imageUV = function(x, y, w, h, source, u0, v0, u1, v1, tint)
+      if u0 == nil then
+        u0 = 0
+      end
+      if v0 == nil then
+        v0 = 0
+      end
+      if u1 == nil then
+        u1 = 1
+      end
+      if v1 == nil then
+        v1 = 1
+      end
+      return defaultRuntime.ImageUV(x, y, w, h, source, u0, v0, u1, v1, tint)
     end
     iconEx = function(x, y, w, h, source, drawStyle)
       return defaultRuntime.IconEx(x, y, w, h, source, drawStyle)
@@ -933,6 +1021,8 @@ return function(__lux_import)
   __lux_exports.wornPattern = wornPattern
   __lux_exports.mask = mask
   __lux_exports.backdrop = backdrop
+  __lux_exports.compileBackdrop = compileBackdrop
+  __lux_exports.compileStyle = compileStyle
   __lux_exports.backdropStyle = backdropStyle
   __lux_exports.imageMaskStyle = imageMaskStyle
   __lux_exports.fillFromStyle = fillFromStyle
@@ -961,6 +1051,7 @@ return function(__lux_import)
   __lux_exports.untransformPoint = untransformPoint
   __lux_exports.roundedBoxEx = roundedBoxEx
   __lux_exports.roundedBox = roundedBox
+  __lux_exports.roundedBoxBackdrop = roundedBoxBackdrop
   __lux_exports.circleEx = circleEx
   __lux_exports.circle = circle
   __lux_exports.capsuleEx = capsuleEx
@@ -977,6 +1068,7 @@ return function(__lux_import)
   __lux_exports.poly = poly
   __lux_exports.lineEx = lineEx
   __lux_exports.line = line
+  __lux_exports.lineNoCaps = lineNoCaps
   __lux_exports.progressBarEx = progressBarEx
   __lux_exports.progressBar = progressBar
   __lux_exports.segmentBarEx = segmentBarEx
@@ -989,6 +1081,7 @@ return function(__lux_import)
   __lux_exports.sector = sector
   __lux_exports.imageEx = imageEx
   __lux_exports.image = image
+  __lux_exports.imageUV = imageUV
   __lux_exports.iconEx = iconEx
   __lux_exports.icon = icon
   __lux_exports.registerTextFont = registerTextFont

@@ -46,15 +46,8 @@ export client fn fillVisible(fill) {
 }
 
 export client fn strokeVisible(stroke, width) {
-  if stroke == nil {
-    return false
-  }
-
-  if alpha(stroke.a) <= 0 {
-    return false
-  }
-
-  strokeWidth(width, 1) > 0
+  local visible = strokeRaw(stroke, width, 1)
+  visible
 }
 
 export client fn normalizedRotation(value) {
@@ -76,10 +69,14 @@ export client fn backdropStyle(value) {
     return nil
   }
 
+  if typeOf(value) == "table" and value._mgfxBackdropSpec == true {
+    return value
+  }
+
   if value == true {
     if backdropTrueSpec == nil {
       transparentColor = transparentColor ?? makeColor(0, 0, 0, 0)
-      backdropTrueSpec = { blur = 4, tint = transparentColor, opacity = 1, padding = 0, recapture = false }
+      backdropTrueSpec = { blur = 4, tint = transparentColor, opacity = 1, padding = 0, recapture = false, level = 0, _mgfxBackdropSpec = true }
     }
     return backdropTrueSpec
   }
@@ -96,7 +93,7 @@ export client fn backdropStyle(value) {
     }
 
     transparentColor = transparentColor ?? makeColor(0, 0, 0, 0)
-    cached = { blur = blurKey, tint = transparentColor, opacity = 1, padding = 0, recapture = false }
+    cached = { blur = blurKey, tint = transparentColor, opacity = 1, padding = 0, recapture = false, level = 0, _mgfxBackdropSpec = true }
     backdropNumberCache[blurKey] = cached
     return cached
   }
@@ -107,7 +104,7 @@ export client fn backdropStyle(value) {
       return cached == false then nil else cached
     }
 
-    cached = { blur = 0, tint = value, opacity = 1, padding = 0, recapture = false }
+    cached = { blur = 0, tint = value, opacity = 1, padding = 0, recapture = false, level = 0, _mgfxBackdropSpec = true }
     if alpha(value.a) <= 0 {
       cached = false
     }
@@ -131,7 +128,8 @@ export client fn backdropStyle(value) {
   and cached._strengthInput == value.strength
   and cached._paddingInput == value.padding
   and cached._spreadInput == value.spread
-  and cached._recaptureInput == value.recapture {
+  and cached._recaptureInput == value.recapture
+  and cached._levelInput == value.level {
     return cached
   }
   if cached == false
@@ -144,7 +142,8 @@ export client fn backdropStyle(value) {
   and value.strength == nil
   and value.padding == nil
   and value.spread == nil
-  and value.recapture == nil {
+  and value.recapture == nil
+  and value.level == nil {
     return cached == false then nil else cached
   }
 
@@ -154,13 +153,14 @@ export client fn backdropStyle(value) {
   local opacity = mathClamp(toNumber(value.opacity ?? value.strength) ?? 1, 0, 1)
   local padding = mathMax(0, toNumber(value.padding ?? value.spread) ?? 0)
   local recapture = value.recapture == true
+  local level = mathFloor(toNumber(value.level) ?? 0)
 
   if (blur <= 0 and alpha(tint.a) <= 0) or opacity <= 0 {
     backdropTableCache[value] = false
     return nil
   }
 
-  cached = { blur = blur, tint = tint, opacity = opacity, padding = padding, recapture = recapture }
+  cached = { blur = blur, tint = tint, opacity = opacity, padding = padding, recapture = recapture, level = level, _mgfxBackdropSpec = true }
   cached._blurInput = value.blur
   cached._sizeInput = value.size
   cached._indexInput = value[1]
@@ -171,9 +171,13 @@ export client fn backdropStyle(value) {
   cached._paddingInput = value.padding
   cached._spreadInput = value.spread
   cached._recaptureInput = value.recapture
+  cached._levelInput = value.level
   backdropTableCache[value] = cached
   cached
 }
 
 export client fn backdrop(value) =
+  backdropStyle(value)
+
+export client fn compileBackdrop(value) =
   backdropStyle(value)

@@ -257,10 +257,12 @@ export client fn patternStyle(pattern) {
   stopif pattern == nil or pattern == false, nil
 
   if pattern == true {
-    return style.stripePattern(makeColor(255, 255, 255, 20), 10, 2, 135)
+    return style.stripePattern(style.DEFAULT_PATTERN_TRUE_COLOR, 10, 2, 135)
   }
 
   if typeOf(pattern) == "table" {
+    stopif pattern._mgfxPatternSpec == true, pattern
+
     local knownPattern = match pattern.kind {
       "stripe" | "smoke" | "worn" => true
       _ => false

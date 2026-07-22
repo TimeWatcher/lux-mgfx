@@ -1,0 +1,59 @@
+enum StrokeKind repr number {
+  Solid = 0,
+  Dot = 1,
+  Dash = 2,
+  DotDash = 3
+}
+
+export client const STROKE_SOLID = StrokeKind.Solid
+export client const STROKE_DOT = StrokeKind.Dot
+export client const STROKE_DASH = StrokeKind.Dash
+export client const STROKE_DOT_DASH = StrokeKind.DotDash
+
+fn strokeKindValue(value) {
+  match value {
+    nil | "solid" | StrokeKind.Solid => StrokeKind.Solid
+    "dot" | StrokeKind.Dot => StrokeKind.Dot
+    "dash" | StrokeKind.Dash => StrokeKind.Dash
+    "dot-dash" | StrokeKind.DotDash => StrokeKind.DotDash
+    _ => error(`unsupported MGFX stroke kind: ${value}`, 3)
+  }
+}
+
+export client fn strokeRaw(stroke, widthInput = nil, fallbackWidth = 0) {
+  if stroke == nil or stroke == false {
+    return false, nil, 0, StrokeKind.Solid, 0, 0, 0
+  }
+
+  local spec = typeOf(stroke) == "table" and not isColor(stroke) then stroke else nil
+  local color = spec ~= nil then (spec.color ?? spec.tint ?? spec[1]) else stroke
+  if not isColor(color) {
+    error("MGFX stroke must be a Color or a stroke style record containing color", 3)
+  }
+
+  local widthSource = widthInput ~= nil then widthInput else spec?.width ?? spec?.size
+  local width = mathMax(0, strokeWidth(widthSource, fallbackWidth))
+  local kind = strokeKindValue(spec?.kind)
+  local length = mathMax(0.001, toNumber(spec?.length ?? spec?.dashLength) ?? mathMax(width * 3, 3))
+  local gap = mathMax(0, toNumber(spec?.gap) ?? mathMax(width * 1.5, 2))
+  local offset = toNumber(spec?.offset ?? spec?.phase) ?? 0
+  local visible = width > 0 and alpha(color.a) > 0
+
+  return visible, color, width, kind, length, gap, offset
+}
+
+export client fn strokeColor(stroke) {
+  stopif stroke == nil or stroke == false, nil
+  stopif isColor(stroke), stroke
+
+  local color = typeOf(stroke) == "table" then stroke.color ?? stroke.tint ?? stroke[1] else nil
+  if not isColor(color) {
+    error("MGFX stroke must be a Color or a stroke style record containing color", 3)
+  }
+  color
+}
+
+export client fn strokeKind(stroke) {
+  stopif stroke == nil or stroke == false or isColor(stroke), StrokeKind.Solid
+  strokeKindValue(stroke.kind)
+}

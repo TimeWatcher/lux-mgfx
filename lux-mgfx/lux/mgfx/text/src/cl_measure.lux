@@ -55,9 +55,17 @@ fn lineHeightFor(nativeFont, alias = nil, textStyle = nil, oversample = 1) {
     return declared
   }
 
-  setFontSafe(nativeFont)
-  local _, h = surfaceGetTextSize("Mg")
-  mathMax(1, (h ?? 16) / normalizeOversample(oversample))
+  local font = nativeFont ?? "DermaDefault"
+  local height = fontHeightCache[font]
+  if height == nil {
+    local resolvedFont = setFontSafe(font)
+    local _, measuredHeight = surfaceGetTextSize("Hg")
+    height = measuredHeight ?? 16
+    fontHeightCache[font] = height
+    fontHeightCache[resolvedFont] = height
+  }
+
+  mathMax(1, height / normalizeOversample(oversample))
 }
 
 fn measureLine(nativeFont, text, tracking = 0, oversample = 1) {
@@ -74,18 +82,35 @@ fn measureLine(nativeFont, text, tracking = 0, oversample = 1) {
   w / normalizeOversample(oversample)
 }
 
-fn layoutFor(value, font = "DermaDefault", textStyle = nil, noOversample = false, plainFace = false) {
+fn prepareLineCharacters(line) {
+  local chars = textChars(line.text)
+  local widths = {}
+  for index = 1, #chars {
+    local width = surfaceGetTextSize(chars[index])
+    widths[index] = width ?? 0
+  }
+  line.chars = chars
+  line.charWidths = widths
+  line
+}
+
+fn layoutFor(value, font = "DermaDefault", textStyle = nil, noOversample = false, plainFace = false, characterLayout = false) {
   local resolved = resolveStyle(textStyle ?? {})
   local nativeFont, alias, oversample = nativeFor(font, resolved, noOversample, plainFace)
   local tracking = toNumber(resolved.tracking ?? resolved.letterSpacing) ?? alias.tracking ?? 0
   local lineHeight = lineHeightFor(nativeFont, alias, resolved, oversample)
   local lines = stringExplode("\n", toString(value ?? ""), false)
   local maxW = 0
+  local needsCharacters = characterLayout or tracking ~= 0
 
   for index = 1, #lines {
     local text = lines[index]
     local w = measureLine(nativeFont, text, tracking, oversample)
-    lines[index] = { text = text, w = w, y = (index - 1) * lineHeight }
+    local line = { text = text, w = w, y = (index - 1) * lineHeight }
+    if needsCharacters {
+      prepareLineCharacters(line)
+    }
+    lines[index] = line
     maxW = mathMax(maxW, w)
   }
 
@@ -196,6 +221,7 @@ export client fn measureBox(value, font, w, textStyle = nil) {
 }
 
 fn clearMeasureCache() {
+  clearTable(fontHeightCache)
   clearTable(measureCache)
   clearTable(measureOrder)
   measureOrderHead = 1

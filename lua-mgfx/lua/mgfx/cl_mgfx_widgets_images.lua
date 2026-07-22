@@ -16,6 +16,9 @@ function MGFX._InstallWidgetImages(C)
 	local color01 = C.color01
 	local setDrawColor = C.setDrawColor
 	local strokeWidthValue = C.strokeWidthValue
+	local strokeRaw = C.strokeRaw
+	local strokeKind = C.strokeKind
+	local STROKE_SOLID = C.STROKE_SOLID or 0
 	local radiusTuple = C.radiusTuple
 	local radiusScalar = C.radiusScalar
 	local fillFromStyle = C.fillFromStyle
@@ -102,6 +105,7 @@ function MGFX._InstallWidgetImages(C)
 		return drawRoundRectPrepared(
 			x, y, w, h, radius,
 			fill or transparentFill, preparedFillVisible(fill), strokeValue, strokeWidth or 0, preparedStrokeVisible(strokeValue, strokeWidth),
+			STROKE_SOLID, 0, 0, 0,
 			false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0,
 			false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0,
 			false, 0, 0, 0, 0, 0, 0, 1,
@@ -119,6 +123,7 @@ function MGFX._InstallWidgetImages(C)
 		return drawRoundRectPrepared(
 			x, y, w, h, radius,
 			fill or transparentFill, preparedFillVisible(fill), strokeValue, strokeWidth or 0, preparedStrokeVisible(strokeValue, strokeWidth),
+			STROKE_SOLID, 0, 0, 0,
 			hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread,
 			hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
 			hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff,
@@ -205,7 +210,7 @@ local function drawImageFallback(x, y, w, h, source, style)
 	local texture, material = textureSource(source)
 	local createdMaterialFallback = not material
 	material = material or fallbackMaterialForTexture(texture)
-	if not material then return end
+	if not texture or not material or w <= 0 or h <= 0 then return end
 
 	local u0, v0, u1, v1 = imageUV(style, texture)
 	x, y, w, h, u0, v0, u1, v1 = imageFitRect(x, y, w, h, texture, style, u0, v0, u1, v1)
@@ -228,9 +233,9 @@ local function drawImageFallback(x, y, w, h, source, style)
 		drawTexturedQuadUV(x, y, w, h, u0, v0, u1, v1, material)
 	end
 
-	local strokeWidth = strokeWidthValue(style.strokeWidth, 0)
-	if style.stroke and strokeWidth > 0 then
-		drawRoundImageEffect(x, y, w, h, radius, transparentColor, nil, nil, nil, style.stroke, math_max(1, math_floor(strokeWidth)))
+	local hasStroke, strokeColor, strokeWidth = strokeRaw(style.stroke, style.strokeWidth, 0)
+	if hasStroke then
+		drawRoundImageEffect(x, y, w, h, radius, transparentColor, nil, nil, nil, strokeColor, math_max(1, strokeWidth))
 	end
 end
 
@@ -477,7 +482,7 @@ end
 		local mat = materials.image_mask_backdrop
 		drawBlurredCustomQuad(mat, bx, by, bw, bh, spec.blur, function(passMat, vertical, intensity)
 			setupImageMaskBackdropConstants(passMat, bw, bh, w, h, mask, kind, maskTexture, vertical, intensity)
-		end, spec.recapture)
+		end, spec.recapture, spec.level)
 	end
 
 	local tint = backdropTintColor(spec)
@@ -679,6 +684,9 @@ end
 	local function drawImageImmediate(x, y, w, h, source, style)
 		local totalProfile = profileStart()
 		if not istable(style) then style = imageStyle(style) end
+		if strokeKind(style.stroke) ~= STROKE_SOLID then
+			error("patterned strokes are supported by MGFX shapes, not image masks", 2)
+		end
 		local shadow = style.shadow
 		local outerGlow = style.outerGlow
 		local backdropInput = style.backdrop
@@ -686,8 +694,7 @@ end
 		local maskInput = style.mask
 		local tint = imageTint(style)
 		local background = style.fill or style.background
-		local stroke = style.stroke
-		local strokeWidth = strokeWidthValue(style.strokeWidth, 0)
+		local _, stroke, strokeWidth = strokeRaw(style.stroke, style.strokeWidth, 0)
 		local hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread = false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0
 		if shadow ~= nil and shadow ~= false then
 			hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread = roundRaw.shadow(shadow)
@@ -886,13 +893,36 @@ function M.Image(x, y, w, h, source, radius, tint)
 	return drawImageRaw(x, y, w, h, source, radius, tint)
 end
 
+function M.ImageUV(x, y, w, h, source, u0, v0, u1, v1, tint)
+	recordDirectImmediate("DrawImage", "image")
+	local texture, material = textureSource(source)
+	local createdMaterialFallback = not material
+	material = material or fallbackMaterialForTexture(texture)
+	if not texture or not material or w <= 0 or h <= 0 then return end
+	u0, v0, u1, v1 = u0 or 0, v0 or 0, u1 or 1, v1 or 1
+
+	surface_SetMaterial(material)
+	setDrawColor(asColor(tint, color_white))
+	if hasTransform() then
+		drawTexturedQuadUV(x, y, w, h, u0, v0, u1, v1, material)
+	elseif createdMaterialFallback then
+		drawCreatedMaterialTexturedRectUV(x, y, w, h, u0, v0, u1, v1)
+		M.stats.draws = M.stats.draws + 1
+	else
+		drawTexturedQuadUV(x, y, w, h, u0, v0, u1, v1, material)
+	end
+end
+
 function M.IconEx(x, y, w, h, source, style)
-	local iconStyle = table.Copy(imageStyle(resolveDrawStyle(style, M.TARGET.IMAGE)))
-	local transform
-	transform, iconStyle = splitStyleTransform(iconStyle)
-	if iconStyle.fit == nil and iconStyle.objectFit == nil then
+	local resolvedStyle = imageStyle(resolveDrawStyle(style, M.TARGET.IMAGE))
+	local iconStyle = resolvedStyle
+	if resolvedStyle.fit == nil and resolvedStyle.objectFit == nil then
+		iconStyle = {}
+		for key, value in pairs(resolvedStyle) do iconStyle[key] = value end
 		iconStyle.fit = "contain"
 	end
+	local transform
+	transform, iconStyle = splitStyleTransform(iconStyle)
 
 	recordDirectImmediate("DrawImage", "image")
 	if not transform then

@@ -38,6 +38,7 @@ local typeOf = type
 
 local commandNames = {}
 local textDemoEnabled = false
+local strokeDemoEnabled = false
 local textStressEnabled = false
 local atlasDebugEnabled = false
 local profileHudEnabled = false
@@ -136,18 +137,21 @@ local requiredApis = {
   "PushClip",
   "PopClip",
   "RoundedBox",
+  "RoundedBoxBackdrop",
   "RoundedBoxEx",
   "ChamferBox",
   "ChamferBoxEx",
   "Poly",
   "PolyEx",
   "Line",
+  "LineNoCaps",
   "LineEx",
   "Circle",
   "CircleEx",
   "Capsule",
   "CapsuleEx",
   "Image",
+  "ImageUV",
   "ImageEx",
   "Icon",
   "IconEx",
@@ -196,6 +200,9 @@ local requiredApis = {
   "SmokePattern",
   "WornPattern",
   "Mask",
+  "Backdrop",
+  "CompileBackdrop",
+  "CompileStyle",
   "DebugOverlay"
 }
 

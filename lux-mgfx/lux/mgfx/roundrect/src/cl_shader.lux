@@ -244,8 +244,22 @@ fn setupRoundRectConstants(material, w, h, fill, stroke, strokeWidth, radius) {
   true
 }
 
+fn drawRoundRectBaseQuad(x, y, w, h, material, strokeWidth = 0) {
+  local pad = mathCeil(mathMax(0, toNumber(strokeWidth) ?? 0) * 0.5 + 1)
+  if pad <= 1 or w <= 0 or h <= 0 {
+    drawTexturedQuad(x, y, w, h, material)
+    return
+  }
+
+  drawTexturedQuadUV(
+    x - pad, y - pad, w + pad * 2, h + pad * 2,
+    -pad / w, -pad / h, 1 + pad / w, 1 + pad / h,
+    material
+  )
+}
+
 fn setupPatternConstants(material, w, h, radius, pattern) {
-  local color = style.asColor(pattern.color ?? pattern.tint, makeColor(255, 255, 255, 24))
+  local color = style.asColor(pattern.color ?? pattern.tint, style.DEFAULT_PATTERN_COLOR)
   local r, g, b, a = style.color01(color)
   local angle = mathRad(toNumber(pattern.angle) ?? 135)
   local smoke = match pattern.kind {
@@ -291,7 +305,7 @@ fn setupPatternConstants(material, w, h, radius, pattern) {
   )
 
   if worn {
-    local edgeColor = style.asColor(pattern.edgeColor, makeColor(218, 208, 184, 78))
+    local edgeColor = style.asColor(pattern.edgeColor, style.DEFAULT_WORN_EDGE_COLOR)
     local er, eg, eb, ea = style.color01(edgeColor)
     setupAuxConstants(material,
       er, eg, eb, ea,
@@ -562,10 +576,11 @@ fn drawRoundRectFusedRaw(
   shadowY = shadowY ?? 0
   outerX = outerX ?? 0
   outerY = outerY ?? 0
-  local sx = x
-  local sy = y
-  local ex = x + w
-  local ey = y + h
+  local strokePad = stroke ~= nil then mathCeil(mathMax(0, toNumber(strokeWidth) ?? 0) * 0.5 + 1) else 0
+  local sx = x - strokePad
+  local sy = y - strokePad
+  local ex = x + w + strokePad
+  local ey = y + h + strokePad
 
   shadowGrow = hasShadow then mathMax(0, shadowGrow ?? 0) else 0
   shadowWidth = hasShadow then mathMax(0.001, shadowWidth ?? 1) else 1
@@ -678,7 +693,7 @@ fn drawRoundRectBackdrop(x, y, w, h, radius, spec) {
 
   if spec.blur > 0 and materialOK(roundRectMaterials.roundrect_blur) {
     local material = roundRectMaterials.roundrect_blur
-    prepareBackdropBlur(spec.blur, spec.recapture)
+    prepareBackdropBlur(spec.blur, spec.recapture, spec.level)
     surfaceSetMaterial(material)
     surfaceSetDrawColor(255, 255, 255, 255)
     setupAuxConstantsRaw(material,
@@ -723,7 +738,7 @@ fn drawRoundRectBackdrop(x, y, w, h, radius, spec) {
   spec
 }
 
-fn drawRoundRectStrokePass(x, y, w, h, radius, stroke, strokeWidth) {
+fn drawRoundRectStrokePass(x, y, w, h, radius, stroke, strokeWidth, strokeKind = style.STROKE_SOLID, strokeLength = 0, strokeGap = 0, strokeOffset = 0) {
   stopif not style.strokeVisible(stroke, strokeWidth), false
 
   if materialOK(roundRectMaterials.roundrect_stroke) {
@@ -732,12 +747,17 @@ fn drawRoundRectStrokePass(x, y, w, h, radius, stroke, strokeWidth) {
     setupParamMatrix(material,
       r, g, b, a,
       w, h, mathMax(0, style.strokeWidth(strokeWidth, 0)), roundRectRadiusScalar(radius, w, h),
-      0, 0, 1, 0,
+      strokeKind, strokeLength, strokeGap, strokeOffset,
       0, 0, 0, 0
     )
     surfaceSetMaterial(material)
     surfaceSetDrawColor(255, 255, 255, 255)
-    drawTexturedQuad(x, y, w, h, material)
+    drawRoundRectBaseQuad(x, y, w, h, material, strokeWidth)
+    return true
+  }
+
+  if strokeKind ~= style.STROKE_SOLID {
+    drawRoundRectFallbackPrepared(x, y, w, h, radius, transparentFill, false, stroke, strokeWidth, true, strokeKind, strokeLength, strokeGap, strokeOffset)
     return true
   }
 
@@ -746,7 +766,7 @@ fn drawRoundRectStrokePass(x, y, w, h, radius, stroke, strokeWidth) {
   setupRoundRectConstants(material, w, h, transparentFill, stroke, strokeWidth, roundRectRadiusScalar(radius, w, h))
   surfaceSetMaterial(material)
   surfaceSetDrawColor(255, 255, 255, 255)
-  drawTexturedQuad(x, y, w, h, material)
+  drawRoundRectBaseQuad(x, y, w, h, material, strokeWidth)
   true
 }
 
@@ -788,7 +808,7 @@ fn drawRoundRectFxPassRaw(x, y, w, h, radius, fill, stroke, strokeWidth, innerEn
     roundRectProfileEnd("round.base.fx.setup", setupProfile)
   }
   local drawProfile = profiling then roundRectProfileStart() else nil
-  drawTexturedQuad(x, y, w, h, material)
+  drawRoundRectBaseQuad(x, y, w, h, material, stroke ~= nil then strokeWidth else 0)
   if profiling {
     roundRectProfileEnd("round.base.fx.draw", drawProfile)
   }

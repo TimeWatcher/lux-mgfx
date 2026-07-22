@@ -36,9 +36,16 @@ fn drawImageFallback(x, y, w, h, source, drawStyle) {
     geometry.drawTexturedQuadUV(x, y, w, h, u0, v0, u1, v1, material)
   }
 
-  local strokeWidth = style.strokeWidthValue(drawStyle.strokeWidth, 0)
-  if style.strokeVisible(drawStyle.stroke, strokeWidth) {
-    drawRoundImageEffect(x, y, w, h, radius, transparentColor, nil, nil, nil, drawStyle.stroke, mathMax(1, mathFloor(strokeWidth)))
+  local hasStroke, strokeColor, strokeWidth, strokeKind, strokeLength, strokeGap, strokeOffset = style.strokeRaw(drawStyle.stroke, drawStyle.strokeWidth)
+  if hasStroke {
+    drawRoundImageEffect(x, y, w, h, radius, transparentColor, nil, nil, nil, {
+      color = strokeColor,
+      width = mathMax(1, strokeWidth),
+      kind = strokeKind,
+      length = strokeLength,
+      gap = strokeGap,
+      offset = strokeOffset
+    })
   }
 }
 
@@ -199,7 +206,16 @@ fn drawImageRoundRectShader(x, y, w, h, texture, u0, v0, u1, v1, tint, stroke, s
   )
   style.setDrawColor(tint)
   surfaceSetMaterial(material)
-  drawTexturedQuad(x, y, w, h, material)
+  local pad = mathCeil(mathMax(0, strokeWidth) * 0.5 + 1)
+  if pad > 1 and w > 0 and h > 0 {
+    drawTexturedQuadUV(
+      x - pad, y - pad, w + pad * 2, h + pad * 2,
+      -pad / w, -pad / h, 1 + pad / w, 1 + pad / h,
+      material
+    )
+  } else {
+    drawTexturedQuad(x, y, w, h, material)
+  }
   true
 }
 
@@ -211,6 +227,7 @@ fn drawRoundImageShadowOuterPrepared(
   drawPreparedRoundRectEffects(
     x, y, w, h, radius,
     transparentFill, nil, 0,
+    style.STROKE_SOLID, 0, 0, 0,
     hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread,
     hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
     false, 0, 0, 0, 0, 0, 0, 1,
@@ -223,6 +240,10 @@ fn imageImmediate(x, y, w, h, source, drawStyle) {
   local texture = imageTextureSource(source)
   if texture == nil {
     return
+  }
+
+  if style.strokeKind(resolved.stroke) ~= style.STROKE_SOLID {
+    error("patterned strokes are supported by MGFX shapes, not image masks", 2)
   }
 
   if not shadersActive() or not materialOK(widgetMaterials.roundrect_texture) {
@@ -238,8 +259,8 @@ fn imageImmediate(x, y, w, h, source, drawStyle) {
 
   local tint = geometry.imageTint(resolved)
   local background = resolved.fill ?? resolved.background
-  local stroke = resolved.stroke
-  local strokeWidth = style.strokeWidthValue(resolved.strokeWidth, 0)
+  local hasStroke, strokeColor, strokeWidth = style.strokeRaw(resolved.stroke, resolved.strokeWidth)
+  local stroke = hasStroke then strokeColor else nil
   local shadow = resolved.shadow
   local outerGlow = resolved.outerGlow
   local backdropInput = resolved.backdrop
@@ -344,6 +365,7 @@ fn imageImmediate(x, y, w, h, source, drawStyle) {
     drawPreparedRoundRectEffects(
       x, y, w, h, radius,
       transparentFill, nil, 0,
+      style.STROKE_SOLID, 0, 0, 0,
       false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0,
       false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0,
       false, 0, 0, 0, 0, 0, 0, 1,

@@ -121,7 +121,10 @@ item list and 160+ FPS in lighter categories with diagnostics disabled.
 The documentation is shared by both implementations:
 
 - [Online Documentation](https://timewatcher.github.io/mgfx-docs-site/)
-- [API Reference](docs/API.md)
+- [Plain GLua Quick Start](docs/guide/glua.md)
+- [Lux Quick Start](docs/guide/lux.md)
+- [Core Concepts](docs/guide/concepts.md)
+- [API Reference](docs/api-reference/index.md)
 - [Performance Notes](docs/PERFORMANCE.md)
 - [Internal Architecture](docs/ARCHITECTURE.md)
 - [Text Renderer](docs/TEXT.md)
@@ -138,6 +141,24 @@ npm run docs:build
 The generated site is written to `docs-site/`.
 
 ## Changelog
+
+### 2026-07-22
+
+#### Shape Strokes And Rendering
+
+- Added centered shape strokes with `solid`, `dot`, `dash`, and `dot-dash` kinds across rounded rectangles, chamfers, polygons, rings, arcs, sectors, progress bars, and segment bars. Non-solid strokes use an isolated shader pass with a CPU fallback, while the legacy `stroke = Color(...)` plus `strokeWidth` API remains supported.
+- Added matching stroke shader sources, compiled shader assets, plain Lua support, and interactive `mgfx_demo` / `mgfx_stroke_demo` examples.
+- Fixed backdrop-only rounded rectangles so they stop after the backdrop pass instead of submitting a transparent base shape.
+- Added layered backdrop blur through integer `backdrop.level`. Matching frame/level/intensity requests reuse the prepared result, intensity changes rerun the separable blur without another framebuffer copy, and higher levels recapture after lower UI layers have drawn.
+
+#### API And Performance
+
+- Added `CompileStyle` / `CompileBackdrop` and normalized style markers so callers can reuse prepared backdrop and pattern specs without repeated table normalization.
+- Added allocation-light `RoundedBoxBackdrop`, `LineNoCaps`, and `ImageUV` APIs in both the Lux and plain Lua implementations.
+- Reduced `StartPanel` overhead by avoiding profiler metadata while profiling is disabled, pooling clip/command records, and skipping empty command-frame setup.
+- Removed deep style copying from transformed draw paths and cached pattern seeds, font heights, UTF-8 character runs, and per-character widths used by native text fallback rendering.
+- Fixed `lineHeightFor` font measurement and removed per-character `GetTextSize` calls from `drawLayout`.
+- Synchronized the Lux sources, generated precompiled runtime, plain Lua implementation, shader packs, API reference, performance notes, and bilingual documentation.
 
 ### Recent Development: 2026-06-19 to 2026-06-26
 

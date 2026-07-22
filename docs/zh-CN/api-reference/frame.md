@@ -22,7 +22,9 @@
 
 #### VGUI 面板 Paint
 
-```lua
+::: code-group
+
+```lua [GLua]
 function PANEL:Paint(w, h)
     MGFX.StartPanel(self, w, h)
 
@@ -37,6 +39,26 @@ function PANEL:Paint(w, h)
     MGFX.EndPanel()
 end
 ```
+
+```lux [Lux]
+import * as mgfx from "@lux/mgfx"
+
+fn PANEL:Paint(w, h) {
+  local draw = mgfx.api
+  draw.startPanel(self, w, h)
+
+  draw.roundedBoxEx(0, 0, w, h, {
+    radius = 10,
+    fill = Color(20, 24, 32, 235),
+    shadow = {x = 0, y = 6, blur = 14, color = Color(0, 0, 0, 110), softness = 0.68},
+  })
+
+  draw.text("READY", "DermaDefaultBold", 16, 18, color_white, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+  draw.endPanel();
+}
+```
+
+:::
 
 `StartPanel` 之后的坐标已经是 panel-local。不要再把 `x/y` 手动加上 `LocalToScreen`。
 

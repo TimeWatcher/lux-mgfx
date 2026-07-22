@@ -1043,6 +1043,67 @@ addCommand("mgfx_text_demo", function(_, _, args)
 	print("[MGFX] text demo on")
 end)
 
+hook.Remove("HUDPaint", "MGFXStrokeDemo")
+local strokeDemoEnabled = false
+local strokeDemoKinds = {"solid", "dot", "dash", "dot-dash"}
+local strokeDemoColors = {
+	Color(112, 205, 255, 235),
+	Color(255, 194, 92, 235),
+	Color(128, 235, 176, 235),
+	Color(238, 128, 208, 235),
+}
+local strokeDemoPanelFill = Color(5, 10, 16, 232)
+local strokeDemoPanelStroke = Color(255, 255, 255, 24)
+local strokeDemoRoundFill = Color(18, 28, 38, 210)
+local strokeDemoChamferFill = Color(22, 27, 34, 210)
+local strokeDemoPolyFill = Color(20, 30, 38, 210)
+local strokeDemoRingFill = Color(26, 36, 44, 210)
+local strokeDemoTitle = Color(225, 240, 248)
+
+local function drawStrokeDemo()
+	local sw, sh = ScrW(), ScrH()
+	local panelW = math_min(920, sw - 64)
+	local x0, y0 = 32, math_max(32, (sh - 500) * 0.5)
+	local cellW = (panelW - 60) / 4
+
+	M.StartScreen(sw, sh)
+	M.RoundedBoxEx(x0, y0, panelW, 470, {
+		radius = 14,
+		fill = strokeDemoPanelFill,
+		stroke = strokeDemoPanelStroke,
+		strokeWidth = 1,
+	})
+	for index, kind in ipairs(strokeDemoKinds) do
+		local color = strokeDemoColors[index]
+		local x = x0 + 18 + (index - 1) * cellW
+		local stroke = {color = color, width = 3, kind = kind, length = 13, gap = 7, offset = RealTime() * 20}
+		M.RoundedBoxEx(x, y0 + 54, cellW - 16, 72, {radius = 18, fill = strokeDemoRoundFill, stroke = stroke})
+		M.ChamferBoxEx(x, y0 + 162, cellW - 16, 72, {cuts = {16, 5, 16, 5}, fill = strokeDemoChamferFill, stroke = stroke})
+		M.RegularPolyEx(x + (cellW - 16) * 0.5, y0 + 326, 46, 6, {rotation = 30, fill = strokeDemoPolyFill, stroke = stroke})
+		M.RingEx(x + (cellW - 16) * 0.5, y0 + 415, 35, 12, {fill = strokeDemoRingFill, stroke = stroke})
+	end
+	M.EndScreen()
+
+	draw_SimpleText("MGFX centered shape strokes", "DermaDefaultBold", x0 + 18, y0 + 20, strokeDemoTitle)
+	for index, kind in ipairs(strokeDemoKinds) do
+		local x = x0 + 18 + (index - 1) * cellW
+		draw_SimpleText(kind, "DermaDefault", x, y0 + 132, strokeDemoColors[index])
+	end
+end
+
+addCommand("mgfx_stroke_demo", function(_, _, args)
+	local mode = args and args[1] or "toggle"
+	hook.Remove("HUDPaint", "MGFXStrokeDemo")
+	if mode == "0" or mode == "off" or mode == "close" or (mode == "toggle" and strokeDemoEnabled) then
+		strokeDemoEnabled = false
+		print("[MGFX] stroke demo off")
+		return
+	end
+	hook.Add("HUDPaint", "MGFXStrokeDemo", drawStrokeDemo)
+	strokeDemoEnabled = true
+	print("[MGFX] stroke demo on")
+end)
+
 addCommand("mgfx_text_trace_demo", function()
 	ensureTextDemoFonts()
 	if not textRenderer or not textRenderer.DebugResolve then
@@ -1145,12 +1206,14 @@ addCommand("mgfx_selftest", function()
 		"StartScreen",
 		"EndScreen",
 		"RoundedBox",
+		"RoundedBoxBackdrop",
 		"RoundedBoxEx",
 		"ChamferBox",
 		"ChamferBoxEx",
 		"Poly",
 		"PolyEx",
 		"Image",
+		"ImageUV",
 		"ImageEx",
 		"Icon",
 		"IconEx",
@@ -1179,6 +1242,7 @@ addCommand("mgfx_selftest", function()
 		"SegmentBar",
 		"SegmentBarEx",
 		"Line",
+		"LineNoCaps",
 		"LineEx",
 		"Ring",
 		"RingEx",
@@ -1207,6 +1271,9 @@ addCommand("mgfx_selftest", function()
 		"SmokePattern",
 		"WornPattern",
 		"Mask",
+		"Backdrop",
+		"CompileBackdrop",
+		"CompileStyle",
 		"DebugOverlay",
 	}
 

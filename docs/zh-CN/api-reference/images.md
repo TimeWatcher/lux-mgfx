@@ -11,16 +11,22 @@
 ## 本页 API
 
 - [Image](#image) - 带可选圆角和 tint 的简单图像 helper。
+- `ImageUV` - 已知 UV 矩形的无 style-table positional 热路径。
 - [ImageEx](#imageex) - 支持布局、遮罩和特效的高级图像绘制路径。
 - [Icon](#icon) - 简单图标 helper。默认 contain 适配。
 - [IconEx](#iconex) - 高级图标路径，支持 ImageEx 风格字段，默认 contain 布局。
 - [Mask](#mask) - 为 ImageEx/IconEx 创建显式图像遮罩记录。
 
+`MGFX.ImageUV(x, y, w, h, source, u0, v0, u1, v1, tint)` 直接提交指定 UV，
+不会执行 fit、crop、mask 或 effect style 解析，适合图集和高频库存图标。
+
 ## 图像布局配方
 
 #### 圆形头像
 
-```lua
+::: code-group
+
+```lua [GLua]
 MGFX.ImageEx(x, y, 64, 64, avatarMat, {
     fit = "cover",
     mask = MGFX.Mask("circle"),
@@ -29,6 +35,21 @@ MGFX.ImageEx(x, y, 64, 64, avatarMat, {
     shadow = {x = 0, y = 4, blur = 10, color = Color(0, 0, 0, 120), softness = 0.68},
 })
 ```
+
+```lux [Lux]
+import * as mgfx from "@lux/mgfx"
+
+local draw = mgfx.api
+draw.imageEx(x, y, 64, 64, avatarMat, {
+  fit = "cover",
+  mask = draw.mask("circle"),
+  stroke = Color(255, 255, 255, 42),
+  strokeWidth = 1,
+  shadow = {x = 0, y = 4, blur = 10, color = Color(0, 0, 0, 120), softness = 0.68},
+});
+```
+
+:::
 
 头像通常用 `fit = "cover"`，让图片填满方框并裁掉多余部分。圆形不是特殊头像组件，而是 `ImageEx + Mask("circle")`。
 

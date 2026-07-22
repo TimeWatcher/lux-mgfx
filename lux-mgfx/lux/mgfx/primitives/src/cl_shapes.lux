@@ -119,7 +119,7 @@ export client fn chamferBoxEx(x, y, w, h, drawStyle = nil) {
   local transform, stripped = splitStyleTransform(resolved)
   local cuts = stripped.cuts ?? 0
   if transform ~= nil {
-    return withTransform(transform, x, y, w, h, () => chamferBoxEx(x, y, w, h, stripped))
+    return withTransform(transform, x, y, w, h, () => drawChamferBoxImmediate(x, y, w, h, stripped, cuts))
   }
 
   drawChamferBoxImmediate(x, y, w, h, stripped, cuts)

@@ -2,7 +2,9 @@
 
 This page is kept as a compatibility entry for older links.
 
-Use the task reference pages instead. These pages are documentation groups, not module names; all listed functions are available through `MGFX.*` in GLua and `mgfx.api.*` in Lux.
+Use the task reference pages instead. Start with [Plain GLua Quick Start](./guide/glua), [Lux Quick Start](./guide/lux), or [Core Concepts](./guide/concepts) if you are still learning the API shape.
+
+These pages are documentation groups, not module names; all listed functions are available through `MGFX.*` in GLua and `mgfx.api.*` in Lux.
 
 - [Frame and debug API](./api-reference/frame)
 - [Shapes and lines](./api-reference/primitives)

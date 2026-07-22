@@ -74,6 +74,7 @@ export client fn install(owner) {
   addCommand(owner, "mgfx_text_atlas", () => toggleAtlasDebug(owner), "Toggle MGFX text atlas debug overlay.")
   addCommand(owner, "mgfx_text_stress", () => toggleTextStress(owner), "Toggle MGFX text stress overlay.")
   addCommand(owner, "mgfx_text_demo", (_cmd = nil, _argString = nil, args = nil) => toggleTextDemo(owner, args?.[1] ?? "toggle"), "Toggle MGFX text demo overlay.")
+  addCommand(owner, "mgfx_stroke_demo", (_cmd = nil, _argString = nil, args = nil) => toggleStrokeDemo(owner, args?.[1] ?? "toggle"), "Toggle MGFX centered shape stroke demo overlay.")
   addCommand(owner, "mgfx_text_trace_demo", () => traceTextDemo(owner), "Print MGFX text demo font/atlas route diagnostics.")
   addCommand(owner, "mgfx_param_probe", () => toggleParamProbe(owner), "Toggle MGFX shader parameter probe.")
   addCommand(owner, "mgfx_param_probe_inv", () => toggleParamProbeInv(owner), "Toggle MGFX c15 shader parameter probe.")
@@ -90,6 +91,7 @@ export client fn install(owner) {
   owner.ToggleProfileHud = (mode = "toggle") => toggleProfileHud(owner, mode)
   owner.ResetProfileCommand = () => profileReset(owner)
   owner.ToggleTextDemo = (mode = "toggle") => toggleTextDemo(owner, mode)
+  owner.ToggleStrokeDemo = (mode = "toggle") => toggleStrokeDemo(owner, mode)
   owner.TraceTextDemo = () => traceTextDemo(owner)
   owner.ToggleTextStress = () => toggleTextStress(owner)
   owner.ToggleParamProbe = () => toggleParamProbe(owner)
@@ -107,6 +109,7 @@ export client fn uninstall(owner = nil) {
 
   if hookRemove ~= nil {
     hookRemove("HUDPaint", "MGFXTextDemo")
+    hookRemove("HUDPaint", "MGFXStrokeDemo")
     hookRemove("HUDPaint", "MGFXTextStress")
     hookRemove("HUDPaint", "MGFXTextAtlasDebug")
     hookRemove("HUDPaint", profileHudHook)
@@ -119,6 +122,7 @@ export client fn uninstall(owner = nil) {
 
   commandNames = {}
   textDemoEnabled = false
+  strokeDemoEnabled = false
   textStressEnabled = false
   atlasDebugEnabled = false
   profileHudEnabled = false

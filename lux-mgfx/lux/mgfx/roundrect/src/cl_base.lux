@@ -11,6 +11,7 @@ local getConVar = GetConVar
 local matrixCtor = Matrix
 local mathAbs = math.abs
 local mathClamp = math.Clamp
+local mathCeil = math.ceil
 local mathCos = math.cos
 local mathFloor = math.floor
 local mathMax = math.max
@@ -18,7 +19,6 @@ local mathMin = math.min
 local mathRad = math.rad
 local mathSin = math.sin
 local mathSqrt = math.sqrt
-local surfaceDrawOutlinedRect = surface.DrawOutlinedRect
 local surfaceDrawRect = surface.DrawRect
 local surfaceSetMaterial = surface.SetMaterial
 local surfaceSetDrawColor = surface.SetDrawColor
@@ -52,7 +52,6 @@ local roundRectMatOK = (material) => material ~= nil and material.IsError ~= nil
 local roundRectHasShaders = () => false
 local forceFallbackCvar = nil
 local fallbackRoundRectVerts = {}
-local fallbackStrokeVerts = { {}, {}, {}, {} }
 local emptyRoundRectStyle = {}
 local transparentColor = makeColor(0, 0, 0, 0)
 local solidFillScratch = { kind = style.FILL_SOLID, colorA = color_white, colorB = color_white }
@@ -282,32 +281,7 @@ export client fn fallbackRoundRectPoints(x, y, w, h, radius) {
   verts
 }
 
-fn drawFallbackStroke(points, color, width) {
-  width = mathMax(1, toNumber(width) ?? 1)
-  setColor(color)
-
-  for index = 1, #points {
-    local a = points[index]
-    local b = points[index % #points + 1]
-    local dx = b.x - a.x
-    local dy = b.y - a.y
-    local len = mathMax(0.0001, (dx * dx + dy * dy) ^ 0.5)
-    local nx = -dy / len * width * 0.5
-    local ny = dx / len * width * 0.5
-    local verts = fallbackStrokeVerts
-    verts[1].x = a.x + nx
-    verts[1].y = a.y + ny
-    verts[2].x = b.x + nx
-    verts[2].y = b.y + ny
-    verts[3].x = b.x - nx
-    verts[3].y = b.y - ny
-    verts[4].x = a.x - nx
-    verts[4].y = a.y - ny
-    drawTransformedPoly(verts)
-  }
-}
-
-fn drawRoundRectFallbackPrepared(x, y, w, h, radius = 0, fill, hasFill, stroke = nil, strokeWidth = 0, hasStroke = false) {
+fn drawRoundRectFallbackPrepared(x, y, w, h, radius = 0, fill, hasFill, stroke = nil, strokeWidth = 0, hasStroke = false, strokeKind = style.STROKE_SOLID, strokeLength = 0, strokeGap = 0, strokeOffset = 0) {
   recordFallbacks()
 
   if hasTransform() {
@@ -318,7 +292,7 @@ fn drawRoundRectFallbackPrepared(x, y, w, h, radius = 0, fill, hasFill, stroke =
     }
 
     if hasStroke {
-      drawFallbackStroke(points, stroke, mathMax(1, mathFloor(strokeWidth)))
+      drawStrokePath(points, true, stroke, mathMax(1, strokeWidth), strokeKind, strokeLength, strokeGap, strokeOffset)
     }
     return
   }
@@ -336,20 +310,13 @@ fn drawRoundRectFallbackPrepared(x, y, w, h, radius = 0, fill, hasFill, stroke =
   }
 
   if hasStroke {
-    setColor(stroke)
-    surfaceDrawOutlinedRect(x, y, w, h, mathMax(1, mathFloor(strokeWidth)))
-    recordDraws()
+    drawStrokePath(fallbackRoundRectPoints(x, y, w, h, radius), true, stroke, mathMax(1, strokeWidth), strokeKind, strokeLength, strokeGap, strokeOffset)
   }
 }
 
 fn drawRoundRectFallbackRaw(x, y, w, h, radius = 0, fillInput = nil, stroke = nil, strokeWidthInput = nil) {
   local fill = hotFillFromStyle(fillInput)
-  local strokeWidth = 0
-  local hasStroke = false
-  if stroke ~= nil {
-    strokeWidth = style.strokeWidth(strokeWidthInput, 0)
-    hasStroke = strokeWidth > 0 and (stroke.a == nil or stroke.a > 0)
-  }
+  local hasStroke, strokeColor, strokeWidth, strokeKind, strokeLength, strokeGap, strokeOffset = style.strokeRaw(stroke, strokeWidthInput)
 
-  drawRoundRectFallbackPrepared(x, y, w, h, radius, fill, hotFillVisible(fill), stroke, strokeWidth, hasStroke)
+  drawRoundRectFallbackPrepared(x, y, w, h, radius, fill, hotFillVisible(fill), strokeColor, strokeWidth, hasStroke, strokeKind, strokeLength, strokeGap, strokeOffset)
 }

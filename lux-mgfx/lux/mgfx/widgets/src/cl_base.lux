@@ -17,6 +17,7 @@ local matrixCtor = Matrix
 local makeColor = Color
 local mathClamp = math.Clamp
 local mathCos = math.cos
+local mathCeil = math.ceil
 local mathFloor = math.floor
 local mathAbs = math.abs
 local mathMax = math.max
@@ -29,6 +30,7 @@ local toNumber = tonumber
 local typeOf = type
 
 local drawTexturedQuad = geometry.drawTexturedQuad
+local drawTexturedQuadUV = geometry.drawTexturedQuadUV
 local hasTransform = geometry.hasTransform
 local prepareBackdropBlur = geometry.prepareBackdropBlur
 local beginPanelEffectBleed = frame.beginPanelEffectBleed
@@ -199,10 +201,11 @@ fn preparedFillVisible(fill) {
   style.fillVisible(fill)
 }
 
-fn drawPreparedRoundRectPlain(x, y, w, h, radius, fill, strokeValue = nil, strokeWidth = 0, patternSpec = nil) {
+fn drawPreparedRoundRectPlain(x, y, w, h, radius, fill, strokeValue = nil, strokeWidth = 0, patternSpec = nil, strokeKind = style.STROKE_SOLID, strokeLength = 0, strokeGap = 0, strokeOffset = 0) {
   roundrect.drawRoundRectPrepared(
     x, y, w, h, radius,
     fill ?? transparentFill, preparedFillVisible(fill), strokeValue, strokeWidth, preparedStrokeVisible(strokeValue, strokeWidth),
+    strokeKind, strokeLength, strokeGap, strokeOffset,
     false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0,
     false, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0,
     false, 0, 0, 0, 0, 0, 0, 1,
@@ -212,6 +215,7 @@ fn drawPreparedRoundRectPlain(x, y, w, h, radius, fill, strokeValue = nil, strok
 
 fn drawPreparedRoundRectEffects(
   x, y, w, h, radius, fill, strokeValue, strokeWidth,
+  strokeKind, strokeLength, strokeGap, strokeOffset,
   hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread,
   hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
   hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff,
@@ -220,6 +224,7 @@ fn drawPreparedRoundRectEffects(
   roundrect.drawRoundRectPrepared(
     x, y, w, h, radius,
     fill ?? transparentFill, preparedFillVisible(fill), strokeValue, strokeWidth, preparedStrokeVisible(strokeValue, strokeWidth),
+    strokeKind, strokeLength, strokeGap, strokeOffset,
     hasShadow, sr, sg, sb, sa, shadowX, shadowY, shadowWidth, shadowSpread, shadowGrow, shadowStrength, shadowFalloff, shadowExtent, shadowCullSpread,
     hasOuter, orr, og, ob, oa, outerX, outerY, outerWidth, outerSpread, outerGrow, outerStrength, outerFalloff, outerExtent, outerCullSpread,
     hasInner, igr, igg, igb, iga, innerWidth, innerStrength, innerFalloff,

@@ -1,0 +1,164 @@
+local strokeCircleVerts = { {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {} }
+local strokePathLengths = {}
+local STROKE_CIRCLE_STEPS = #strokeCircleVerts
+
+fn strokePathPoint(point, offsetX, offsetY) {
+  return (toNumber(point.x ?? point[1]) ?? 0) + offsetX,
+    (toNumber(point.y ?? point[2]) ?? 0) + offsetY
+}
+
+fn drawStrokeCircle(x, y, radius, color) {
+  stopif radius <= 0
+
+  for index = 1, STROKE_CIRCLE_STEPS {
+    local angle = (index - 1) / STROKE_CIRCLE_STEPS * math.pi * 2
+    local point = strokeCircleVerts[index]
+    point.x = x + mathCos(angle) * radius
+    point.y = y + mathSin(angle) * radius
+    point.u = nil
+    point.v = nil
+    point.color = nil
+  }
+  setColor(color)
+  drawTransformedPoly(strokeCircleVerts)
+}
+
+fn drawStrokeCapsule(ax, ay, bx, by, width, color) {
+  local dx = bx - ax
+  local dy = by - ay
+  local length = mathSqrt(dx * dx + dy * dy)
+  local halfWidth = width * 0.5
+  if length <= 0.0001 {
+    drawStrokeCircle(ax, ay, halfWidth, color)
+    return
+  }
+
+  local nx = -dy / length * halfWidth
+  local ny = dx / length * halfWidth
+  local verts = fallbackStrokeVerts
+  verts[1].x = ax + nx
+  verts[1].y = ay + ny
+  verts[2].x = bx + nx
+  verts[2].y = by + ny
+  verts[3].x = bx - nx
+  verts[3].y = by - ny
+  verts[4].x = ax - nx
+  verts[4].y = ay - ny
+  setColor(color)
+  drawTransformedPoly(verts)
+  drawStrokeCircle(ax, ay, halfWidth, color)
+  drawStrokeCircle(bx, by, halfWidth, color)
+}
+
+fn strokePathMeasure(points, closed) {
+  local count = #(points ?? {})
+  local edgeCount = closed then count else mathMax(0, count - 1)
+  local total = 0
+  for index = 1, edgeCount {
+    local ax, ay = strokePathPoint(points[index], 0, 0)
+    local bx, by = strokePathPoint(points[index % count + 1], 0, 0)
+    local dx = bx - ax
+    local dy = by - ay
+    local length = mathSqrt(dx * dx + dy * dy)
+    strokePathLengths[index] = length
+    total += length
+  }
+  for index = edgeCount + 1, #strokePathLengths {
+    strokePathLengths[index] = nil
+  }
+  return total, edgeCount
+}
+
+fn drawStrokePathRange(points, edgeCount, fromDistance, toDistance, color, width, offsetX, offsetY) {
+  stopif toDistance <= fromDistance
+
+  local cursor = 0
+  local count = #points
+  for index = 1, edgeCount {
+    local edgeLength = strokePathLengths[index]
+    local edgeEnd = cursor + edgeLength
+    if edgeLength > 0.0001 and toDistance > cursor and fromDistance < edgeEnd {
+      local localStart = mathClamp((mathMax(fromDistance, cursor) - cursor) / edgeLength, 0, 1)
+      local localEnd = mathClamp((mathMin(toDistance, edgeEnd) - cursor) / edgeLength, 0, 1)
+      local ax, ay = strokePathPoint(points[index], offsetX, offsetY)
+      local bx, by = strokePathPoint(points[index % count + 1], offsetX, offsetY)
+      drawStrokeCapsule(
+        ax + (bx - ax) * localStart,
+        ay + (by - ay) * localStart,
+        ax + (bx - ax) * localEnd,
+        ay + (by - ay) * localEnd,
+        width,
+        color
+      )
+    }
+    cursor = edgeEnd
+  }
+}
+
+fn drawStrokePathDot(points, edgeCount, distance, color, width, offsetX, offsetY) {
+  local cursor = 0
+  local count = #points
+  for index = 1, edgeCount {
+    local edgeLength = strokePathLengths[index]
+    local edgeEnd = cursor + edgeLength
+    if distance <= edgeEnd or index == edgeCount {
+      local t = edgeLength > 0.0001 then mathClamp((distance - cursor) / edgeLength, 0, 1) else 0
+      local ax, ay = strokePathPoint(points[index], offsetX, offsetY)
+      local bx, by = strokePathPoint(points[index % count + 1], offsetX, offsetY)
+      drawStrokeCircle(ax + (bx - ax) * t, ay + (by - ay) * t, width * 0.5, color)
+      return
+    }
+    cursor = edgeEnd
+  }
+}
+
+export client fn drawStrokePath(points, closed, color, width, kind = style.STROKE_SOLID, dashLength = 0, gap = 0, offset = 0, offsetX = 0, offsetY = 0) {
+  width = mathMax(0, toNumber(width) ?? 0)
+  stopif width <= 0 or color == nil or #points < 2, false
+
+  local total, edgeCount = strokePathMeasure(points, closed == true)
+  stopif total <= 0 or edgeCount <= 0, false
+
+  offsetX = toNumber(offsetX) ?? 0
+  offsetY = toNumber(offsetY) ?? 0
+  dashLength = mathMax(width, toNumber(dashLength) ?? width * 3)
+  gap = mathMax(0, toNumber(gap) ?? width * 1.5)
+  offset = toNumber(offset) ?? 0
+
+  if kind == style.STROKE_SOLID {
+    drawStrokePathRange(points, edgeCount, 0, total, color, width, offsetX, offsetY)
+    return true
+  }
+
+  if kind == style.STROKE_DOT {
+    local period = mathMax(width + gap, width)
+    local center = (-offset) % period
+    while center <= total {
+      drawStrokePathDot(points, edgeCount, center, color, width, offsetX, offsetY)
+      center += period
+    }
+    return true
+  }
+
+  if kind == style.STROKE_DASH {
+    local period = mathMax(dashLength + gap, dashLength)
+    local center = (-offset) % period - period
+    while center - dashLength * 0.5 <= total {
+      drawStrokePathRange(points, edgeCount, mathMax(0, center - dashLength * 0.5), mathMin(total, center + dashLength * 0.5), color, width, offsetX, offsetY)
+      center += period
+    }
+    return true
+  }
+
+  local period = mathMax(width + dashLength + gap * 2, width + dashLength)
+  local base = (-offset) % period - period
+  while base - width * 0.5 <= total {
+    if base >= 0 and base <= total {
+      drawStrokePathDot(points, edgeCount, base, color, width, offsetX, offsetY)
+    }
+    local dashCenter = base + width * 0.5 + gap + dashLength * 0.5
+    drawStrokePathRange(points, edgeCount, mathMax(0, dashCenter - dashLength * 0.5), mathMin(total, dashCenter + dashLength * 0.5), color, width, offsetX, offsetY)
+    base += period
+  }
+  true
+}

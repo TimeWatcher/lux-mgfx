@@ -6,7 +6,7 @@ import { chunk05 } from "@lux/mgfx/shaderpack/chunk05"
 
 local tableConcat = table.concat
 
-export client const VERSION = "1783792605"
+export client const VERSION = "1784008679"
 
 local chunks = {
   chunk01,

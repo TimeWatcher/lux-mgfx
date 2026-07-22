@@ -355,9 +355,7 @@ function MGFX._CreateGeometryHelpers(deps)
 		if not istable(style) then return nil, style end
 		local transform = style.transform
 		if transform == nil then return nil, style end
-		local stripped = copyStyle(style)
-		stripped.transform = nil
-		return transform, stripped
+		return transform, style
 	end
 
 	function owner.Transform(spec)
@@ -554,7 +552,7 @@ function MGFX._CreateGeometryHelpers(deps)
 	end
 
 	local function imageStyle(style)
-		if istable(style) then return copyStyle(style) end
+		if istable(style) then return style end
 		if style ~= nil then return {radius = style} end
 		return {}
 	end

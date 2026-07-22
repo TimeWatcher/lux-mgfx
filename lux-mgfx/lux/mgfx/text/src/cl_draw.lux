@@ -27,35 +27,46 @@ fn setTextColor(color) {
   }
 }
 
-fn drawLineText(nativeFont, text, x, y, color, tracking = 0, oversample = 1) {
-  setFontSafe(nativeFont)
-  setTextColor(color)
-  local raw = toString(text ?? "")
-  local extra = toNumber(tracking) ?? 0
+fn fillNeedsCharacters(fill) =
+  typeOf(fill) == "table" and not style.isColor(fill) and fill.kind ~= nil
 
-  if extra == 0 {
+fn drawLineText(line, x, y, fill, fallbackColor, tracking = 0, oversample = 1) {
+  local extra = toNumber(tracking) ?? 0
+  local characterFill = fillNeedsCharacters(fill)
+
+  if extra == 0 and not characterFill {
+    setTextColor(fallbackColor ?? fill ?? white)
     surfaceSetTextPos(x, y)
-    surfaceDrawText(raw)
+    surfaceDrawText(line.text)
     return
   }
 
+  local chars = line.chars
+  local widths = line.charWidths
+  if chars == nil or widths == nil {
+    errorFn("MGFX text character layout missing", 2)
+  }
+
   local cursor = x
-  local chars = textChars(raw)
+  local advance = 0
   for index = 1, #chars {
     local ch = chars[index]
+    local t = line.w > 0 then advance / line.w else 0
+    setTextColor(characterFill then colorAtFill(fill, t) else (fallbackColor ?? fill ?? white))
     surfaceSetTextPos(cursor, y)
     surfaceDrawText(ch)
-    local cw = surfaceGetTextSize(ch)
-    cursor += (cw ?? 0) + extra * normalizeOversample(oversample)
+    local width = widths[index]
+    cursor += width + extra * oversample
+    advance += width / oversample + extra
   }
 }
 
 fn drawLayout(layout, x, y, fill, fallbackColor = white) {
   local oversample = normalizeOversample(layout.oversample)
+  setFontSafe(layout.font)
   for index = 1, #layout.lines {
     local line = layout.lines[index]
-    local t = #layout.lines <= 1 then 0 else (index - 1) / (#layout.lines - 1)
-    drawLineText(layout.font, line.text, x, y + line.y * oversample, colorAtFill(fill ?? fallbackColor, t), layout.tracking, oversample)
+    drawLineText(line, x, y + line.y * oversample, fill, fallbackColor, layout.tracking, oversample)
   }
 }
 
@@ -135,12 +146,12 @@ fn snapTextPos(x, y, textStyle = nil) {
 
 fn drawNativeFallbackRecord(record) {
   local textStyle = record.style ?? {}
-  local layout = layoutFor(record.text, record.font, textStyle, true)
+  local fill = textStyle.fill ?? textStyle.color ?? record.color ?? white
+  local layout = layoutFor(record.text, record.font, textStyle, true, false, fillNeedsCharacters(fill))
   local x = (record.x ?? 0) - layout.w * alignFactor(record.alignX)
   local y = (record.y ?? 0) - layout.h * alignFactor(record.alignY, true)
   x, y = snapTextPos(x, y, textStyle)
 
-  local fill = textStyle.fill ?? textStyle.color ?? record.color ?? white
   local shadow = normalizeShadow(textStyle.shadow)
   local stroke = normalizeStroke(textStyle.stroke ?? textStyle.outline)
   local glow = normalizeGlow(textStyle.glow)

@@ -18,13 +18,44 @@ function MGFX._InstallFrame(C)
 	local textRenderer = C.textRenderer
 	local SysTime = SysTime
 	local profileFrameActive = false
+	local clipRecordPool = {}
 	assert(commandApi, "MGFX frame module requires commandApi")
 
-local function profileCallsite()
+local function acquireClipRecord()
+	local index = #clipRecordPool
+	local clip = clipRecordPool[index]
+	if clip then
+		clipRecordPool[index] = nil
+		return clip
+	end
+	return {}
+end
+
+local function releaseClipRecord(clip)
+	if not clip then return end
+	clip.localX = nil
+	clip.localY = nil
+	clip.x = nil
+	clip.y = nil
+	clip.w = nil
+	clip.h = nil
+	clip.frame = nil
+	clipRecordPool[#clipRecordPool + 1] = clip
+end
+
+local function clearClipStack()
+	for index = #clipStack, 1, -1 do
+		local clip = clipStack[index]
+		clipStack[index] = nil
+		releaseClipRecord(clip)
+	end
+end
+
+local function profileCallsite(level)
 	if not profiler or not profiler.IsEnabled or not profiler.IsEnabled() or not debug or not debug.getinfo then
 		return nil
 	end
-	return debug.getinfo(3, "Sln")
+	return debug.getinfo(level or 3, "Sln")
 end
 
 local function profileStart()
@@ -73,31 +104,36 @@ local function applyPushClip(x, y, w, h)
 	end
 
 	if ex <= sx or ey <= sy then
-		clipStack[#clipStack + 1] = {
-			localX = x,
-			localY = y,
-			x = sx,
-			y = sy,
-			w = 0,
-			h = 0,
-		}
+		local clip = acquireClipRecord()
+		clip.localX = x
+		clip.localY = y
+		clip.x = sx
+		clip.y = sy
+		clip.w = 0
+		clip.h = 0
+		clip.frame = nil
+		clipStack[#clipStack + 1] = clip
 		render.SetScissorRect(0, 0, 0, 0, true)
 		return
 	end
 
-	clipStack[#clipStack + 1] = {
-		localX = sx - frameX,
-		localY = sy - frameY,
-		x = sx,
-		y = sy,
-		w = ex - sx,
-		h = ey - sy,
-	}
+	local clip = acquireClipRecord()
+	clip.localX = sx - frameX
+	clip.localY = sy - frameY
+	clip.x = sx
+	clip.y = sy
+	clip.w = ex - sx
+	clip.h = ey - sy
+	clip.frame = nil
+	clipStack[#clipStack + 1] = clip
 	render.SetScissorRect(sx, sy, ex, ey, true)
 end
 
 local function applyPopClip()
-	clipStack[#clipStack] = nil
+	local index = #clipStack
+	local popped = clipStack[index]
+	clipStack[index] = nil
+	releaseClipRecord(popped)
 	local clip = clipStack[#clipStack]
 	if clip then
 		render.SetScissorRect(clip.x, clip.y, clip.x + clip.w, clip.y + clip.h, true)
@@ -107,7 +143,7 @@ local function applyPopClip()
 end
 
 local function installFrameClip()
-	table.Empty(clipStack)
+	clearClipStack()
 	if not frameState.clipToFrame then
 		render.SetScissorRect(0, 0, 0, 0, false)
 		return
@@ -119,15 +155,15 @@ local function installFrameClip()
 
 	local sx = tonumber(frameState.screenX) or 0
 	local sy = tonumber(frameState.screenY) or 0
-	clipStack[#clipStack + 1] = {
-		localX = 0,
-		localY = 0,
-		x = sx,
-		y = sy,
-		w = fw,
-		h = fh,
-		frame = true,
-	}
+	local clip = acquireClipRecord()
+	clip.localX = 0
+	clip.localY = 0
+	clip.x = sx
+	clip.y = sy
+	clip.w = fw
+	clip.h = fh
+	clip.frame = true
+	clipStack[#clipStack + 1] = clip
 	render.SetScissorRect(sx, sy, sx + fw, sy + fh, true)
 end
 
@@ -186,7 +222,7 @@ end
 local function finishFrame(commands, frameProfile)
 	commandState.replaying = false
 	releaseCommandStack(commands)
-	table.Empty(clipStack)
+	clearClipStack()
 	render.SetScissorRect(0, 0, 0, 0, false)
 	frameState.w = nil
 	frameState.h = nil
@@ -203,13 +239,19 @@ local function finishFrame(commands, frameProfile)
 	profileFrameActive = false
 end
 
-local function startFrame(w, h, screenX, screenY, kind, subject, info)
+local function startFrame(w, h, screenX, screenY, kind, subject, label)
 	resetStats()
-	profileFrameActive = profiler and profiler.BeginFrame and profiler.BeginFrame(kind, subject, info)
+	local profilerEnabled = profiler and profiler.IsEnabled and profiler.IsEnabled()
+	profileFrameActive = false
+	if profilerEnabled and profiler.BeginFrame then
+		local info = {callsite = profileCallsite(4)}
+		if label ~= nil then info.label = label end
+		profileFrameActive = profiler.BeginFrame(kind, subject, info)
+	end
 	if not profileFrameActive and profileEnabled and profileEnabled.GetBool then
 		profileFrameActive = profileEnabled:GetBool()
 	end
-	table.Empty(clipStack)
+	clearClipStack()
 	render.SetScissorRect(0, 0, 0, 0, false)
 	commandState.stack = nil
 	commandState.replaying = false
@@ -232,7 +274,7 @@ local function flushFrame()
 
 	local commands = commandState.stack
 	commandState.stack = nil
-	if commands then
+	if commands and #commands > 0 then
 		commandState.replaying = true
 		installFrameClip()
 
@@ -292,9 +334,7 @@ function M.StartPanel(panel, w, h)
 		w, h = panel:GetSize()
 	end
 
-	startFrame(w, h, sx, sy, "panel", panel, {
-		callsite = profileCallsite(),
-	})
+	startFrame(w, h, sx, sy, "panel", panel)
 	frameState.clipToFrame = true
 	installFrameClip()
 end
@@ -304,10 +344,7 @@ function M.EndPanel()
 end
 
 function M.StartScreen(w, h)
-	return startFrame(w or ScrW(), h or ScrH(), 0, 0, "screen", nil, {
-		callsite = profileCallsite(),
-		label = "screen",
-	})
+	return startFrame(w or ScrW(), h or ScrH(), 0, 0, "screen", nil, "screen")
 end
 
 function M.EndScreen()

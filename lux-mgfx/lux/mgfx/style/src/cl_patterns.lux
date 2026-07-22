@@ -1,23 +1,41 @@
+local emptyPatternSpec = {}
+local patternSeedCache = {}
+
 fn patternSeed(seed) {
   if seed == nil {
     return 0
   }
 
   local value = toNumber(seed)
-  local utilCrc = util?.CRC
+  local stringSeed = typeOf(seed) == "string" then seed else nil
+  if value == nil and stringSeed ~= nil {
+    local cached = patternSeedCache[stringSeed]
+    if cached ~= nil {
+      return cached
+    }
+  }
+
+  local utilCrc = utilCRC
   if value == nil and utilCrc ~= nil {
     value = toNumber(utilCrc(toString(seed)))
   }
 
   value = mathAbs(value ?? 0) % 65536
-  value / 65536
+  local normalized = value / 65536
+  if stringSeed ~= nil {
+    patternSeedCache[stringSeed] = normalized
+  }
+  normalized
 }
 
 export client fn stripePattern(color, spacing = 12, width = 2, angle = 135, offset = 0) {
   if typeOf(color) == "table" and not isColor(color) {
+    stopif color._mgfxPatternSpec == true and color.kind == PATTERN_STRIPE, color
+
     return {
       kind = PATTERN_STRIPE,
-        color = colorOr(color.color ?? color.tint, makeColor(255, 255, 255, 24)),
+        _mgfxPatternSpec = true,
+        color = colorOr(color.color ?? color.tint, DEFAULT_PATTERN_COLOR),
         spacing = toNumber(color.spacing) ?? 12,
         width = toNumber(color.width) ?? 2,
         angle = toNumber(color.angle) ?? 135,
@@ -27,7 +45,8 @@ export client fn stripePattern(color, spacing = 12, width = 2, angle = 135, offs
 
   {
     kind = PATTERN_STRIPE,
-      color = colorOr(color, makeColor(255, 255, 255, 24)),
+      _mgfxPatternSpec = true,
+      color = colorOr(color, DEFAULT_PATTERN_COLOR),
       spacing = toNumber(spacing) ?? 12,
       width = toNumber(width) ?? 2,
       angle = toNumber(angle) ?? 135,
@@ -37,9 +56,12 @@ export client fn stripePattern(color, spacing = 12, width = 2, angle = 135, offs
 
 export client fn smokePattern(color, scale = 140, density = 0.48, softness = 0.3, angle = 135, offset = 0, seed = 0) {
   if typeOf(color) == "table" and not isColor(color) {
+    stopif color._mgfxPatternSpec == true and color.kind == PATTERN_SMOKE, color
+
     return {
       kind = PATTERN_SMOKE,
-        color = colorOr(color.color ?? color.tint, makeColor(255, 255, 255, 24)),
+        _mgfxPatternSpec = true,
+        color = colorOr(color.color ?? color.tint, DEFAULT_PATTERN_COLOR),
         scale = toNumber(color.scale) ?? 140,
         density = toNumber(color.density) ?? 0.48,
         softness = toNumber(color.softness) ?? 0.3,
@@ -53,7 +75,8 @@ export client fn smokePattern(color, scale = 140, density = 0.48, softness = 0.3
 
   {
     kind = PATTERN_SMOKE,
-      color = colorOr(color, makeColor(255, 255, 255, 24)),
+      _mgfxPatternSpec = true,
+      color = colorOr(color, DEFAULT_PATTERN_COLOR),
       scale = toNumber(scale) ?? 140,
       density = toNumber(density) ?? 0.48,
       softness = toNumber(softness) ?? 0.3,
@@ -66,11 +89,14 @@ export client fn smokePattern(color, scale = 140, density = 0.48, softness = 0.3
 }
 
 export client fn wornPattern(spec = nil) {
-  spec = typeOf(spec) == "table" then spec else {}
+  stopif typeOf(spec) == "table" and spec._mgfxPatternSpec == true and spec.kind == PATTERN_WORN, spec
+
+  spec = typeOf(spec) == "table" then spec else emptyPatternSpec
   {
-    kind = "worn",
-      color = colorOr(spec.color ?? spec.tint, makeColor(0, 0, 0, 44)),
-      edgeColor = colorOr(spec.edgeColor ?? spec.highlight, makeColor(218, 208, 184, 78)),
+    kind = PATTERN_WORN,
+      _mgfxPatternSpec = true,
+      color = colorOr(spec.color ?? spec.tint, DEFAULT_WORN_COLOR),
+      edgeColor = colorOr(spec.edgeColor ?? spec.highlight, DEFAULT_WORN_EDGE_COLOR),
       fractal = mathClamp(toNumber(spec.fractal) ?? 0.44, 0, 1),
       grain = mathClamp(toNumber(spec.grain) ?? 0.64, 0, 1),
       scratches = mathClamp(toNumber(spec.scratches ?? spec.scratch) ?? 0.30, 0, 1),

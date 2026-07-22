@@ -1,8 +1,19 @@
 # API Reference
 
-This is the task-oriented reference for the public MGFX API. Use [API Overview](../API.md) first if you want the conceptual model and recommended entry points.
+This section is the task-oriented reference for public MGFX functions. It is intentionally about signatures, fields, return values, and caveats. Start with [Core Concepts](../guide/concepts) if you want the mental model first.
 
-These pages are documentation groups only. Application code should call `MGFX.*` in plain GLua or `mgfx.api.*` from `@lux/mgfx` in Lux; do not choose imports based on the page names.
+These pages are documentation groups only. Application code should call `MGFX.*` in plain GLua or `mgfx.api.*` from `@lux/mgfx`; do not choose imports based on page names.
+
+## Runtime Names
+
+| Plain GLua | Lux |
+| --- | --- |
+| `MGFX.StartPanel(...)` | `mgfx.api.startPanel(...)` |
+| `MGFX.RoundedBoxEx(...)` | `mgfx.api.roundedBoxEx(...)` |
+| `MGFX.ImageEx(...)` | `mgfx.api.imageEx(...)` |
+| `MGFX.ProgressBarEx(...)` | `mgfx.api.progressBarEx(...)` |
+| `MGFX.LinearGradient(...)` | `mgfx.api.linearGradient(...)` |
+| `MGFX.TextEx(...)` | `mgfx.api.textEx(...)` |
 
 API names, Lua parameter names, and shader terms are kept in English.
 
@@ -19,13 +30,13 @@ API names, Lua parameter names, and shader terms are kept in English.
 
 ## Reading Order
 
-1. [API Overview](../API.md)
-2. The task page for the API you are calling
-3. [Performance Model](../PERFORMANCE.md) when changing hot paths
-4. [Shaders and Packaging](../SHADERS.md) when changing shader parameters or shaderpack contents
+1. [Plain GLua Quick Start](../guide/glua) or [Lux Quick Start](../guide/lux)
+2. [Core Concepts](../guide/concepts)
+3. The task page for the API you are calling
+4. [Performance Model](../PERFORMANCE) when changing hot paths
+5. [Shaders and Packaging](../SHADERS) when changing shader parameters or shaderpack contents
 
 ## Notes
 
-- New application code should use `@lux/mgfx` / `mgfx.api` in Lux, or `MGFX.*` in plain GLua.
-- Subpackages are public enough for narrow imports, but the facade is the normal user-facing API.
+- Subpackages are public enough for maintainers and narrow tooling, but the facade is the normal user-facing API.
 - Capabilities describe implemented render slots, not future plans.

@@ -10,6 +10,7 @@ export client fn install(owner) {
   owner.CaretEx = caretEx
   owner.Line = line
   owner.LineEx = lineEx
+  owner.LineNoCaps = lineNoCaps
   owner.Poly = poly
   owner.PolyEx = polyEx
   owner._Primitives = {

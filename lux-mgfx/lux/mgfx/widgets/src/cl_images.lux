@@ -12,10 +12,27 @@ export client fn image(x, y, w, h, source, radius = nil, tint = nil) {
   imageRaw(x, y, w, h, source, radius, tint)
 }
 
+export client fn imageUV(x, y, w, h, source, u0 = 0, v0 = 0, u1 = 1, v1 = 1, tint = nil) {
+  local texture, material = imageTextureSource(source)
+  local createdMaterialFallback = material == nil
+  material = material ?? imageFallbackMaterialForTexture(texture)
+  stopif texture == nil or material == nil or w <= 0 or h <= 0
+
+  surfaceSetMaterial(material)
+  style.setDrawColor(imageTintRaw(tint))
+  if hasTransform() {
+    geometry.drawTexturedQuadUV(x, y, w, h, u0, v0, u1, v1, material)
+  } else if createdMaterialFallback {
+    geometry.drawCreatedMaterialTexturedRectUV(x, y, w, h, u0, v0, u1, v1)
+  } else {
+    geometry.drawTexturedQuadUV(x, y, w, h, u0, v0, u1, v1, material)
+  }
+}
+
 export client fn iconEx(x, y, w, h, source, drawStyle = nil) {
   local resolved = geometry.imageStyle(drawStyle)
   if resolved.fit == nil and resolved.objectFit == nil {
-    resolved.fit = "contain"
+    resolved = { ...resolved, fit = "contain" }
   }
 
   imageEx(x, y, w, h, source, resolved)

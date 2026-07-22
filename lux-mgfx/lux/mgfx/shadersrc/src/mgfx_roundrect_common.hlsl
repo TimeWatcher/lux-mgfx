@@ -31,4 +31,11 @@ float roundrect_coverage(float2 uv)
 	return roundrect_coverage_from_dist(roundrect_dist_px(screenPos));
 }
 
+float roundrect_stroke_coverage_from_dist(float dist, float width)
+{
+	if (width <= 0.0)
+		return 0.0;
+	return aa_coverage(abs(dist) - width * 0.5);
+}
+
 #endif

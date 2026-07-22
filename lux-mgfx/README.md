@@ -26,7 +26,9 @@ records, masks, gradients, glow, backdrop effects, and reusable package
 modules.
 
 Full documentation is available at
-<https://timewatcher.github.io/mgfx-docs-site/>.
+<https://timewatcher.github.io/mgfx-docs-site/>. Start with the
+[Lux Quick Start](../docs/guide/lux.md), then use [Core Concepts](../docs/guide/concepts.md)
+and the [API Reference](../docs/api-reference/index.md) as needed.
 
 It is not a submodule of `lux`. It lives as a peer repository. Lux projects
 consume it through `luxc install`; plain GLua projects should use the sibling

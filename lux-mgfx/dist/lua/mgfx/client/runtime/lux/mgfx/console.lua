@@ -36,6 +36,7 @@ return function(__lux_import)
   local typeOf
   local commandNames
   local textDemoEnabled
+  local strokeDemoEnabled
   local textStressEnabled
   local atlasDebugEnabled
   local profileHudEnabled
@@ -102,6 +103,10 @@ return function(__lux_import)
   local traceTextDemo
   local toggleAtlasDebug
   local toggleTextStress
+  local strokeDemoKinds
+  local strokeDemoStyle
+  local drawStrokeDemo
+  local toggleStrokeDemo
   local writeParamProbeMatrix
   local setupParamProbeMatrix
   local setupNamedParamProbeMatrix
@@ -241,6 +246,7 @@ return function(__lux_import)
     typeOf = type
     commandNames = {}
     textDemoEnabled = false
+    strokeDemoEnabled = false
     textStressEnabled = false
     atlasDebugEnabled = false
     profileHudEnabled = false
@@ -396,18 +402,21 @@ return function(__lux_import)
       "PushClip",
       "PopClip",
       "RoundedBox",
+      "RoundedBoxBackdrop",
       "RoundedBoxEx",
       "ChamferBox",
       "ChamferBoxEx",
       "Poly",
       "PolyEx",
       "Line",
+      "LineNoCaps",
       "LineEx",
       "Circle",
       "CircleEx",
       "Capsule",
       "CapsuleEx",
       "Image",
+      "ImageUV",
       "ImageEx",
       "Icon",
       "IconEx",
@@ -456,6 +465,9 @@ return function(__lux_import)
       "SmokePattern",
       "WornPattern",
       "Mask",
+      "Backdrop",
+      "CompileBackdrop",
+      "CompileStyle",
       "DebugOverlay",
     }
     requiredTargets = {
@@ -2801,6 +2813,117 @@ return function(__lux_import)
     end
   end
   do
+    strokeDemoKinds = { "solid", "dot", "dash", "dot-dash" }
+    strokeDemoStyle = function(kind, color)
+      return {
+        color = color,
+        width = 3,
+        kind = kind,
+        length = 13,
+        gap = 7,
+        offset = realTime() * 20,
+      }
+    end
+    drawStrokeDemo = function(owner)
+      local sw = ScrW()
+      local sh = ScrH()
+      local panelW = mathMin(920, sw - 64)
+      local x0 = 32
+      local y0 = mathMax(32, (sh - 500) * 0.5)
+      local cellW = (panelW - 60) / 4
+      local colors = {
+        makeColor(112, 205, 255, 235),
+        makeColor(255, 194, 92, 235),
+        makeColor(128, 235, 176, 235),
+        makeColor(238, 128, 208, 235),
+      }
+      owner.StartScreen(sw, sh)
+      owner.RoundedBoxEx(
+        x0,
+        y0,
+        panelW,
+        470,
+        {
+          radius = 14,
+          fill = makeColor(5, 10, 16, 232),
+          stroke = makeColor(255, 255, 255, 24),
+          strokeWidth = 1,
+        }
+      )
+      for index = 1, #strokeDemoKinds do
+        local kind = strokeDemoKinds[index]
+        local color = colors[index]
+        local x = x0 + 18 + (index - 1) * cellW
+        local stroke = strokeDemoStyle(kind, color)
+        owner.RoundedBoxEx(
+          x,
+          y0 + 54,
+          cellW - 16,
+          72,
+          { radius = 18, fill = makeColor(18, 28, 38, 210), stroke = stroke }
+        )
+        owner.ChamferBoxEx(
+          x,
+          y0 + 162,
+          cellW - 16,
+          72,
+          { cuts = { 16, 5, 16, 5 }, fill = makeColor(22, 27, 34, 210), stroke = stroke }
+        )
+        owner.RegularPolyEx(
+          x + (cellW - 16) * 0.5,
+          y0 + 326,
+          46,
+          6,
+          { rotation = 30, fill = makeColor(20, 30, 38, 210), stroke = stroke }
+        )
+        owner.RingEx(
+          x + (cellW - 16) * 0.5,
+          y0 + 415,
+          35,
+          12,
+          { fill = makeColor(26, 36, 44, 210), stroke = stroke }
+        )
+      end
+      owner.EndScreen()
+      drawSimpleText(
+        "MGFX centered shape strokes",
+        "DermaDefaultBold",
+        x0 + 18,
+        y0 + 20,
+        makeColor(225, 240, 248)
+      )
+      for index = 1, #strokeDemoKinds do
+        local x = x0 + 18 + (index - 1) * cellW
+        drawSimpleText(strokeDemoKinds[index], "DermaDefault", x, y0 + 132, colors[index])
+      end
+    end
+    toggleStrokeDemo = function(owner, mode)
+      if mode == nil then
+        mode = "toggle"
+      end
+      if hookRemove ~= nil then
+        hookRemove("HUDPaint", "MGFXStrokeDemo")
+      end
+      if mode == "0" or mode == "off" or mode == "close" or mode == "toggle" and strokeDemoEnabled then
+        strokeDemoEnabled = false
+        printFn("[MGFX] stroke demo off")
+        return false
+      end
+      if hookAdd ~= nil then
+        hookAdd(
+          "HUDPaint",
+          "MGFXStrokeDemo",
+          function()
+            drawStrokeDemo(owner)
+          end
+        )
+      end
+      strokeDemoEnabled = true
+      printFn("[MGFX] stroke demo on")
+      return true
+    end
+  end
+  do
     writeParamProbeMatrix = function(matrix, setUnpacked, columnPacked, variant)
       if variant == nil then
         variant = "view"
@@ -3644,6 +3767,24 @@ return function(__lux_import)
       )
       addCommand(
         owner,
+        "mgfx_stroke_demo",
+        function(_cmd, _argString, args)
+          local __lux_obj_args_253 = args
+          local __lux_val_args_255 = nil
+          if __lux_obj_args_253 ~= nil then
+            local __lux_key_254 = 1
+            __lux_val_args_255 = __lux_obj_args_253[__lux_key_254]
+          end
+          local __lux_tmp_args_256 = __lux_val_args_255
+          if __lux_tmp_args_256 == nil then
+            __lux_tmp_args_256 = "toggle"
+          end
+          return toggleStrokeDemo(owner, __lux_tmp_args_256)
+        end,
+        "Toggle MGFX centered shape stroke demo overlay."
+      )
+      addCommand(
+        owner,
         "mgfx_text_trace_demo",
         function()
           return traceTextDemo(owner)
@@ -3723,6 +3864,12 @@ return function(__lux_import)
         end
         return toggleTextDemo(owner, mode)
       end
+      owner.ToggleStrokeDemo = function(mode)
+        if mode == nil then
+          mode = "toggle"
+        end
+        return toggleStrokeDemo(owner, mode)
+      end
       owner.TraceTextDemo = function()
         return traceTextDemo(owner)
       end
@@ -3750,6 +3897,7 @@ return function(__lux_import)
       end
       if hookRemove ~= nil then
         hookRemove("HUDPaint", "MGFXTextDemo")
+        hookRemove("HUDPaint", "MGFXStrokeDemo")
         hookRemove("HUDPaint", "MGFXTextStress")
         hookRemove("HUDPaint", "MGFXTextAtlasDebug")
         hookRemove("HUDPaint", profileHudHook)
@@ -3761,6 +3909,7 @@ return function(__lux_import)
       end
       commandNames = {}
       textDemoEnabled = false
+      strokeDemoEnabled = false
       textStressEnabled = false
       atlasDebugEnabled = false
       profileHudEnabled = false
@@ -3784,6 +3933,7 @@ return function(__lux_import)
   __lux_exports.traceTextDemo = traceTextDemo
   __lux_exports.toggleAtlasDebug = toggleAtlasDebug
   __lux_exports.toggleTextStress = toggleTextStress
+  __lux_exports.toggleStrokeDemo = toggleStrokeDemo
   __lux_exports.toggleParamProbe = toggleParamProbe
   __lux_exports.toggleParamProbeInv = toggleParamProbeInv
   __lux_exports.stopParamBench = stopParamBench

@@ -19,6 +19,8 @@ return function(__lux_import)
   local state
   local bleedStateStack
   local bleedStateTop
+  local clipRecordPool
+  local commandStackPool
   local profiler
   local profileActive
   local profileCallsite
@@ -26,6 +28,11 @@ return function(__lux_import)
   local profileEnd
   local current
   local clearArray
+  local acquireClipRecord
+  local releaseClipRecord
+  local clearClipStack
+  local acquireCommandStack
+  local releaseCommandStack
   local restoreScissor
   local beginExpandedScissor
   local panelClip
@@ -88,6 +95,8 @@ return function(__lux_import)
     }
     bleedStateStack = {}
     bleedStateTop = 0
+    clipRecordPool = {}
+    commandStackPool = {}
     profiler = function()
       local __lux_obj_owner_1 = state.owner
       local __lux_val_Profiler_2 = nil
@@ -109,11 +118,14 @@ return function(__lux_import)
       end
       return cvar ~= nil and cvar.GetBool ~= nil and cvar:GetBool() or false
     end
-    profileCallsite = function()
+    profileCallsite = function(level)
+      if level == nil then
+        level = 3
+      end
       if not profileActive() or debugLib == nil or debugLib.getinfo == nil then
         return nil
       end
-      return debugLib.getinfo(3, "Sln")
+      return debugLib.getinfo(level, "Sln")
     end
     profileStart = function()
       local api = profiler()
@@ -142,6 +154,51 @@ return function(__lux_import)
         items[index] = nil
       end
       return items
+    end
+    acquireClipRecord = function()
+      local index = #clipRecordPool
+      local clip = clipRecordPool[index]
+      if clip ~= nil then
+        clipRecordPool[index] = nil
+        return clip
+      end
+      return {}
+    end
+    releaseClipRecord = function(clip)
+      if clip == nil then
+        return
+      end
+      clip.localX = nil
+      clip.localY = nil
+      clip.x = nil
+      clip.y = nil
+      clip.w = nil
+      clip.h = nil
+      clip.frame = nil
+      clipRecordPool[#clipRecordPool + 1] = clip
+    end
+    clearClipStack = function()
+      for index = #state.clipStack, 1, -1 do
+        local clip = state.clipStack[index]
+        state.clipStack[index] = nil
+        releaseClipRecord(clip)
+      end
+    end
+    acquireCommandStack = function()
+      local index = #commandStackPool
+      local stack = commandStackPool[index]
+      if stack ~= nil then
+        commandStackPool[index] = nil
+        return stack
+      end
+      return {}
+    end
+    releaseCommandStack = function(stack)
+      if stack == nil then
+        return
+      end
+      clearArray(stack)
+      commandStackPool[#commandStackPool + 1] = stack
     end
     restoreScissor = function()
       local clip = state.clipStack[#state.clipStack]
@@ -256,7 +313,7 @@ return function(__lux_import)
       return false
     end
     installFrameClip = function()
-      clearArray(state.clipStack)
+      clearClipStack()
       if not state.clipToFrame then
         renderSetScissorRect(0, 0, 0, 0, false)
         return
@@ -280,11 +337,22 @@ return function(__lux_import)
       if sy == nil then
         sy = 0
       end
-      state.clipStack[#state.clipStack + 1] = { localX = 0, localY = 0, x = sx, y = sy, w = fw, h = fh, frame = true }
+      local clip = acquireClipRecord()
+      clip.localX = 0
+      clip.localY = 0
+      clip.x = sx
+      clip.y = sy
+      clip.w = fw
+      clip.h = fh
+      clip.frame = true
+      state.clipStack[#state.clipStack + 1] = clip
       return renderSetScissorRect(sx, sy, sx + fw, sy + fh, true)
     end
     beginCommandFrame = function()
-      state.commandStack = {}
+      if state.commandStack ~= nil then
+        return state.commandStack
+      end
+      state.commandStack = acquireCommandStack()
       state.replaying = false
       return state.commandStack
     end
@@ -420,7 +488,12 @@ return function(__lux_import)
       if stack == nil then
         return 0
       end
+      local count = #stack
       state.commandStack = nil
+      if count <= 0 then
+        releaseCommandStack(stack)
+        return 0
+      end
       state.replaying = true
       installFrameClip()
       local textBatch = {}
@@ -484,8 +557,7 @@ return function(__lux_import)
       end
       profileEnd("commandLoop", loopProfile)
       flushTextBatch(textBatch, "end")
-      local count = #stack
-      clearArray(stack)
+      releaseCommandStack(stack)
       state.replaying = false
       return count
     end
@@ -499,7 +571,7 @@ return function(__lux_import)
       if api ~= nil and api.EndFrame ~= nil then
         api.EndFrame()
       end
-      clearArray(state.clipStack)
+      clearClipStack()
       renderSetScissorRect(0, 0, 0, 0, false)
       state.active = false
       state.w = 0
@@ -512,10 +584,20 @@ return function(__lux_import)
       state.replaying = false
       return state
     end
-    beginFrameProfile = function(kind, subject, info)
-      local api = profiler()
+    beginFrameProfile = function(kind, subject, label)
+      local enabled = profileActive()
+      local api
+      if enabled then
+        api = profiler()
+      else
+        api = nil
+      end
       local active = false
       if api ~= nil and api.BeginFrame ~= nil then
+        local info = { callsite = profileCallsite(4) }
+        if label ~= nil then
+          info.label = label
+        end
         active = api.BeginFrame(kind, subject, info)
       end
       do
@@ -552,7 +634,7 @@ return function(__lux_import)
       state.clipToFrame = false
       state.commandStack = nil
       state.replaying = false
-      beginFrameProfile("screen", nil, { callsite = profileCallsite(), label = "screen" })
+      beginFrameProfile("screen", nil, "screen")
       installFrameClip()
       return state
     end
@@ -606,7 +688,7 @@ return function(__lux_import)
       state.clipToFrame = true
       state.commandStack = nil
       state.replaying = false
-      beginFrameProfile("panel", panel, { callsite = profileCallsite() })
+      beginFrameProfile("panel", panel)
       installFrameClip()
       return state
     end
@@ -640,30 +722,38 @@ return function(__lux_import)
         ey = mathMin(ey, parent.y + parent.h)
       end
       if ex <= sx or ey <= sy then
-        local clip = { localX = x, localY = y, x = sx, y = sy, w = 0, h = 0 }
+        local clip = acquireClipRecord()
+        clip.localX = x
+        clip.localY = y
+        clip.x = sx
+        clip.y = sy
+        clip.w = 0
+        clip.h = 0
+        clip.frame = nil
         state.clipStack[#state.clipStack + 1] = clip
         renderSetScissorRect(0, 0, 0, 0, true)
         return clip
       end
-      local clip
+      local clip = acquireClipRecord()
       do
         local __lux_tmp_screenX_50 = state.screenX
         if __lux_tmp_screenX_50 == nil then
           __lux_tmp_screenX_50 = 0
         end
+        clip.localX = sx - __lux_tmp_screenX_50
+      end
+      do
         local __lux_tmp_screenY_51 = state.screenY
         if __lux_tmp_screenY_51 == nil then
           __lux_tmp_screenY_51 = 0
         end
-        clip = {
-          localX = sx - __lux_tmp_screenX_50,
-          localY = sy - __lux_tmp_screenY_51,
-          x = sx,
-          y = sy,
-          w = ex - sx,
-          h = ey - sy,
-        }
+        clip.localY = sy - __lux_tmp_screenY_51
       end
+      clip.x = sx
+      clip.y = sy
+      clip.w = ex - sx
+      clip.h = ey - sy
+      clip.frame = nil
       state.clipStack[#state.clipStack + 1] = clip
       renderSetScissorRect(clip.x, clip.y, clip.x + clip.w, clip.y + clip.h, true)
       return clip
@@ -673,7 +763,10 @@ return function(__lux_import)
         state.commandStack[#state.commandStack + 1] = { op = "PopClip" }
       end
       if #state.clipStack > 0 then
-        state.clipStack[#state.clipStack] = nil
+        local index = #state.clipStack
+        local clip = state.clipStack[index]
+        state.clipStack[index] = nil
+        releaseClipRecord(clip)
       end
       return restoreScissor()
     end

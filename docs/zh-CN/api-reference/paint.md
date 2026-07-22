@@ -52,7 +52,9 @@ Color/gradient paint record、程序化 pattern、2.5D transform helper 和 capa
 
 ## Stops 实用写法
 
-```lua
+::: code-group
+
+```lua [GLua]
 local coldToHot = {
     {0.00, Color(80, 170, 255)},
     {0.45, Color(90, 220, 180)},
@@ -62,6 +64,21 @@ local coldToHot = {
 
 local fill = MGFX.LinearGradient(0, 0, 1, 0, coldToHot)
 ```
+
+```lux [Lux]
+import * as mgfx from "@lux/mgfx"
+
+local coldToHot = {
+  {0.00, Color(80, 170, 255)},
+  {0.45, Color(90, 220, 180)},
+  {0.78, Color(255, 210, 110)},
+  {1.00, Color(255, 96, 78)},
+}
+
+local fill = mgfx.api.linearGradient(0, 0, 1, 0, coldToHot)
+```
+
+:::
 
 stop 支持三种常用写法，可以混用：
 

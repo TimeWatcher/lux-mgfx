@@ -1,0 +1,90 @@
+local strokeDemoKinds = { "solid", "dot", "dash", "dot-dash" }
+
+fn strokeDemoStyle(kind, color) {
+  {
+    color = color,
+    width = 3,
+    kind = kind,
+    length = 13,
+    gap = 7,
+    offset = realTime() * 20
+  }
+}
+
+fn drawStrokeDemo(owner) {
+  local sw = ScrW()
+  local sh = ScrH()
+  local panelW = mathMin(920, sw - 64)
+  local x0 = 32
+  local y0 = mathMax(32, (sh - 500) * 0.5)
+  local cellW = (panelW - 60) / 4
+  local colors = {
+    makeColor(112, 205, 255, 235),
+    makeColor(255, 194, 92, 235),
+    makeColor(128, 235, 176, 235),
+    makeColor(238, 128, 208, 235)
+  }
+
+  owner.StartScreen(sw, sh)
+  owner.RoundedBoxEx(x0, y0, panelW, 470, {
+    radius = 14,
+    fill = makeColor(5, 10, 16, 232),
+    stroke = makeColor(255, 255, 255, 24),
+    strokeWidth = 1
+  })
+
+  for index = 1, #strokeDemoKinds {
+    local kind = strokeDemoKinds[index]
+    local color = colors[index]
+    local x = x0 + 18 + (index - 1) * cellW
+    local stroke = strokeDemoStyle(kind, color)
+    owner.RoundedBoxEx(x, y0 + 54, cellW - 16, 72, {
+      radius = 18,
+      fill = makeColor(18, 28, 38, 210),
+      stroke = stroke
+    })
+    owner.ChamferBoxEx(x, y0 + 162, cellW - 16, 72, {
+      cuts = { 16, 5, 16, 5 },
+      fill = makeColor(22, 27, 34, 210),
+      stroke = stroke
+    })
+    owner.RegularPolyEx(x + (cellW - 16) * 0.5, y0 + 326, 46, 6, {
+      rotation = 30,
+      fill = makeColor(20, 30, 38, 210),
+      stroke = stroke
+    })
+    owner.RingEx(x + (cellW - 16) * 0.5, y0 + 415, 35, 12, {
+      fill = makeColor(26, 36, 44, 210),
+      stroke = stroke
+    })
+  }
+  owner.EndScreen()
+
+  drawSimpleText("MGFX centered shape strokes", "DermaDefaultBold", x0 + 18, y0 + 20, makeColor(225, 240, 248))
+  for index = 1, #strokeDemoKinds {
+    local x = x0 + 18 + (index - 1) * cellW
+    drawSimpleText(strokeDemoKinds[index], "DermaDefault", x, y0 + 132, colors[index])
+  }
+}
+
+export client fn toggleStrokeDemo(owner, mode = "toggle") {
+  if hookRemove ~= nil {
+    hookRemove("HUDPaint", "MGFXStrokeDemo")
+  }
+
+  if mode == "0" or mode == "off" or mode == "close" or (mode == "toggle" and strokeDemoEnabled) {
+    strokeDemoEnabled = false
+    printFn("[MGFX] stroke demo off")
+    return false
+  }
+
+  if hookAdd ~= nil {
+    hookAdd("HUDPaint", "MGFXStrokeDemo", () => {
+      drawStrokeDemo(owner);
+    })
+  }
+
+  strokeDemoEnabled = true
+  printFn("[MGFX] stroke demo on")
+  true
+}

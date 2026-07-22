@@ -20,6 +20,34 @@ MGFX.GetCapabilities(target)
 MGFX.Supports(target, key)
 ```
 
+Lux uses the same functions as lowerCamelCase methods under `mgfx.api`.
+
+## Common Template
+
+::: code-group
+
+```lua [GLua]
+function PANEL:Paint(w, h)
+    MGFX.StartPanel(self, w, h)
+    MGFX.RoundedBox(0, 0, w, h, 8, Color(20, 24, 32, 230))
+    MGFX.EndPanel()
+end
+```
+
+```lux [Lux]
+import * as mgfx from "@lux/mgfx"
+
+local draw = mgfx.api
+
+fn PANEL:Paint(w, h) {
+  draw.startPanel(self, w, h)
+  draw.roundedBox(0, 0, w, h, 8, Color(20, 24, 32, 230))
+  draw.endPanel();
+}
+```
+
+:::
+
 ## `StartPanel`
 
 ```lua
