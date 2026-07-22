@@ -874,19 +874,34 @@ function PANEL:Paint(w, h)
 			},
 		})
 
-		x, y, cw, ch = card(9, "Advanced Gradients", "Radial / Multi-Stop / Layered", COLORS.cyan)
+		x, y, cw, ch = card(9, "Advanced Gradients", "Curve / Multi-Stop / Layered", COLORS.cyan)
 
-		-- Radial gradient spotlight
-		addText("Radial: cx/cy/radius", "MGFXDemoTiny", x + cw * 0.5, y + 46, COLORS.muted, TEXT_ALIGN_CENTER)
-		MGFX.RoundedBoxEx(x + 14, y + 56, cw - 28, 24, {
-			radius = 4,
-			fill = MGFX.RadialGradient(0.7, 0.4, 1.5, {
-				{0, Color(220, 240, 255, 240)},
-				{0.42, Color(80, 220, 255, 218)},
-				{1, Color(30, 40, 50, 200)},
-			}),
-			stroke = Color(80, 180, 255, 100),
+		-- Top-origin elliptical spotlight
+		addText("Top light: elliptical radial overlay", "MGFXDemoTiny", x + cw * 0.5, y + 43, COLORS.muted, TEXT_ALIGN_CENTER)
+		local ellipseX, ellipseY, ellipseW, ellipseH = x + 14, y + 57, cw - 28, 27
+		local ellipseCuts = {tl = 8, tr = 8, br = 0, bl = 0}
+		MGFX.ChamferBoxEx(ellipseX, ellipseY, ellipseW, ellipseH, {
+			cuts = ellipseCuts,
+			fill = MGFX.LinearGradient(0, 0, 0, 1, Color(8, 28, 19, 238), Color(5, 14, 17, 240)),
+			stroke = Color(58, 186, 78, 52),
 			strokeWidth = 1,
+		})
+		MGFX.ChamferBoxEx(ellipseX, ellipseY, ellipseW, ellipseH, {
+			cuts = ellipseCuts,
+			fill = MGFX.EllipticalRadialGradient(0.5, -0.2, 0.62, 0.95, {
+				{0, Color(112, 255, 126, 122)},
+				{1, Color(28, 160, 58, 0)},
+			}, nil, "exponential"),
+		})
+		MGFX.LineEx(ellipseX + 8, ellipseY + 1, ellipseX + ellipseW - 8, ellipseY + 1, {
+			width = 1,
+			fill = (MGFX.LinearGradientStops or MGFX.LinearGradient)(0, 0, 1, 0, {
+				{0, Color(84, 255, 100, 0)},
+				{0.16, Color(84, 255, 100, 116)},
+				{0.5, Color(120, 255, 132, 210)},
+				{0.84, Color(84, 255, 100, 116)},
+				{1, Color(84, 255, 100, 0)},
+			}),
 		})
 
 		-- Multi-stop gradient

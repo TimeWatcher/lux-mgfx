@@ -31,8 +31,10 @@ const float4x4 MGFXAuxParams : register(c15);
 #define FILL_COLOR_B EXTRA0
 #define SIZE EXTRA1.xy
 #define STYLE_PACKED EXTRA1.z
-#define FILL_KIND floor(STYLE_PACKED / 256.0 + 0.001)
-#define STROKE_WIDTH (STYLE_PACKED - FILL_KIND * 256.0)
+#define FILL_CURVE floor(STYLE_PACKED / 1024.0 + 0.001)
+#define FILL_STYLE_PACKED (STYLE_PACKED - FILL_CURVE * 1024.0)
+#define FILL_KIND floor(FILL_STYLE_PACKED / 256.0 + 0.001)
+#define STROKE_WIDTH (FILL_STYLE_PACKED - FILL_KIND * 256.0)
 #define SHAPE_RADIUS EXTRA1.w
 #define FILL_PARAMS EXTRA2
 #define STROKE_COLOR EXTRA3
@@ -86,31 +88,77 @@ float mgfx_css_combine_effect(float accumulated, float contribution)
 	return 1.0 - (1.0 - a) * (1.0 - b);
 }
 
-float4 mgfx_gradient_lut(float t)
+float mgfx_gradient_curve(float t, float curve)
 {
-	float u = saturate(t);
-	float3 rgb = tex2D(Tex1, float2(u, 0.25)).rgb;
-	float alpha = tex2D(Tex1, float2(u, 0.75)).r;
-	return float4(rgb, alpha);
+	t = saturate(t);
+	if (curve < 0.5)
+		return t;
+	if (curve < 1.5)
+		return t * t * (3.0 - 2.0 * t);
+	if (curve < 2.5)
+		return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
+	if (curve < 3.5)
+		return t * t;
+	if (curve < 4.5)
+		return 1.0 - (1.0 - t) * (1.0 - t);
+	if (curve < 5.5)
+		return t < 0.5 ? 2.0 * t * t : 1.0 - 2.0 * (1.0 - t) * (1.0 - t);
+	if (curve < 6.5)
+		return (1.0 - exp(-2.6 * t)) / (1.0 - exp(-2.6));
+	if (curve < 7.5)
+		return (1.0 - exp(-3.0 * t * t)) / (1.0 - exp(-3.0));
+
+	float attenuation = 1.0 / (1.0 + 8.0 * t * t);
+	return (1.0 - attenuation) / (1.0 - 1.0 / 9.0);
 }
 
-float4 mgfx_gradient_lut_conic(float rawT)
+float4 mgfx_gradient_lut_raw(float t, float curve)
+{
+	float u = mgfx_gradient_curve(t, curve);
+	float3 highRGB = tex2D(Tex1, float2(u, 0.125)).rgb;
+	float3 lowRGB = tex2D(Tex1, float2(u, 0.375)).rgb;
+	float2 alphaBytes = tex2D(Tex1, float2(u, 0.75)).rg;
+	float3 rgb = (highRGB * 256.0 + lowRGB) / 257.0;
+	float alpha = (alphaBytes.x * 256.0 + alphaBytes.y) / 257.0;
+	return saturate(float4(rgb, alpha));
+}
+
+float mgfx_gradient_noise(float2 pixelPos)
+{
+	float2 pixel = floor(pixelPos);
+	return frac(52.9829189 * frac(dot(pixel, float2(0.06711056, 0.00583715))));
+}
+
+float4 mgfx_gradient_dither(float4 color, float2 pixelPos)
+{
+	color = saturate(color);
+	float4 edgeWeight = saturate(min(color, 1.0 - color) * 255.0);
+	float noise = (mgfx_gradient_noise(pixelPos) - 0.5) / 255.0;
+	return saturate(color + noise * edgeWeight);
+}
+
+float4 mgfx_gradient_lut(float t, float curve, float2 pixelPos)
+{
+	return mgfx_gradient_dither(mgfx_gradient_lut_raw(t, curve), pixelPos);
+}
+
+float4 mgfx_gradient_lut_conic(float rawT, float curve, float2 pixelPos)
 {
 	float t = frac(rawT);
-	float4 color = mgfx_gradient_lut(t);
+	float4 color = mgfx_gradient_lut_raw(t, curve);
 	float seamWidth = min(max(fwidth(rawT) * 1.5, 0.0005), 0.02);
 	float seamDist = min(t, 1.0 - t);
 
 	if (seamDist < seamWidth)
 	{
-		float4 seamColor = (mgfx_gradient_lut(0.0) + mgfx_gradient_lut(1.0)) * 0.5;
+		float4 seamColor = (mgfx_gradient_lut_raw(0.0, curve) + mgfx_gradient_lut_raw(1.0, curve)) * 0.5;
 		color = lerp(seamColor, color, smoothstep(0.0, seamWidth, seamDist));
 	}
 
-	return color;
+	return mgfx_gradient_dither(color, pixelPos);
 }
 
-float4 mgfx_fill(float2 uv, float4 baseColor)
+float4 mgfx_fill(float2 uv, float4 baseColor, float2 pixelPos)
 {
 	if (FILL_KIND < 0.5)
 		return FILL_COLOR_B;
@@ -126,19 +174,27 @@ float4 mgfx_fill(float2 uv, float4 baseColor)
 	}
 	else if (FILL_KIND < 2.5)
 	{
-		float2 radialScale = SIZE / max(min(SIZE.x, SIZE.y), 0.0001);
-		t = saturate(length((uv - FILL_PARAMS.xy) * radialScale) / max(FILL_PARAMS.z, 0.0001));
+		if (FILL_PARAMS.w > 0.0001)
+		{
+			float2 radialRadii = max(FILL_PARAMS.zw, float2(0.0001, 0.0001));
+			t = saturate(length((uv - FILL_PARAMS.xy) / radialRadii));
+		}
+		else
+		{
+			float2 radialScale = SIZE / max(min(SIZE.x, SIZE.y), 0.0001);
+			t = saturate(length((uv - FILL_PARAMS.xy) * radialScale) / max(FILL_PARAMS.z, 0.0001));
+		}
 	}
 	else
 	{
 		float angle = atan2(uv.y - FILL_PARAMS.y, uv.x - FILL_PARAMS.x);
-		return mgfx_gradient_lut_conic(angle / 6.28318530718 + 0.5 + FILL_PARAMS.z);
+		return mgfx_gradient_lut_conic(angle / 6.28318530718 + 0.5 + FILL_PARAMS.z, FILL_CURVE, pixelPos);
 	}
 
-	return mgfx_gradient_lut(t);
+	return mgfx_gradient_lut(t, FILL_CURVE, pixelPos);
 }
 
-float4 compose_shape(float dist, float2 uv, float4 baseColor)
+float4 compose_shape(float dist, float2 uv, float4 baseColor, float2 pixelPos)
 {
 	float outer = aa_coverage(dist);
 	float borderMask = 0.0;
@@ -146,7 +202,7 @@ float4 compose_shape(float dist, float2 uv, float4 baseColor)
 		borderMask = aa_coverage(abs(dist) - STROKE_WIDTH * 0.5);
 
 	float fillMask = outer * (1.0 - borderMask);
-	float4 fillColor = mgfx_fill(uv, baseColor);
+	float4 fillColor = mgfx_fill(uv, baseColor, pixelPos);
 
 	float fillAlpha = fillColor.a * fillMask;
 	float strokeAlpha = STROKE_COLOR.a * borderMask;

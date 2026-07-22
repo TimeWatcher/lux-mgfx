@@ -8,19 +8,29 @@
 #define FX_SHEEN 2.0
 #define FX_MARKER 4.0
 
+float fx_curve()
+{
+	return floor(PROGRESS_FX_PACKED / 256.0 + 0.001);
+}
+
+float fx_base_packed()
+{
+	return PROGRESS_FX_PACKED - fx_curve() * 256.0;
+}
+
 float fx_ticks()
 {
-	return floor(PROGRESS_FX_PACKED / 8.0 + 0.001);
+	return floor(fx_base_packed() / 8.0 + 0.001);
 }
 
 float fx_flags()
 {
-	return floor(PROGRESS_FX_PACKED - fx_ticks() * 8.0 + 0.001);
+	return floor(fx_base_packed() - fx_ticks() * 8.0 + 0.001);
 }
 
 float fx_value()
 {
-	float rest = PROGRESS_FX_PACKED - fx_ticks() * 8.0;
+	float rest = fx_base_packed() - fx_ticks() * 8.0;
 	return saturate((rest - fx_flags()) * 2.0);
 }
 
@@ -92,7 +102,7 @@ float4 main(PS_INPUT i) : COLOR
 		fillMask = aa_coverage(fillDist) * (1.0 - strokeMask);
 
 		float t = saturate((pos.x - inset) / max(fillW, 0.0001));
-		fillColor = mgfx_gradient_lut(t);
+		fillColor = mgfx_gradient_lut(t, fx_curve(), i.pos);
 
 		if (fx_flag(flags, FX_GLOW) > 0.5 && fillW > 4.0)
 		{

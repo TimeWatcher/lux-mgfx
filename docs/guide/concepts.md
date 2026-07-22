@@ -65,7 +65,7 @@ Use the short function when the call is simple and stable. Switch to `Ex` when y
 | Circular meters and radial menus | `RingEx`, `ArcEx`, `SectorEx` |
 | Plain text | `Text` or native GMod text |
 | Text with shader effects | `TextEx`, `TextBoxEx` |
-| Gradients and patterns | `LinearGradient`, `RadialGradient`, `WornPattern` |
+| Gradients and patterns | `LinearGradient`, `RadialGradient`, `EllipticalRadialGradient`, `WornPattern` |
 
 ## Style Tables
 

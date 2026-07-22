@@ -64,6 +64,6 @@ client fn drawPanel() {
 | 图像与遮罩 | `ImageEx`、`IconEx`、`Mask` |
 | HUD 数值组件 | `ProgressBarEx`、`SegmentBarEx`、`RingEx`、`ArcEx`、`SectorEx` |
 | 文字 | `Text`、`TextEx`、`TextBoxEx`、`MeasureText`、`PrewarmText` |
-| Paint 与变换 | `LinearGradient`、`RadialGradient`、`WornPattern`、`Transform`、`PointerTilt`、`GetCapabilities` |
+| Paint 与变换 | `LinearGradient`、`RadialGradient`、`EllipticalRadialGradient`、`WornPattern`、`Transform`、`PointerTilt`、`GetCapabilities` |
 
 MGFX 只负责绘制，不负责 layout、input、focus、component lifecycle、animation state 或 hit testing。

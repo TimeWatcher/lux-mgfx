@@ -74,7 +74,26 @@ The corrected `i.uv` is reserved for normalized shape coordinates, while `SOURCE
 
 ## Gradient LUT
 
-Multi-stop gradients use a cached 256-sample LUT. The shader reconstructs color and alpha from the LUT path. This avoids fragile alpha behavior across Source render targets and blend states.
+Multi-stop gradients use a cached 256x4 `BGRA8888` LUT. Each RGBA channel is
+encoded as 16-bit fixed point while the render target alpha remains opaque:
+
+```text
+row 0      high bytes of RGB
+row 1      low bytes of RGB
+rows 2..3  high/low bytes of alpha in the R/G channels
+```
+
+The pixel shader performs three filtered samples and reconstructs the original
+RGBA values. Keeping gradient alpha in color channels avoids Source render
+target alpha-write/sampling inconsistencies, while the high/low-byte encoding
+prevents the LUT itself from collapsing low-alpha ramps into repeated 8-bit
+steps.
+
+Before returning a gradient color, the same pixel shader applies stable
+screen-space interleaved-gradient-noise dithering at half of one 8-bit LSB.
+The noise is derived from integer `VPOS`, uses correlated RGBA noise to avoid
+colored speckle, preserves exact 0/1 endpoints, and adds no sampler, texture, or
+draw pass.
 
 ## Adding a Shader
 

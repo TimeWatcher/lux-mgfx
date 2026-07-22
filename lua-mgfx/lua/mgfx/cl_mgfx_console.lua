@@ -1260,6 +1260,7 @@ addCommand("mgfx_selftest", function()
 		"LinearGradient",
 		"LinearGradientStops",
 		"RadialGradient",
+		"EllipticalRadialGradient",
 		"RingRadialGradient",
 		"SectorRadialGradient",
 		"ConicGradient",

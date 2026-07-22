@@ -4,6 +4,7 @@
 #define TEXT_COLOR_A AUX1
 #define TEXT_COLOR_B AUX2
 #define TEXT_GRADIENT AUX3
+#define TEXT_CURVE EXTRA0.x
 
 float glyph_coverage(float4 texel)
 {
@@ -54,7 +55,7 @@ float4 main(PS_INPUT i) : COLOR
 	float2 b = TEXT_GRADIENT.zw;
 	float2 ab = b - a;
 	float t = saturate(dot(localUv - a, ab) / max(dot(ab, ab), 0.0001));
-	float4 face = mgfx_gradient_lut(t);
+	float4 face = mgfx_gradient_lut(t, TEXT_CURVE, i.pos);
 
 	return float4(saturate(face.rgb * i.color.rgb), saturate(alpha * face.a * i.color.a));
 }

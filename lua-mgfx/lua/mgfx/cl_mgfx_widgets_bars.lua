@@ -24,6 +24,7 @@ function MGFX._InstallWidgetBars(C)
 	local strokeVisible = C.strokeVisible
 	local colorAtFill = C.colorAtFill
 	local bindGradientLut = C.bindGradientLut or function() end
+	local gradientCurve = C.gradientCurve
 	local isCulled = C.isCulled
 	local normalizedRotation = C.normalizedRotation
 	local imageMaskStyle = C.imageMaskStyle or function(mask) return mask end
@@ -220,7 +221,7 @@ local function setupProgressConstants(mat, w, h, value, radius, inset, track, fi
 	local r, g, b, a = color01(fillB)
 	local br, bg, bb, ba = r, g, b, a
 
-	local packedProgress = math_floor(inset) * 2 + math.Clamp(value, 0, 1)
+	local packedProgress = math_floor(inset) * 2 + math.Clamp(value, 0, 1) + gradientCurve(fill.curve) * 64
 	local packedRadius = math_max(0, radius) + math.Clamp(strokeWidth, 0, 15) * 256
 
 	r, g, b, a = color01(fillA)
@@ -251,7 +252,7 @@ local function setupProgressFxConstants(mat, w, h, value, radius, inset, track, 
 	local r, g, b, a = color01(fillB)
 	local br, bg, bb, ba = r, g, b, a
 
-	local packedFx = math.Clamp(value, 0, 1) * 0.5 + flags + ticks * 8
+	local packedFx = math.Clamp(value, 0, 1) * 0.5 + flags + ticks * 8 + gradientCurve(fill.curve) * 256
 	local packedLayout = radius + strokeWidth * 256 + inset * 4096
 
 	r, g, b, a = color01(fillA)
@@ -502,7 +503,7 @@ local function drawSegmentBarShaderRaw(x, y, w, h, value, segments, fillInput, c
 		w, h, count, gap,
 		math.Clamp(tonumber(value) or 0, 0, 1),
 		math_max(0, tonumber(radiusInput == nil and math_min(2, h * 0.35) or radiusInput) or 0),
-		0, 0
+		gradientCurve(fill.curve), 0
 	)
 
 	bindGradientLut(mat, fill)

@@ -6,7 +6,7 @@ fn setupLineConstants(material, fill) {
   setupParamMatrix(material,
     r, g, b, a,
     br, bg, bb, ba,
-    0, 0, 1, 0,
+    0, 0, 1, style.gradientCurve(fill.curve),
     0, 0, 0, 0
   )
   style.bindGradientLut(material, fill)

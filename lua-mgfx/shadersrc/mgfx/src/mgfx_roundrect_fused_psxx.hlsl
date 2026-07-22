@@ -27,13 +27,13 @@ float4 source_over(float4 top, float4 bottom)
 	return float4(saturate(rgb), saturate(alpha));
 }
 
-float4 base_layer(float2 pos, float2 uv)
+float4 base_layer(float2 pos, float2 uv, float2 pixelPos)
 {
 	float dist = roundrect_dist_px(pos);
 	float outer = roundrect_coverage_from_dist(dist);
 	float borderMask = STROKE_COLOR.a > 0.0 ? roundrect_stroke_coverage_from_dist(dist, STROKE_WIDTH) : 0.0;
 	float fillMask = outer * (1.0 - borderMask);
-	float4 fillColor = mgfx_fill(uv, float4(1.0, 1.0, 1.0, 1.0));
+	float4 fillColor = mgfx_fill(uv, float4(1.0, 1.0, 1.0, 1.0), pixelPos);
 	float fillAlpha = fillColor.a * fillMask;
 	float strokeAlpha = STROKE_COLOR.a * borderMask;
 	float baseAlpha = fillAlpha + strokeAlpha;
@@ -68,7 +68,7 @@ float4 main(PS_INPUT i) : COLOR
 
 	float4 color = shadow_layer(pos);
 	color = source_over(outer_layer(pos), color);
-	color = source_over(base_layer(pos, uv), color);
+	color = source_over(base_layer(pos, uv, i.pos), color);
 
 	clip(color.a - 0.001);
 	return color;

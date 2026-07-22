@@ -4,7 +4,8 @@ Color/gradient paint record、程序化 pattern、2.5D transform helper 和 capa
 
 ## 适用边界
 
-- Linear、Radial、Conic、Ring/Sector radial、Shape/Ring/Arc/Sector angular 都支持 stop 表，并统一走 LUT。
+- Linear、Radial、Elliptical Radial、Conic、Ring/Sector radial、Shape/Ring/Arc/Sector angular 都支持 stop 表，并统一走 LUT。
+- 所有渐变都支持可选 `curve`，默认 `linear`；曲线在原有 shader 内映射 `t`，不增加 pass，也不复制 LUT。
 - Pattern 应作为 paint slot 交给 shader 数学化处理，不要在调用层展开成大量线段。
 - 2.5D 视觉倾斜使用 `style.transform`、`PushTransform` 或 `PointerTilt`，不新增 `ProjectedXXX` 图元族。
 
@@ -14,6 +15,7 @@ Color/gradient paint record、程序化 pattern、2.5D transform helper 和 capa
 - [LinearGradient](#lineargradient) - 创建两段或多段线性渐变记录。
 - [LinearGradientStops](#lineargradientstops) - 创建多段线性渐变记录。
 - [RadialGradient](#radialgradient) - 创建径向渐变绘制记录。
+- [EllipticalRadialGradient](#ellipticalradialgradient) - 创建具有独立横纵半径的椭圆径向渐变。
 - [RingRadialGradient](#ringradialgradient) - 创建从内边到外边的圆环局部径向渐变。
 - [SectorRadialGradient](#sectorradialgradient) - 创建从内边到外边的扇区局部径向渐变。
 - [ConicGradient](#conicgradient) - 使用公开角度制 rotation 创建锥形渐变记录。
@@ -40,7 +42,8 @@ Color/gradient paint record、程序化 pattern、2.5D transform helper 和 capa
 | --- | --- | --- |
 | 纯色 | `Color(...)` 或 `MGFX.Solid(color)` | 大多数 `fill` 直接传 Color 就够了。 |
 | 左到右、上到下、斜向渐变 | `LinearGradient` / `LinearGradientStops` | 按钮、血条、列表选中态。 |
-| 中心光、暗角、局部高光 | `RadialGradient` | 卡片暗角、spotlight、hover 光。 |
+| 正圆中心光、暗角、局部高光 | `RadialGradient` | 卡片暗角、圆形 spotlight、hover 光。 |
+| 扁宽或纵长的定向光场 | `EllipticalRadialGradient` | 顶部发散高光、宽 HUD 光晕、椭圆暗角。 |
 | 完整圆盘角向色相 | `ConicGradient` | 色相盘、全圆仪表背景。 |
 | 圆环/扇区从内到外变色 | `RingRadialGradient` / `SectorRadialGradient` | Ring、Arc、Sector 的厚度方向渐变。 |
 | 圆环/扇区沿角度变色 | `ShapeAngularGradient` / `RingAngularGradient` / `ArcAngularGradient` / `SectorAngularGradient` | 冷却环、仪表弧、轮盘 wedge。 |
@@ -48,7 +51,7 @@ Color/gradient paint record、程序化 pattern、2.5D transform helper 和 capa
 | 程序化噪声/烟雾 | `SmokePattern` | 能量面板、稀有物品背景。 |
 | 细微磨损、颗粒、边缘破损、划痕 | `WornPattern` | 武器/背包/商店 UI、金属或旧纸材质表面。 |
 
-坐标是图元本地归一化空间，不是屏幕像素：`LinearGradient(0, 0, 1, 0, ...)` 表示从图元左到右；`RadialGradient(0.5, 0.5, 0.85, ...)` 表示以图元中心为圆心。
+坐标是图元本地归一化空间，不是屏幕像素：`LinearGradient(0, 0, 1, 0, ...)` 表示从图元左到右；`RadialGradient(0.5, 0.5, 0.85, ...)` 表示以图元中心为圆心；`EllipticalRadialGradient(0.5, 0, 0.7, 1.2, ...)` 表示从顶部中心发散，横向半径为图元宽度的 70%，纵向半径为图元高度的 120%。
 
 ## Stops 实用写法
 
@@ -102,6 +105,23 @@ local vignette = MGFX.RadialGradient(0.5, 0.5, 0.9, {
 ```
 
 缺省 alpha 是 255。只写 `Color(0, 0, 0)` 会得到不透明黑色，不会得到透明 stop。
+
+## 渐变曲线
+
+所有渐变构造器都可以在最后传入 `curve`。固定预设包括：`linear`、`smoothstep`、`smootherstep`、`ease-in`、`ease-out`、`ease-in-out`、`exponential`、`gaussian` 和 `inverse-square`。
+
+`curve` 只由 Lua 映射为数字 ID。shader 在采样现有 stops LUT 之前执行 `t = curve(t)`，因此不会增加 draw pass；LUT 缓存仍只由 stops 决定。预设没有 `strength` 参数，需要更精细的美术控制时继续使用 stops。
+
+所有预设共享同一份 16-bit RGBA stops LUT。现有渐变 pixel shader 还会加入稳定的屏幕空间 IGN dithering，打散最终 8-bit framebuffer 的量化误差；两项改动都不增加 draw pass。
+
+`exponential` 使用归一化的固定 `k = 2.6`，适合用两个 stop 表达真实光源衰减：
+
+```lua
+local light = MGFX.EllipticalRadialGradient(0.5, 0.04, 0.55, 1.2, {
+    {0, Color(80, 220, 120, 73)},
+    {1, Color(80, 220, 120, 0)},
+}, nil, "exponential")
+```
 
 ## 常用 paint 配方
 
@@ -225,7 +245,7 @@ MGFX.RoundedBoxEx(x, y, w, h, {radius = 8, fill = fill})
 ## LinearGradient
 
 ```lua
-MGFX.LinearGradient(x1, y1, x2, y2, colorA, colorB)
+MGFX.LinearGradient(x1, y1, x2, y2, colorA, colorB, curve)
 ```
 
 创建两段或多段线性渐变记录。
@@ -274,7 +294,7 @@ local fill = MGFX.LinearGradient(0, 0, 1, 0, Color(80, 170, 255), Color(90, 220,
 ## LinearGradientStops
 
 ```lua
-MGFX.LinearGradientStops(x1, y1, x2, y2, stops)
+MGFX.LinearGradientStops(x1, y1, x2, y2, stops, curve)
 ```
 
 创建多段线性渐变记录。
@@ -326,7 +346,7 @@ local fill = MGFX.LinearGradientStops(0, 0, 1, 0, {
 ## RadialGradient
 
 ```lua
-MGFX.RadialGradient(cx, cy, radius, colorA, colorB) / MGFX.RadialGradient(cx, cy, radius, stops)
+MGFX.RadialGradient(cx, cy, radius, colorA, colorB, curve) / MGFX.RadialGradient(cx, cy, radius, stops, curve)
 ```
 
 创建径向渐变绘制记录。
@@ -371,6 +391,24 @@ MGFX.RadialGradient(cx, cy, radius, colorA, colorB) / MGFX.RadialGradient(cx, cy
 
 ```lua
 local fill = MGFX.RadialGradient(0.5, 0.35, 0.8, Color(90, 220, 180, 220), Color(20, 24, 32, 200))
+```
+
+## EllipticalRadialGradient
+
+```lua
+MGFX.EllipticalRadialGradient(cx, cy, radiusX, radiusY, colorA, colorB, curve)
+MGFX.EllipticalRadialGradient(cx, cy, radiusX, radiusY, stops, curve)
+```
+
+创建具有独立横纵半径的椭圆径向渐变。`radiusX` 相对于图元宽度，`radiusY` 相对于图元高度；`cx/cy` 可以位于 `0..1` 外，因此可把中心放到顶部之外形成向下扩散的光场。
+
+它与 `RadialGradient` 复用同一个 radial shader、渐变 LUT、material 和 draw pass，不会额外增加一次绘制。区别只在距离场计算：旧 API 保持像素空间正圆，新 API 使用椭圆轴半径。
+
+```lua
+local topGlow = MGFX.EllipticalRadialGradient(0.5, -0.15, 0.72, 1.35, {
+    {0.00, Color(132, 255, 148, 224)},
+    {1.00, Color(18, 48, 30, 0)},
+}, nil, "exponential")
 ```
 
 ## RingRadialGradient

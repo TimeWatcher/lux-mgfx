@@ -53,7 +53,7 @@ float4 main(PS_INPUT i) : COLOR
 	float2 size = max(SIZE, float2(0.001, 0.001));
 	float dist = chamfer_dist_shape(i.uv * size, size, CHAMFER_CUTS);
 	float shape = aa_coverage(dist);
-	float4 fillColor = mgfx_fill(i.uv, i.color);
+	float4 fillColor = mgfx_fill(i.uv, i.color, i.pos);
 	float fillAlpha = fillColor.a * shape;
 	float strokeAlpha = 0.0;
 

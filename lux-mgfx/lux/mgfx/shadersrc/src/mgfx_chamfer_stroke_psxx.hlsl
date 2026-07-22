@@ -24,7 +24,7 @@ struct PS_INPUT
 #include "mgfx_chamfer_common.hlsl"
 #include "mgfx_stroke_pattern_common.hlsl"
 
-float chamfer_path_coord(float2 p, float2 size, float4 cuts)
+float2 chamfer_path_coord(float2 p, float2 size, float4 cuts)
 {
 	float limit = min(size.x, size.y) * 0.5;
 	float tl = min(cuts.x, limit);
@@ -49,8 +49,8 @@ float chamfer_path_coord(float2 p, float2 size, float4 cuts)
 	prefix = stroke_path_add_segment(p, p4, p5, prefix, bestDist, bestCoord);
 	prefix = stroke_path_add_segment(p, p5, p6, prefix, bestDist, bestCoord);
 	prefix = stroke_path_add_segment(p, p6, p7, prefix, bestDist, bestCoord);
-	stroke_path_add_segment(p, p7, p0, prefix, bestDist, bestCoord);
-	return bestCoord;
+	prefix = stroke_path_add_segment(p, p7, p0, prefix, bestDist, bestCoord);
+	return float2(bestCoord, prefix);
 }
 
 float4 main(PS_INPUT i) : COLOR
@@ -62,7 +62,8 @@ float4 main(PS_INPUT i) : COLOR
 	float width = max(STROKE_WIDTH, 0.0);
 	float aa = max(fwidth(edgeDist), 1.0);
 	float stroke = 1.0 - smoothstep(width * 0.5 - aa, width * 0.5 + aa, edgeDist);
-	float pattern = stroke_pattern_mask(chamfer_path_coord(pos, size, CHAMFER_CUTS), dist, width, STROKE_KIND, STROKE_DASH_LENGTH, STROKE_GAP, STROKE_OFFSET);
+	float2 path = chamfer_path_coord(pos, size, CHAMFER_CUTS);
+	float pattern = stroke_pattern_mask(path.x, path.y, dist, width, STROKE_KIND, STROKE_DASH_LENGTH, STROKE_GAP, STROKE_OFFSET);
 	float alpha = STROKE_COLOR.a * stroke * pattern;
 	clip(alpha - 0.001);
 

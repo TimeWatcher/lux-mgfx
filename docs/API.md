@@ -64,6 +64,6 @@ Plain GLua uses PascalCase names on `MGFX.*`. Lux uses lowerCamelCase names on `
 | Images and masks | `ImageEx`, `IconEx`, `Mask` |
 | HUD meters and sectors | `ProgressBarEx`, `SegmentBarEx`, `RingEx`, `ArcEx`, `SectorEx` |
 | Text | `Text`, `TextEx`, `TextBoxEx`, `MeasureText`, `PrewarmText` |
-| Paint and transforms | `LinearGradient`, `RadialGradient`, `WornPattern`, `Transform`, `PointerTilt`, `GetCapabilities` |
+| Paint and transforms | `LinearGradient`, `RadialGradient`, `EllipticalRadialGradient`, `WornPattern`, `Transform`, `PointerTilt`, `GetCapabilities` |
 
 MGFX is a renderer, not a UI framework. It does not own layout, input, focus, component lifecycle, animation state, or hit testing.

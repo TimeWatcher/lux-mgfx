@@ -4,5 +4,5 @@
 
 float4 main(PS_INPUT i) : COLOR
 {
-	return mgfx_poly_fill(i.uv, i.color);
+	return mgfx_poly_fill(i.uv, i.color, i.pos);
 }

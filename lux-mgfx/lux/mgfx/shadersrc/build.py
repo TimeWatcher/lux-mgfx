@@ -57,6 +57,14 @@ def run_shader_compile(root, compiler):
     if compiler:
         env["MGFX_SHADERCOMPILE"] = str(Path(compiler).resolve())
 
+    # ShaderCompile's incremental check does not reliably invalidate pixel
+    # shaders when only an included common header changes. Remove generated
+    # MGFX outputs first so a successful build can never package stale bytecode.
+    fxc_dir = root / "src" / "shaders" / "fxc"
+    if fxc_dir.exists():
+        for path in fxc_dir.glob("mgfx_*.vcs"):
+            path.unlink()
+
     script = root / "build_shaders.bat"
     subprocess.check_call(["cmd", "/c", str(script)], cwd=root, env=env)
 

@@ -7,7 +7,7 @@ local gradientLutBound = setmetatable({}, { __mode = "k" })
 local gradientLutCacheCount = 0
 local gradientLutClock = 0
 local gradientLutSerial = 0
-local gradientLutSchema = "lut-alpha-rgb-v3"
+local gradientLutSchema = "lut-rgba16-rgb-v4"
 local gradientLutFlags = bitBor ~= nil then bitBor(2, 256, 4, 8) else 270
 
 fn setGradientLutOwner(owner) {
@@ -92,9 +92,9 @@ fn rememberGradientFill(fill, key, entry) {
   }
 }
 
-fn colorAtNormalizedStops(stops, t) {
+fn channelsAtNormalizedStops(stops, t) {
   if stops == nil or #stops == 0 {
-    return color_white
+    return 1, 1, 1, 1
   }
 
   local amount = mathClamp(toNumber(t) ?? 0, 0, 1)
@@ -103,11 +103,29 @@ fn colorAtNormalizedStops(stops, t) {
     local b = stops[index + 1]
     if amount <= b.pos {
       local span = mathMax(0.0001, b.pos - a.pos)
-      return lerpColor((amount - a.pos) / span, a.color, b.color)
+      local mix = mathClamp((amount - a.pos) / span, 0, 1)
+      local colorA = asColor(a.color, color_white)
+      local colorB = asColor(b.color, colorA)
+      return
+        ((colorA.r ?? 255) + ((colorB.r ?? 255) - (colorA.r ?? 255)) * mix) / 255,
+        ((colorA.g ?? 255) + ((colorB.g ?? 255) - (colorA.g ?? 255)) * mix) / 255,
+        ((colorA.b ?? 255) + ((colorB.b ?? 255) - (colorA.b ?? 255)) * mix) / 255,
+        ((colorA.a ?? 255) + ((colorB.a ?? 255) - (colorA.a ?? 255)) * mix) / 255
     }
   }
 
-  stops[#stops].color ?? color_white
+  local color = asColor(stops[#stops].color, color_white)
+  return
+    (color.r ?? 255) / 255,
+    (color.g ?? 255) / 255,
+    (color.b ?? 255) / 255,
+    (color.a ?? 255) / 255
+}
+
+fn splitGradientChannel16(value) {
+  local packed = mathClamp(mathFloor(mathClamp(value, 0, 1) * 65535 + 0.5), 0, 65535)
+  local high = mathFloor(packed / 256)
+  return high, packed - high * 256
 }
 
 fn gradientLutKey(stops) {
@@ -178,11 +196,16 @@ fn writeGradientLut(rt, stops) {
   renderClear(0, 0, 0, 0, true, true)
   camStart2D()
   for x = 0, GRADIENT_LUT_W - 1 {
-    local color = colorAtNormalizedStops(stops, x / (GRADIENT_LUT_W - 1))
-    local alphaByte = mathClamp(mathFloor(color.a ?? 255), 0, 255)
-    surfaceSetDrawColor(color.r ?? 255, color.g ?? 255, color.b ?? 255, 255)
-    surfaceDrawRect(x, 0, 1, 2)
-    surfaceSetDrawColor(alphaByte, alphaByte, alphaByte, 255)
+    local r, g, b, a = channelsAtNormalizedStops(stops, x / (GRADIENT_LUT_W - 1))
+    local rHigh, rLow = splitGradientChannel16(r)
+    local gHigh, gLow = splitGradientChannel16(g)
+    local bHigh, bLow = splitGradientChannel16(b)
+    local aHigh, aLow = splitGradientChannel16(a)
+    surfaceSetDrawColor(rHigh, gHigh, bHigh, 255)
+    surfaceDrawRect(x, 0, 1, 1)
+    surfaceSetDrawColor(rLow, gLow, bLow, 255)
+    surfaceDrawRect(x, 1, 1, 1)
+    surfaceSetDrawColor(aHigh, aLow, 0, 255)
     surfaceDrawRect(x, 2, 1, 2)
   }
   camEnd2D()

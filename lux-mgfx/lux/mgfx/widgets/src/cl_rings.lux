@@ -6,7 +6,7 @@ enum RingMode repr number {
 
 enum RingFillView repr existing(kind = "kind") {
   Linear(kind = style.FILL_LINEAR, x1: number, y1: number, x2: number, y2: number),
-  Radial(kind = style.FILL_RADIAL, cx: number, cy: number, radius: number),
+  Radial(kind = style.FILL_RADIAL, cx: number, cy: number, radius: number, radiusX: number, radiusY: number),
   Conic(kind = style.FILL_CONIC, cx: number, cy: number, rotation: number)
 }
 
@@ -38,9 +38,9 @@ fn ringFillParams(fill) {
     RingFillView.Linear { x1, y1, x2, y2 } => {
       return x1 ?? 0, y1 ?? 0, x2 ?? 1, y2 ?? 0
     }
-    RingFillView.Radial { cx, cy, radius } => {
+    RingFillView.Radial { cx, cy, radius, radiusX, radiusY } => {
       local localRadial = fill.localRadial == true or fill.ringRadial == true or fill.sectorRadial == true
-      return cx ?? 0.5, cy ?? 0.5, radius ?? 0.5, localRadial then 1 else 0
+      return cx ?? 0.5, cy ?? 0.5, radiusX ?? radius ?? 0.5, localRadial then -1 else (radiusY ?? 0)
     }
     RingFillView.Conic { cx, cy, rotation } => {
       local localAngular = fill.localAngular == true or fill.shapeAngular == true
@@ -140,7 +140,7 @@ fn drawRingFillPass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode
   setupParamMatrix(material,
     r, g, b, a,
     sw, sh, ir, orad,
-    sr, er, modeValue, fill.kind ?? style.FILL_SOLID,
+    sr, er, modeValue, (fill.kind ?? style.FILL_SOLID) + style.gradientCurve(fill.curve) * 4,
     p0, p1, p2, p3
   )
   if ringFillNeedsLut(fill) {
@@ -219,7 +219,7 @@ fn drawRingFxPass(x, y, w, h, innerRadius, outerRadius, startDeg, endDeg, mode, 
   setupParamMatrix(material,
     r, g, b, a,
     sw, sh, ir, orad,
-    sr, er, modeValue, fill.kind ?? style.FILL_SOLID,
+    sr, er, modeValue, (fill.kind ?? style.FILL_SOLID) + style.gradientCurve(fill.curve) * 4,
     p0, p1, p2, p3
   )
   if ringFillNeedsLut(fill) {

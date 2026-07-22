@@ -2,10 +2,11 @@
 
 #define LINE_COLOR_A AUX0
 #define LINE_COLOR_B AUX1
+#define LINE_CURVE EXTRA2.w
 
 float4 main(PS_INPUT i) : COLOR
 {
-	float4 color = mgfx_gradient_lut(i.uv.x);
+	float4 color = mgfx_gradient_lut(i.uv.x, LINE_CURVE, i.pos);
 	float noCaps = step(4.0, i.uv.y);
 	float crossUv = i.uv.y - noCaps * 8.0;
 	float widthEdge = abs(crossUv - 0.5) - 0.5;

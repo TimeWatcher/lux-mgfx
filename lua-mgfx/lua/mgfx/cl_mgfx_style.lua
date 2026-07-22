@@ -6,6 +6,7 @@ function MGFX._InstallStyle(owner)
 	owner = owner or MGFX
 
 	local math_abs = math.abs
+	local math_exp = math.exp
 	local math_floor = math.floor
 	local math_max = math.max
 	local surface_SetDrawColor = surface.SetDrawColor
@@ -25,6 +26,15 @@ function MGFX._InstallStyle(owner)
 	local backdropNumberCache = {}
 	local backdropTrueSpec
 	local patternSeedCache = {}
+	local GRADIENT_CURVE_LINEAR = 0
+	local GRADIENT_CURVE_SMOOTHSTEP = 1
+	local GRADIENT_CURVE_SMOOTHERSTEP = 2
+	local GRADIENT_CURVE_EASE_IN = 3
+	local GRADIENT_CURVE_EASE_OUT = 4
+	local GRADIENT_CURVE_EASE_IN_OUT = 5
+	local GRADIENT_CURVE_EXPONENTIAL = 6
+	local GRADIENT_CURVE_GAUSSIAN = 7
+	local GRADIENT_CURVE_INVERSE_SQUARE = 8
 	local emptyPatternSpec = {}
 	local defaultPatternColor = Color(255, 255, 255, 24)
 	local defaultPatternTrueColor = Color(255, 255, 255, 20)
@@ -197,11 +207,88 @@ function MGFX._InstallStyle(owner)
 		)
 	end
 
-	local function colorAtStops(stops, t)
+	local function gradientCurve(value)
+		if istable(value) then value = value.kind or value.curve or value[1] or "linear" end
+		if isnumber(value) then
+			local id = math_floor(value)
+			if id >= GRADIENT_CURVE_LINEAR and id <= GRADIENT_CURVE_INVERSE_SQUARE then return id end
+			error("unknown gradient curve id: " .. tostring(value), 3)
+		end
+
+		local kind = string.lower(tostring(value or "linear"))
+		if kind == "linear" then return GRADIENT_CURVE_LINEAR end
+		if kind == "smooth" or kind == "smoothstep" then return GRADIENT_CURVE_SMOOTHSTEP end
+		if kind == "smoother" or kind == "smootherstep" then return GRADIENT_CURVE_SMOOTHERSTEP end
+		if kind == "power" or kind == "pow" or kind == "ease-in" then return GRADIENT_CURVE_EASE_IN end
+		if kind == "ease-out" then return GRADIENT_CURVE_EASE_OUT end
+		if kind == "ease-in-out" then return GRADIENT_CURVE_EASE_IN_OUT end
+		if kind == "exponential" or kind == "exp" then return GRADIENT_CURVE_EXPONENTIAL end
+		if kind == "gaussian" or kind == "gauss" then return GRADIENT_CURVE_GAUSSIAN end
+		if kind == "inverse-square" or kind == "inverse_square" or kind == "inverse"
+			or kind == "physical" or kind == "light" then
+			return GRADIENT_CURVE_INVERSE_SQUARE
+		end
+		error("unknown gradient curve kind: " .. kind, 3)
+	end
+
+	local function gradientCurveAmount(curve, t)
+		local curveId = gradientCurve(curve)
+		local amount = math.Clamp(tonumber(t) or 0, 0, 1)
+		if curveId == GRADIENT_CURVE_LINEAR then return amount end
+		if curveId == GRADIENT_CURVE_SMOOTHSTEP then return amount * amount * (3 - 2 * amount) end
+		if curveId == GRADIENT_CURVE_SMOOTHERSTEP then return amount * amount * amount * (amount * (amount * 6 - 15) + 10) end
+		if curveId == GRADIENT_CURVE_EASE_IN then return amount * amount end
+		if curveId == GRADIENT_CURVE_EASE_OUT then return 1 - (1 - amount) * (1 - amount) end
+		if curveId == GRADIENT_CURVE_EASE_IN_OUT then
+			if amount < 0.5 then return 2 * amount * amount end
+			return 1 - 2 * (1 - amount) * (1 - amount)
+		end
+		if curveId == GRADIENT_CURVE_EXPONENTIAL then
+			return (1 - math_exp(-2.6 * amount)) / (1 - math_exp(-2.6))
+		end
+		if curveId == GRADIENT_CURVE_GAUSSIAN then
+			return (1 - math_exp(-3 * amount * amount)) / (1 - math_exp(-3))
+		end
+
+		local attenuation = 1 / (1 + 8 * amount * amount)
+		local edgeAttenuation = 1 / 9
+		return (1 - attenuation) / (1 - edgeAttenuation)
+	end
+
+	local function gradientInputs(stopsOrColorA, colorB, curve)
+		local options
+		local stopsInput = stopsOrColorA
+		if istable(stopsOrColorA) and not stopsOrColorA.r and stopsOrColorA.stops ~= nil then
+			options = stopsOrColorA
+			stopsInput = stopsOrColorA.stops
+			if curve == nil then curve = stopsOrColorA.curve end
+		end
+
+		local colorA
+		local stops
+		if istable(stopsInput) and not stopsInput.r then
+			if curve == nil and colorB ~= nil and not (istable(colorB) and colorB.r) then
+				curve = colorB
+				colorB = nil
+			end
+			colorA, colorB, stops = firstLastStops(stopsInput)
+		else
+			colorA = asColor(stopsInput, color_white)
+			colorB = asColor(colorB, colorA)
+			stops = {
+				{pos = 0, color = colorA},
+				{pos = 1, color = colorB},
+			}
+		end
+
+		return colorA, colorB, stops, gradientCurve(curve)
+	end
+
+	local function colorAtStops(stops, t, curve)
 		stops = normalizeStops(stops)
 		if not stops then return color_white end
 
-		t = math.Clamp(tonumber(t) or 0, 0, 1)
+		t = gradientCurveAmount(curve, t)
 		for i = 1, #stops - 1 do
 			local a = stops[i]
 			local b = stops[i + 1]
@@ -213,6 +300,8 @@ function MGFX._InstallStyle(owner)
 
 		return stops[#stops].color
 	end
+
+	owner.GradientCurve = gradientCurve
 
 	function owner.Solid(color)
 		color = asColor(color, color_white)
@@ -226,25 +315,14 @@ function MGFX._InstallStyle(owner)
 		return {kind = FILL_SOLID, colorA = color_white, colorB = color_white, _mgfxFillVisible = true}
 	end
 
-	function owner.LinearGradient(x1, y1, x2, y2, stopsOrColorA, colorB)
-		local colorA
-		local stops
-		if istable(stopsOrColorA) and not stopsOrColorA.r then
-			colorA, colorB, stops = firstLastStops(stopsOrColorA)
-		else
-			colorA = asColor(stopsOrColorA, color_white)
-			colorB = asColor(colorB, colorA)
-			stops = {
-				{pos = 0, color = colorA},
-				{pos = 1, color = colorB},
-			}
-		end
-
+	function owner.LinearGradient(x1, y1, x2, y2, stopsOrColorA, colorB, curve)
+		local colorA, resolvedColorB, stops, resolvedCurve = gradientInputs(stopsOrColorA, colorB, curve)
 		return {
 			kind = FILL_LINEAR,
 			colorA = colorA,
-			colorB = colorB,
+			colorB = resolvedColorB,
 			stops = stops,
+			curve = resolvedCurve,
 			_mgfxStopsNormalized = true,
 			_mgfxLutCacheSafe = true,
 			_mgfxFillVisible = stopsVisible(stops),
@@ -255,29 +333,18 @@ function MGFX._InstallStyle(owner)
 		}
 	end
 
-	function owner.LinearGradientStops(x1, y1, x2, y2, stops)
-		return owner.LinearGradient(x1, y1, x2, y2, stops)
+	function owner.LinearGradientStops(x1, y1, x2, y2, stops, curve)
+		return owner.LinearGradient(x1, y1, x2, y2, stops, curve)
 	end
 
-	function owner.RadialGradient(cx, cy, radius, stopsOrColorA, colorB)
-		local colorA
-		local stops
-		if istable(stopsOrColorA) and not stopsOrColorA.r then
-			colorA, colorB, stops = firstLastStops(stopsOrColorA)
-		else
-			colorA = asColor(stopsOrColorA, color_white)
-			colorB = asColor(colorB, colorA)
-			stops = {
-				{pos = 0, color = colorA},
-				{pos = 1, color = colorB},
-			}
-		end
-
+	function owner.RadialGradient(cx, cy, radius, stopsOrColorA, colorB, curve)
+		local colorA, resolvedColorB, stops, resolvedCurve = gradientInputs(stopsOrColorA, colorB, curve)
 		return {
 			kind = FILL_RADIAL,
 			colorA = colorA,
-			colorB = colorB,
+			colorB = resolvedColorB,
 			stops = stops,
+			curve = resolvedCurve,
 			_mgfxStopsNormalized = true,
 			_mgfxLutCacheSafe = true,
 			_mgfxFillVisible = stopsVisible(stops),
@@ -287,36 +354,46 @@ function MGFX._InstallStyle(owner)
 		}
 	end
 
-	function owner.RingRadialGradient(stopsOrColorA, colorB)
-		local fill = owner.RadialGradient(0.5, 0.5, 0.5, stopsOrColorA, colorB)
+	function owner.EllipticalRadialGradient(cx, cy, radiusX, radiusY, stopsOrColorA, colorB, curve)
+		local colorA, resolvedColorB, stops, resolvedCurve = gradientInputs(stopsOrColorA, colorB, curve)
+		local resolvedRadiusX = math_max(0.001, tonumber(radiusX) or 0.5)
+		local resolvedRadiusY = math_max(0.001, tonumber(radiusY) or 0.5)
+		return {
+			kind = FILL_RADIAL,
+			colorA = colorA,
+			colorB = resolvedColorB,
+			stops = stops,
+			curve = resolvedCurve,
+			_mgfxStopsNormalized = true,
+			_mgfxLutCacheSafe = true,
+			_mgfxFillVisible = stopsVisible(stops),
+			cx = tonumber(cx) or 0.5,
+			cy = tonumber(cy) or 0.5,
+			radius = resolvedRadiusX,
+			radiusX = resolvedRadiusX,
+			radiusY = resolvedRadiusY,
+		}
+	end
+
+	function owner.RingRadialGradient(stopsOrColorA, colorB, curve)
+		local fill = owner.RadialGradient(0.5, 0.5, 0.5, stopsOrColorA, colorB, curve)
 		fill.radialSpace = "ring"
 		fill.localRadial = true
 		return fill
 	end
 
-	function owner.SectorRadialGradient(stopsOrColorA, colorB)
-		return owner.RingRadialGradient(stopsOrColorA, colorB)
+	function owner.SectorRadialGradient(stopsOrColorA, colorB, curve)
+		return owner.RingRadialGradient(stopsOrColorA, colorB, curve)
 	end
 
-	function owner.ConicGradient(cx, cy, rotation, stopsOrColorA, colorB)
-		local colorA
-		local stops
-		if istable(stopsOrColorA) and not stopsOrColorA.r then
-			colorA, colorB, stops = firstLastStops(stopsOrColorA)
-		else
-			colorA = asColor(stopsOrColorA, color_white)
-			colorB = asColor(colorB, colorA)
-			stops = {
-				{pos = 0, color = colorA},
-				{pos = 1, color = colorB},
-			}
-		end
-
+	function owner.ConicGradient(cx, cy, rotation, stopsOrColorA, colorB, curve)
+		local colorA, resolvedColorB, stops, resolvedCurve = gradientInputs(stopsOrColorA, colorB, curve)
 		return {
 			kind = FILL_CONIC,
 			colorA = colorA,
-			colorB = colorB,
+			colorB = resolvedColorB,
 			stops = stops,
+			curve = resolvedCurve,
 			_mgfxStopsNormalized = true,
 			_mgfxLutCacheSafe = true,
 			_mgfxFillVisible = stopsVisible(stops),
@@ -326,28 +403,34 @@ function MGFX._InstallStyle(owner)
 		}
 	end
 
-	function owner.ShapeAngularGradient(stopsOrColorA, colorB, rotation)
-		if istable(stopsOrColorA) and not stopsOrColorA.r and isnumber(colorB) and rotation == nil then
-			rotation = colorB
-			colorB = nil
+	function owner.ShapeAngularGradient(stopsOrColorA, colorB, rotation, curve)
+		if istable(stopsOrColorA) and not stopsOrColorA.r then
+			if isnumber(colorB) then
+				if curve == nil and rotation ~= nil and not isnumber(rotation) then curve = rotation end
+				rotation = colorB
+				colorB = nil
+			elseif colorB ~= nil and not (istable(colorB) and colorB.r) then
+				if curve == nil then curve = colorB end
+				colorB = nil
+			end
 		end
 
-	local fill = owner.ConicGradient(0.5, 0.5, rotation or 0, stopsOrColorA, colorB)
+	local fill = owner.ConicGradient(0.5, 0.5, rotation or 0, stopsOrColorA, colorB, curve)
 	fill.angularSpace = "shape"
 	fill.localAngular = true
 	return fill
 end
 
-	function owner.RingAngularGradient(stopsOrColorA, colorB, rotation)
-		return owner.ShapeAngularGradient(stopsOrColorA, colorB, rotation)
+	function owner.RingAngularGradient(stopsOrColorA, colorB, rotation, curve)
+		return owner.ShapeAngularGradient(stopsOrColorA, colorB, rotation, curve)
 	end
 
-	function owner.ArcAngularGradient(stopsOrColorA, colorB, rotation)
-		return owner.ShapeAngularGradient(stopsOrColorA, colorB, rotation)
+	function owner.ArcAngularGradient(stopsOrColorA, colorB, rotation, curve)
+		return owner.ShapeAngularGradient(stopsOrColorA, colorB, rotation, curve)
 	end
 
-	function owner.SectorAngularGradient(stopsOrColorA, colorB, rotation)
-		return owner.ShapeAngularGradient(stopsOrColorA, colorB, rotation)
+	function owner.SectorAngularGradient(stopsOrColorA, colorB, rotation, curve)
+		return owner.ShapeAngularGradient(stopsOrColorA, colorB, rotation, curve)
 	end
 
 	local function patternSeed(seed)
@@ -536,9 +619,9 @@ end
 	local function colorAtFill(fill, t)
 		fill = fillFromStyle(fill)
 		if fill.stops and #fill.stops > 0 then
-			return colorAtStops(fill.stops, t)
+			return colorAtStops(fill.stops, t, fill.curve)
 		end
-		return lerpColor(fill.colorA or color_white, fill.colorB or fill.colorA or color_white, t)
+		return lerpColor(fill.colorA or color_white, fill.colorB or fill.colorA or color_white, gradientCurveAmount(fill.curve, t))
 	end
 
 	owner.ColorAtFill = colorAtFill
@@ -683,6 +766,15 @@ end
 		FILL_LINEAR = FILL_LINEAR,
 		FILL_RADIAL = FILL_RADIAL,
 		FILL_CONIC = FILL_CONIC,
+		GRADIENT_CURVE_LINEAR = GRADIENT_CURVE_LINEAR,
+		GRADIENT_CURVE_SMOOTHSTEP = GRADIENT_CURVE_SMOOTHSTEP,
+		GRADIENT_CURVE_SMOOTHERSTEP = GRADIENT_CURVE_SMOOTHERSTEP,
+		GRADIENT_CURVE_EASE_IN = GRADIENT_CURVE_EASE_IN,
+		GRADIENT_CURVE_EASE_OUT = GRADIENT_CURVE_EASE_OUT,
+		GRADIENT_CURVE_EASE_IN_OUT = GRADIENT_CURVE_EASE_IN_OUT,
+		GRADIENT_CURVE_EXPONENTIAL = GRADIENT_CURVE_EXPONENTIAL,
+		GRADIENT_CURVE_GAUSSIAN = GRADIENT_CURVE_GAUSSIAN,
+		GRADIENT_CURVE_INVERSE_SQUARE = GRADIENT_CURVE_INVERSE_SQUARE,
 		STROKE_SOLID = STROKE_SOLID,
 		STROKE_DOT = STROKE_DOT,
 		STROKE_DASH = STROKE_DASH,
@@ -700,6 +792,8 @@ end
 		firstLastStops = firstLastStops,
 		lerpColor = lerpColor,
 		colorAtStops = colorAtStops,
+		gradientCurve = gradientCurve,
+		gradientCurveAmount = gradientCurveAmount,
 		fillFromStyle = fillFromStyle,
 		fillVisible = fillVisible,
 		colorAtFill = colorAtFill,

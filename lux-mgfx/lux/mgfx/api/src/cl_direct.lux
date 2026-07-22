@@ -30,35 +30,41 @@ fn resolvedStyle(drawStyle, target) =
 export client fn solid(color) =
   defaultRuntime.Solid(color)
 
-export client fn linearGradient(x1, y1, x2, y2, stopsOrColorA, colorB = nil) =
-  defaultRuntime.LinearGradient(x1, y1, x2, y2, stopsOrColorA, colorB)
+export client fn gradientCurve(kind = "linear") =
+  defaultRuntime.GradientCurve(kind)
 
-export client fn linearGradientStops(x1, y1, x2, y2, stops) =
-  defaultRuntime.LinearGradientStops(x1, y1, x2, y2, stops)
+export client fn linearGradient(x1, y1, x2, y2, stopsOrColorA, colorB = nil, curve = nil) =
+  defaultRuntime.LinearGradient(x1, y1, x2, y2, stopsOrColorA, colorB, curve)
 
-export client fn radialGradient(cx, cy, radius, stopsOrColorA, colorB = nil) =
-  defaultRuntime.RadialGradient(cx, cy, radius, stopsOrColorA, colorB)
+export client fn linearGradientStops(x1, y1, x2, y2, stops, curve = nil) =
+  defaultRuntime.LinearGradientStops(x1, y1, x2, y2, stops, curve)
 
-export client fn ringRadialGradient(stopsOrColorA, colorB = nil) =
-  defaultRuntime.RingRadialGradient(stopsOrColorA, colorB)
+export client fn radialGradient(cx, cy, radius, stopsOrColorA, colorB = nil, curve = nil) =
+  defaultRuntime.RadialGradient(cx, cy, radius, stopsOrColorA, colorB, curve)
 
-export client fn sectorRadialGradient(stopsOrColorA, colorB = nil) =
-  defaultRuntime.SectorRadialGradient(stopsOrColorA, colorB)
+export client fn ellipticalRadialGradient(cx, cy, radiusX, radiusY, stopsOrColorA, colorB = nil, curve = nil) =
+  defaultRuntime.EllipticalRadialGradient(cx, cy, radiusX, radiusY, stopsOrColorA, colorB, curve)
 
-export client fn conicGradient(cx, cy, rotation, stopsOrColorA, colorB = nil) =
-  defaultRuntime.ConicGradient(cx, cy, rotation, stopsOrColorA, colorB)
+export client fn ringRadialGradient(stopsOrColorA, colorB = nil, curve = nil) =
+  defaultRuntime.RingRadialGradient(stopsOrColorA, colorB, curve)
 
-export client fn shapeAngularGradient(stopsOrColorA, colorB = nil, rotation = nil) =
-  defaultRuntime.ShapeAngularGradient(stopsOrColorA, colorB, rotation)
+export client fn sectorRadialGradient(stopsOrColorA, colorB = nil, curve = nil) =
+  defaultRuntime.SectorRadialGradient(stopsOrColorA, colorB, curve)
 
-export client fn ringAngularGradient(stopsOrColorA, colorB = nil, rotation = 0) =
-  defaultRuntime.RingAngularGradient(stopsOrColorA, colorB, rotation)
+export client fn conicGradient(cx, cy, rotation, stopsOrColorA, colorB = nil, curve = nil) =
+  defaultRuntime.ConicGradient(cx, cy, rotation, stopsOrColorA, colorB, curve)
 
-export client fn arcAngularGradient(stopsOrColorA, colorB = nil, rotation = 0) =
-  defaultRuntime.ArcAngularGradient(stopsOrColorA, colorB, rotation)
+export client fn shapeAngularGradient(stopsOrColorA, colorB = nil, rotation = nil, curve = nil) =
+  defaultRuntime.ShapeAngularGradient(stopsOrColorA, colorB, rotation, curve)
 
-export client fn sectorAngularGradient(stopsOrColorA, colorB = nil, rotation = 0) =
-  defaultRuntime.SectorAngularGradient(stopsOrColorA, colorB, rotation)
+export client fn ringAngularGradient(stopsOrColorA, colorB = nil, rotation = nil, curve = nil) =
+  defaultRuntime.RingAngularGradient(stopsOrColorA, colorB, rotation, curve)
+
+export client fn arcAngularGradient(stopsOrColorA, colorB = nil, rotation = nil, curve = nil) =
+  defaultRuntime.ArcAngularGradient(stopsOrColorA, colorB, rotation, curve)
+
+export client fn sectorAngularGradient(stopsOrColorA, colorB = nil, rotation = nil, curve = nil) =
+  defaultRuntime.SectorAngularGradient(stopsOrColorA, colorB, rotation, curve)
 
 export client fn stripePattern(color, spacing = 12, width = 2, angle = 135, offset = 0) =
   defaultRuntime.StripePattern(color, spacing, width, angle, offset)

@@ -7,7 +7,9 @@
 #define START_RAD EXTRA2.x
 #define END_RAD EXTRA2.y
 #define ARC_MODE EXTRA2.z
-#define RING_FILL_KIND EXTRA2.w
+#define RING_FILL_PACKED EXTRA2.w
+#define RING_FILL_CURVE floor(RING_FILL_PACKED / 4.0 + 0.001)
+#define RING_FILL_KIND (RING_FILL_PACKED - RING_FILL_CURVE * 4.0)
 #define RING_FILL_PARAMS EXTRA3
 #define RING_STROKE_COLOR AUX0
 #define RING_STROKE_WIDTH AUX1.x
@@ -94,7 +96,7 @@ float ring_dist_and_t(float2 p, out float angularT, out float r, out float inner
 	return dist;
 }
 
-float4 ring_fill(float2 uv, float r, float innerR, float outerR, float angularT, float4 colorA)
+float4 ring_fill(float2 uv, float r, float innerR, float outerR, float angularT, float4 colorA, float2 pixelPos)
 {
 	if (RING_FILL_KIND < 0.5)
 		return RING_COLOR_B;
@@ -109,9 +111,14 @@ float4 ring_fill(float2 uv, float r, float innerR, float outerR, float angularT,
 	}
 	else if (RING_FILL_KIND < 2.5)
 	{
-		if (RING_FILL_PARAMS.w > 0.5)
+		if (RING_FILL_PARAMS.w < -0.5)
 		{
 			t = saturate((r - innerR) / max(outerR - innerR, 0.0001));
+		}
+		else if (RING_FILL_PARAMS.w > 0.0001)
+		{
+			float2 radialRadii = max(RING_FILL_PARAMS.zw, float2(0.0001, 0.0001));
+			t = saturate(length((uv - RING_FILL_PARAMS.xy) / radialRadii));
 		}
 		else
 		{
@@ -127,16 +134,16 @@ float4 ring_fill(float2 uv, float r, float innerR, float outerR, float angularT,
 			if (ARC_MODE > 0.5)
 				t = saturate(localT);
 			else
-				return mgfx_gradient_lut_conic(localT);
+				return mgfx_gradient_lut_conic(localT, RING_FILL_CURVE, pixelPos);
 		}
 		else
 		{
 			float angle = atan2(uv.y - RING_FILL_PARAMS.y, uv.x - RING_FILL_PARAMS.x);
-			return mgfx_gradient_lut_conic(angle / 6.28318530718 + 0.5 + RING_FILL_PARAMS.z);
+			return mgfx_gradient_lut_conic(angle / 6.28318530718 + 0.5 + RING_FILL_PARAMS.z, RING_FILL_CURVE, pixelPos);
 		}
 	}
 
-	return mgfx_gradient_lut(t);
+	return mgfx_gradient_lut(t, RING_FILL_CURVE, pixelPos);
 }
 
 float inner_glow_profile(float depth, float width, float falloff)
@@ -183,7 +190,7 @@ float4 main(PS_INPUT i) : COLOR
 	float outerR;
 	float dist = ring_dist_and_t(p, angularT, r, innerR, outerR);
 	float shape = aa_coverage(dist);
-	float4 fill = ring_fill(i.uv, r, innerR, outerR, angularT, i.color);
+	float4 fill = ring_fill(i.uv, r, innerR, outerR, angularT, i.color, i.pos);
 	float4 outColor = float4(saturate(fill.rgb), saturate(fill.a * shape));
 
 	if (INNER_GLOW_COLOR.a > 0.0 && INNER_GLOW_WIDTH > 0.0 && INNER_GLOW_STRENGTH > 0.0)

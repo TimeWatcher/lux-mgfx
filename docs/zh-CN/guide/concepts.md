@@ -61,7 +61,7 @@ NameEx(...)  使用 style table，适合高级效果和可读参数
 | 圆形 meter、radial menu | `RingEx`、`ArcEx`、`SectorEx` |
 | 普通文字 | `Text` 或原生 GMod text |
 | shader 特效文字 | `TextEx`、`TextBoxEx` |
-| Gradient 与 pattern | `LinearGradient`、`RadialGradient`、`WornPattern` |
+| Gradient 与 pattern | `LinearGradient`、`RadialGradient`、`EllipticalRadialGradient`、`WornPattern` |
 
 ## Style Table
 

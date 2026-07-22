@@ -142,6 +142,14 @@ The generated site is written to `docs-site/`.
 
 ## Changelog
 
+### 2026-07-23
+
+#### Gradient Rendering
+
+- Added `EllipticalRadialGradient(cx, cy, radiusX, radiusY, ...)` for top-origin and anisotropic light fields. It reuses the existing radial shader/material/pass while preserving the pixel-space circle semantics of `RadialGradient`.
+- Added shader-native gradient `curve` presets (`linear`, smooth easing, `exponential`, `gaussian`, and `inverse-square`) across shapes, lines, rings, bars, and composed text. Curves remap `t` before the existing stops LUT sample, add no pass, and keep LUT caching independent of the selected curve.
+- Replaced byte-quantized gradient samples with an RGB-channel-packed 16-bit RGBA LUT and stable screen-space IGN dithering. This removes low-alpha stop plateaus and disperses final 8-bit framebuffer banding without adding a texture resource or draw pass.
+
 ### 2026-07-22
 
 #### Shape Strokes And Rendering

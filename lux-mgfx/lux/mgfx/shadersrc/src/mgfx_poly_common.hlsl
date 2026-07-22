@@ -3,7 +3,7 @@
 
 #include "mgfx_poly_shape_common.hlsl"
 
-float4 mgfx_poly_fill(float2 uv, float4 baseColor)
+float4 mgfx_poly_fill(float2 uv, float4 baseColor, float2 pixelPos)
 {
 	float2 shapeSize = max(SIZE, float2(0.001, 0.001));
 	float2 p = uv * shapeSize;
@@ -11,7 +11,7 @@ float4 mgfx_poly_fill(float2 uv, float4 baseColor)
 	if (fillMask <= 0.001)
 		discard;
 
-	float4 fillColor = mgfx_fill(uv, baseColor);
+	float4 fillColor = mgfx_fill(uv, baseColor, pixelPos);
 	float alpha = fillColor.a * fillMask;
 	if (alpha <= 0.001)
 		discard;

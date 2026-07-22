@@ -33,7 +33,7 @@ float4 main(PS_INPUT i) : COLOR
 	float outer = roundrect_coverage_from_dist(dist);
 	float borderMask = STROKE_COLOR.a > 0.0 ? roundrect_stroke_coverage_from_dist(dist, STROKE_WIDTH) : 0.0;
 	float fillMask = outer * (1.0 - borderMask);
-	float4 fillColor = mgfx_fill(i.uv, i.color);
+	float4 fillColor = mgfx_fill(i.uv, i.color, i.pos);
 	float fillAlpha = fillColor.a * fillMask;
 	float strokeAlpha = STROKE_COLOR.a * borderMask;
 	float baseAlpha = fillAlpha + strokeAlpha;

@@ -1,5 +1,5 @@
 MGFXShaderPack = MGFXShaderPack or {}
-MGFXShaderPack.Version = '1784020223'
+MGFXShaderPack.Version = '1784734143'
 
 local base_path = "mgfx/"
 local chunk_files = {

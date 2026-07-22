@@ -57,13 +57,107 @@ export client fn firstLastStops(stops) {
   return normalized[1].color, normalized[#normalized].color, normalized
 }
 
-export client fn colorAtStops(stops, t) {
+export client const GRADIENT_CURVE_LINEAR = 0
+export client const GRADIENT_CURVE_SMOOTHSTEP = 1
+export client const GRADIENT_CURVE_SMOOTHERSTEP = 2
+export client const GRADIENT_CURVE_EASE_IN = 3
+export client const GRADIENT_CURVE_EASE_OUT = 4
+export client const GRADIENT_CURVE_EASE_IN_OUT = 5
+export client const GRADIENT_CURVE_EXPONENTIAL = 6
+export client const GRADIENT_CURVE_GAUSSIAN = 7
+export client const GRADIENT_CURVE_INVERSE_SQUARE = 8
+
+export client fn gradientCurve(value = "linear") {
+  if typeOf(value) == "table" {
+    value = value.kind ?? value.curve ?? value[1] ?? "linear"
+  }
+
+  if typeOf(value) == "number" {
+    local id = mathFloor(value)
+    if id >= GRADIENT_CURVE_LINEAR and id <= GRADIENT_CURVE_INVERSE_SQUARE {
+      return id
+    }
+    error(`unknown gradient curve id: ${value}`, 3)
+  }
+
+  local kind = stringLower(toString(value ?? "linear"))
+  match kind {
+    "linear" => GRADIENT_CURVE_LINEAR
+    "smooth" | "smoothstep" => GRADIENT_CURVE_SMOOTHSTEP
+    "smoother" | "smootherstep" => GRADIENT_CURVE_SMOOTHERSTEP
+    "power" | "pow" | "ease-in" => GRADIENT_CURVE_EASE_IN
+    "ease-out" => GRADIENT_CURVE_EASE_OUT
+    "ease-in-out" => GRADIENT_CURVE_EASE_IN_OUT
+    "exponential" | "exp" => GRADIENT_CURVE_EXPONENTIAL
+    "gaussian" | "gauss" => GRADIENT_CURVE_GAUSSIAN
+    "inverse-square" | "inverse_square" | "inverse" | "physical" | "light" => GRADIENT_CURVE_INVERSE_SQUARE
+    _ => error(`unknown gradient curve kind: ${kind}`, 3)
+  }
+}
+
+export client fn gradientCurveAmount(curve, t) {
+  local curveId = gradientCurve(curve)
+  local amount = mathClamp(toNumber(t) ?? 0, 0, 1)
+
+  stopif curveId == GRADIENT_CURVE_LINEAR, amount
+  stopif curveId == GRADIENT_CURVE_SMOOTHSTEP, amount * amount * (3 - 2 * amount)
+  stopif curveId == GRADIENT_CURVE_SMOOTHERSTEP, amount * amount * amount * (amount * (amount * 6 - 15) + 10)
+  stopif curveId == GRADIENT_CURVE_EASE_IN, amount * amount
+  stopif curveId == GRADIENT_CURVE_EASE_OUT, 1 - (1 - amount) * (1 - amount)
+
+  if curveId == GRADIENT_CURVE_EASE_IN_OUT {
+    return amount < 0.5 then
+      2 * amount * amount
+    else
+      1 - 2 * (1 - amount) * (1 - amount)
+  }
+
+  if curveId == GRADIENT_CURVE_EXPONENTIAL {
+    return (1 - mathExp(-2.6 * amount)) / (1 - mathExp(-2.6))
+  }
+
+  if curveId == GRADIENT_CURVE_GAUSSIAN {
+    return (1 - mathExp(-3 * amount * amount)) / (1 - mathExp(-3))
+  }
+
+  local attenuation = 1 / (1 + 8 * amount * amount)
+  local edgeAttenuation = 1 / 9
+  (1 - attenuation) / (1 - edgeAttenuation)
+}
+
+fn gradientInputs(stopsOrColorA, colorB, curve) {
+  local options = nil
+  local stopsInput = stopsOrColorA
+  if typeOf(stopsOrColorA) == "table" and not isColor(stopsOrColorA) and stopsOrColorA.stops ~= nil {
+    options = stopsOrColorA
+    stopsInput = stopsOrColorA.stops
+    curve = curve ?? stopsOrColorA.curve
+  }
+
+  local colorA
+  local stops
+  if typeOf(stopsInput) == "table" and not isColor(stopsInput) {
+    if curve == nil and colorB ~= nil and not isColor(colorB) {
+      curve = colorB
+      colorB = nil
+    }
+    colorA, colorB, stops = firstLastStops(stopsInput)
+  } else {
+    colorA = colorOr(stopsInput)
+    colorB = colorOr(colorB, colorA)
+    stops = twoColorStops(colorA, colorB)
+  }
+
+  return colorA, colorB, stops, gradientCurve(curve)
+}
+
+export client fn colorAtStops(stops, t, curve = nil) {
   local normalized = normalizeStops(stops)
   if normalized == nil {
     return colorOr(nil)
   }
 
-  local amount = mathClamp(toNumber(t) ?? 0, 0, 1)
+  local amount = gradientCurveAmount(curve, t)
   for index = 1, #normalized - 1 {
     local a = normalized[index]
     local b = normalized[index + 1]
@@ -94,12 +188,13 @@ export client fn solid(color) {
   cached
 }
 
-fn gradient(kind, a, b, stops, extra) {
+fn gradient(kind, a, b, stops, curve, extra) {
   local base = {
     kind = kind,
     colorA = a,
     colorB = b,
     stops = stops,
+    curve = curve,
     _mgfxStopsNormalized = true,
     _mgfxLutCacheSafe = true,
     _mgfxFillVisible = stopsVisible(stops)
@@ -120,19 +215,9 @@ fn twoColorStops(a, b) =
     { pos = 1, color = b }
   }
 
-export client fn linearGradient(x1, y1, x2, y2, stopsOrColorA, colorB) {
-  local colorA
-  local stops
-
-  if typeOf(stopsOrColorA) == "table" and not isColor(stopsOrColorA) {
-    colorA, colorB, stops = firstLastStops(stopsOrColorA)
-  } else {
-    colorA = colorOr(stopsOrColorA)
-    colorB = colorOr(colorB, colorA)
-    stops = twoColorStops(colorA, colorB)
-  }
-
-  return gradient(FILL_LINEAR, colorA, colorB, stops, {
+export client fn linearGradient(x1, y1, x2, y2, stopsOrColorA, colorB, curve = nil) {
+  local colorA, resolvedColorB, stops, resolvedCurve = gradientInputs(stopsOrColorA, colorB, curve)
+  return gradient(FILL_LINEAR, colorA, resolvedColorB, stops, resolvedCurve, {
     x1 = toNumber(x1) ?? 0,
     y1 = toNumber(y1) ?? 0,
     x2 = toNumber(x2) ?? 1,
@@ -140,76 +225,77 @@ export client fn linearGradient(x1, y1, x2, y2, stopsOrColorA, colorB) {
   })
 }
 
-export client fn linearGradientStops(x1, y1, x2, y2, stops) =
-  linearGradient(x1, y1, x2, y2, stops, nil)
+export client fn linearGradientStops(x1, y1, x2, y2, stops, curve = nil) =
+  linearGradient(x1, y1, x2, y2, stops, curve)
 
-export client fn radialGradient(cx, cy, radius, stopsOrColorA, colorB) {
-  local colorA
-  local stops
-
-  if typeOf(stopsOrColorA) == "table" and not isColor(stopsOrColorA) {
-    colorA, colorB, stops = firstLastStops(stopsOrColorA)
-  } else {
-    colorA = colorOr(stopsOrColorA)
-    colorB = colorOr(colorB, colorA)
-    stops = twoColorStops(colorA, colorB)
-  }
-
-  return gradient(FILL_RADIAL, colorA, colorB, stops, {
+export client fn radialGradient(cx, cy, radius, stopsOrColorA, colorB, curve = nil) {
+  local colorA, resolvedColorB, stops, resolvedCurve = gradientInputs(stopsOrColorA, colorB, curve)
+  return gradient(FILL_RADIAL, colorA, resolvedColorB, stops, resolvedCurve, {
     cx = toNumber(cx) ?? 0.5,
     cy = toNumber(cy) ?? 0.5,
     radius = toNumber(radius) ?? 0.5
   })
 }
 
-export client fn conicGradient(cx, cy, rotation, stopsOrColorA, colorB) {
-  local colorA
-  local stops
+export client fn ellipticalRadialGradient(cx, cy, radiusX, radiusY, stopsOrColorA, colorB, curve = nil) {
+  local colorA, resolvedColorB, stops, resolvedCurve = gradientInputs(stopsOrColorA, colorB, curve)
+  local resolvedRadiusX = mathMax(0.001, toNumber(radiusX) ?? 0.5)
+  local resolvedRadiusY = mathMax(0.001, toNumber(radiusY) ?? 0.5)
+  return gradient(FILL_RADIAL, colorA, resolvedColorB, stops, resolvedCurve, {
+    cx = toNumber(cx) ?? 0.5,
+    cy = toNumber(cy) ?? 0.5,
+    radius = resolvedRadiusX,
+    radiusX = resolvedRadiusX,
+    radiusY = resolvedRadiusY
+  })
+}
 
-  if typeOf(stopsOrColorA) == "table" and not isColor(stopsOrColorA) {
-    colorA, colorB, stops = firstLastStops(stopsOrColorA)
-  } else {
-    colorA = colorOr(stopsOrColorA)
-    colorB = colorOr(colorB, colorA)
-    stops = twoColorStops(colorA, colorB)
-  }
-
-  return gradient(FILL_CONIC, colorA, colorB, stops, {
+export client fn conicGradient(cx, cy, rotation, stopsOrColorA, colorB, curve = nil) {
+  local colorA, resolvedColorB, stops, resolvedCurve = gradientInputs(stopsOrColorA, colorB, curve)
+  return gradient(FILL_CONIC, colorA, resolvedColorB, stops, resolvedCurve, {
     cx = toNumber(cx) ?? 0.5,
     cy = toNumber(cy) ?? 0.5,
     rotation = toNumber(rotation) ?? 0
   })
 }
 
-export client fn ringRadialGradient(stopsOrColorA, colorB) =
+export client fn ringRadialGradient(stopsOrColorA, colorB, curve = nil) =
   do {
-    local fill = radialGradient(0.5, 0.5, 0.5, stopsOrColorA, colorB)
+    local fill = radialGradient(0.5, 0.5, 0.5, stopsOrColorA, colorB, curve)
     fill.radialSpace = "ring"
     fill.localRadial = true
     fill
   }
 
-export client fn sectorRadialGradient(stopsOrColorA, colorB) =
-  ringRadialGradient(stopsOrColorA, colorB)
+export client fn sectorRadialGradient(stopsOrColorA, colorB, curve = nil) =
+  ringRadialGradient(stopsOrColorA, colorB, curve)
 
-export client fn shapeAngularGradient(stopsOrColorA, colorB = nil, rotation = nil) {
-  if typeOf(stopsOrColorA) == "table" and not isColor(stopsOrColorA) and typeOf(colorB) == "number" and rotation == nil {
-    rotation = colorB
-    colorB = nil
+export client fn shapeAngularGradient(stopsOrColorA, colorB = nil, rotation = nil, curve = nil) {
+  if typeOf(stopsOrColorA) == "table" and not isColor(stopsOrColorA) {
+    if typeOf(colorB) == "number" {
+      if curve == nil and rotation ~= nil and typeOf(rotation) ~= "number" {
+        curve = rotation
+      }
+      rotation = colorB
+      colorB = nil
+    } else if colorB ~= nil and not isColor(colorB) {
+      curve = curve ?? colorB
+      colorB = nil
+    }
   }
 
-  local fill = conicGradient(0.5, 0.5, rotation ?? 0, stopsOrColorA, colorB)
+  local fill = conicGradient(0.5, 0.5, rotation ?? 0, stopsOrColorA, colorB, curve)
   fill.angularSpace = "shape"
   fill.localAngular = true
   return fill
 }
 
-export client fn ringAngularGradient(stopsOrColorA, colorB, rotation = 0) =
-  shapeAngularGradient(stopsOrColorA, colorB, rotation)
+export client fn ringAngularGradient(stopsOrColorA, colorB = nil, rotation = nil, curve = nil) =
+  shapeAngularGradient(stopsOrColorA, colorB, rotation, curve)
 
-export client fn arcAngularGradient(stopsOrColorA, colorB, rotation = 0) =
-  shapeAngularGradient(stopsOrColorA, colorB, rotation)
+export client fn arcAngularGradient(stopsOrColorA, colorB = nil, rotation = nil, curve = nil) =
+  shapeAngularGradient(stopsOrColorA, colorB, rotation, curve)
 
-export client fn sectorAngularGradient(stopsOrColorA, colorB, rotation = 0) =
-  shapeAngularGradient(stopsOrColorA, colorB, rotation)
+export client fn sectorAngularGradient(stopsOrColorA, colorB = nil, rotation = nil, curve = nil) =
+  shapeAngularGradient(stopsOrColorA, colorB, rotation, curve)
 

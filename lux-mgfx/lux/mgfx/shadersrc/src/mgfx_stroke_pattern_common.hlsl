@@ -24,7 +24,22 @@ float stroke_capsule_pattern_dist(float along, float normal, float visibleLength
 	return length(float2(max(along - halfStraight, 0.0), normal)) - halfWidth;
 }
 
-float stroke_pattern_mask(float pathCoord, float normalDist, float strokeWidth, float kind, float dashLength, float gap, float offset)
+float stroke_fitted_gap(float pathLength, float visibleLength, float requestedGap, float gapCount)
+{
+	float safeGap = max(requestedGap, 0.0);
+	if (pathLength <= 0.001 || safeGap <= 0.001)
+		return safeGap;
+
+	float safeVisible = max(visibleLength, 0.001);
+	float safeGapCount = max(gapCount, 1.0);
+	float nominalPeriod = safeVisible + safeGap * safeGapCount;
+	float cycles = max(floor(pathLength / nominalPeriod + 0.5), 1.0);
+	float maxCycles = max(floor(pathLength / safeVisible), 1.0);
+	cycles = min(cycles, maxCycles);
+	return max((pathLength / cycles - safeVisible) / safeGapCount, 0.0);
+}
+
+float stroke_pattern_mask(float pathCoord, float pathLength, float normalDist, float strokeWidth, float kind, float dashLength, float gap, float offset)
 {
 	if (kind < 0.5)
 		return 1.0;
@@ -36,6 +51,7 @@ float stroke_pattern_mask(float pathCoord, float normalDist, float strokeWidth, 
 
 	if (kind < 1.5)
 	{
+		safeGap = stroke_fitted_gap(pathLength, width, safeGap, 1.0);
 		float period = max(width + safeGap, width);
 		float phase = fmod(pathCoord + offset, period);
 		if (phase < 0.0)
@@ -46,6 +62,7 @@ float stroke_pattern_mask(float pathCoord, float normalDist, float strokeWidth, 
 
 	if (kind < 2.5)
 	{
+		safeGap = stroke_fitted_gap(pathLength, visibleLength, safeGap, 1.0);
 		float period = max(visibleLength + safeGap, visibleLength);
 		float phase = fmod(pathCoord + offset, period);
 		if (phase < 0.0)
@@ -54,6 +71,7 @@ float stroke_pattern_mask(float pathCoord, float normalDist, float strokeWidth, 
 		return stroke_pattern_coverage_from_dist(stroke_capsule_pattern_dist(along, normalDist, visibleLength, halfWidth));
 	}
 
+	safeGap = stroke_fitted_gap(pathLength, width + visibleLength, safeGap, 2.0);
 	float period = max(width + visibleLength + safeGap * 2.0, width + visibleLength);
 	float phase = fmod(pathCoord + offset, period);
 	if (phase < 0.0)

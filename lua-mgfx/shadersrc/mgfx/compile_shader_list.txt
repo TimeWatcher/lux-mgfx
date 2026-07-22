@@ -31,6 +31,7 @@ mgfx_text_compose_psxx.hlsl -v-30
 mgfx_roundrect_pattern_psxx.hlsl -v-30
 mgfx_chamfer_pattern_psxx.hlsl -v-30
 mgfx_poly_pattern_psxx.hlsl -v-30
+mgfx_poly_stroke_psxx.hlsl -v-30
 mgfx_ring_psxx.hlsl -v-30
 mgfx_ring_fx_psxx.hlsl -v-30
 mgfx_ring_backdrop_psxx.hlsl -v-30

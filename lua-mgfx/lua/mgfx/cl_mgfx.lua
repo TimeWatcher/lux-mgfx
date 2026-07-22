@@ -382,6 +382,7 @@ local normalizeStops = styleApi.normalizeStops
 local firstLastStops = styleApi.firstLastStops
 local lerpColor = styleApi.lerpColor
 local colorAtStops = styleApi.colorAtStops
+local gradientCurve = styleApi.gradientCurve
 local fillFromStyle = styleApi.fillFromStyle
 local fillVisible = styleApi.fillVisible
 local colorAtFill = styleApi.colorAtFill
@@ -411,7 +412,7 @@ local gradientLutBound = setmetatable({}, {__mode = "k"})
 local gradientLutCacheCount = 0
 local gradientLutClock = 0
 local gradientLutSerial = 0
-local gradientLutSchema = "lut-alpha-rgb-v3"
+local gradientLutSchema = "lut-rgba16-rgb-v4"
 local gradientLutFlags = bit_bor(2, 256, 4, 8)
 
 local function colorKey(color)
@@ -472,8 +473,8 @@ local function rememberGradientFill(fill, key, entry)
 	}
 end
 
-local function colorAtNormalizedStops(stops, t)
-	if not stops or #stops == 0 then return color_white end
+local function channelsAtNormalizedStops(stops, t)
+	if not stops or #stops == 0 then return 1, 1, 1, 1 end
 	t = math.Clamp(tonumber(t) or 0, 0, 1)
 
 	for i = 1, #stops - 1 do
@@ -481,11 +482,33 @@ local function colorAtNormalizedStops(stops, t)
 		local b = stops[i + 1]
 		if t <= b.pos then
 			local span = math_max(0.0001, b.pos - a.pos)
-			return lerpColor(a.color, b.color, (t - a.pos) / span)
+			local mix = math.Clamp((t - a.pos) / span, 0, 1)
+			local colorA = asColor(a.color, color_white)
+			local colorB = asColor(b.color, colorA)
+			local ar = colorA.r == nil and 255 or colorA.r
+			local ag = colorA.g == nil and 255 or colorA.g
+			local ab = colorA.b == nil and 255 or colorA.b
+			local aa = colorA.a == nil and 255 or colorA.a
+			return
+				(ar + ((colorB.r == nil and 255 or colorB.r) - ar) * mix) / 255,
+				(ag + ((colorB.g == nil and 255 or colorB.g) - ag) * mix) / 255,
+				(ab + ((colorB.b == nil and 255 or colorB.b) - ab) * mix) / 255,
+				(aa + ((colorB.a == nil and 255 or colorB.a) - aa) * mix) / 255
 		end
 	end
 
-	return stops[#stops].color or color_white
+	local color = asColor(stops[#stops].color, color_white)
+	return
+		(color.r == nil and 255 or color.r) / 255,
+		(color.g == nil and 255 or color.g) / 255,
+		(color.b == nil and 255 or color.b) / 255,
+		(color.a == nil and 255 or color.a) / 255
+end
+
+local function splitGradientChannel16(value)
+	local packed = math.Clamp(math_floor(math.Clamp(value, 0, 1) * 65535 + 0.5), 0, 65535)
+	local high = math_floor(packed / 256)
+	return high, packed - high * 256
 end
 
 local function gradientLutKey(stops)
@@ -532,11 +555,16 @@ local function writeGradientLut(rt, stops)
 	render.Clear(0, 0, 0, 0, true, true)
 	cam_Start2D()
 	for x = 0, GRADIENT_LUT_W - 1 do
-		local color = colorAtNormalizedStops(stops, x / (GRADIENT_LUT_W - 1))
-		local alpha = math.Clamp(math_floor(color.a == nil and 255 or color.a), 0, 255)
-		surface_SetDrawColor(color.r or 255, color.g or 255, color.b or 255, 255)
-		surface_DrawRect(x, 0, 1, 2)
-		surface_SetDrawColor(alpha, alpha, alpha, 255)
+		local r, g, b, a = channelsAtNormalizedStops(stops, x / (GRADIENT_LUT_W - 1))
+		local rHigh, rLow = splitGradientChannel16(r)
+		local gHigh, gLow = splitGradientChannel16(g)
+		local bHigh, bLow = splitGradientChannel16(b)
+		local aHigh, aLow = splitGradientChannel16(a)
+		surface_SetDrawColor(rHigh, gHigh, bHigh, 255)
+		surface_DrawRect(x, 0, 1, 1)
+		surface_SetDrawColor(rLow, gLow, bLow, 255)
+		surface_DrawRect(x, 1, 1, 1)
+		surface_SetDrawColor(aHigh, aLow, 0, 255)
 		surface_DrawRect(x, 2, 1, 2)
 	end
 	cam_End2D()
@@ -797,7 +825,7 @@ local function setupConstants(mat, w, h, fill, stroke, strokeWidth, radius)
 	local colorB = fill.colorB or colorA
 	local strokeColor = stroke or transparentColor
 	local fillKind = fill.kind or FILL_SOLID
-	local packedStyle = math.Clamp(strokeWidthValue(strokeWidth, 0), 0, 255) + math.Clamp(fillKind, 0, 3) * 256
+	local packedStyle = math.Clamp(strokeWidthValue(strokeWidth, 0), 0, 255) + math.Clamp(fillKind, 0, 3) * 256 + gradientCurve(fill.curve) * 1024
 
 	local r, g, b, a = color01(colorB)
 	local p0, p1, p2, p3
@@ -806,7 +834,7 @@ local function setupConstants(mat, w, h, fill, stroke, strokeWidth, radius)
 		p0, p1, p2, p3 = fill.x1 or 0, fill.y1 or 0, fill.x2 or 1, fill.y2 or 1
 		bindGradientLut(mat, fill)
 	elseif fillKind == FILL_RADIAL then
-		p0, p1, p2, p3 = fill.cx or 0.5, fill.cy or 0.5, fill.radius or 0.5, 0
+		p0, p1, p2, p3 = fill.cx or 0.5, fill.cy or 0.5, fill.radiusX or fill.radius or 0.5, fill.radiusY or 0
 		bindGradientLut(mat, fill)
 	elseif fillKind == FILL_CONIC then
 		p0, p1, p2, p3 = fill.cx or 0.5, fill.cy or 0.5, normalizedRotation(fill.rotation), 0
@@ -882,6 +910,8 @@ if type(textRendererFactory) == "function" then
 		asColor = asColor,
 		color01 = color01,
 		gradientLutForFill = gradientLutForFill,
+		gradientCurve = gradientCurve,
+		colorAtFill = colorAtFill,
 		getFrameOffset = function()
 			return frameState.screenX or 0, frameState.screenY or 0
 		end,
@@ -907,7 +937,7 @@ local function setupLineConstants(mat, fill)
 	setupParamMatrix(mat,
 		r, g, b, a,
 		br, bg, bb, ba,
-		0, 0, 1, 0,
+		0, 0, 1, gradientCurve(fill.curve),
 		0, 0, 0, 0
 	)
 	bindGradientLut(mat, fill)
@@ -1067,6 +1097,7 @@ local roundRectApi = assert(M._InstallRoundRect and M._InstallRoundRect({
 	isCulled = isCulled,
 	normalizedRotation = normalizedRotation,
 	bindGradientLut = bindGradientLut,
+	gradientCurve = gradientCurve,
 	setupParamMatrix = setupParamMatrix,
 	setupParamMatrixRaw = setupParamMatrixRaw,
 	setupConstants = setupConstants,
@@ -1186,6 +1217,7 @@ local context = {
 	lerpColor = lerpColor,
 	colorAtStops = colorAtStops,
 	colorAtFill = colorAtFill,
+	gradientCurve = gradientCurve,
 	normalizedRotation = normalizedRotation,
 	gradientLutForFill = gradientLutForFill,
 	bindGradientLut = bindGradientLut,
@@ -1316,9 +1348,11 @@ if profiler and profiler.InstallApiWrappers then
 		"PushClip",
 		"PopClip",
 		"Solid",
+		"GradientCurve",
 		"LinearGradient",
 		"LinearGradientStops",
 		"RadialGradient",
+		"EllipticalRadialGradient",
 		"RingRadialGradient",
 		"SectorRadialGradient",
 		"ConicGradient",

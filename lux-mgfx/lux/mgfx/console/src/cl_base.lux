@@ -189,6 +189,7 @@ local requiredApis = {
   "LinearGradient",
   "LinearGradientStops",
   "RadialGradient",
+  "EllipticalRadialGradient",
   "RingRadialGradient",
   "SectorRadialGradient",
   "ConicGradient",

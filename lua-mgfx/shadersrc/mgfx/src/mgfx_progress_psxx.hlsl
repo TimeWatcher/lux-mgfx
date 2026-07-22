@@ -4,14 +4,24 @@
 #define PROGRESS_RADIUS_PACKED EXTRA1.w
 #define FILL_COLOR_A EXTRA2
 
+float progress_curve()
+{
+	return floor(PROGRESS_PACKED / 64.0 + 0.001);
+}
+
+float progress_base_packed()
+{
+	return PROGRESS_PACKED - progress_curve() * 64.0;
+}
+
 float progress_inset()
 {
-	return floor(PROGRESS_PACKED * 0.5 + 0.001);
+	return floor(progress_base_packed() * 0.5 + 0.001);
 }
 
 float progress_value()
 {
-	return saturate(PROGRESS_PACKED - progress_inset() * 2.0);
+	return saturate(progress_base_packed() - progress_inset() * 2.0);
 }
 
 float progress_stroke_width()
@@ -54,7 +64,7 @@ float4 main(PS_INPUT i) : COLOR
 		fillMask = aa_coverage(fillDist) * (1.0 - strokeMask);
 
 		float t = saturate((pos.x - inset) / max(fillW, 0.0001));
-		fillColor = mgfx_gradient_lut(t);
+		fillColor = mgfx_gradient_lut(t, progress_curve(), i.pos);
 	}
 
 	float4 trackColor = float4(lerp(i.color.rgb * 0.65, i.color.rgb, saturate(i.uv.y)), i.color.a);

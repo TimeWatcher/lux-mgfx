@@ -1,9 +1,11 @@
 export client fn install(owner) {
   setGradientLutOwner(owner)
   owner.Solid = solid
+  owner.GradientCurve = gradientCurve
   owner.LinearGradient = linearGradient
   owner.LinearGradientStops = linearGradientStops
   owner.RadialGradient = radialGradient
+  owner.EllipticalRadialGradient = ellipticalRadialGradient
   owner.RingRadialGradient = ringRadialGradient
   owner.SectorRadialGradient = sectorRadialGradient
   owner.ConicGradient = conicGradient

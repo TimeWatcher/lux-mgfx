@@ -855,7 +855,7 @@ return function(__lux_import)
       local bg = g
       local bb = b
       local ba = a
-      local packedProgress = mathFloor(inset) * 2 + mathClamp(value, 0, 1)
+      local packedProgress = mathFloor(inset) * 2 + mathClamp(value, 0, 1) + style.gradientCurve(fill.curve) * 64
       local packedRadius = mathMax(0, radius) + mathClamp(strokeWidth, 0, 15) * 256
       r, g, b, a = style.color01(fillA)
       local ar = r
@@ -940,7 +940,7 @@ return function(__lux_import)
       local bg = g
       local bb = b
       local ba = a
-      local packedFx = mathClamp(value, 0, 1) * 0.5 + flags + ticks * 8
+      local packedFx = mathClamp(value, 0, 1) * 0.5 + flags + ticks * 8 + style.gradientCurve(fill.curve) * 256
       local packedLayout = radius + strokeWidth * 256 + inset * 4096
       r, g, b, a = style.color01(fillA)
       local ar = r
@@ -1153,7 +1153,7 @@ return function(__lux_import)
           gap,
           mathClamp(__lux_tmp_value_66, 0, 1),
           mathMax(0, __lux_tmp_toNumber_68),
-          0,
+          style.gradientCurve(fill.curve),
           0
         )
       end
@@ -1908,6 +1908,8 @@ return function(__lux_import)
         local cx = __lux_match_88.cx
         local cy = __lux_match_88.cy
         local radius = __lux_match_88.radius
+        local radiusX = __lux_match_88.radiusX
+        local radiusY = __lux_match_88.radiusY
         local localRadial = fill.localRadial == true or fill.ringRadial == true or fill.sectorRadial == true
         local __lux_tmp_cx_94 = cx
         if __lux_tmp_cx_94 == nil then
@@ -1917,17 +1919,23 @@ return function(__lux_import)
         if __lux_tmp_cy_95 == nil then
           __lux_tmp_cy_95 = 0.5
         end
-        local __lux_tmp_radius_96 = radius
-        if __lux_tmp_radius_96 == nil then
-          __lux_tmp_radius_96 = 0.5
+        local __lux_tmp_radiusX_96 = radiusX
+        if __lux_tmp_radiusX_96 == nil then
+          __lux_tmp_radiusX_96 = radius
+        end
+        if __lux_tmp_radiusX_96 == nil then
+          __lux_tmp_radiusX_96 = 0.5
         end
         local __lux_tmp_97
         if localRadial then
-          __lux_tmp_97 = 1
+          __lux_tmp_97 = -1
         else
-          __lux_tmp_97 = 0
+          __lux_tmp_97 = radiusY
+          if __lux_tmp_97 == nil then
+            __lux_tmp_97 = 0
+          end
         end
-        return __lux_tmp_cx_94, __lux_tmp_cy_95, __lux_tmp_radius_96, __lux_tmp_97
+        return __lux_tmp_cx_94, __lux_tmp_cy_95, __lux_tmp_radiusX_96, __lux_tmp_97
       elseif __lux_tag_89 == style.FILL_CONIC then
         local cx = __lux_match_88.cx
         local cy = __lux_match_88.cy
@@ -2139,7 +2147,7 @@ return function(__lux_import)
           sr,
           er,
           modeValue,
-          __lux_tmp_kind_109,
+          __lux_tmp_kind_109 + style.gradientCurve(fill.curve) * 4,
           p0,
           p1,
           p2,
@@ -2296,7 +2304,7 @@ return function(__lux_import)
           sr,
           er,
           modeValue,
-          __lux_tmp_kind_115,
+          __lux_tmp_kind_115 + style.gradientCurve(fill.curve) * 4,
           p0,
           p1,
           p2,

@@ -935,19 +935,34 @@ fn PANEL:Paint(w, h) {
           },
         })
 
-        x, y, cw, ch = card(9, "Advanced Gradients", "Radial / Multi-Stop / Layered", COLORS.cyan)
+        x, y, cw, ch = card(9, "Advanced Gradients", "Curve / Multi-Stop / Layered", COLORS.cyan)
 
-        -- Radial gradient spotlight
-        addText("Radial: cx/cy/radius", "MGFXDemoTiny", x + cw * 0.5, y + 46, COLORS.muted, TEXT_ALIGN_CENTER)
-        api.RoundedBoxEx(x + 14, y + 56, cw - 28, 24, {
-          radius = 4,
-          fill = api.RadialGradient(0.7, 0.4, 1.5, {
-            {0, makeColor(220, 240, 255, 240)},
-            {0.42, makeColor(80, 220, 255, 218)},
-            {1, makeColor(30, 40, 50, 200)},
-          }),
-          stroke = makeColor(80, 180, 255, 100),
+        -- Top-origin elliptical spotlight
+        addText("Top light: elliptical radial overlay", "MGFXDemoTiny", x + cw * 0.5, y + 43, COLORS.muted, TEXT_ALIGN_CENTER)
+        local ellipseX, ellipseY, ellipseW, ellipseH = x + 14, y + 57, cw - 28, 27
+        local ellipseCuts = {tl = 8, tr = 8, br = 0, bl = 0}
+        api.ChamferBoxEx(ellipseX, ellipseY, ellipseW, ellipseH, {
+          cuts = ellipseCuts,
+          fill = api.LinearGradient(0, 0, 0, 1, makeColor(8, 28, 19, 238), makeColor(5, 14, 17, 240)),
+          stroke = makeColor(58, 186, 78, 52),
           strokeWidth = 1,
+        })
+        api.ChamferBoxEx(ellipseX, ellipseY, ellipseW, ellipseH, {
+          cuts = ellipseCuts,
+          fill = api.EllipticalRadialGradient(0.5, -0.2, 0.62, 0.95, {
+            {0, makeColor(112, 255, 126, 122)},
+            {1, makeColor(28, 160, 58, 0)},
+          }, nil, "exponential"),
+        })
+        api.LineEx(ellipseX + 8, ellipseY + 1, ellipseX + ellipseW - 8, ellipseY + 1, {
+          width = 1,
+          fill = (api.LinearGradientStops or api.LinearGradient)(0, 0, 1, 0, {
+            {0, makeColor(84, 255, 100, 0)},
+            {0.16, makeColor(84, 255, 100, 116)},
+            {0.5, makeColor(120, 255, 132, 210)},
+            {0.84, makeColor(84, 255, 100, 116)},
+            {1, makeColor(84, 255, 100, 0)},
+          }),
         })
 
         -- Multi-stop gradient

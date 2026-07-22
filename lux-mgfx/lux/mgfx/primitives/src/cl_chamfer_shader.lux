@@ -2,7 +2,7 @@ local transparentFill = { kind = style.FILL_SOLID, colorA = transparentColor, co
 
 enum ChamferFillView repr existing(kind = "kind") {
   Linear(kind = style.FILL_LINEAR, x1: number, y1: number, x2: number, y2: number),
-  Radial(kind = style.FILL_RADIAL, cx: number, cy: number, radius: number),
+  Radial(kind = style.FILL_RADIAL, cx: number, cy: number, radius: number, radiusX: number, radiusY: number),
   Conic(kind = style.FILL_CONIC, cx: number, cy: number, rotation: number)
 }
 
@@ -20,11 +20,11 @@ fn chamferFillParams(material, fill) {
       p3 = y2 ?? 1
       style.bindGradientLut(material, fill)
     }
-    ChamferFillView.Radial { cx, cy, radius } => {
+    ChamferFillView.Radial { cx, cy, radius, radiusX, radiusY } => {
       p0 = cx ?? 0.5
       p1 = cy ?? 0.5
-      p2 = radius ?? 0.5
-      p3 = 0
+      p2 = radiusX ?? radius ?? 0.5
+      p3 = radiusY ?? 0
       style.bindGradientLut(material, fill)
     }
     ChamferFillView.Conic { cx, cy, rotation } => {
@@ -71,7 +71,7 @@ fn setupPrimitiveFillConstants(material, w, h, fill, stroke, strokeWidth, radius
   local colorB = fill.colorB ?? colorA
   local strokeColor = stroke ?? transparentColor
   local fillKind = fill.kind ?? style.FILL_SOLID
-  local packedStyle = mathClamp(style.strokeWidth(strokeWidth, 0), 0, 255) + mathClamp(fillKind, 0, 3) * 256
+  local packedStyle = mathClamp(style.strokeWidth(strokeWidth, 0), 0, 255) + mathClamp(fillKind, 0, 3) * 256 + style.gradientCurve(fill.curve) * 1024
   local r, g, b, a = style.color01(colorB)
   local p0, p1, p2, p3 = chamferFillParams(material, fill)
 

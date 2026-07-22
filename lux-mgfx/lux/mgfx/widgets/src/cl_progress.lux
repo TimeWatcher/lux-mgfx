@@ -84,7 +84,7 @@ fn setupProgressConstants(material, w, h, value, radius, inset, track, fill, str
   local bg = g
   local bb = b
   local ba = a
-  local packedProgress = mathFloor(inset) * 2 + mathClamp(value, 0, 1)
+  local packedProgress = mathFloor(inset) * 2 + mathClamp(value, 0, 1) + style.gradientCurve(fill.curve) * 64
   local packedRadius = mathMax(0, radius) + mathClamp(strokeWidth, 0, 15) * 256
   r, g, b, a = style.color01(fillA)
   local ar = r
@@ -116,7 +116,7 @@ fn setupProgressFxConstants(material, w, h, value, radius, inset, track, fill, s
   local bg = g
   local bb = b
   local ba = a
-  local packedFx = mathClamp(value, 0, 1) * 0.5 + flags + ticks * 8
+  local packedFx = mathClamp(value, 0, 1) * 0.5 + flags + ticks * 8 + style.gradientCurve(fill.curve) * 256
   local packedLayout = radius + strokeWidth * 256 + inset * 4096
   r, g, b, a = style.color01(fillA)
   local ar = r
@@ -231,7 +231,7 @@ fn drawSegmentBarShaderRaw(x, y, w, h, value, count, gap, fill, track, radius, b
     w, h, count, gap,
     mathClamp(toNumber(value) ?? 0, 0, 1),
     mathMax(0, toNumber(radius == nil then mathMin(2, h * 0.35) else radius) ?? 0),
-    0, 0
+    style.gradientCurve(fill.curve), 0
   )
 
   style.bindGradientLut(material, fill)

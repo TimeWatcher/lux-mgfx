@@ -33,6 +33,7 @@ function MGFX._InstallRoundRect(C)
 	local isCulled = C.isCulled
 	local normalizedRotation = C.normalizedRotation
 	local bindGradientLut = C.bindGradientLut
+	local gradientCurve = C.gradientCurve
 	local setupParamMatrix = C.setupParamMatrix
 	local setupParamMatrixRaw = C.setupParamMatrixRaw or C.setupParamMatrix
 	local setupExtraParams = C.setupExtraParams
@@ -102,7 +103,7 @@ local function roundRectFillParams(mat, fill, fillKind)
 	end
 	if fillKind == FILL_RADIAL then
 		bindGradientLut(mat, fill)
-		return fill.cx or 0.5, fill.cy or 0.5, fill.radius or 0.5, 0
+		return fill.cx or 0.5, fill.cy or 0.5, fill.radiusX or fill.radius or 0.5, fill.radiusY or 0
 	end
 	if fillKind == FILL_CONIC then
 		bindGradientLut(mat, fill)
@@ -136,7 +137,7 @@ local function setupRoundRectConstants(mat, w, h, fill, stroke, strokeWidth, rad
 
 	setupParamMatrixRaw(mat,
 		r, g, b, a,
-		w, h, strokePx + fillKind * 256, radius,
+		w, h, strokePx + fillKind * 256 + gradientCurve(fill.curve) * 1024, radius,
 		p0, p1, p2, p3,
 		sr, sg, sb, sa
 	)
@@ -434,10 +435,25 @@ local function drawStrokePathDot(points, edgeCount, distance, color, width, offs
 	end
 end
 
+local function fittedStrokeGap(total, closed, visibleLength, gap, gapCount)
+	if not closed or total <= 0.001 or gap <= 0.001 then
+		return gap
+	end
+
+	local safeVisible = math_max(visibleLength, 0.001)
+	local safeGapCount = math_max(gapCount, 1)
+	local nominalPeriod = safeVisible + gap * safeGapCount
+	local cycles = math_max(math_floor(total / nominalPeriod + 0.5), 1)
+	local maxCycles = math_max(math_floor(total / safeVisible), 1)
+	cycles = math_min(cycles, maxCycles)
+	return math_max((total / cycles - safeVisible) / safeGapCount, 0)
+end
+
 local function drawStrokePath(points, closed, color, width, kind, dashLength, gap, offset, offsetX, offsetY)
 	width = math_max(0, tonumber(width) or 0)
 	if width <= 0 or color == nil or #points < 2 then return false end
-	local total, edgeCount = strokePathMeasure(points, closed == true)
+	local pathClosed = closed == true
+	local total, edgeCount = strokePathMeasure(points, pathClosed)
 	if total <= 0 or edgeCount <= 0 then return false end
 
 	offsetX, offsetY = tonumber(offsetX) or 0, tonumber(offsetY) or 0
@@ -451,15 +467,18 @@ local function drawStrokePath(points, closed, color, width, kind, dashLength, ga
 		return true
 	end
 	if kind == STROKE_DOT then
+		gap = fittedStrokeGap(total, pathClosed, width, gap, 1)
 		local period = math_max(width + gap, width)
 		local center = (-offset) % period
-		while center <= total do
+		local limit = pathClosed and total - 0.0001 or total
+		while center <= limit do
 			drawStrokePathDot(points, edgeCount, center, color, width, offsetX, offsetY)
 			center = center + period
 		end
 		return true
 	end
 	if kind == STROKE_DASH then
+		gap = fittedStrokeGap(total, pathClosed, dashLength, gap, 1)
 		local period = math_max(dashLength + gap, dashLength)
 		local center = (-offset) % period - period
 		while center - dashLength * 0.5 <= total do
@@ -469,10 +488,12 @@ local function drawStrokePath(points, closed, color, width, kind, dashLength, ga
 		return true
 	end
 
+	gap = fittedStrokeGap(total, pathClosed, width + dashLength, gap, 2)
 	local period = math_max(width + dashLength + gap * 2, width + dashLength)
 	local base = (-offset) % period - period
+	local dotLimit = pathClosed and total - 0.0001 or total
 	while base - width * 0.5 <= total do
-		if base >= 0 and base <= total then
+		if base >= 0 and base <= dotLimit then
 			drawStrokePathDot(points, edgeCount, base, color, width, offsetX, offsetY)
 		end
 		local dashCenter = base + width * 0.5 + gap + dashLength * 0.5

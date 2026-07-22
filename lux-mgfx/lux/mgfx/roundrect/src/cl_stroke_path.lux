@@ -112,11 +112,26 @@ fn drawStrokePathDot(points, edgeCount, distance, color, width, offsetX, offsetY
   }
 }
 
+fn fittedStrokeGap(total, closed, visibleLength, gap, gapCount) {
+  if not closed or total <= 0.001 or gap <= 0.001 {
+    return gap
+  }
+
+  local safeVisible = mathMax(visibleLength, 0.001)
+  local safeGapCount = mathMax(gapCount, 1)
+  local nominalPeriod = safeVisible + gap * safeGapCount
+  local cycles = mathMax(mathFloor(total / nominalPeriod + 0.5), 1)
+  local maxCycles = mathMax(mathFloor(total / safeVisible), 1)
+  cycles = mathMin(cycles, maxCycles)
+  return mathMax((total / cycles - safeVisible) / safeGapCount, 0)
+}
+
 export client fn drawStrokePath(points, closed, color, width, kind = style.STROKE_SOLID, dashLength = 0, gap = 0, offset = 0, offsetX = 0, offsetY = 0) {
   width = mathMax(0, toNumber(width) ?? 0)
   stopif width <= 0 or color == nil or #points < 2, false
 
-  local total, edgeCount = strokePathMeasure(points, closed == true)
+  local pathClosed = closed == true
+  local total, edgeCount = strokePathMeasure(points, pathClosed)
   stopif total <= 0 or edgeCount <= 0, false
 
   offsetX = toNumber(offsetX) ?? 0
@@ -131,9 +146,11 @@ export client fn drawStrokePath(points, closed, color, width, kind = style.STROK
   }
 
   if kind == style.STROKE_DOT {
+    gap = fittedStrokeGap(total, pathClosed, width, gap, 1)
     local period = mathMax(width + gap, width)
     local center = (-offset) % period
-    while center <= total {
+    local limit = pathClosed then total - 0.0001 else total
+    while center <= limit {
       drawStrokePathDot(points, edgeCount, center, color, width, offsetX, offsetY)
       center += period
     }
@@ -141,6 +158,7 @@ export client fn drawStrokePath(points, closed, color, width, kind = style.STROK
   }
 
   if kind == style.STROKE_DASH {
+    gap = fittedStrokeGap(total, pathClosed, dashLength, gap, 1)
     local period = mathMax(dashLength + gap, dashLength)
     local center = (-offset) % period - period
     while center - dashLength * 0.5 <= total {
@@ -150,10 +168,12 @@ export client fn drawStrokePath(points, closed, color, width, kind = style.STROK
     return true
   }
 
+  gap = fittedStrokeGap(total, pathClosed, width + dashLength, gap, 2)
   local period = mathMax(width + dashLength + gap * 2, width + dashLength)
   local base = (-offset) % period - period
+  local dotLimit = pathClosed then total - 0.0001 else total
   while base - width * 0.5 <= total {
-    if base >= 0 and base <= total {
+    if base >= 0 and base <= dotLimit {
       drawStrokePathDot(points, edgeCount, base, color, width, offsetX, offsetY)
     }
     local dashCenter = base + width * 0.5 + gap + dashLength * 0.5

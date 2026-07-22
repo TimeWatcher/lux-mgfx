@@ -33,9 +33,11 @@ return function(__lux_import)
   local TARGET_SECTOR
   local resolvedStyle
   local solid
+  local gradientCurve
   local linearGradient
   local linearGradientStops
   local radialGradient
+  local ellipticalRadialGradient
   local ringRadialGradient
   local sectorRadialGradient
   local conicGradient
@@ -526,9 +528,11 @@ return function(__lux_import)
           "PushClip",
           "PopClip",
           "Solid",
+          "GradientCurve",
           "LinearGradient",
           "LinearGradientStops",
           "RadialGradient",
+          "EllipticalRadialGradient",
           "RingRadialGradient",
           "SectorRadialGradient",
           "ConicGradient",
@@ -643,44 +647,52 @@ return function(__lux_import)
     solid = function(color)
       return defaultRuntime.Solid(color)
     end
-    linearGradient = function(x1, y1, x2, y2, stopsOrColorA, colorB)
-      return defaultRuntime.LinearGradient(x1, y1, x2, y2, stopsOrColorA, colorB)
-    end
-    linearGradientStops = function(x1, y1, x2, y2, stops)
-      return defaultRuntime.LinearGradientStops(x1, y1, x2, y2, stops)
-    end
-    radialGradient = function(cx, cy, radius, stopsOrColorA, colorB)
-      return defaultRuntime.RadialGradient(cx, cy, radius, stopsOrColorA, colorB)
-    end
-    ringRadialGradient = function(stopsOrColorA, colorB)
-      return defaultRuntime.RingRadialGradient(stopsOrColorA, colorB)
-    end
-    sectorRadialGradient = function(stopsOrColorA, colorB)
-      return defaultRuntime.SectorRadialGradient(stopsOrColorA, colorB)
-    end
-    conicGradient = function(cx, cy, rotation, stopsOrColorA, colorB)
-      return defaultRuntime.ConicGradient(cx, cy, rotation, stopsOrColorA, colorB)
-    end
-    shapeAngularGradient = function(stopsOrColorA, colorB, rotation)
-      return defaultRuntime.ShapeAngularGradient(stopsOrColorA, colorB, rotation)
-    end
-    ringAngularGradient = function(stopsOrColorA, colorB, rotation)
-      if rotation == nil then
-        rotation = 0
+    gradientCurve = function(kind)
+      if kind == nil then
+        kind = "linear"
       end
-      return defaultRuntime.RingAngularGradient(stopsOrColorA, colorB, rotation)
+      return defaultRuntime.GradientCurve(kind)
     end
-    arcAngularGradient = function(stopsOrColorA, colorB, rotation)
-      if rotation == nil then
-        rotation = 0
-      end
-      return defaultRuntime.ArcAngularGradient(stopsOrColorA, colorB, rotation)
+    linearGradient = function(x1, y1, x2, y2, stopsOrColorA, colorB, curve)
+      return defaultRuntime.LinearGradient(x1, y1, x2, y2, stopsOrColorA, colorB, curve)
     end
-    sectorAngularGradient = function(stopsOrColorA, colorB, rotation)
-      if rotation == nil then
-        rotation = 0
-      end
-      return defaultRuntime.SectorAngularGradient(stopsOrColorA, colorB, rotation)
+    linearGradientStops = function(x1, y1, x2, y2, stops, curve)
+      return defaultRuntime.LinearGradientStops(x1, y1, x2, y2, stops, curve)
+    end
+    radialGradient = function(cx, cy, radius, stopsOrColorA, colorB, curve)
+      return defaultRuntime.RadialGradient(cx, cy, radius, stopsOrColorA, colorB, curve)
+    end
+    ellipticalRadialGradient = function(cx, cy, radiusX, radiusY, stopsOrColorA, colorB, curve)
+      return defaultRuntime.EllipticalRadialGradient(
+        cx,
+        cy,
+        radiusX,
+        radiusY,
+        stopsOrColorA,
+        colorB,
+        curve
+      )
+    end
+    ringRadialGradient = function(stopsOrColorA, colorB, curve)
+      return defaultRuntime.RingRadialGradient(stopsOrColorA, colorB, curve)
+    end
+    sectorRadialGradient = function(stopsOrColorA, colorB, curve)
+      return defaultRuntime.SectorRadialGradient(stopsOrColorA, colorB, curve)
+    end
+    conicGradient = function(cx, cy, rotation, stopsOrColorA, colorB, curve)
+      return defaultRuntime.ConicGradient(cx, cy, rotation, stopsOrColorA, colorB, curve)
+    end
+    shapeAngularGradient = function(stopsOrColorA, colorB, rotation, curve)
+      return defaultRuntime.ShapeAngularGradient(stopsOrColorA, colorB, rotation, curve)
+    end
+    ringAngularGradient = function(stopsOrColorA, colorB, rotation, curve)
+      return defaultRuntime.RingAngularGradient(stopsOrColorA, colorB, rotation, curve)
+    end
+    arcAngularGradient = function(stopsOrColorA, colorB, rotation, curve)
+      return defaultRuntime.ArcAngularGradient(stopsOrColorA, colorB, rotation, curve)
+    end
+    sectorAngularGradient = function(stopsOrColorA, colorB, rotation, curve)
+      return defaultRuntime.SectorAngularGradient(stopsOrColorA, colorB, rotation, curve)
     end
     stripePattern = function(color, spacing, width, angle, offset)
       if spacing == nil then
@@ -1006,9 +1018,11 @@ return function(__lux_import)
   __lux_exports.installGlobal = installGlobal
   __lux_exports.create = create
   __lux_exports.solid = solid
+  __lux_exports.gradientCurve = gradientCurve
   __lux_exports.linearGradient = linearGradient
   __lux_exports.linearGradientStops = linearGradientStops
   __lux_exports.radialGradient = radialGradient
+  __lux_exports.ellipticalRadialGradient = ellipticalRadialGradient
   __lux_exports.ringRadialGradient = ringRadialGradient
   __lux_exports.sectorRadialGradient = sectorRadialGradient
   __lux_exports.conicGradient = conicGradient

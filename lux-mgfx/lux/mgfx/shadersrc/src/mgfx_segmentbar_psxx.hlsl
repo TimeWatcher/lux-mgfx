@@ -7,6 +7,7 @@
 #define SEG_GAP EXTRA2.w
 #define SEG_VALUE EXTRA3.x
 #define SEG_RADIUS EXTRA3.y
+#define SEG_CURVE EXTRA3.z
 
 float sd_roundrect(float2 p, float2 halfSize, float radius)
 {
@@ -38,7 +39,7 @@ float4 main(PS_INPUT i) : COLOR
 	float activeCount = floor(saturate(SEG_VALUE) * count + 0.0001);
 	float active = step(idx + 1.0, activeCount);
 	float t = count <= 1.0 ? 1.0 : idx / (count - 1.0);
-	float4 fill = mgfx_gradient_lut(t);
+	float4 fill = mgfx_gradient_lut(t, SEG_CURVE, i.pos);
 	float4 color = lerp(SEG_TRACK, fill, active);
 	float alpha = color.a * coverage;
 	clip(alpha - 0.001);

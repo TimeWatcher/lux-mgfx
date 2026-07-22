@@ -9,17 +9,32 @@ Plain GLua calls `MGFX.*`. Lux calls the same helpers as lowerCamelCase methods 
 ```lua
 MGFX.Solid(color)
 
-MGFX.LinearGradient(x1, y1, x2, y2, colorA, colorB)
-MGFX.LinearGradientStops(x1, y1, x2, y2, stops)
+MGFX.LinearGradient(x1, y1, x2, y2, colorA, colorB, curve)
+MGFX.LinearGradientStops(x1, y1, x2, y2, stops, curve)
 
-MGFX.RadialGradient(cx, cy, radius, colorA, colorB)
-MGFX.ConicGradient(cx, cy, rotationDeg, stops)
+MGFX.RadialGradient(cx, cy, radius, colorA, colorB, curve)
+MGFX.EllipticalRadialGradient(cx, cy, radiusX, radiusY, colorA, colorB, curve)
+MGFX.ConicGradient(cx, cy, rotationDeg, stops, curve)
 
 MGFX.ShapeAngularGradient(stops, rotationDeg)
 MGFX.RingRadialGradient(stops)
 MGFX.RingAngularGradient(stops, rotationDeg)
 MGFX.SectorRadialGradient(stops)
 MGFX.SectorAngularGradient(stops, rotationDeg)
+```
+
+`RadialGradient` keeps a true circle in pixel space and measures `radius`
+against the primitive's shorter side. `EllipticalRadialGradient` uses
+independent local-axis radii: `radiusX = 0.5` reaches half the primitive width,
+and `radiusY = 1` reaches one full primitive height. Centers may sit outside the
+primitive, so `cy <= 0` is useful for a top-origin spotlight. Both APIs reuse the
+same radial shader, LUT, material, and draw pass.
+
+```lua
+local topGlow = MGFX.EllipticalRadialGradient(0.5, -0.15, 0.72, 1.35, {
+    {0.00, Color(132, 255, 148, 224)},
+    {1.00, Color(18, 48, 30, 0)},
+}, nil, "exponential")
 ```
 
 Stops can use compact or named forms:
@@ -47,6 +62,39 @@ local fill = draw.linearGradientStops(0, 0, 1, 0, {
 ```
 
 :::
+
+## Gradient Curves
+
+Every gradient constructor accepts an optional final `curve` argument. The
+default is `"linear"`. Curves remap the normalized gradient coordinate in the
+existing pixel shader before it samples the stops LUT, so they add no draw pass
+and do not create curve-specific LUT textures.
+
+| Curve | Intended profile |
+| --- | --- |
+| `linear` | Unmodified interpolation. |
+| `smoothstep` | Soft start and end. |
+| `smootherstep` | Flatter, smoother endpoints. |
+| `ease-in` | Quadratic slow start. |
+| `ease-out` | Quadratic slow finish. |
+| `ease-in-out` | Symmetric quadratic easing. |
+| `exponential` | Normalized `k = 2.6` light falloff; useful for two-stop glows. |
+| `gaussian` | Normalized bell-like falloff. |
+| `inverse-square` | Normalized inverse-square-inspired attenuation. |
+
+The presets are fixed and intentionally have no `strength` parameter. Use
+stops when a design needs art-directed changes beyond a preset profile.
+
+All presets use the same packed 16-bit RGBA stops LUT. Stable screen-space IGN
+dithering is applied in the existing gradient pixel shader to disperse the
+final 8-bit framebuffer quantization; neither feature adds a draw pass.
+
+```lua
+local light = MGFX.EllipticalRadialGradient(0.5, 0.04, 0.55, 1.2, {
+    {0, Color(80, 220, 120, 73)},
+    {1, Color(80, 220, 120, 0)},
+}, nil, "exponential")
+```
 
 ## Patterns
 

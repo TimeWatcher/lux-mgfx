@@ -422,6 +422,12 @@ fn setupTextFaceMaterial(material, entry, record, u0, v0, u1, v1, fillOverride =
     x2 = toNumber(fill.x2) ?? 1
     y2 = toNumber(fill.y2) ?? 0
   }
+  setupTextParamMatrix(material,
+    style.gradientCurve(typeOf(fill) == "table" then fill.curve else nil), 0, 0, 0,
+    0, 0, 0, 0,
+    0, 0, 0, 0,
+    0, 0, 0, 0
+  )
   setupTextAuxParamMatrix(material,
     u0, v0, u1, v1,
     r, g, b, a,

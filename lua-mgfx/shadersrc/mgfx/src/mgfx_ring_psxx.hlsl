@@ -7,7 +7,9 @@
 #define START_RAD EXTRA2.x
 #define END_RAD EXTRA2.y
 #define ARC_MODE EXTRA2.z
-#define RING_FILL_KIND EXTRA2.w
+#define RING_FILL_PACKED EXTRA2.w
+#define RING_FILL_CURVE floor(RING_FILL_PACKED / 4.0 + 0.001)
+#define RING_FILL_KIND (RING_FILL_PACKED - RING_FILL_CURVE * 4.0)
 #define RING_FILL_PARAMS EXTRA3
 
 float normalize_angle(float a)
@@ -42,7 +44,7 @@ float arc_angular_t(float localA, float span)
 	return toStart < toEnd ? 0.0 : 1.0;
 }
 
-float4 ring_fill(float2 uv, float r, float innerR, float outerR, float angularT, float4 colorA)
+float4 ring_fill(float2 uv, float r, float innerR, float outerR, float angularT, float4 colorA, float2 pixelPos)
 {
 	if (RING_FILL_KIND < 0.5)
 		return RING_COLOR_B;
@@ -57,9 +59,14 @@ float4 ring_fill(float2 uv, float r, float innerR, float outerR, float angularT,
 	}
 	else if (RING_FILL_KIND < 2.5)
 	{
-		if (RING_FILL_PARAMS.w > 0.5)
+		if (RING_FILL_PARAMS.w < -0.5)
 		{
 			t = saturate((r - innerR) / max(outerR - innerR, 0.0001));
+		}
+		else if (RING_FILL_PARAMS.w > 0.0001)
+		{
+			float2 radialRadii = max(RING_FILL_PARAMS.zw, float2(0.0001, 0.0001));
+			t = saturate(length((uv - RING_FILL_PARAMS.xy) / radialRadii));
 		}
 		else
 		{
@@ -75,16 +82,16 @@ float4 ring_fill(float2 uv, float r, float innerR, float outerR, float angularT,
 			if (ARC_MODE > 0.5)
 				t = saturate(localT);
 			else
-				return mgfx_gradient_lut_conic(localT);
+				return mgfx_gradient_lut_conic(localT, RING_FILL_CURVE, pixelPos);
 		}
 		else
 		{
 			float angle = atan2(uv.y - RING_FILL_PARAMS.y, uv.x - RING_FILL_PARAMS.x);
-			return mgfx_gradient_lut_conic(angle / 6.28318530718 + 0.5 + RING_FILL_PARAMS.z);
+			return mgfx_gradient_lut_conic(angle / 6.28318530718 + 0.5 + RING_FILL_PARAMS.z, RING_FILL_CURVE, pixelPos);
 		}
 	}
 
-	return mgfx_gradient_lut(t);
+	return mgfx_gradient_lut(t, RING_FILL_CURVE, pixelPos);
 }
 
 float4 main(PS_INPUT i) : COLOR
@@ -131,7 +138,7 @@ float4 main(PS_INPUT i) : COLOR
 		}
 	}
 
-	float4 color = ring_fill(i.uv, r, innerR, outerR, angularT, i.color);
+	float4 color = ring_fill(i.uv, r, innerR, outerR, angularT, i.color, i.pos);
 	float alpha = color.a * aa_coverage(dist);
 	clip(alpha - 0.001);
 	return float4(saturate(color.rgb), saturate(alpha));

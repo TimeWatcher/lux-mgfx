@@ -28,10 +28,10 @@ export client fn fillFrom(value) =
 export client fn colorAtFill(fill, t) {
   local resolved = fillFromStyle(fill)
   if resolved.stops ~= nil and #resolved.stops > 0 {
-    return colorAtStops(resolved.stops, t)
+    return colorAtStops(resolved.stops, t, resolved.curve)
   }
 
-  return lerpColor(t, resolved.colorA ?? color_white, resolved.colorB ?? resolved.colorA ?? color_white)
+  return lerpColor(gradientCurveAmount(resolved.curve, t), resolved.colorA ?? color_white, resolved.colorB ?? resolved.colorA ?? color_white)
 }
 
 export client fn fillVisible(fill) {

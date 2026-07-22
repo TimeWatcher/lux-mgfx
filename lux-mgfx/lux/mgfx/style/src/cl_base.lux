@@ -13,6 +13,7 @@ local getRenderTargetEx = GetRenderTargetEx
 local makeColor = Color
 local mathAbs = math.abs
 local mathClamp = math.Clamp
+local mathExp = math.exp
 local mathFloor = math.floor
 local mathMax = math.max
 local renderClear = render?.Clear

@@ -27,6 +27,7 @@ function MGFX._InstallWidgetRings(C)
 	local strokeVisible = C.strokeVisible
 	local colorAtFill = C.colorAtFill
 	local bindGradientLut = C.bindGradientLut or function() end
+	local gradientCurve = C.gradientCurve
 	local isCulled = C.isCulled
 	local normalizedRotation = C.normalizedRotation
 	local imageMaskStyle = C.imageMaskStyle or function(mask) return mask end
@@ -208,7 +209,7 @@ local function ringFillParams(fill)
 			if isstring(radialSpace) then radialSpace = string.lower(radialSpace) end
 			localRadial = radialSpace == "ring" or radialSpace == "sector"
 		end
-		return fill.cx or 0.5, fill.cy or 0.5, fill.radius or 0.5, localRadial and 1 or 0
+		return fill.cx or 0.5, fill.cy or 0.5, fill.radiusX or fill.radius or 0.5, localRadial and -1 or (fill.radiusY or 0)
 	elseif fill.kind == FILL_CONIC then
 		local localAngular = fill.localAngular or fill.shapeAngular
 		if not localAngular then
@@ -239,7 +240,7 @@ local function drawRingFillPass(x, y, w, h, innerRadius, outerRadius, startDeg, 
 	setupParamMatrix(mat,
 		r, g, b, a,
 		sw, sh, ir, orad,
-		sr, er, modeValue, fill.kind or FILL_SOLID,
+		sr, er, modeValue, (fill.kind or FILL_SOLID) + gradientCurve(fill.curve) * 4,
 		p0, p1, p2, p3
 	)
 	if (fill.kind or FILL_SOLID) ~= FILL_SOLID then bindGradientLut(mat, fill) end
@@ -306,7 +307,7 @@ local function drawRingFxPass(x, y, w, h, innerRadius, outerRadius, startDeg, en
 	setupParamMatrix(mat,
 		r, g, b, a,
 		sw, sh, ir, orad,
-		sr, er, modeValue, fill.kind or FILL_SOLID,
+		sr, er, modeValue, (fill.kind or FILL_SOLID) + gradientCurve(fill.curve) * 4,
 		p0, p1, p2, p3
 	)
 	if (fill.kind or FILL_SOLID) ~= FILL_SOLID then bindGradientLut(mat, fill) end

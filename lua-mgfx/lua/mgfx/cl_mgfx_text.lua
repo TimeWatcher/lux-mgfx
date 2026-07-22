@@ -16,6 +16,8 @@ function M._CreateTextRenderer(deps)
 	local getFrameOffset = deps.getFrameOffset or function() return 0, 0 end
 	local restoreScissor = deps.restoreScissor or function() end
 	local gradientLutForFill = deps.gradientLutForFill or function() return nil end
+	local gradientCurve = assert(deps.gradientCurve, "MGFX text gradient curve resolver unavailable")
+	local resolvedColorAtFill = assert(deps.colorAtFill, "MGFX text fill sampler unavailable")
 	local asColor = deps.asColor or function(value, fallback)
 		if istable(value) and value.r and value.g and value.b then return value end
 		return fallback or color_white
@@ -699,38 +701,7 @@ function M._CreateTextRenderer(deps)
 	end
 
 	local function colorAtFill(fill, t)
-		if not istable(fill) then return asColor(fill, white) end
-		if fill.r ~= nil and fill.g ~= nil and fill.b ~= nil then return fill end
-		local stops = fill.stops
-		if istable(stops) and #stops > 0 then
-			local prev = stops[1]
-			for i = 2, #stops do
-				local nextStop = stops[i]
-				local ap = tonumber(prev.pos or prev[1]) or 0
-				local bp = tonumber(nextStop.pos or nextStop[1]) or 1
-				if t <= bp then
-					local f = bp > ap and math.Clamp((t - ap) / (bp - ap), 0, 1) or 0
-					local ac = asColor(prev.color or prev[2], white)
-					local bc = asColor(nextStop.color or nextStop[2], ac)
-					return Color(
-						ac.r + (bc.r - ac.r) * f,
-						ac.g + (bc.g - ac.g) * f,
-						ac.b + (bc.b - ac.b) * f,
-						(ac.a == nil and 255 or ac.a) + ((bc.a == nil and 255 or bc.a) - (ac.a == nil and 255 or ac.a)) * f
-					)
-				end
-				prev = nextStop
-			end
-			return asColor(prev.color or prev[2], white)
-		end
-		local a = asColor(fill.colorA or fill[1], white)
-		local b = asColor(fill.colorB or fill[2], a)
-		return Color(
-			a.r + (b.r - a.r) * t,
-			a.g + (b.g - a.g) * t,
-			a.b + (b.b - a.b) * t,
-			(a.a == nil and 255 or a.a) + ((b.a == nil and 255 or b.a) - (a.a == nil and 255 or a.a)) * t
-		)
+		return resolvedColorAtFill(fill, t)
 	end
 
 	local function setTextColor(color)
@@ -1438,6 +1409,12 @@ function M._CreateTextRenderer(deps)
 		if istable(fill) and fill.kind == 1 then
 			x1, y1, x2, y2 = tonumber(fill.x1) or 0, tonumber(fill.y1) or 0, tonumber(fill.x2) or 1, tonumber(fill.y2) or 0
 		end
+		setupTextParamMatrix(mat,
+			gradientCurve(istable(fill) and fill.curve or nil), 0, 0, 0,
+			0, 0, 0, 0,
+			0, 0, 0, 0,
+			0, 0, 0, 0
+		)
 		setupTextAuxParamMatrix(mat,
 			u0, v0, u1, v1,
 			r, g, b, a,

@@ -454,6 +454,7 @@ return function(__lux_import)
       "LinearGradient",
       "LinearGradientStops",
       "RadialGradient",
+      "EllipticalRadialGradient",
       "RingRadialGradient",
       "SectorRadialGradient",
       "ConicGradient",

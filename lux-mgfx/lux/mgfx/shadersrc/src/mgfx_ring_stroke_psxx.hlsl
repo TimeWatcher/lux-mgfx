@@ -108,7 +108,7 @@ float ring_add_arc(float2 p, float radius, float startAngle, float endAngle, flo
 	return prefix + (endAngle - startAngle) * radius;
 }
 
-float ring_path_coord(float2 p)
+float2 ring_path_coord(float2 p)
 {
 	float innerR = max(INNER_RADIUS, 0.0);
 	float outerR = max(OUTER_RADIUS, innerR + 0.001);
@@ -123,7 +123,8 @@ float ring_path_coord(float2 p)
 		if (angle < 0.0)
 			angle += 6.28318530718;
 		float r = length(p);
-		return abs(r - outerR) <= abs(r - innerR) ? angle * outerR : angle * innerR;
+		float pathRadius = innerR <= 0.001 || abs(r - outerR) <= abs(r - innerR) ? outerR : innerR;
+		return float2(angle * pathRadius, 6.28318530718 * pathRadius);
 	}
 
 	float2 localP = ring_rotate(p, -START_RAD);
@@ -143,13 +144,13 @@ float ring_path_coord(float2 p)
 	prefix = ring_add_arc(localP, innerR, 0.0, span, prefix, 1.0, bestDist, bestCoord);
 	if (ARC_MODE < 1.5)
 	{
-		stroke_path_add_arc(localP, float2(midR, 0.0), halfW, 3.14159265359, 6.28318530718, prefix, bestDist, bestCoord);
+		prefix = stroke_path_add_arc(localP, float2(midR, 0.0), halfW, 3.14159265359, 6.28318530718, prefix, bestDist, bestCoord);
 	}
 	else
 	{
-		stroke_path_add_segment(localP, float2(innerR, 0.0), float2(outerR, 0.0), prefix, bestDist, bestCoord);
+		prefix = stroke_path_add_segment(localP, float2(innerR, 0.0), float2(outerR, 0.0), prefix, bestDist, bestCoord);
 	}
-	return bestCoord;
+	return float2(bestCoord, prefix);
 }
 
 float4 main(PS_INPUT i) : COLOR
@@ -158,7 +159,8 @@ float4 main(PS_INPUT i) : COLOR
 	float dist = ring_dist(p);
 	float width = max(RING_STROKE_WIDTH, 0.0);
 	float stroke = aa_coverage(abs(dist) - width * 0.5);
-	float pattern = stroke_pattern_mask(ring_path_coord(p), dist, width, RING_STROKE_KIND, RING_STROKE_DASH_LENGTH, RING_STROKE_GAP, RING_STROKE_OFFSET);
+	float2 path = ring_path_coord(p);
+	float pattern = stroke_pattern_mask(path.x, path.y, dist, width, RING_STROKE_KIND, RING_STROKE_DASH_LENGTH, RING_STROKE_GAP, RING_STROKE_OFFSET);
 	float alpha = RING_STROKE_COLOR.a * stroke * pattern;
 
 	clip(alpha - 0.001);
