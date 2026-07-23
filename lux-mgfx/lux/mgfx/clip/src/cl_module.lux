@@ -1,0 +1,1118 @@
+import * as frame from "@lux/mgfx/frame"
+import * as geometry from "@lux/mgfx/geometry"
+import * as primitives from "@lux/mgfx/primitives"
+
+local typeOf = type
+
+export client fn install(M) {
+  const installVersion = "coverage-v2"
+  local installed = M._internal?.clipInstall
+  if installed ~= nil {
+    if installed.version == installVersion and installed.clip == M.Clip and installed.roundedBoxEx == M.RoundedBoxEx and installed.endPanel == M.EndPanel {
+      return M
+    }
+    error("MGFX Clip runtime changed during hot reload; perform a full client Lua refresh before installing the new version", 2)
+  }
+  local materials = M._Materials
+  local materialOK = M.MaterialOK
+  local shadersActive = M.hasShaders
+  local setupParamMatrix = M._internal?.setupParamMatrix
+  local drawTexturedQuadUV = geometry.drawTexturedQuadUV
+  local chamferTuple = primitives.chamferTuple
+  local frameState = frame.current()
+  local shapeClipStack = {}
+  local recordPool = {}
+  local beforeTargets = {}
+  local workTargets = {}
+  local maskTargets = {}
+  local sourceMaterials = {}
+  local maskSlots = {}
+  local contextMatrices = {}
+  local contextOffsets = {}
+  local coverageMatrices = {}
+  local coverageOffsets = {}
+  local coverageRecorders = {}
+  local namespace = nil
+  local activeRecorder = nil
+  local maskState = setmetatable({}, { __mode = "k" })
+  local surfaceGetAlphaMultiplier = surface.GetAlphaMultiplier
+  local surfaceSetAlphaMultiplier = surface.SetAlphaMultiplier
+  const maxClipDepth = 4
+  const maxClipValue = 1048576
+  const transparent = Color(0, 0, 0, 0)
+
+  fn pack(...) = { n = select("#", ...), ... }
+
+  if typeOf(chamferTuple) ~= "function" or typeOf(drawTexturedQuadUV) ~= "function" {
+    error("MGFX Clip requires geometry and chamfer support", 2)
+  }
+  if typeOf(setupParamMatrix) ~= "function" {
+    error("MGFX Clip requires matrix shader parameters", 2)
+  }
+
+  fn traceback(message) {
+    if debug ~= nil and debug.traceback ~= nil {
+      return debug.traceback(tostring(message), 2)
+    }
+    tostring(message)
+  }
+
+  fn restoreParentScissor() =
+    frame.restoreScissor()
+
+  fn acquireRecord() {
+    local index = #recordPool
+    local record = recordPool[index]
+    if record ~= nil {
+      recordPool[index] = nil
+      return record
+    }
+    {}
+  }
+
+  fn releaseRecord(record) {
+    stopif record == nil
+    for key in pairs(record) {
+      record[key] = nil
+    }
+    recordPool[#recordPool + 1] = record
+  }
+
+  fn ensureNamespace() {
+    if namespace == nil {
+      namespace = tostring(M._MaterialState?.shaderVersion ?? "dev") .. "_" .. tostring(math.floor(SysTime() * 1000000))
+    }
+    namespace
+  }
+
+  fn createTarget(name) {
+    if GetRenderTargetEx == nil or bit == nil or bit.bor == nil {
+      error("MGFX Clip requires full-frame render-target support", 3)
+    }
+    local target = GetRenderTargetEx(
+      name,
+      -1,
+      -1,
+      RT_SIZE_FULL_FRAME_BUFFER,
+      MATERIAL_RT_DEPTH_NONE,
+      bit.bor(2, 256, 4, 8),
+      0,
+      IMAGE_FORMAT_BGRA8888
+    )
+    if target == nil {
+      error("MGFX Clip failed to allocate a full-frame render target", 3)
+    }
+    target
+  }
+
+  fn createSourceMaterial(target, role, depth) {
+    local material = CreateMaterial(
+      "mgfx_clip_source_" .. role .. tostring(depth) .. "_" .. ensureNamespace(),
+      "UnlitGeneric",
+      {
+        ["$basetexture"] = target:GetName(),
+        ["$translucent"] = "1",
+        ["$vertexcolor"] = "1",
+        ["$vertexalpha"] = "1",
+        ["$ignorez"] = "1"
+      }
+    )
+    if material == nil or material:IsError() {
+      error("MGFX Clip failed to create a coverage source material", 3)
+    }
+    material
+  }
+
+  fn ensureTargets(depth) {
+    local ns = ensureNamespace()
+    if beforeTargets[depth] == nil {
+      beforeTargets[depth] = createTarget("mgfxsc_b" .. tostring(depth) .. "_" .. ns)
+    }
+    if workTargets[depth] == nil {
+      local work = createTarget("mgfxsc_w" .. tostring(depth) .. "_" .. ns)
+      local sourceMaterial = createSourceMaterial(work, "work", depth)
+      workTargets[depth] = work
+      sourceMaterials[work] = sourceMaterial
+    }
+    return beforeTargets[depth], workTargets[depth]
+  }
+
+  fn ensureMaskTarget(depth) {
+    local target = maskTargets[depth]
+    if target == nil {
+      target = createTarget("mgfxsc_m" .. tostring(depth) .. "_" .. ensureNamespace())
+      maskTargets[depth] = target
+    }
+    target
+  }
+
+  fn contextTransform(depth, x, y) {
+    local matrix = contextMatrices[depth]
+    if matrix == nil {
+      matrix = Matrix()
+      contextMatrices[depth] = matrix
+    }
+    local offset = contextOffsets[depth]
+    if offset == nil {
+      offset = Vector()
+      contextOffsets[depth] = offset
+    }
+    offset:SetUnpacked(x, y, 0)
+    matrix:SetTranslation(offset)
+    matrix
+  }
+
+  fn coverageTransform(depth, x, y) {
+    local matrix = coverageMatrices[depth]
+    if matrix == nil {
+      matrix = Matrix()
+      coverageMatrices[depth] = matrix
+    }
+    local offset = coverageOffsets[depth]
+    if offset == nil {
+      offset = Vector()
+      coverageOffsets[depth] = offset
+    }
+    offset:SetUnpacked(x, y, 0)
+    matrix:SetTranslation(offset)
+    matrix
+  }
+
+  fn setNeutralRenderState() {
+    if surfaceSetAlphaMultiplier ~= nil {
+      surfaceSetAlphaMultiplier(1)
+    }
+    render.SetColorModulation(1, 1, 1)
+    render.SetBlend(1)
+    render.OverrideAlphaWriteEnable(true, true)
+  }
+
+  fn appendCleanupError(current, label, callback) {
+    local ok, message = pcall(callback)
+    if ok {
+      return current
+    }
+    local detail = label .. ": " .. tostring(message)
+    current ~= nil then (current .. "\n" .. detail) else detail
+  }
+
+  fn finishScope(results, cleanupError, level = 3) {
+    if not results[1] {
+      local message = tostring(results[2])
+      if cleanupError ~= nil {
+        message ..= "\nMGFX Clip cleanup failed: " .. cleanupError
+      }
+      error(message, level)
+    }
+    if cleanupError ~= nil {
+      error("MGFX Clip cleanup failed: " .. cleanupError, level)
+    }
+    return unpack(results, 2, results.n)
+  }
+
+  fn withRenderState(callback) {
+    local previousR, previousG, previousB = render.GetColorModulation()
+    local previousBlend = render.GetBlend()
+    local previousAlphaMultiplier = surfaceGetAlphaMultiplier ~= nil then surfaceGetAlphaMultiplier() else 1
+    local results = pack(xpcall(callback, traceback))
+    local cleanupError = nil
+    -- GMod exposes no getter for either override descriptor. Clip owns this
+    -- override scope and must be entered outside caller-managed overrides.
+    cleanupError = appendCleanupError(cleanupError, "blend override", () => render.OverrideBlend(false))
+    cleanupError = appendCleanupError(cleanupError, "alpha-write override", () => render.OverrideAlphaWriteEnable(false))
+    cleanupError = appendCleanupError(cleanupError, "color modulation", () => render.SetColorModulation(previousR, previousG, previousB))
+    cleanupError = appendCleanupError(cleanupError, "blend", () => render.SetBlend(previousBlend))
+    if surfaceSetAlphaMultiplier ~= nil {
+      cleanupError = appendCleanupError(cleanupError, "surface alpha", () => surfaceSetAlphaMultiplier(previousAlphaMultiplier))
+    }
+    return finishScope(results, cleanupError, 4)
+  }
+
+  fn withRenderTarget2D(target, screenW, screenH, callback) {
+    local targetPushed = false
+    local contextStarted = false
+    local results = pack(xpcall(() => {
+      render.PushRenderTarget(target, 0, 0, screenW, screenH)
+      targetPushed = true
+      cam.Start2D()
+      contextStarted = true
+      return callback()
+    }, traceback))
+    local cleanupError = nil
+    if contextStarted {
+      cleanupError = appendCleanupError(cleanupError, "cam.End2D", cam.End2D)
+    }
+    if targetPushed {
+      cleanupError = appendCleanupError(cleanupError, "render.PopRenderTarget", render.PopRenderTarget)
+    }
+    cleanupError = appendCleanupError(cleanupError, "scissor restore", restoreParentScissor)
+    return finishScope(results, cleanupError, 4)
+  }
+
+  fn withModelMatrix(matrix, callback) {
+    local pushed = false
+    local results = pack(xpcall(() => {
+      cam.PushModelMatrix(matrix)
+      pushed = true
+      return callback()
+    }, traceback))
+    local cleanupError = nil
+    if pushed {
+      cleanupError = appendCleanupError(cleanupError, "cam.PopModelMatrix", cam.PopModelMatrix)
+    }
+    return finishScope(results, cleanupError, 4)
+  }
+
+  fn clearCoverageTarget(target, rasterW, rasterH, screenW, screenH) {
+    return withRenderTarget2D(target, screenW, screenH, () => {
+      render.SetScissorRect(0, 0, rasterW, rasterH, true)
+      return withRenderState(() => {
+        setNeutralRenderState()
+        -- render.Clear leaves alpha at one on this RT path. A ZERO/ZERO draw is
+        -- the deterministic clear for both color and coverage alpha.
+        render.OverrideBlend(true, BLEND_ZERO, BLEND_ZERO, BLENDFUNC_ADD, BLEND_ZERO, BLEND_ZERO, BLENDFUNC_ADD)
+        surface.SetDrawColor(255, 255, 255, 255)
+        surface.DrawRect(0, 0, rasterW, rasterH)
+      })
+    })
+  }
+
+  fn drawCoverageSource(source, rasterW, rasterH, screenW, screenH) {
+    local material = sourceMaterials[source]
+    if material == nil {
+      error("MGFX Clip has no coverage source material for an internal target", 3)
+    }
+    surface.SetMaterial(material)
+    surface.SetDrawColor(255, 255, 255, 255)
+    surface.DrawTexturedRectUV(0, 0, rasterW, rasterH, 0, 0, rasterW / screenW, rasterH / screenH)
+  }
+
+  fn combineCoverage(destination, source, sourceAlphaFactor, destinationAlphaFactor, blendFunction, rasterW, rasterH, screenW, screenH) {
+    return withRenderTarget2D(destination, screenW, screenH, () => {
+      render.SetScissorRect(0, 0, rasterW, rasterH, true)
+      return withRenderState(() => {
+        setNeutralRenderState()
+        render.OverrideBlend(true, BLEND_ZERO, BLEND_ZERO, BLENDFUNC_ADD, sourceAlphaFactor, destinationAlphaFactor, blendFunction)
+        drawCoverageSource(source, rasterW, rasterH, screenW, screenH)
+      })
+    })
+  }
+
+  fn invertCoverage(target, w, h, rasterW, rasterH, screenW, screenH, padLeft, padTop) {
+    return withRenderTarget2D(target, screenW, screenH, () => {
+      render.SetScissorRect(0, 0, rasterW, rasterH, true)
+      return withRenderState(() => {
+        setNeutralRenderState()
+        render.OverrideBlend(true, BLEND_ZERO, BLEND_ZERO, BLENDFUNC_ADD, BLEND_ONE_MINUS_DST_ALPHA, BLEND_ZERO, BLENDFUNC_ADD)
+        surface.SetDrawColor(255, 255, 255, 255)
+        surface.DrawRect(padLeft, padTop, w, h)
+      })
+    })
+  }
+
+  local Recorder = {}
+  Recorder.__index = Recorder
+
+  fn requireActiveRecorder(recorder, method) {
+    if activeRecorder ~= recorder or not recorder.active {
+      error("MGFX Mask recorder:" .. method .. " can only be used while its painter is running", 3)
+    }
+    if recorder.inOperation {
+      error("MGFX Mask recorder operations cannot be nested", 3)
+    }
+  }
+
+  fn drawOperationCoverage(recorder, callback) {
+    if typeOf(callback) ~= "function" {
+      error("MGFX Mask coverage operations require a callback", 3)
+    }
+    clearCoverageTarget(recorder.scratch, recorder.rasterW, recorder.rasterH, recorder.screenW, recorder.screenH)
+    local results = pack(xpcall(() => {
+      return withRenderTarget2D(recorder.scratch, recorder.screenW, recorder.screenH, () => {
+        return withModelMatrix(coverageTransform(recorder.depth, recorder.padLeft, recorder.padTop), () => {
+          frameState.coverage = true
+          frameState.coverageDrawing = true
+          frameState.coverageX = 0
+          frameState.coverageY = 0
+          frameState.coverageW = recorder.rasterW
+          frameState.coverageH = recorder.rasterH
+          frameState.coverageOffsetX = recorder.padLeft
+          frameState.coverageOffsetY = recorder.padTop
+          render.SetScissorRect(0, 0, recorder.rasterW, recorder.rasterH, true)
+          return withRenderState(() => {
+            setNeutralRenderState()
+            render.OverrideBlend(true, BLEND_ZERO, BLEND_ZERO, BLENDFUNC_ADD, BLEND_ONE, BLEND_ONE, BLENDFUNC_MAX)
+            return callback()
+          })
+        })
+      })
+    }, traceback))
+    frameState.coverageDrawing = false
+    frameState.coverage = false
+    finishScope(results, nil, 3)
+    M.stats.maskOperations = (M.stats.maskOperations ?? 0) + 1
+  }
+
+  fn Recorder:_combine(operation, callback) {
+    requireActiveRecorder(self, operation)
+    self.inOperation = true
+    local ok, message = xpcall(() => {
+      drawOperationCoverage(self, callback)
+      match operation {
+        "union" => combineCoverage(self.accumulator, self.scratch, BLEND_ONE, BLEND_ONE, BLENDFUNC_MAX, self.rasterW, self.rasterH, self.screenW, self.screenH)
+        "subtract" => combineCoverage(self.accumulator, self.scratch, BLEND_ZERO, BLEND_ONE_MINUS_SRC_ALPHA, BLENDFUNC_ADD, self.rasterW, self.rasterH, self.screenW, self.screenH)
+        "intersect" => combineCoverage(self.accumulator, self.scratch, BLEND_ZERO, BLEND_SRC_ALPHA, BLENDFUNC_ADD, self.rasterW, self.rasterH, self.screenW, self.screenH)
+        "xor" => combineCoverage(self.accumulator, self.scratch, BLEND_ONE_MINUS_DST_ALPHA, BLEND_ONE_MINUS_SRC_ALPHA, BLENDFUNC_ADD, self.rasterW, self.rasterH, self.screenW, self.screenH)
+        _ => error("MGFX Mask encountered an unsupported coverage operation", 2)
+      }
+    }, traceback)
+    self.inOperation = false
+    if not ok {
+      error(message, 3)
+    }
+    self
+  }
+
+  fn Recorder:Draw(callback) = self:_combine("union", callback)
+  fn Recorder:Union(callback) = self:_combine("union", callback)
+  fn Recorder:Subtract(callback) = self:_combine("subtract", callback)
+  fn Recorder:Intersect(callback) = self:_combine("intersect", callback)
+  fn Recorder:Xor(callback) = self:_combine("xor", callback)
+
+  fn Recorder:Invert() {
+    requireActiveRecorder(self, "Invert")
+    self.inOperation = true
+    local ok, message = xpcall(() => {
+      invertCoverage(self.accumulator, self.w, self.h, self.rasterW, self.rasterH, self.screenW, self.screenH, self.padLeft, self.padTop)
+    }, traceback)
+    self.inOperation = false
+    if not ok {
+      error(message, 3)
+    }
+    M.stats.maskOperations = (M.stats.maskOperations ?? 0) + 1
+    self
+  }
+
+  local MaskMethods = {}
+  MaskMethods.__index = MaskMethods
+  MaskMethods.__newindex = () => error("MGFX Mask objects are immutable; update captured painter state and call mask:Invalidate()", 2)
+
+  fn MaskMethods:Invalidate() {
+    local state = maskState[self]
+    if state == nil {
+      error("MGFX received an invalid Mask object", 2)
+    }
+    if state.type == "preset" {
+      error("MGFX preset Masks are immutable", 2)
+    }
+    state.revision += 1
+    self
+  }
+
+  fn MaskMethods:Clip(x, y, w, h, callback) =
+    M.Clip(self, x, y, w, h, callback)
+
+  fn customMask(painter) {
+    if typeOf(painter) ~= "function" {
+      error("MGFX.Mask requires a painter function", 3)
+    }
+    local mask = setmetatable({}, MaskMethods)
+    maskState[mask] = {
+      type = "custom",
+      revision = 1,
+      painter = painter
+    }
+    mask
+  }
+
+  fn presetMask(kind, options = nil) {
+    local mask = setmetatable({}, MaskMethods)
+    local values = typeOf(options) == "table" then table.Copy(options) else {}
+    if typeOf(options) ~= "table" and options ~= nil {
+      values.radius = options
+    }
+    maskState[mask] = {
+      type = "preset",
+      kind = kind,
+      values = values
+    }
+    mask
+  }
+
+  M.Mask = customMask
+  M.Masks = {
+    Circle = presetMask("circle"),
+    Capsule = presetMask("capsule"),
+    Rounded = (options = nil) => presetMask("rounded", options),
+    Chamfer = (options = nil) => presetMask("chamfer", options)
+  }
+
+  fn rasterizeCustomMask(mask, state, w, h, phaseX, phaseY, depth, accumulator, scratch, screenW, screenH) {
+    local rasterW = math.min(screenW, math.ceil(w + phaseX) + 2)
+    local rasterH = math.min(screenH, math.ceil(h + phaseY) + 2)
+    local extraX = math.max(0, rasterW - w - phaseX)
+    local extraY = math.max(0, rasterH - h - phaseY)
+    local padLeft = math.min(1, extraX * 0.5)
+    local padTop = math.min(1, extraY * 0.5)
+    local originX = padLeft + phaseX
+    local originY = padTop + phaseY
+    local padRight = math.min(1, math.max(0, rasterW - originX - w))
+    local padBottom = math.min(1, math.max(0, rasterH - originY - h))
+    local target = ensureMaskTarget(depth)
+    local slot = maskSlots[depth]
+    if slot == nil {
+      slot = { maskRef = setmetatable({}, { __mode = "v" }) }
+      maskSlots[depth] = slot
+    }
+    local revision = state.revision
+    if slot.maskRef[1] == mask and slot.revision == revision and slot.w == w and slot.h == h and slot.phaseX == phaseX and slot.phaseY == phaseY and slot.screenW == screenW and slot.screenH == screenH {
+      M.stats.maskCacheHits = (M.stats.maskCacheHits ?? 0) + 1
+      return target,
+        originX / screenW, originY / screenH,
+        (originX + w) / screenW, (originY + h) / screenH,
+        originX, originY, padRight, padBottom
+    }
+
+    clearCoverageTarget(accumulator, rasterW, rasterH, screenW, screenH)
+    local recorder = coverageRecorders[depth]
+    if recorder == nil {
+      recorder = setmetatable({}, Recorder)
+      coverageRecorders[depth] = recorder
+    }
+    recorder.active = true
+    recorder.inOperation = false
+    recorder.depth = depth
+    recorder.w = w
+    recorder.h = h
+    recorder.rasterW = rasterW
+    recorder.rasterH = rasterH
+    recorder.screenW = screenW
+    recorder.screenH = screenH
+    recorder.accumulator = accumulator
+    recorder.scratch = scratch
+    recorder.padLeft = originX
+    recorder.padTop = originY
+    activeRecorder = recorder
+    frameState.coverage = true
+    frameState.coverageDrawing = false
+
+    local ok, message = xpcall(() => state.painter(recorder, w, h), traceback)
+
+    frameState.coverageDrawing = false
+    frameState.coverage = false
+    activeRecorder = nil
+    recorder.active = false
+    recorder.inOperation = false
+    if not ok {
+      error(message, 3)
+    }
+
+    render.CopyTexture(accumulator, target)
+    slot.maskRef[1] = mask
+    slot.revision = revision
+    slot.w = w
+    slot.h = h
+    slot.phaseX = phaseX
+    slot.phaseY = phaseY
+    slot.screenW = screenW
+    slot.screenH = screenH
+    M.stats.maskRasterizations = (M.stats.maskRasterizations ?? 0) + 1
+    return target,
+      originX / screenW, originY / screenH,
+      (originX + w) / screenW, (originY + h) / screenH,
+      originX, originY, padRight, padBottom
+  }
+
+  fn finiteNumber(value, label, defaultValue = nil) {
+    if value == nil and defaultValue ~= nil {
+      return defaultValue
+    }
+    if typeOf(value) ~= "number" or value ~= value or value == math.huge or value == -math.huge or math.abs(value) > maxClipValue {
+      error("MGFX Clip requires a finite " .. label, 3)
+    }
+    value
+  }
+
+  fn relativeValue(value, units, w, h) {
+    local number = finiteNumber(value, "Mask radius", 0)
+    if units == nil or units == "local" {
+      return math.min(math.max(0, number), math.min(w, h) * 0.5)
+    }
+    if units == "bounds" {
+      return math.min(math.max(0, number) * math.min(w, h), math.min(w, h) * 0.5)
+    }
+    error("MGFX Mask uses an unsupported units value: " .. tostring(units), 3)
+  }
+
+  fn relativeCuts(cuts, units, w, h) {
+    local scale = units == "bounds" then math.min(w, h) else 1
+    local limit = math.min(w, h)
+    if units ~= nil and units ~= "local" and units ~= "bounds" {
+      error("MGFX Mask uses an unsupported units value: " .. tostring(units), 3)
+    }
+    if typeOf(cuts) ~= "table" {
+      return math.min(math.max(0, finiteNumber(cuts, "Mask cuts", 0) * scale), limit)
+    }
+    {
+      tl = math.min(math.max(0, finiteNumber(cuts.tl ?? cuts[1], "Mask top-left cut", 0) * scale), limit),
+      tr = math.min(math.max(0, finiteNumber(cuts.tr ?? cuts[2], "Mask top-right cut", 0) * scale), limit),
+      br = math.min(math.max(0, finiteNumber(cuts.br ?? cuts[3], "Mask bottom-right cut", 0) * scale), limit),
+      bl = math.min(math.max(0, finiteNumber(cuts.bl ?? cuts[4], "Mask bottom-left cut", 0) * scale), limit)
+    }
+  }
+
+  fn resolveMask(mask, w, h, phaseX, phaseY, depth, accumulator, scratch, screenW, screenH) {
+    if typeOf(mask) ~= "table" {
+      error("MGFX.Clip requires an MGFX Mask or preset", 3)
+    }
+    local state = maskState[mask]
+    if state == nil {
+      error("MGFX.Clip requires an MGFX Mask or preset", 3)
+    }
+    if state.type == "custom" {
+      local texture, u0, v0, u1, v1, bleedLeft, bleedTop, bleedRight, bleedBottom = rasterizeCustomMask(mask, state, w, h, phaseX, phaseY, depth, accumulator, scratch, screenW, screenH)
+      return 10, 0, u0, v0, u1, v1, texture, bleedLeft, bleedTop, bleedRight, bleedBottom
+    }
+
+    local values = state.values
+    match state.kind {
+      "rounded" => {
+        return 0, relativeValue(values.radius, values.units, w, h), 0, 0, 0, 0, nil, 1, 1, 1, 1
+      }
+      "chamfer" => {
+        local p0, p1, p2, p3 = chamferTuple(relativeCuts(values.cuts, values.units, w, h), w, h)
+        return 1, 0, p0, p1, p2, p3, nil, 1, 1, 1, 1
+      }
+      "circle" => {
+        return 2, 0, 0, 0, 0, 0, nil, 1, 1, 1, 1
+      }
+      "capsule" => {
+        return 3, 0, 0, 0, 0, 0, nil, 1, 1, 1, 1
+      }
+      _ => error("MGFX.Clip received an unsupported Mask preset", 3)
+    }
+  }
+
+  fn cleanupRecord(record) {
+    local cleanupError = nil
+    while #frameState.clipStack > record.clipDepth {
+      local ok, message = pcall(frame.popClip)
+      if not ok {
+        cleanupError = message
+        break
+      }
+    }
+    if record.targetPushed {
+      if record.modelPushed {
+        local ok, message = pcall(cam.PopModelMatrix)
+        record.modelPushed = false
+        if not ok and cleanupError == nil {
+          cleanupError = message
+        }
+      }
+      if record.contextStarted {
+        local ok, message = pcall(cam.End2D)
+        record.contextStarted = false
+        if not ok and cleanupError == nil {
+          cleanupError = message
+        }
+      }
+      local ok, message = pcall(render.PopRenderTarget)
+      record.targetPushed = false
+      if not ok and cleanupError == nil {
+        cleanupError = message
+      }
+    }
+    local ok, message = pcall(restoreParentScissor)
+    if not ok and cleanupError == nil {
+      cleanupError = message
+    }
+    cleanupError
+  }
+
+  fn throwWithCleanup(primary, cleanupError) {
+    if cleanupError ~= nil {
+      error(tostring(primary) .. "\nMGFX Clip cleanup failed: " .. tostring(cleanupError), 2)
+    }
+    error(primary, 2)
+  }
+
+  fn composite(record) {
+    local material = materials.shape_clip
+    if not shadersActive() or not materialOK(material) {
+      error("MGFX Clip requires the shape_clip shader", 3)
+    }
+
+    -- $basetexture intentionally remains the material's fixed color/white.
+    -- DrawTexturedRectUV derives a half-texel correction from $basetexture;
+    -- replacing it with a full-screen RT corrupts local clip UVs.
+    material:SetTexture("$texture3", record.beforeRT)
+    material:SetTexture("$texture1", record.workRT)
+    if record.maskTexture ~= nil {
+      material:SetTexture("$texture2", record.maskTexture)
+    }
+    setupParamMatrix(material,
+      record.screenU, record.screenV, record.screenUW, record.screenVH,
+      record.w, record.h, record.kind, record.radius,
+      record.p0, record.p1, record.p2, record.p3,
+      0, 0, 0, 0
+    )
+
+    return withRenderState(() => {
+      setNeutralRenderState()
+      render.OverrideBlend(true, BLEND_ONE, BLEND_ZERO, BLENDFUNC_ADD, BLEND_ONE, BLEND_ZERO, BLENDFUNC_ADD)
+      surface.SetMaterial(material)
+      surface.SetDrawColor(255, 255, 255, 255)
+      return drawTexturedQuadUV(
+        record.localX - record.bleedLeft,
+        record.localY - record.bleedTop,
+        record.w + record.bleedLeft + record.bleedRight,
+        record.h + record.bleedTop + record.bleedBottom,
+        -record.bleedLeft / record.w,
+        -record.bleedTop / record.h,
+        1 + record.bleedRight / record.w,
+        1 + record.bleedBottom / record.h,
+        material
+      )
+    })
+  }
+
+  fn retireRecord(depth, record) {
+    shapeClipStack[depth] = nil
+    local wasCommands = record.wasCommands
+    releaseRecord(record)
+    frame.resumeCommands(wasCommands)
+  }
+
+  fn pushMaskClip(mask, x, y, w, h) {
+    if activeRecorder ~= nil {
+      error("MGFX.Clip cannot be used while recording Mask coverage", 3)
+    }
+    if not frameState.active {
+      error("MGFX.Clip requires an active StartPanel/StartScreen frame", 3)
+    }
+    if typeOf(mask) ~= "table" or maskState[mask] == nil {
+      error("MGFX.Clip requires an MGFX Mask or preset", 3)
+    }
+    if geometry.hasTransform() {
+      error("MGFX.Clip does not support an active MGFX transform; screen-space coverage requires an axis-aligned frame", 3)
+    }
+    x = finiteNumber(x, "x", 0)
+    y = finiteNumber(y, "y", 0)
+    w = finiteNumber(w, "width")
+    h = finiteNumber(h, "height")
+    if w <= 0 or h <= 0 {
+      error("MGFX.Clip requires positive width and height", 3)
+    }
+
+    local screenW = finiteNumber(ScrW(), "screen width")
+    local screenH = finiteNumber(ScrH(), "screen height")
+    if screenW <= 0 or screenH <= 0 {
+      error("MGFX.Clip requires a valid screen size", 3)
+    }
+    if w > screenW or h > screenH {
+      error("MGFX.Clip bounds cannot exceed the framebuffer dimensions", 3)
+    }
+    local depth = #shapeClipStack + 1
+    if depth > maxClipDepth {
+      error("MGFX.Clip exceeds the maximum nesting depth of " .. tostring(maxClipDepth), 3)
+    }
+    local frameX = finiteNumber(frameState.screenX, "frame screen x", 0)
+    local frameY = finiteNumber(frameState.screenY, "frame screen y", 0)
+    local before, work = ensureTargets(depth)
+    local record = acquireRecord()
+    record.wasCommands = frame.suspendCommands()
+    record.clipDepth = #frameState.clipStack
+
+    local ok, message = xpcall(() => {
+      local sx = finiteNumber(frameX + x, "screen x")
+      local sy = finiteNumber(frameY + y, "screen y")
+      local phaseX = sx - math.floor(sx)
+      local phaseY = sy - math.floor(sy)
+      local kind, radius, p0, p1, p2, p3, maskTexture, bleedLeft, bleedTop, bleedRight, bleedBottom = resolveMask(mask, w, h, phaseX, phaseY, depth, before, work, screenW, screenH)
+      record.localX = x
+      record.localY = y
+      record.w = w
+      record.h = h
+      record.screenU = sx / screenW
+      record.screenV = sy / screenH
+      record.screenUW = w / screenW
+      record.screenVH = h / screenH
+      record.kind = kind
+      record.radius = radius
+      record.p0 = p0
+      record.p1 = p1
+      record.p2 = p2
+      record.p3 = p3
+      record.maskTexture = maskTexture
+      record.bleedLeft = bleedLeft
+      record.bleedTop = bleedTop
+      record.bleedRight = bleedRight
+      record.bleedBottom = bleedBottom
+      record.beforeRT = before
+      record.workRT = work
+
+      render.CopyRenderTargetToTexture(before)
+      render.CopyTexture(before, work)
+      render.PushRenderTarget(work, 0, 0, screenW, screenH)
+      record.targetPushed = true
+      cam.Start2D()
+      record.contextStarted = true
+      cam.PushModelMatrix(contextTransform(depth, frameX, frameY))
+      record.modelPushed = true
+      restoreParentScissor()
+      frame.pushClip(x - bleedLeft, y - bleedTop, w + bleedLeft + bleedRight, h + bleedTop + bleedBottom)
+    }, traceback)
+    if not ok {
+      local cleanupError = cleanupRecord(record)
+      local wasCommands = record.wasCommands
+      releaseRecord(record)
+      frame.resumeCommands(wasCommands)
+      throwWithCleanup(message, cleanupError)
+    }
+
+    shapeClipStack[depth] = record
+    M.stats.shapeClipCaptures = (M.stats.shapeClipCaptures ?? 0) + 1
+    M.stats.shapeClipDepthMax = math.max(M.stats.shapeClipDepthMax ?? 0, depth)
+  }
+
+  fn popMaskClip() {
+    local depth = #shapeClipStack
+    if depth <= 0 {
+      error("MGFX internal Clip scope mismatch", 3)
+    }
+    local record = shapeClipStack[depth]
+    local ok, message = xpcall(() => {
+      if #frameState.clipStack ~= record.clipDepth + 1 {
+        error("MGFX Clip contains unbalanced PushClip/PopClip calls", 2)
+      }
+      frame.popClip()
+      cam.PopModelMatrix()
+      record.modelPushed = false
+      cam.End2D()
+      record.contextStarted = false
+      render.PopRenderTarget()
+      record.targetPushed = false
+      restoreParentScissor()
+      composite(record)
+    }, traceback)
+    if not ok {
+      local cleanupError = cleanupRecord(record)
+      retireRecord(depth, record)
+      throwWithCleanup(message, cleanupError)
+    }
+
+    retireRecord(depth, record)
+    M.stats.shapeClipComposites = (M.stats.shapeClipComposites ?? 0) + 1
+  }
+
+  M.Clip = (mask, x, y, w, h, callback) => {
+    if typeOf(callback) ~= "function" {
+      error("MGFX.Clip requires a callback", 2)
+    }
+    pushMaskClip(mask, x, y, w, h)
+    local results = pack(xpcall(callback, traceback))
+    local popOk, popError = pcall(popMaskClip)
+    if not results[1] {
+      if not popOk {
+        error(tostring(results[2]) .. "\nMGFX Clip cleanup failed: " .. tostring(popError), 2)
+      }
+      error(results[2], 2)
+    }
+    if not popOk {
+      error(popError, 2)
+    }
+    return unpack(results, 2, results.n)
+  }
+
+  local forbiddenStyleKeys = { "backdrop", "shadow", "outerGlow", "innerGlow" }
+
+  fn validateCoverageStyle(name, drawStyle) {
+    stopif typeOf(drawStyle) ~= "table"
+    for index = 1, #forbiddenStyleKeys {
+      local key = forbiddenStyleKeys[index]
+      if drawStyle[key] ~= nil and drawStyle[key] ~= false {
+        error("MGFX Mask coverage does not support " .. name .. " style." .. key, 3)
+      }
+    }
+  }
+
+  local styleArgument = {
+    RoundedBoxEx = 5, CircleEx = 4, CapsuleEx = 5, ChamferBoxEx = 5,
+    LineEx = 5, PolyEx = 2, RegularPolyEx = 5, DiamondEx = 5,
+    CaretEx = 5, TextEx = 8, TextBoxEx = 7, RingEx = 5,
+    ArcEx = 7, SectorEx = 7, ImageEx = 6, IconEx = 6,
+    ProgressBarEx = 6, SegmentBarEx = 6
+  }
+  local drawApiNames = {
+    "RoundedBox", "RoundedBoxEx", "Circle", "CircleEx", "Capsule", "CapsuleEx",
+    "ChamferBox", "ChamferBoxEx", "Line", "LineNoCaps", "LineEx", "Poly", "PolyEx",
+    "RegularPoly", "RegularPolyEx", "Diamond", "DiamondEx", "Caret", "CaretEx",
+    "Ring", "RingEx", "Arc", "ArcEx", "Sector", "SectorEx",
+    "Image", "ImageUV", "ImageEx", "Icon", "IconEx",
+    "Text", "TextEx", "TextBox", "TextBoxEx",
+    "ProgressBar", "ProgressBarEx", "SegmentBar", "SegmentBarEx"
+  }
+
+  fn restoreRecorderBlend() {
+    if activeRecorder == nil or not frameState.coverageDrawing {
+      return
+    }
+    setNeutralRenderState()
+    render.OverrideBlend(true, BLEND_ZERO, BLEND_ZERO, BLENDFUNC_ADD, BLEND_ONE, BLEND_ONE, BLENDFUNC_MAX)
+  }
+
+  for index = 1, #drawApiNames {
+    local name = drawApiNames[index]
+    local original = M[name]
+    if typeOf(original) == "function" {
+      local styleIndex = styleArgument[name]
+      M[name] = (...) => {
+        if activeRecorder == nil {
+          return original(...)
+        }
+        if not frameState.coverageDrawing {
+          error("MGFX drawing commands must be inside m:Draw/Union/Subtract/Intersect/Xor", 2)
+        }
+        if styleIndex ~= nil {
+          validateCoverageStyle(name, select(styleIndex, ...))
+        }
+        local arguments = pack(...)
+        local results = pack(xpcall(() => original(unpack(arguments, 1, arguments.n)), traceback))
+        restoreRecorderBlend()
+        if not results[1] {
+          error(results[2], 2)
+        }
+        return unpack(results, 2, results.n)
+      }
+    }
+  }
+
+  local rawRoundedBoxBackdrop = M.RoundedBoxBackdrop
+  if typeOf(rawRoundedBoxBackdrop) == "function" {
+    M.RoundedBoxBackdrop = (...) => {
+      if activeRecorder ~= nil {
+        error("MGFX Mask coverage does not support backdrop drawing", 2)
+      }
+      rawRoundedBoxBackdrop(...)
+    }
+  }
+
+  local rawTextBatchEx = M.TextBatchEx
+  if typeOf(rawTextBatchEx) == "function" {
+    M.TextBatchEx = (...) => {
+      if activeRecorder ~= nil {
+        error("MGFX Mask coverage does not support TextBatchEx; draw text records explicitly", 2)
+      }
+      rawTextBatchEx(...)
+    }
+  }
+
+  local rawPushClip = M.PushClip
+  local rawPopClip = M.PopClip
+  M.PushClip = (...) => {
+    if activeRecorder ~= nil {
+      error("MGFX Mask coverage cannot contain nested Clip scopes", 2)
+    }
+    rawPushClip(...)
+  }
+  M.PopClip = (...) => {
+    if activeRecorder ~= nil {
+      error("MGFX Mask coverage cannot contain nested Clip scopes", 2)
+    }
+    rawPopClip(...)
+  }
+
+  local selfRoundedPreset = presetMask("rounded")
+  local selfCirclePreset = M.Masks.Circle
+  local selfCapsulePreset = M.Masks.Capsule
+  local selfChamferPreset = presetMask("chamfer")
+
+  fn validateSelfClip(children, drawStyle, shapeName) {
+    if typeOf(children) ~= "function" {
+      error("MGFX." .. shapeName .. " children must be a callback", 3)
+    }
+    if geometry.hasTransform() {
+      error("MGFX " .. shapeName .. " self clipping does not support an active MGFX transform", 3)
+    }
+    if typeOf(drawStyle) == "table" and drawStyle.transform ~= nil and drawStyle.transform ~= false {
+      error("MGFX " .. shapeName .. " self clipping does not support a transformed shape", 3)
+    }
+  }
+
+  fn splitSelfClipStyle(drawStyle, shapeField = nil) {
+    if typeOf(drawStyle) ~= "table" or drawStyle.stroke == nil or drawStyle.stroke == false {
+      return drawStyle
+    }
+    local background = { ...drawStyle }
+    background.stroke = nil
+    background.strokeWidth = nil
+    local foreground = {
+      fill = transparent,
+      stroke = drawStyle.stroke,
+      strokeWidth = drawStyle.strokeWidth
+    }
+    if shapeField ~= nil {
+      foreground[shapeField] = drawStyle[shapeField]
+    }
+    return background, foreground
+  }
+
+  fn checkedSelfClipBounds(x, y, w, h) {
+    x = finiteNumber(x, "self-clip x", 0)
+    y = finiteNumber(y, "self-clip y", 0)
+    w = finiteNumber(w, "self-clip width")
+    h = finiteNumber(h, "self-clip height")
+    if w <= 0 or h <= 0 {
+      error("MGFX self clipping requires positive width and height", 3)
+    }
+    if w > finiteNumber(ScrW(), "screen width") or h > finiteNumber(ScrH(), "screen height") {
+      error("MGFX self-clip bounds cannot exceed the framebuffer dimensions", 3)
+    }
+    return x, y, w, h
+  }
+
+  local drawRoundedBoxEx = M.RoundedBoxEx
+  M.RoundedBoxEx = (x, y, w, h, drawStyle = nil, children = nil) => {
+    if children == nil {
+      return drawRoundedBoxEx(x, y, w, h, drawStyle)
+    }
+    validateSelfClip(children, drawStyle, "RoundedBoxEx")
+    x, y, w, h = checkedSelfClipBounds(x, y, w, h)
+    local radius = typeOf(drawStyle) == "table" then (drawStyle.radius ?? drawStyle.r ?? 0) else 0
+    if typeOf(radius) == "table" {
+      error("MGFX RoundedBoxEx self clipping currently requires a scalar radius", 2)
+    }
+    radius = finiteNumber(radius, "self-clip radius", 0)
+    local values = maskState[selfRoundedPreset].values
+    values.radius = radius
+    values.units = "local"
+    local background, foreground = splitSelfClipStyle(drawStyle)
+    if foreground ~= nil {
+      foreground.radius = radius
+    }
+    local results = pack(drawRoundedBoxEx(x, y, w, h, background))
+    M.Clip(selfRoundedPreset, x, y, w, h, () => children(x, y, w, h))
+    if foreground ~= nil {
+      drawRoundedBoxEx(x, y, w, h, foreground)
+    }
+    return unpack(results, 1, results.n)
+  }
+
+  local drawCircleEx = M.CircleEx
+  M.CircleEx = (cx, cy, radius, drawStyle = nil, children = nil) => {
+    if children == nil {
+      return drawCircleEx(cx, cy, radius, drawStyle)
+    }
+    validateSelfClip(children, drawStyle, "CircleEx")
+    cx = finiteNumber(cx, "self-clip center x", 0)
+    cy = finiteNumber(cy, "self-clip center y", 0)
+    radius = finiteNumber(radius, "self-clip radius")
+    if radius <= 0 {
+      error("MGFX CircleEx self clipping requires a positive radius", 2)
+    }
+    local size = radius * 2
+    local x = cx - radius
+    local y = cy - radius
+    x, y, size = checkedSelfClipBounds(x, y, size, size)
+    local background, foreground = splitSelfClipStyle(drawStyle)
+    local results = pack(drawCircleEx(cx, cy, radius, background))
+    M.Clip(selfCirclePreset, x, y, size, size, () => children(x, y, size, size))
+    if foreground ~= nil {
+      drawCircleEx(cx, cy, radius, foreground)
+    }
+    return unpack(results, 1, results.n)
+  }
+
+  local drawCapsuleEx = M.CapsuleEx
+  M.CapsuleEx = (x, y, w, h, drawStyle = nil, children = nil) => {
+    if children == nil {
+      return drawCapsuleEx(x, y, w, h, drawStyle)
+    }
+    validateSelfClip(children, drawStyle, "CapsuleEx")
+    x, y, w, h = checkedSelfClipBounds(x, y, w, h)
+    local background, foreground = splitSelfClipStyle(drawStyle)
+    local results = pack(drawCapsuleEx(x, y, w, h, background))
+    M.Clip(selfCapsulePreset, x, y, w, h, () => children(x, y, w, h))
+    if foreground ~= nil {
+      drawCapsuleEx(x, y, w, h, foreground)
+    }
+    return unpack(results, 1, results.n)
+  }
+
+  local drawChamferBoxEx = M.ChamferBoxEx
+  M.ChamferBoxEx = (x, y, w, h, drawStyle = nil, children = nil) => {
+    if children == nil {
+      return drawChamferBoxEx(x, y, w, h, drawStyle)
+    }
+    validateSelfClip(children, drawStyle, "ChamferBoxEx")
+    x, y, w, h = checkedSelfClipBounds(x, y, w, h)
+    local cuts = relativeCuts(typeOf(drawStyle) == "table" then (drawStyle.cuts ?? 0) else 0, "local", w, h)
+    local values = maskState[selfChamferPreset].values
+    values.cuts = cuts
+    values.units = "local"
+    local background, foreground = splitSelfClipStyle(drawStyle, "cuts")
+    local results = pack(drawChamferBoxEx(x, y, w, h, background))
+    M.Clip(selfChamferPreset, x, y, w, h, () => children(x, y, w, h))
+    if foreground ~= nil {
+      drawChamferBoxEx(x, y, w, h, foreground)
+    }
+    return unpack(results, 1, results.n)
+  }
+
+  M.PushShapeClip = nil
+  M.PopShapeClip = nil
+  M.WithShapeClip = nil
+  M.ShapeClip = nil
+
+  fn clearRecords() {
+    local cleanupError = nil
+    for index = #shapeClipStack, 1, -1 {
+      local record = shapeClipStack[index]
+      local message = cleanupRecord(record)
+      if message ~= nil and cleanupError == nil {
+        cleanupError = message
+      }
+      retireRecord(index, record)
+    }
+    cleanupError
+  }
+
+  fn endClipFrame(rawEnd, label) {
+    local unclosed = #shapeClipStack
+    if unclosed <= 0 {
+      return rawEnd()
+    }
+
+    local closeError = nil
+    while #shapeClipStack > 0 and closeError == nil {
+      local ok, message = pcall(popMaskClip)
+      if not ok {
+        closeError = message
+      }
+    }
+    if closeError ~= nil {
+      local cleanupError = clearRecords()
+      if cleanupError ~= nil {
+        closeError = tostring(closeError) .. "\nMGFX Clip cleanup failed: " .. tostring(cleanupError)
+      }
+    }
+    rawEnd()
+    if closeError ~= nil {
+      error("MGFX " .. label .. " recovered an invalid Clip scope: " .. tostring(closeError), 2)
+    }
+    error("MGFX " .. label .. " found " .. tostring(unclosed) .. " unclosed Clip scope(s)", 2)
+  }
+
+  local rawEndPanel = M.EndPanel
+  local rawEndScreen = M.EndScreen
+  M.EndPanel = () => endClipFrame(rawEndPanel, "EndPanel")
+  M.EndScreen = () => endClipFrame(rawEndScreen, "EndScreen")
+  M._internal.clipInstall = {
+    version = installVersion,
+    clip = M.Clip,
+    roundedBoxEx = M.RoundedBoxEx,
+    endPanel = M.EndPanel
+  }
+  M
+}

@@ -73,9 +73,13 @@ Transforms are draw-phase visual transforms. They do not affect layout or hit te
 
 Do not add primitive-specific projected APIs such as `ProjectedRoundedBoxEx` or `ProjectedRing`. Use `style.transform`, `PushTransform`, or `PointerTilt`.
 
-## Masks
+## Masks And Clip
 
-Masks are per-primitive shader coverage, not a global stencil stack. Avoid stencil-based shape masks unless a future feature proves it needs stencil semantics.
+Image style masks are per-primitive shader coverage. Reusable `MGFX.Mask` objects instead define a coverage program consumed by the callback-only `MGFX.Clip` framebuffer transaction. Neither path uses stencil.
+
+Analytical Circle/Capsule/Rounded/Chamfer presets run directly in the composite shader. Custom painters rasterize MGFX coverage commands into a lazily allocated full-frame RT, cache by content revision, destination/device extent, and fractional pixel phase, then composite before/after framebuffer snapshots. Integer translation does not invalidate the raster. The current backend rejects transformed Clip mapping and caps nesting at four to bound permanent RT allocation.
+
+Every MGFX-owned render-target, camera, model-matrix, scissor, and blend override must be paired in a protected cleanup scope. GMod exposes no getter for existing blend/alpha-write override descriptors, so caller-owned override scopes are outside the Clip contract.
 
 ## Public API Discipline
 

@@ -136,6 +136,7 @@ return function(__lux_import)
       "chamfer",
       "chamfer_texture",
       "image_mask",
+      "shape_clip",
       "image_mask_shadow_outer",
       "image_mask_backdrop",
       "image_mask_backdrop_fill",
@@ -207,6 +208,7 @@ return function(__lux_import)
       chamfer = "mgfx_chamfer_ps30",
       chamfer_texture = "mgfx_chamfer_texture_ps30",
       image_mask = "mgfx_image_mask_ps30",
+      shape_clip = "mgfx_shape_clip_ps30",
       image_mask_shadow_outer = "mgfx_image_mask_shadow_outer_ps30",
       image_mask_backdrop = "mgfx_image_mask_backdrop_sample_ps30",
       image_mask_backdrop_fill = "mgfx_image_mask_backdrop_ps30",
@@ -372,6 +374,13 @@ return function(__lux_import)
       return { ["$basetexture"] = textureName, ["$texture1"] = "_rt_FullFrameFB" }
     end
     materialValues = function(key, blurRT, horizontalRT, finalRT)
+      if key == "shape_clip" then
+        return {
+          ["$texture1"] = "color/white",
+          ["$texture2"] = "color/white",
+          ["$texture3"] = "color/white",
+        }
+      end
       if key == "backdrop_blur_horizontal" then
         return textureValues(blurRT)
       end
@@ -506,6 +515,7 @@ return function(__lux_import)
         image = materials.roundrect_texture,
         chamferImage = materials.chamfer_texture,
         imageMask = materials.image_mask,
+        shapeClip = materials.shape_clip,
         imageMaskShadowOuter = materials.image_mask_shadow_outer,
         imageMaskBackdrop = materials.image_mask_backdrop,
         imageMaskBackdropFill = materials.image_mask_backdrop_fill,

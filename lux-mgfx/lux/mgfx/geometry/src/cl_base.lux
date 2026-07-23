@@ -29,6 +29,7 @@ local renderCopyRenderTargetToTexture = render.CopyRenderTargetToTexture
 local renderDrawScreenQuad = render.DrawScreenQuad
 local renderGetBlend = render.GetBlend
 local renderGetColorModulation = render.GetColorModulation
+local renderGetRenderTarget = render.GetRenderTarget
 local renderOverrideAlphaWriteEnable = render.OverrideAlphaWriteEnable
 local renderOverrideBlend = render.OverrideBlend
 local renderPopRenderTarget = render.PopRenderTarget
@@ -49,6 +50,8 @@ local geometryOwner = nil
 local backdropBlurPreparedFrame = -1
 local backdropBlurPreparedIntensity = 0
 local backdropBlurPreparedLevel = nil
+local backdropBlurPreparedTarget = nil
+local mainRenderTargetKey = {}
 local backdropBlurParamMatrices = {}
 local backdropBlurMatrixProbe = matrixCtor ~= nil then matrixCtor() else nil
 local backdropBlurMatrixSetUnpacked = backdropBlurMatrixProbe?.SetUnpacked

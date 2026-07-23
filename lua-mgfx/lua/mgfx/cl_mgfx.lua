@@ -61,6 +61,7 @@ mgfxInclude("cl_mgfx_widgets_images.lua")
 mgfxInclude("cl_mgfx_widgets_text.lua")
 mgfxInclude("cl_mgfx_widgets.lua")
 mgfxInclude("cl_mgfx_frame.lua")
+mgfxInclude("cl_mgfx_shapeclip.lua")
 mgfxInclude("cl_mgfx_console.lua")
 
 for _, key in ipairs({
@@ -103,9 +104,11 @@ local math_cos = math.cos
 local math_sin = math.sin
 local FrameNumber = FrameNumber
 local render_CopyRenderTargetToTexture = render.CopyRenderTargetToTexture
+local render_CopyTexture = render.CopyTexture
 local render_DrawScreenQuad = render.DrawScreenQuad
 local render_GetBlend = render.GetBlend
 local render_GetColorModulation = render.GetColorModulation
+local render_GetRenderTarget = render.GetRenderTarget
 local render_OverrideBlend = render.OverrideBlend
 local render_OverrideAlphaWriteEnable = render.OverrideAlphaWriteEnable
 local render_PopRenderTarget = render.PopRenderTarget
@@ -156,6 +159,16 @@ M._internal = M._internal or {}
 
 local clipStack = {}
 local frameState = {w = nil, h = nil, screenX = 0, screenY = 0}
+M._internal.renderModeState = {
+	coverage = false,
+	coverageDrawing = false,
+	coverageX = 0,
+	coverageY = 0,
+	coverageW = 0,
+	coverageH = 0,
+	coverageOffsetX = 0,
+	coverageOffsetY = 0,
+}
 local commandState = {stack = nil, replaying = false}
 local commandStackPool = {}
 local commandObjectPool = {}
@@ -356,6 +369,12 @@ local function resetStats()
 	M.stats.fallbacks = 0
 	M.stats.culled = 0
 	M.stats.gradientLutFillHits = 0
+	M.stats.shapeClipCaptures = 0
+	M.stats.shapeClipComposites = 0
+	M.stats.shapeClipDepthMax = 0
+	M.stats.maskRasterizations = 0
+	M.stats.maskCacheHits = 0
+	M.stats.maskOperations = 0
 	M.stats.textQueuedBatches = 0
 	M.stats.textQueuedRecords = 0
 	table.Empty(M.stats.drawCommandCounts)
@@ -403,6 +422,9 @@ local STROKE_DOT = styleApi.STROKE_DOT
 local STROKE_DASH = styleApi.STROKE_DASH
 local STROKE_DOT_DASH = styleApi.STROKE_DOT_DASH
 
+local gradientLutForFill
+local bindGradientLut
+do
 local GRADIENT_LUT_W = 256
 local GRADIENT_LUT_H = 4
 local GRADIENT_LUT_CACHE_LIMIT = 128
@@ -575,6 +597,10 @@ local function writeGradientLut(rt, stops)
 	if render_SetBlend and prevBlend ~= nil then render_SetBlend(prevBlend) end
 	render_PopRenderTarget()
 	if restoreScissor then restoreScissor() end
+	if M._internal.renderModeState.coverageDrawing then
+		render_OverrideAlphaWriteEnable(true, true)
+		render_OverrideBlend(true, BLEND_ZERO, BLEND_ZERO, BLENDFUNC_ADD, BLEND_ONE, BLEND_ONE, BLENDFUNC_MAX)
+	end
 end
 
 local function acquireGradientLutEntry(key)
@@ -605,7 +631,7 @@ local function acquireGradientLutEntry(key)
 	return oldestEntry
 end
 
-local function gradientLutForFill(fill)
+gradientLutForFill = function(fill)
 	local cached = gradientFillCacheEntry(fill)
 	if cached then return cached end
 
@@ -625,7 +651,7 @@ local function gradientLutForFill(fill)
 	return entry.texture
 end
 
-local function bindGradientLut(mat, fill)
+bindGradientLut = function(mat, fill)
 	if not mat or not mat.SetTexture then return nil end
 	local lut = gradientLutForFill(fill)
 	if lut and gradientLutBound[mat] ~= lut then
@@ -649,6 +675,7 @@ function M.GradientLutStatus()
 		limit = GRADIENT_LUT_CACHE_LIMIT,
 		serial = gradientLutSerial,
 	}
+end
 end
 
 local geometryApi = assert(M._CreateGeometryHelpers and M._CreateGeometryHelpers({
@@ -682,6 +709,7 @@ local frameGeometryApi = assert(M._CreateFrameGeometry and M._CreateFrameGeometr
 	stats = M.stats,
 	clipStack = clipStack,
 	frameState = frameState,
+	renderModeState = M._internal.renderModeState,
 }), "MGFX frame geometry module unavailable")
 local isCulled = frameGeometryApi.isCulled
 local withLocalScissor = frameGeometryApi.withLocalScissor
@@ -912,6 +940,7 @@ if type(textRendererFactory) == "function" then
 		gradientLutForFill = gradientLutForFill,
 		gradientCurve = gradientCurve,
 		colorAtFill = colorAtFill,
+		renderModeState = M._internal.renderModeState,
 		getFrameOffset = function()
 			return frameState.screenX or 0, frameState.screenY or 0
 		end,
@@ -958,17 +987,21 @@ end
 local backdropBlurPreparedFrame = -1
 local backdropBlurPreparedIntensity = 0
 local backdropBlurPreparedLevel = nil
+local backdropBlurPreparedTarget = nil
 
 -- The raw capture is reused while intensity changes only rerun the separable
 -- passes. A new level captures the framebuffer again so higher UI layers can
--- include content already drawn below them.
+-- include content already drawn below them. The current render target is also
+-- part of the cache key: Clip work targets may change within one frame.
 local function prepareBackdropBlur(amount, recapture, level)
 	local frame = FrameNumber()
 	local intensity = blurIntensity(amount)
 	level = math_floor(tonumber(level) or 0)
+	local targetKey = render_GetRenderTarget() or false
 	local sameFrame = backdropBlurPreparedFrame == frame
 	local sameLevel = backdropBlurPreparedLevel == level
-	if not recapture and sameFrame and sameLevel
+	local sameTarget = backdropBlurPreparedTarget == targetKey
+	if not recapture and sameFrame and sameLevel and sameTarget
 		and math_abs(backdropBlurPreparedIntensity - intensity) < 0.0001 then
 		M.stats.blurReuses = M.stats.blurReuses + 1
 		return backdropBlurPreparedIntensity
@@ -979,7 +1012,7 @@ local function prepareBackdropBlur(amount, recapture, level)
 	local verticalMat = materials.backdrop_blur_vertical
 	local prevR, prevG, prevB = render_GetColorModulation()
 	local prevBlend = render_GetBlend()
-	local captureSource = recapture or not sameFrame or not sameLevel
+	local captureSource = recapture or not sameFrame or not sameLevel or not sameTarget
 
 	if captureSource then
 		render_CopyRenderTargetToTexture(blurRT)
@@ -1012,6 +1045,7 @@ local function prepareBackdropBlur(amount, recapture, level)
 	backdropBlurPreparedFrame = frame
 	backdropBlurPreparedIntensity = intensity
 	backdropBlurPreparedLevel = level
+	backdropBlurPreparedTarget = targetKey
 	M.stats.blurPasses = M.stats.blurPasses + 2
 	return intensity
 end
@@ -1115,22 +1149,6 @@ local roundRectApi = assert(M._InstallRoundRect and M._InstallRoundRect({
 	withPanelEffectBleed = withPanelEffectBleed,
 	drawBlurredQuad = drawBlurredQuad,
 }), "MGFX roundrect module unavailable")
-local drawRoundRectFallback = roundRectApi.drawRoundRectFallback
-local drawStrokePath = roundRectApi.drawStrokePath
-local patternStyle = roundRectApi.patternStyle
-local patternOffset = roundRectApi.patternOffset
-local setupPatternConstants = roundRectApi.setupPatternConstants
-local drawRoundRectPattern = roundRectApi.drawRoundRectPattern
-local drawRoundRectInnerGlow = roundRectApi.drawRoundRectInnerGlow
-local drawRoundRectOuterGlow = roundRectApi.drawRoundRectOuterGlow
-local drawRoundRectFillPass = roundRectApi.drawRoundRectFillPass
-local drawRoundRectStrokePass = roundRectApi.drawRoundRectStrokePass
-local drawRoundRectRaw = roundRectApi.drawRoundRectRaw
-local drawRoundRectPrepared = roundRectApi.drawRoundRectPrepared
-local drawRoundRectImmediate = roundRectApi.drawRoundRectImmediate
-local roundRaw = roundRectApi.roundRaw
-local glowBiasPads = roundRectApi.glowBiasPads
-
 function M.CompileStyle(style, target)
 	if style == nil then return nil end
 	if not istable(style) then return nil end
@@ -1146,25 +1164,25 @@ function M.CompileStyle(style, target)
 		out.backdrop = backdropStyle(out.backdrop)
 	end
 	if out.pattern ~= nil and out.pattern ~= false then
-		out.pattern = patternStyle(out.pattern)
+		out.pattern = roundRectApi.patternStyle(out.pattern)
 	end
 	if out.fillPattern ~= nil and out.fillPattern ~= false then
-		out.fillPattern = patternStyle(out.fillPattern)
+		out.fillPattern = roundRectApi.patternStyle(out.fillPattern)
 	end
 	if out.trackPattern ~= nil and out.trackPattern ~= false then
-		out.trackPattern = patternStyle(out.trackPattern)
+		out.trackPattern = roundRectApi.patternStyle(out.trackPattern)
 	end
 	out._mgfxCompiledStyle = true
 	return out
 end
-M._internal.drawRoundRectRaw = drawRoundRectRaw
-M._internal.drawRoundRectPrepared = drawRoundRectPrepared
-M._internal.drawRoundRectImmediate = drawRoundRectImmediate
+M._internal.drawRoundRectRaw = roundRectApi.drawRoundRectRaw
+M._internal.drawRoundRectPrepared = roundRectApi.drawRoundRectPrepared
+M._internal.drawRoundRectImmediate = roundRectApi.drawRoundRectImmediate
 M._internal.setupParamMatrix = setupParamMatrix
 M._internal.setupParamMatrixRaw = setupParamMatrixRaw
 M._internal.setupExtraParams = setupExtraParams
 M._internal.setupExtraParamsRaw = setupAuxConstantsRaw
-M._internal.roundRaw = roundRaw
+M._internal.roundRaw = roundRectApi.roundRaw
 
 local context = {
 	M = M,
@@ -1175,6 +1193,7 @@ local context = {
 	profiler = profiler,
 	clipStack = clipStack,
 	frameState = frameState,
+	renderModeState = M._internal.renderModeState,
 	commandState = commandState,
 	commandApi = commandApi,
 	acquireCommandStack = acquireCommandStack,
@@ -1192,6 +1211,19 @@ local context = {
 	copyPoints = copyPoints,
 	shaderVersion = shaderVersion,
 	shaderMountName = shaderMountName,
+	renderCopyRenderTargetToTexture = render_CopyRenderTargetToTexture,
+	renderCopyTexture = render_CopyTexture,
+	renderPushRenderTarget = render_PushRenderTarget,
+	renderPopRenderTarget = render_PopRenderTarget,
+	renderGetBlend = render_GetBlend,
+	renderGetColorModulation = render_GetColorModulation,
+	renderOverrideBlend = render_OverrideBlend,
+	renderOverrideAlphaWriteEnable = render_OverrideAlphaWriteEnable,
+	renderSetBlend = render_SetBlend,
+	renderSetColorModulation = render_SetColorModulation,
+	renderSetScissorRect = render_SetScissorRect,
+	surfaceSetDrawColor = surface_SetDrawColor,
+	surfaceSetMaterial = surface_SetMaterial,
 	FILL_SOLID = FILL_SOLID,
 	FILL_LINEAR = FILL_LINEAR,
 	FILL_RADIAL = FILL_RADIAL,
@@ -1261,21 +1293,21 @@ local context = {
 	imageAlign = imageAlign,
 	imageUV = imageUV,
 	imageFitRect = imageFitRect,
-	drawRoundRectFallback = drawRoundRectFallback,
-	patternStyle = patternStyle,
-	patternOffset = patternOffset,
-	setupPatternConstants = setupPatternConstants,
-	drawRoundRectPattern = drawRoundRectPattern,
-	drawRoundRectInnerGlow = drawRoundRectInnerGlow,
-	drawRoundRectOuterGlow = drawRoundRectOuterGlow,
-	drawRoundRectFillPass = drawRoundRectFillPass,
-	drawRoundRectStrokePass = drawRoundRectStrokePass,
-	drawRoundRectRaw = drawRoundRectRaw,
-	drawRoundRectPrepared = drawRoundRectPrepared,
-	drawRoundRectImmediate = drawRoundRectImmediate,
-	drawStrokePath = drawStrokePath,
-	roundRaw = roundRaw,
-	glowBiasPads = glowBiasPads,
+	drawRoundRectFallback = roundRectApi.drawRoundRectFallback,
+	patternStyle = roundRectApi.patternStyle,
+	patternOffset = roundRectApi.patternOffset,
+	setupPatternConstants = roundRectApi.setupPatternConstants,
+	drawRoundRectPattern = roundRectApi.drawRoundRectPattern,
+	drawRoundRectInnerGlow = roundRectApi.drawRoundRectInnerGlow,
+	drawRoundRectOuterGlow = roundRectApi.drawRoundRectOuterGlow,
+	drawRoundRectFillPass = roundRectApi.drawRoundRectFillPass,
+	drawRoundRectStrokePass = roundRectApi.drawRoundRectStrokePass,
+	drawRoundRectRaw = roundRectApi.drawRoundRectRaw,
+	drawRoundRectPrepared = roundRectApi.drawRoundRectPrepared,
+	drawRoundRectImmediate = roundRectApi.drawRoundRectImmediate,
+	drawStrokePath = roundRectApi.drawStrokePath,
+	roundRaw = roundRectApi.roundRaw,
+	glowBiasPads = roundRectApi.glowBiasPads,
 	textureFallbackMaterial = textureFallbackMaterial,
 	materialCache = materialCache,
 	textRenderer = textRenderer,
@@ -1299,6 +1331,12 @@ if type(M._InstallFrame) == "function" then
 	M._InstallFrame(context)
 else
 	print("[MGFX] frame module unavailable")
+end
+
+if type(M._InstallShapeClip) == "function" then
+	M._InstallShapeClip(context)
+else
+	print("[MGFX] Clip module unavailable")
 end
 
 if profiler and profiler.InstallApiWrappers then
@@ -1347,6 +1385,7 @@ if profiler and profiler.InstallApiWrappers then
 		"EndScreen",
 		"PushClip",
 		"PopClip",
+		"Clip",
 		"Solid",
 		"GradientCurve",
 		"LinearGradient",

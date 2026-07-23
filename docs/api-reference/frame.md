@@ -14,6 +14,10 @@ MGFX.EndScreen()
 MGFX.PushClip(x, y, w, h)
 MGFX.PopClip()
 
+local mask = MGFX.Mask(painter)
+MGFX.Clip(mask, x, y, w, h, callback)
+mask:Clip(x, y, w, h, callback)
+
 MGFX.ShaderStatus()
 MGFX.HasShaders()
 MGFX.GetCapabilities(target)
@@ -73,7 +77,24 @@ MGFX.PushClip(x, y, w, h)
 MGFX.PopClip()
 ```
 
-Clips subsequent drawing to a rectangular scissor region. This is not a general shape mask. Shape masks are per-primitive shader coverage.
+`PushClip` clips subsequent drawing to a rectangular scissor region. It remains a cheap coarse clip, not a general shape mask.
+
+For arbitrary-content shape clipping, define coverage and apply it with the callback-only `Clip` transaction:
+
+```lua
+local rounded = MGFX.Masks.Rounded({radius = 18, units = "local"})
+
+MGFX.Clip(rounded, x, y, w, h, function()
+    MGFX.Image(x - 20, y, w + 40, h, material)
+    MGFX.Text("ANTIALIASED", "DermaLarge", x + w / 2, y + h / 2, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+end)
+```
+
+`MGFX.Mask(function(m, w, h) ... end)` records custom vector coverage. The recorder exposes `Draw`/`Union`, `Subtract`, `Intersect`, `Xor`, and `Invert`; see [Coverage Masks and Antialiased Clip](../guide/masks-and-clip) for exact formulas, presets, invalidation, cache keys, and self-clipping callbacks.
+
+Clip does not use stencil. It captures the framebuffer before and after the callback and composites those snapshots through continuous shader coverage. This preserves antialiased edges even when the content mixes MGFX shapes, text, images, native `surface` drawing, and backdrop effects.
+
+Each Clip costs two framebuffer copies and one bounded composite draw. The rectangular scissor is only a coarse performance bound; it does not define the shape edge. Clip requires the shader/render-target path, axis-aligned frame mapping, finite dimensions no larger than the framebuffer, and at most four nested scopes. It raises an error when unavailable instead of falling back to a binary clip. Do not call `BeginCommands` inside Clip or coverage recording; an active command batch is flushed before capture and resumed after compositing. Do not enter Clip while the caller owns a `render.OverrideBlend` or `render.OverrideAlphaWriteEnable` scope, because GMod exposes no getter with which MGFX could restore that descriptor.
 
 ## Diagnostics
 

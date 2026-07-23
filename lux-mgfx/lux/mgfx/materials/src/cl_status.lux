@@ -29,6 +29,7 @@ export client fn shaderStatus(state) {
     image = materials.roundrect_texture,
     chamferImage = materials.chamfer_texture,
     imageMask = materials.image_mask,
+    shapeClip = materials.shape_clip,
     imageMaskShadowOuter = materials.image_mask_shadow_outer,
     imageMaskBackdrop = materials.image_mask_backdrop,
     imageMaskBackdropFill = materials.image_mask_backdrop_fill,

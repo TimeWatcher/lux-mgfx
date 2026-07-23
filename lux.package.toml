@@ -9,6 +9,7 @@ depends = [
   "@lux/mgfx/api >=0.1 <0.2",
   "@lux/mgfx/capabilities >=0.1 <0.2",
   "@lux/mgfx/commands >=0.1 <0.2",
+  "@lux/mgfx/clip >=0.1 <0.2",
   "@lux/mgfx/frame >=0.1 <0.2",
   "@lux/mgfx/geometry >=0.1 <0.2",
   "@lux/mgfx/materials >=0.1 <0.2",
@@ -29,6 +30,7 @@ license = "Lux-MGFX-NC"
 depends = [
   "@lux/mgfx/capabilities >=0.1 <0.2",
   "@lux/mgfx/commands >=0.1 <0.2",
+  "@lux/mgfx/clip >=0.1 <0.2",
   "@lux/mgfx/frame >=0.1 <0.2",
   "@lux/mgfx/geometry >=0.1 <0.2",
   "@lux/mgfx/materials >=0.1 <0.2",
@@ -54,6 +56,19 @@ version = "0.1.0"
 path = "lux-mgfx/lux/mgfx/commands"
 license = "Lux-MGFX-NC"
 depends = ["@lux/compile/macro >=0.1 <0.2"]
+
+[[package]]
+id = "@lux/mgfx/clip"
+version = "0.1.0"
+path = "lux-mgfx/lux/mgfx/clip"
+license = "Lux-MGFX-NC"
+depends = [
+  "@lux/mgfx/frame >=0.1 <0.2",
+  "@lux/mgfx/geometry >=0.1 <0.2",
+  "@lux/mgfx/materials >=0.1 <0.2",
+  "@lux/mgfx/primitives >=0.1 <0.2",
+  "@lux/mgfx/style >=0.1 <0.2",
+]
 
 [[package]]
 id = "@lux/mgfx/console"

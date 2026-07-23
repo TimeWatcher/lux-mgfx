@@ -21,6 +21,36 @@ do
   end
 end
 do
+  if __lux_registry["lux/mgfx/frame#client"] == nil then
+    local __lux_factory = include("mgfx/client/runtime/lux/mgfx/frame.lua")
+    __lux_registry["lux/mgfx/frame#client"] = __lux_factory(__lux_import) or {}
+  end
+end
+do
+  if __lux_registry["lux/mgfx/geometry#client"] == nil then
+    local __lux_factory = include("mgfx/client/runtime/lux/mgfx/geometry.lua")
+    __lux_registry["lux/mgfx/geometry#client"] = __lux_factory(__lux_import) or {}
+  end
+end
+do
+  if __lux_registry["lux/mgfx/roundrect#client"] == nil then
+    local __lux_factory = include("mgfx/client/runtime/lux/mgfx/roundrect.lua")
+    __lux_registry["lux/mgfx/roundrect#client"] = __lux_factory(__lux_import) or {}
+  end
+end
+do
+  if __lux_registry["lux/mgfx/primitives#client"] == nil then
+    local __lux_factory = include("mgfx/client/runtime/lux/mgfx/primitives.lua")
+    __lux_registry["lux/mgfx/primitives#client"] = __lux_factory(__lux_import) or {}
+  end
+end
+do
+  if __lux_registry["lux/mgfx/clip#client"] == nil then
+    local __lux_factory = include("mgfx/client/runtime/lux/mgfx/clip.lua")
+    __lux_registry["lux/mgfx/clip#client"] = __lux_factory(__lux_import) or {}
+  end
+end
+do
   if __lux_registry["lux/mgfx/commands#client"] == nil then
     local __lux_factory = include("mgfx/client/runtime/lux/mgfx/commands.lua")
     __lux_registry["lux/mgfx/commands#client"] = __lux_factory(__lux_import) or {}
@@ -72,30 +102,6 @@ do
   if __lux_registry["lux/mgfx/console#client"] == nil then
     local __lux_factory = include("mgfx/client/runtime/lux/mgfx/console.lua")
     __lux_registry["lux/mgfx/console#client"] = __lux_factory(__lux_import) or {}
-  end
-end
-do
-  if __lux_registry["lux/mgfx/frame#client"] == nil then
-    local __lux_factory = include("mgfx/client/runtime/lux/mgfx/frame.lua")
-    __lux_registry["lux/mgfx/frame#client"] = __lux_factory(__lux_import) or {}
-  end
-end
-do
-  if __lux_registry["lux/mgfx/geometry#client"] == nil then
-    local __lux_factory = include("mgfx/client/runtime/lux/mgfx/geometry.lua")
-    __lux_registry["lux/mgfx/geometry#client"] = __lux_factory(__lux_import) or {}
-  end
-end
-do
-  if __lux_registry["lux/mgfx/roundrect#client"] == nil then
-    local __lux_factory = include("mgfx/client/runtime/lux/mgfx/roundrect.lua")
-    __lux_registry["lux/mgfx/roundrect#client"] = __lux_factory(__lux_import) or {}
-  end
-end
-do
-  if __lux_registry["lux/mgfx/primitives#client"] == nil then
-    local __lux_factory = include("mgfx/client/runtime/lux/mgfx/primitives.lua")
-    __lux_registry["lux/mgfx/primitives#client"] = __lux_factory(__lux_import) or {}
   end
 end
 do

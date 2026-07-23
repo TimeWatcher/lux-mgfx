@@ -1,5 +1,6 @@
 import * as api_mod from "@lux/mgfx/api"
 import * as capabilities_mod from "@lux/mgfx/capabilities"
+import * as clip_mod from "@lux/mgfx/clip"
 import * as commands_mod from "@lux/mgfx/commands"
 import * as console_mod from "@lux/mgfx/console"
 import * as frame_mod from "@lux/mgfx/frame"
@@ -15,6 +16,7 @@ import * as widgets_mod from "@lux/mgfx/widgets"
 
 local api = api_mod
 local capabilities = capabilities_mod
+local clip = clip_mod
 local commands = commands_mod
 local console = console_mod
 local frame = frame_mod
@@ -43,6 +45,7 @@ export client fn create() =
 export client {
   api,
   capabilities,
+    clip,
     commands,
     console,
     frame,

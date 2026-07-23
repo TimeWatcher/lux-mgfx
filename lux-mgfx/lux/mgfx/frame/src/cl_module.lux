@@ -25,7 +25,16 @@ local state = {
   clipToFrame = false,
   clipStack = {},
   commandStack = nil,
-  replaying = false
+  commandSuspensions = 0,
+  replaying = false,
+  coverage = false,
+  coverageDrawing = false,
+  coverageX = 0,
+  coverageY = 0,
+  coverageW = 0,
+  coverageH = 0,
+  coverageOffsetX = 0,
+  coverageOffsetY = 0
 }
 local bleedStateStack = {}
 local bleedStateTop = 0
@@ -135,6 +144,15 @@ fn releaseCommandStack(stack) {
 }
 
 export client fn restoreScissor() {
+  if state.coverage {
+    local x = state.coverageX ?? 0
+    local y = state.coverageY ?? 0
+    local w = state.coverageW ?? 0
+    local h = state.coverageH ?? 0
+    renderSetScissorRect(x, y, x + w, y + h, true)
+    return
+  }
+
   local clip = state.clipStack[#state.clipStack]
   if clip ~= nil {
     renderSetScissorRect(clip.x, clip.y, clip.x + clip.w, clip.y + clip.h, true)
@@ -190,6 +208,10 @@ export client fn isCulled(x, y, w, h) {
     return true
   }
 
+  if state.coverage {
+    return false
+  }
+
   local clip = state.clipStack[#state.clipStack]
   if clip == nil {
     return false
@@ -234,6 +256,10 @@ fn installFrameClip() {
 }
 
 fn beginCommandFrame() {
+  if state.commandSuspensions > 0 {
+    errorFn("MGFX.BeginCommands cannot run inside Clip or Mask coverage recording", 2)
+  }
+
   if state.commandStack ~= nil {
     return state.commandStack
   }
@@ -373,6 +399,7 @@ fn finishFrame() {
   state.clipToFrame = false
   state.drawCountsActive = false
   state.commandStack = nil
+  state.commandSuspensions = 0
   state.replaying = false
   state
 }
@@ -535,6 +562,10 @@ export client fn withClip(x, y, w, h, callback) {
 }
 
 export client fn beginPanelEffectBleed(left = 0, top = 0, right = 0, bottom = 0) {
+  if state.coverage {
+    errorFn("MGFX coverage recording does not support panel bleed effects", 2)
+  }
+
   left = mathMax(0, toNumber(left) ?? 0)
   top = mathMax(0, toNumber(top) ?? 0)
   right = mathMax(0, toNumber(right) ?? 0)
@@ -557,6 +588,10 @@ export client fn beginPanelEffectBleed(left = 0, top = 0, right = 0, bottom = 0)
 }
 
 export client fn beginPanelEffectDraw(drawX, drawY, drawW, drawH) {
+  if state.coverage {
+    errorFn("MGFX coverage recording does not support panel bleed effects", 2)
+  }
+
   if drawW <= 0 or drawH <= 0 {
     return nil
   }
@@ -628,6 +663,27 @@ export client fn beginCommands() {
   beginCommandFrame()
 }
 
+export client fn suspendCommands() {
+  local wasActive = state.commandStack ~= nil and not state.replaying
+  if wasActive {
+    flushQueuedCommands()
+  }
+
+  state.commandSuspensions += 1
+  wasActive
+}
+
+export client fn resumeCommands(wasActive = false) {
+  if state.commandSuspensions <= 0 {
+    errorFn("MGFX Clip command suspension mismatch", 2)
+  }
+
+  state.commandSuspensions -= 1
+  if wasActive and state.commandSuspensions == 0 {
+    beginCommandFrame()
+  }
+}
+
 export client fn queue(command) {
   if state.commandStack == nil or state.replaying {
     return false
@@ -671,6 +727,8 @@ export client fn install(owner) {
   owner.EndScreen = endScreen
   owner.BeginCommands = beginCommands
   owner.FlushCommands = flushCommands
+  owner._SuspendCommands = suspendCommands
+  owner._ResumeCommands = resumeCommands
   owner.PushClip = pushClip
   owner.PopClip = popClip
   owner.BeginPanelEffectBleed = beginPanelEffectBleed

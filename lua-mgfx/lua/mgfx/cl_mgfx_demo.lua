@@ -28,6 +28,16 @@ local STROKE_DEMO_COLORS = {
 	Color(238, 128, 208, 235),
 }
 
+local CUSTOM_MASK_DEMO = MGFX.Mask(function(m, w, h)
+	local radius = math.min(w, h) * 0.48
+	m:Draw(function()
+		MGFX.Circle(w * 0.5, h * 0.5, radius, color_white)
+	end)
+	m:Subtract(function()
+		MGFX.Circle(w * 0.69, h * 0.31, radius * 0.38, color_white)
+	end)
+end)
+
 local CJK_FACE = "Noto Sans SC"
 
 local function ensureFonts(scale)
@@ -678,7 +688,7 @@ function PANEL:Paint(w, h)
 			strokeWidth = "hairline",
 		})
 
-		x, y, cw, ch = card(4, "Image Masks", "rounded / chamfer / circle / texture", COLORS.gold)
+		x, y, cw, ch = card(4, "Masks & Clip", "image masks / custom coverage", COLORS.gold)
 		if mat then
 			local size = math.min(48, cw * 0.24)
 			local leftX = x + 28
@@ -687,7 +697,7 @@ function PANEL:Paint(w, h)
 			local bottomY = y + 96
 
 			MGFX.ImageEx(leftX, topY, size, size, mat, {
-				mask = MGFX.Mask("rounded", {radius = 11}),
+				mask = {kind = "rounded", radius = 11},
 				fit = "cover",
 				tint = Color(42, 150, 255, 238),
 				stroke = Color(255, 255, 255, 46),
@@ -695,7 +705,7 @@ function PANEL:Paint(w, h)
 				fill = Color(4, 18, 26, 220),
 			})
 			MGFX.ImageEx(rightX, topY, size, size, mat, {
-				mask = MGFX.Mask("circle"),
+				mask = {kind = "circle"},
 				fit = "cover",
 				tint = Color(72, 224, 170, 238),
 				stroke = Color(70, 210, 255, 88),
@@ -703,38 +713,45 @@ function PANEL:Paint(w, h)
 				fill = Color(4, 18, 26, 220),
 			})
 			MGFX.ImageEx(leftX, bottomY, size, size, mat, {
-				mask = MGFX.Mask("chamfer", {cuts = {tl = 14, tr = 3, br = 14, bl = 3}}),
+				mask = {kind = "chamfer", cuts = {tl = 14, tr = 3, br = 14, bl = 3}},
 				fit = "cover",
 				tint = Color(255, 190, 66, 235),
 				stroke = Color(255, 190, 66, 90),
 				strokeWidth = 1,
 				fill = Color(24, 14, 8, 220),
 			})
-			MGFX.ImageEx(rightX, bottomY, size, size, mat, {
-				fit = "cover",
-				tint = Color(255, 112, 92, 238),
-				stroke = Color(255, 255, 255, 58),
-				strokeWidth = 1,
-				fill = Color(24, 10, 8, 220),
-				shadow = {
-					x = 0,
-					y = 5,
-					blur = 12,
-					color = Color(0, 0, 0, 146),
-					softness = 0.68,
-				},
-				outerGlow = showOuterGlow and {
-					color = Color(255, 190, 66, 118),
-					size = 14,
-					opacity = 1.15,
-					softness = 0.62,
-				} or nil,
-			})
+			if loaded and not fallback and MGFX.Clip then
+				MGFX.Clip(CUSTOM_MASK_DEMO, rightX, bottomY, size, size, function()
+					MGFX.RoundedBoxEx(rightX - 6, bottomY - 6, size + 12, size + 12, {
+						radius = 0,
+						fill = MGFX.LinearGradient(0, 0, 1, 1, Color(255, 82, 96, 248), Color(46, 202, 255, 248)),
+					})
+					MGFX.RoundedBoxEx(rightX - 4, bottomY - 4, size * 0.52, size + 8, {
+						radius = 0,
+						fill = Color(255, 194, 70, 164),
+					})
+					MGFX.LineEx(rightX - 8, bottomY + size, rightX + size, bottomY - 8, {
+						width = 3,
+						fill = Color(255, 255, 255, 224),
+					})
+					MGFX.LineEx(rightX, bottomY - 8, rightX + size + 8, bottomY + size, {
+						width = 2,
+						fill = Color(6, 18, 26, 180),
+					})
+					MGFX.TextEx("AA", "MGFXDemoTiny", rightX + size * 0.5, bottomY + size * 0.5, Color(4, 12, 18, 245), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+				end)
+			else
+				MGFX.ImageEx(rightX, bottomY, size, size, mat, {
+					mask = {kind = "rounded", radius = 12},
+					fit = "cover",
+					tint = Color(255, 112, 92, 238),
+				})
+			end
 
 			addText("rounded", "MGFXDemoTiny", leftX + size * 0.5, topY + size + 4, COLORS.muted, TEXT_ALIGN_CENTER)
 			addText("circle", "MGFXDemoTiny", rightX + size * 0.5, topY + size + 4, COLORS.muted, TEXT_ALIGN_CENTER)
 			addText("chamfer", "MGFXDemoTiny", leftX + size * 0.5, bottomY + size + 4, COLORS.muted, TEXT_ALIGN_CENTER)
-			addText("alpha fx", "MGFXDemoTiny", rightX + size * 0.5, bottomY + size + 4, COLORS.muted, TEXT_ALIGN_CENTER)
+			addText("Custom Mask", "MGFXDemoTiny", rightX + size * 0.5, bottomY + size + 4, COLORS.muted, TEXT_ALIGN_CENTER)
 		end
 
 		x, y, cw, ch = card(5, "Segment Bar", "SegmentBarEx: scoreboard threat", COLORS.red)

@@ -13,6 +13,7 @@ function M._CreateTextRenderer(deps)
 	local createPageTextMaterials = deps.createPageTextMaterials
 	local matOK = deps.matOK or function(mat) return mat and not mat:IsError() end
 	local profiler = deps.profiler
+	local renderModeState = deps.renderModeState or {}
 	local getFrameOffset = deps.getFrameOffset or function() return 0, 0 end
 	local restoreScissor = deps.restoreScissor or function() end
 	local gradientLutForFill = deps.gradientLutForFill or function() return nil end
@@ -68,6 +69,14 @@ function M._CreateTextRenderer(deps)
 	local Matrix = Matrix
 	_G.__MGFXTextAtlasSerial = (tonumber(_G.__MGFXTextAtlasSerial) or 0) + 1
 	local atlasNamespace = "MGFXTextComposeAtlas_" .. tostring(_G.__MGFXTextAtlasSerial)
+
+	local function restoreCoverageBlend()
+		if not renderModeState.coverageDrawing then return end
+		if render_OverrideAlphaWriteEnable then render_OverrideAlphaWriteEnable(true, true) end
+		if render_OverrideBlend then
+			render_OverrideBlend(true, BLEND_ZERO, BLEND_ZERO, BLENDFUNC_ADD, BLEND_ONE, BLEND_ONE, BLENDFUNC_MAX)
+		end
+	end
 
 	local renderer = {}
 	local measureCache = {}
@@ -782,6 +791,7 @@ function M._CreateTextRenderer(deps)
 		if render_OverrideAlphaWriteEnable then render_OverrideAlphaWriteEnable(false) end
 		render_PopRenderTarget()
 		restoreScissor()
+		restoreCoverageBlend()
 	end
 
 	-- Bakes render glyphs into the atlas RT from inside the host's VGUI Paint /
@@ -814,6 +824,7 @@ function M._CreateTextRenderer(deps)
 		if surface_SetAlphaMultiplier then surface_SetAlphaMultiplier(am or 1) end
 		if render_SetColorModulation and cr ~= nil then render_SetColorModulation(cr, cg, cb) end
 		if render_SetBlend and blend ~= nil then render_SetBlend(blend) end
+		restoreCoverageBlend()
 	end
 
 	local function clearAtlasSlot(x, y, w, h)

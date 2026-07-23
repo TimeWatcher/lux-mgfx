@@ -533,19 +533,6 @@ end
 		}
 	end
 
-	function owner.Mask(kind, spec)
-		if istable(kind) and not kind.r then
-			local out = table.Copy(kind)
-			if out.kind == nil and out.shape ~= nil then out.kind = out.shape end
-			return out
-		end
-
-		local out = istable(spec) and table.Copy(spec) or {}
-		out.kind = kind or out.kind
-		if out.kind == nil and out.shape ~= nil then out.kind = out.shape end
-		return out
-	end
-
 	local function imageMaskStyle(mask, style)
 		style = style or {}
 		if mask == false or mask == "none" then return nil end

@@ -19,6 +19,7 @@ function MGFX._InstallFrame(C)
 	local SysTime = SysTime
 	local profileFrameActive = false
 	local clipRecordPool = {}
+	local commandSuspensions = 0
 	assert(commandApi, "MGFX frame module requires commandApi")
 
 local function acquireClipRecord()
@@ -219,9 +220,8 @@ local function drawTextBoxCommand(command)
 	end
 end
 
-local function finishFrame(commands, frameProfile)
+local function finishFrame(frameProfile)
 	commandState.replaying = false
-	releaseCommandStack(commands)
 	clearClipStack()
 	render.SetScissorRect(0, 0, 0, 0, false)
 	frameState.w = nil
@@ -232,6 +232,7 @@ local function finishFrame(commands, frameProfile)
 	frameState.forceFallback = nil
 	frameState.shadersActive = nil
 	frameState.drawCountsActive = nil
+	commandSuspensions = 0
 	profileEnd("frame", frameProfile)
 	profileEnd("paintTotal", frameState.profilePaintStarted)
 	frameState.profilePaintStarted = nil
@@ -255,6 +256,7 @@ local function startFrame(w, h, screenX, screenY, kind, subject, label)
 	render.SetScissorRect(0, 0, 0, 0, false)
 	commandState.stack = nil
 	commandState.replaying = false
+	commandSuspensions = 0
 	frameState.forceFallback = forceFallback:GetBool()
 	frameState.shadersActive = not frameState.forceFallback and M.hasShaders()
 	frameState.drawCountsActive = drawCountsEnabled and drawCountsEnabled.GetBool and drawCountsEnabled:GetBool() or false
@@ -266,12 +268,7 @@ local function startFrame(w, h, screenX, screenY, kind, subject, label)
 	frameState.profilePaintStarted = profileStart()
 end
 
-local function flushFrame()
-	local frameProfile = profileStart()
-	if frameProfile and frameState.profilePaintStarted and profiler and profiler.Record then
-		profiler.Record("paintBuild", (frameProfile - frameState.profilePaintStarted) * 1000)
-	end
-
+local function flushQueuedCommands()
 	local commands = commandState.stack
 	commandState.stack = nil
 	if commands and #commands > 0 then
@@ -309,11 +306,26 @@ local function flushFrame()
 		profileEnd("commandLoop", loopProfile)
 		flushTextBatch(textBatch, "end")
 	end
+	local count = commands and #commands or 0
+	releaseCommandStack(commands)
+	commandState.replaying = false
+	return count
+end
 
-	finishFrame(commands, frameProfile)
+local function flushFrame()
+	local frameProfile = profileStart()
+	if frameProfile and frameState.profilePaintStarted and profiler and profiler.Record then
+		profiler.Record("paintBuild", (frameProfile - frameState.profilePaintStarted) * 1000)
+	end
+
+	flushQueuedCommands()
+	finishFrame(frameProfile)
 end
 
 function M.BeginCommands()
+	if commandSuspensions > 0 then
+		error("MGFX.BeginCommands cannot run inside Clip or Mask coverage recording", 2)
+	end
 	if commandState.stack then return commandState.stack end
 	commandState.stack = acquireCommandStack()
 	commandState.replaying = false
@@ -322,6 +334,25 @@ end
 
 function M.FlushCommands()
 	return flushFrame()
+end
+
+function M._SuspendCommands()
+	local wasActive = commandState.stack ~= nil and not commandState.replaying
+	if wasActive then
+		flushQueuedCommands()
+	end
+	commandSuspensions = commandSuspensions + 1
+	return wasActive
+end
+
+function M._ResumeCommands(wasActive)
+	if commandSuspensions <= 0 then
+		error("MGFX Clip command suspension mismatch", 2)
+	end
+	commandSuspensions = commandSuspensions - 1
+	if wasActive and commandSuspensions == 0 then
+		M.BeginCommands()
+	end
 end
 
 function M.StartPanel(panel, w, h)

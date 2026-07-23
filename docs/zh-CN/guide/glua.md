@@ -84,7 +84,8 @@ screen-space HUD 和 overlay 使用 `StartScreen`；VGUI panel 使用 `StartPane
 | 开始 frame | `MGFX.StartPanel(...)` |
 | 绘制形状 | `MGFX.RoundedBoxEx(...)` |
 | 创建渐变 | `MGFX.LinearGradient(...)` |
-| 创建图像遮罩 | `MGFX.Mask(...)` |
+| 创建图像遮罩 | `style.mask = {kind = "circle"}` |
+| 共享抗锯齿裁剪 | `MGFX.Mask(...)` + `MGFX.Clip(...)` |
 | 特效文字 | `MGFX.TextEx(...)` |
 
 Lux 等价 API 位于 `mgfx.api`，名称使用 lowerCamelCase。
@@ -94,3 +95,4 @@ Lux 等价 API 位于 `mgfx.api`，名称使用 lowerCamelCase。
 - 阅读 [核心概念](./concepts)，理解 frame scope、`Name` / `NameEx` 和 style table。
 - 精确参数和字段查 [API 参考](../api-reference/)。
 - shadow、outer glow、backdrop 和 pattern 查 [特效指南](./effects)。
+- 多次绘制共享非矩形边界时，查 [Mask 与抗锯齿 Clip](./masks-and-clip)。

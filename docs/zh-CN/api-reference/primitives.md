@@ -770,7 +770,7 @@ MGFX.CircleEx(cx, cy, radius, style)
 #### 用法说明
 
 - MGFX 会根据圆心和半径计算盒子，再应用圆形半径。
-- 圆形图片请使用带 MGFX.Mask("circle") 的 ImageEx。
+- 圆形图片请使用 `ImageEx(..., {mask = {kind = "circle"}})`；`MGFX.Mask(painter)` 属于多次绘制共享 coverage 的 Clip API。
 
 #### 示例
 

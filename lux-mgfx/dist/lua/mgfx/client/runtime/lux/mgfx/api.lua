@@ -70,6 +70,8 @@ return function(__lux_import)
   local endScreen
   local pushClip
   local popClip
+  local clip
+  local masks
   local debugOverlay
   local transform
   local projectedQuad
@@ -127,6 +129,7 @@ return function(__lux_import)
   local prewarmText
   do
     local capabilities = __lux_import("lux/mgfx/capabilities#client")
+    local clip = __lux_import("lux/mgfx/clip#client")
     local commands = __lux_import("lux/mgfx/commands#client")
     local console = __lux_import("lux/mgfx/console#client")
     local frame = __lux_import("lux/mgfx/frame#client")
@@ -198,6 +201,12 @@ return function(__lux_import)
       stats.fallbacks = 0
       stats.culled = 0
       stats.gradientLutFillHits = 0
+      stats.shapeClipCaptures = 0
+      stats.shapeClipComposites = 0
+      stats.shapeClipDepthMax = 0
+      stats.maskRasterizations = 0
+      stats.maskCacheHits = 0
+      stats.maskOperations = 0
       stats.textQueuedBatches = 0
       stats.textQueuedRecords = 0
       clearFrameStatTables(stats)
@@ -527,6 +536,7 @@ return function(__lux_import)
           "CapsuleEx",
           "PushClip",
           "PopClip",
+          "Clip",
           "Solid",
           "GradientCurve",
           "LinearGradient",
@@ -605,6 +615,7 @@ return function(__lux_import)
       primitives.install(out)
       widgets.install(out)
       installNormalizedDrawApi(out)
+      clip.install(out)
       out.CompileStyle = compileDrawStyle
       installFrameStatsReset(out)
       installProfileWrappers(out)
@@ -733,8 +744,8 @@ return function(__lux_import)
     wornPattern = function(spec)
       return defaultRuntime.WornPattern(spec)
     end
-    mask = function(kind, spec)
-      return defaultRuntime.Mask(kind, spec)
+    mask = function(painter)
+      return defaultRuntime.Mask(painter)
     end
     backdrop = function(value)
       return defaultRuntime.Backdrop(value)
@@ -801,6 +812,12 @@ return function(__lux_import)
     end
     popClip = function()
       return defaultRuntime.PopClip()
+    end
+    clip = function(maskValue, x, y, w, h, callback)
+      return defaultRuntime.Clip(maskValue, x, y, w, h, callback)
+    end
+    masks = function()
+      return defaultRuntime.Masks
     end
     debugOverlay = function(x, y)
       if x == nil then
@@ -1055,6 +1072,8 @@ return function(__lux_import)
   __lux_exports.endScreen = endScreen
   __lux_exports.pushClip = pushClip
   __lux_exports.popClip = popClip
+  __lux_exports.clip = clip
+  __lux_exports.masks = masks
   __lux_exports.debugOverlay = debugOverlay
   __lux_exports.transform = transform
   __lux_exports.projectedQuad = projectedQuad

@@ -2551,7 +2551,6 @@ return function(__lux_import)
       owner.StripePattern = stripePattern
       owner.SmokePattern = smokePattern
       owner.WornPattern = wornPattern
-      owner.Mask = mask
       owner.Backdrop = backdrop
       owner.CompileBackdrop = compileBackdrop
       owner.ImageMaskStyle = imageMaskStyle

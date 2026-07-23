@@ -25,6 +25,7 @@ local vguiCreate = vgui?.Create
 local vguiRegister = vgui?.Register
 
 local api = nil
+local customMaskDemo = nil
 local demoPanel = nil
 local currentFontScale = -1
 local currentTextFontScale = -1
@@ -739,7 +740,7 @@ fn PANEL:Paint(w, h) {
           strokeWidth = "hairline",
         })
 
-        x, y, cw, ch = card(4, "Image Masks", "rounded / chamfer / circle / texture", COLORS.gold)
+        x, y, cw, ch = card(4, "Masks & Clip", "image masks / custom coverage", COLORS.gold)
         if mat {
           local size = mathMin(48, cw * 0.24)
           local leftX = x + 28
@@ -748,7 +749,7 @@ fn PANEL:Paint(w, h) {
           local bottomY = y + 96
 
           api.ImageEx(leftX, topY, size, size, mat, {
-            mask = api.Mask("rounded", {radius = 11}),
+            mask = {kind = "rounded", radius = 11},
             fit = "cover",
             tint = makeColor(42, 150, 255, 238),
             stroke = makeColor(255, 255, 255, 46),
@@ -756,7 +757,7 @@ fn PANEL:Paint(w, h) {
             fill = makeColor(4, 18, 26, 220),
           })
           api.ImageEx(rightX, topY, size, size, mat, {
-            mask = api.Mask("circle"),
+            mask = {kind = "circle"},
             fit = "cover",
             tint = makeColor(72, 224, 170, 238),
             stroke = makeColor(70, 210, 255, 88),
@@ -764,38 +765,45 @@ fn PANEL:Paint(w, h) {
             fill = makeColor(4, 18, 26, 220),
           })
           api.ImageEx(leftX, bottomY, size, size, mat, {
-            mask = api.Mask("chamfer", {cuts = {tl = 14, tr = 3, br = 14, bl = 3}}),
+            mask = {kind = "chamfer", cuts = {tl = 14, tr = 3, br = 14, bl = 3}},
             fit = "cover",
             tint = makeColor(255, 190, 66, 235),
             stroke = makeColor(255, 190, 66, 90),
             strokeWidth = 1,
             fill = makeColor(24, 14, 8, 220),
           })
-          api.ImageEx(rightX, bottomY, size, size, mat, {
-            fit = "cover",
-            tint = makeColor(255, 112, 92, 238),
-            stroke = makeColor(255, 255, 255, 58),
-            strokeWidth = 1,
-            fill = makeColor(24, 10, 8, 220),
-            shadow = {
-              x = 0,
-              y = 5,
-              blur = 12,
-              color = makeColor(0, 0, 0, 146),
-              softness = 0.68,
-            },
-            outerGlow = showOuterGlow and {
-              color = makeColor(255, 190, 66, 118),
-              size = 14,
-              opacity = 1.15,
-              softness = 0.62,
-            } or nil,
-          })
+          if loaded and not fallback and api.Clip ~= nil {
+            api.Clip(customMaskDemo, rightX, bottomY, size, size, () => {
+              api.RoundedBoxEx(rightX - 6, bottomY - 6, size + 12, size + 12, {
+                radius = 0,
+                fill = api.LinearGradient(0, 0, 1, 1, makeColor(255, 82, 96, 248), makeColor(46, 202, 255, 248)),
+              })
+              api.RoundedBoxEx(rightX - 4, bottomY - 4, size * 0.52, size + 8, {
+                radius = 0,
+                fill = makeColor(255, 194, 70, 164),
+              })
+              api.LineEx(rightX - 8, bottomY + size, rightX + size, bottomY - 8, {
+                width = 3,
+                fill = makeColor(255, 255, 255, 224),
+              })
+              api.LineEx(rightX, bottomY - 8, rightX + size + 8, bottomY + size, {
+                width = 2,
+                fill = makeColor(6, 18, 26, 180),
+              })
+              api.TextEx("AA", "MGFXDemoTiny", rightX + size * 0.5, bottomY + size * 0.5, makeColor(4, 12, 18, 245), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+            })
+          } else {
+            api.ImageEx(rightX, bottomY, size, size, mat, {
+              mask = {kind = "rounded", radius = 12},
+              fit = "cover",
+              tint = makeColor(255, 112, 92, 238),
+            })
+          }
 
           addText("rounded", "MGFXDemoTiny", leftX + size * 0.5, topY + size + 4, COLORS.muted, TEXT_ALIGN_CENTER)
           addText("circle", "MGFXDemoTiny", rightX + size * 0.5, topY + size + 4, COLORS.muted, TEXT_ALIGN_CENTER)
           addText("chamfer", "MGFXDemoTiny", leftX + size * 0.5, bottomY + size + 4, COLORS.muted, TEXT_ALIGN_CENTER)
-          addText("alpha fx", "MGFXDemoTiny", rightX + size * 0.5, bottomY + size + 4, COLORS.muted, TEXT_ALIGN_CENTER)
+          addText("Custom Mask", "MGFXDemoTiny", rightX + size * 0.5, bottomY + size + 4, COLORS.muted, TEXT_ALIGN_CENTER)
         }
 
         x, y, cw, ch = card(5, "Segment Bar", "SegmentBarEx: scoreboard threat", COLORS.red)
@@ -1409,6 +1417,15 @@ export client fn toggle() {
 
 export client fn install(owner) {
   api = owner
+  customMaskDemo = api.Mask((recorder, w, h) => {
+    local radius = mathMin(w, h) * 0.48
+    recorder:Draw(() => {
+      api.Circle(w * 0.5, h * 0.5, radius, color_white)
+    })
+    recorder:Subtract(() => {
+      api.Circle(w * 0.69, h * 0.31, radius * 0.38, color_white)
+    })
+  })
   registerPanels()
   addCommand(owner, "mgfx_demo", (_cmd = nil, _argString = nil, args = nil) => {
       local mode = args?.[1] ?? ""

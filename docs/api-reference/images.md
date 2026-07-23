@@ -14,7 +14,6 @@ MGFX.ImageEx(x, y, w, h, source, style)
 MGFX.Icon(x, y, w, h, source, tint)
 MGFX.IconEx(x, y, w, h, source, style)
 
-MGFX.Mask(kind, options)
 ```
 
 `ImageUV` is the allocation-free positional path for an already-known UV
@@ -28,7 +27,7 @@ rectangle. It intentionally skips fit, crop, masks, and effect-style parsing.
 | `position` | Alignment for fitted content. |
 | `crop` | Crop rectangle or crop table. |
 | `uv` | Explicit UV rectangle. |
-| `mask` | `MGFX.Mask(...)`, string alias, `false`, or `"none"`. |
+| `mask` | Image-mask record such as `{kind = "circle"}`, string alias, `false`, or `"none"`. |
 | `radius` | Rounded mask radius for rounded image paths. |
 | `tint` / `color` / `alpha` | Image tint and opacity. |
 | `fill` / `background` | Background paint behind the image. |
@@ -45,7 +44,7 @@ rectangle. It intentionally skips fit, crop, masks, and effect-style parsing.
 ```lua [GLua]
 MGFX.ImageEx(x, y, 96, 96, avatarMaterial, {
     fit = "cover",
-    mask = MGFX.Mask("chamfer", {cuts = 12}),
+    mask = {kind = "chamfer", cuts = 12},
     stroke = Color(80, 190, 255, 120),
     strokeWidth = 1,
 })
@@ -58,7 +57,7 @@ local draw = mgfx.api
 
 draw.imageEx(x, y, 96, 96, avatarMaterial, {
   fit = "cover",
-  mask = draw.mask("chamfer", {cuts = 12}),
+  mask = {kind = "chamfer", cuts = 12},
   stroke = Color(80, 190, 255, 120),
   strokeWidth = 1,
 });
@@ -71,13 +70,15 @@ Use `cover` for avatars and `contain` for icons or item art that must remain ful
 ## Masks
 
 ```lua
-MGFX.Mask("rounded", {radius = 8})
-MGFX.Mask("chamfer", {cuts = {12, 4, 12, 4}})
-MGFX.Mask("circle")
-MGFX.Mask("capsule")
+{kind = "rounded", radius = 8}
+{kind = "chamfer", cuts = {12, 4, 12, 4}}
+{kind = "circle"}
+{kind = "capsule"}
 ```
 
 Texture masks can use alpha or color channels depending on the source. Prefer procedural masks for common rounded/chamfer/circle/capsule cases.
+
+These records belong to one `ImageEx` draw. They are intentionally different from reusable `MGFX.Mask(painter)` coverage objects used by [`MGFX.Clip`](../guide/masks-and-clip).
 
 Mask-aware `shadow` and `outerGlow` can share one fused shader pass. `backdrop` still samples and tints only the content behind the image or mask coverage.
 

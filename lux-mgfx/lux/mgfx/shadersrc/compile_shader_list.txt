@@ -10,6 +10,7 @@ mgfx_param_probe_inv_psxx.hlsl -v-30
 mgfx_chamfer_psxx.hlsl -v-30
 mgfx_chamfer_texture_psxx.hlsl -v-30
 mgfx_image_mask_psxx.hlsl -v-30
+mgfx_shape_clip_psxx.hlsl -v-30
 mgfx_image_mask_shadow_outer_psxx.hlsl -v-30
 mgfx_image_mask_backdrop_psxx.hlsl -v-30
 mgfx_image_mask_backdrop_sample_psxx.hlsl -v-30

@@ -136,6 +136,11 @@ function MGFX._CreateMaterialState(owner)
 		createMaterial("chamfer", "mgfx_chamfer_ps30")
 		createMaterial("chamfer_texture", "mgfx_chamfer_texture_ps30")
 		createMaterial("image_mask", "mgfx_image_mask_ps30")
+		createMaterial("shape_clip", "mgfx_shape_clip_ps30", {
+			["$texture1"] = "color/white",
+			["$texture2"] = "color/white",
+			["$texture3"] = "color/white",
+		})
 		createMaterial("image_mask_shadow_outer", "mgfx_image_mask_shadow_outer_ps30")
 		createMaterial("image_mask_backdrop", "mgfx_image_mask_backdrop_sample_ps30", {
 			["$basetexture"] = backdropBlurRT:GetName(),
@@ -262,6 +267,7 @@ function MGFX._CreateMaterialState(owner)
 			image = materials.roundrect_texture,
 			chamferImage = materials.chamfer_texture,
 			imageMask = materials.image_mask,
+			shapeClip = materials.shape_clip,
 			imageMaskShadowOuter = materials.image_mask_shadow_outer,
 			imageMaskBackdrop = materials.image_mask_backdrop,
 			imageMaskBackdropFill = materials.image_mask_backdrop_fill,

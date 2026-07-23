@@ -75,8 +75,8 @@ export client fn smokePattern(color, scale = 140, density = 0.48, softness = 0.3
 export client fn wornPattern(spec = nil) =
   defaultRuntime.WornPattern(spec)
 
-export client fn mask(kind, spec = nil) =
-  defaultRuntime.Mask(kind, spec)
+export client fn mask(painter) =
+  defaultRuntime.Mask(painter)
 
 export client fn backdrop(value) =
   defaultRuntime.Backdrop(value)
@@ -140,6 +140,12 @@ export client fn pushClip(x, y, w, h) =
 
 export client fn popClip() =
   defaultRuntime.PopClip()
+
+export client fn clip(maskValue, x, y, w, h, callback) =
+  defaultRuntime.Clip(maskValue, x, y, w, h, callback)
+
+export client fn masks() =
+  defaultRuntime.Masks
 
 export client fn debugOverlay(x = 8, y = 8) =
   defaultRuntime.DebugOverlay(x, y)

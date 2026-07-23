@@ -44,7 +44,11 @@ Mask 是每个 primitive 自己的 shader coverage，不是全局 renderer state
 - 传给 mask shader 的 `SHAPE_SIZE` 始终是最终 quad 的屏幕像素尺寸，因此 UI 缩放后边缘抗锯齿仍是 1px
 - mask kind 在 Lua 侧白名单化后才能进入 shader
 
-MGFX 不用 stencil 模拟 shape mask。`PushClip` / `PopClip` 只属于矩形 scissor stack，用于 panel clipping 和 ordering barrier。
+MGFX 不用 stencil 模拟 shape mask。`PushClip` / `PopClip` 只属于矩形 scissor stack，用于 panel clipping 和 ordering barrier；`MGFX.Mask` + callback-only `MGFX.Clip` 则通过绘制前/后 framebuffer 快照与连续 SDF/coverage raster 合成实现真正的抗锯齿边缘。
+
+Circle/Capsule/Rounded/Chamfer preset 直接走 composite shader；自定义 painter 把 MGFX coverage command 栅格化到延迟分配的全屏 RT，并按 content revision、目标/device extent 与亚像素 phase 缓存。整数像素平移复用 raster。当前 backend 拒绝 transform mapping，并把嵌套限制为四层以约束常驻 RT。
+
+MGFX 自己 Push 的 render target、camera、model matrix、scissor 和 override 都必须在受保护作用域中对称 Pop/恢复。GMod 没有读取既有 blend/alpha-write override descriptor 的 getter，因此调用方自己持有的 override scope 不属于 Clip contract。
 
 ## 参数上传边界
 

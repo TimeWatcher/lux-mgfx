@@ -1,4 +1,5 @@
 import * as capabilities from "@lux/mgfx/capabilities"
+import * as clip from "@lux/mgfx/clip"
 import * as commands from "@lux/mgfx/commands"
 import * as console from "@lux/mgfx/console"
 import * as frame from "@lux/mgfx/frame"
@@ -45,6 +46,12 @@ fn resetFrameStats(owner) {
   stats.fallbacks = 0
   stats.culled = 0
   stats.gradientLutFillHits = 0
+  stats.shapeClipCaptures = 0
+  stats.shapeClipComposites = 0
+  stats.shapeClipDepthMax = 0
+  stats.maskRasterizations = 0
+  stats.maskCacheHits = 0
+  stats.maskOperations = 0
   stats.textQueuedBatches = 0
   stats.textQueuedRecords = 0
   clearFrameStatTables(stats)
@@ -268,6 +275,7 @@ fn installProfileWrappers(owner) {
     "CapsuleEx",
     "PushClip",
     "PopClip",
+    "Clip",
     "Solid",
     "GradientCurve",
     "LinearGradient",
@@ -340,6 +348,7 @@ export client fn install(owner = nil) {
   primitives.install(out)
   widgets.install(out)
   installNormalizedDrawApi(out)
+  clip.install(out)
   out.CompileStyle = compileDrawStyle
   installFrameStatsReset(out)
   installProfileWrappers(out)

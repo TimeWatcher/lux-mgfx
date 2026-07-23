@@ -60,6 +60,8 @@ return function(__lux_import)
   local endPanelEffectBleed
   local withPanelEffectBleed
   local beginCommands
+  local suspendCommands
+  local resumeCommands
   local queue
   local flushCommands
   local debugOverlay
@@ -91,7 +93,16 @@ return function(__lux_import)
       clipToFrame = false,
       clipStack = {},
       commandStack = nil,
+      commandSuspensions = 0,
       replaying = false,
+      coverage = false,
+      coverageDrawing = false,
+      coverageX = 0,
+      coverageY = 0,
+      coverageW = 0,
+      coverageH = 0,
+      coverageOffsetX = 0,
+      coverageOffsetY = 0,
     }
     bleedStateStack = {}
     bleedStateTop = 0
@@ -201,6 +212,26 @@ return function(__lux_import)
       commandStackPool[#commandStackPool + 1] = stack
     end
     restoreScissor = function()
+      if state.coverage then
+        local x = state.coverageX
+        if x == nil then
+          x = 0
+        end
+        local y = state.coverageY
+        if y == nil then
+          y = 0
+        end
+        local w = state.coverageW
+        if w == nil then
+          w = 0
+        end
+        local h = state.coverageH
+        if h == nil then
+          h = 0
+        end
+        renderSetScissorRect(x, y, x + w, y + h, true)
+        return
+      end
       local clip = state.clipStack[#state.clipStack]
       if clip ~= nil then
         return renderSetScissorRect(clip.x, clip.y, clip.x + clip.w, clip.y + clip.h, true)
@@ -259,6 +290,9 @@ return function(__lux_import)
       end
       if __lux_tmp_9 then
         return true
+      end
+      if state.coverage then
+        return false
       end
       local clip = state.clipStack[#state.clipStack]
       if clip == nil then
@@ -349,6 +383,9 @@ return function(__lux_import)
       return renderSetScissorRect(sx, sy, sx + fw, sy + fh, true)
     end
     beginCommandFrame = function()
+      if state.commandSuspensions > 0 then
+        errorFn("MGFX.BeginCommands cannot run inside Clip or Mask coverage recording", 2)
+      end
       if state.commandStack ~= nil then
         return state.commandStack
       end
@@ -581,6 +618,7 @@ return function(__lux_import)
       state.clipToFrame = false
       state.drawCountsActive = false
       state.commandStack = nil
+      state.commandSuspensions = 0
       state.replaying = false
       return state
     end
@@ -792,6 +830,9 @@ return function(__lux_import)
       if bottom == nil then
         bottom = 0
       end
+      if state.coverage then
+        errorFn("MGFX coverage recording does not support panel bleed effects", 2)
+      end
       do
         local __lux_tmp_left_52 = toNumber(left)
         if __lux_tmp_left_52 == nil then
@@ -835,6 +876,9 @@ return function(__lux_import)
       )
     end
     beginPanelEffectDraw = function(drawX, drawY, drawW, drawH)
+      if state.coverage then
+        errorFn("MGFX coverage recording does not support panel bleed effects", 2)
+      end
       if drawW <= 0 or drawH <= 0 then
         return nil
       end
@@ -960,6 +1004,26 @@ return function(__lux_import)
     beginCommands = function()
       return beginCommandFrame()
     end
+    suspendCommands = function()
+      local wasActive = state.commandStack ~= nil and not state.replaying
+      if wasActive then
+        flushQueuedCommands()
+      end
+      state.commandSuspensions = state.commandSuspensions + 1
+      return wasActive
+    end
+    resumeCommands = function(wasActive)
+      if wasActive == nil then
+        wasActive = false
+      end
+      if state.commandSuspensions <= 0 then
+        errorFn("MGFX Clip command suspension mismatch", 2)
+      end
+      state.commandSuspensions = state.commandSuspensions - 1
+      if wasActive and state.commandSuspensions == 0 then
+        beginCommandFrame()
+      end
+    end
     queue = function(command)
       if state.commandStack == nil or state.replaying then
         return false
@@ -1015,6 +1079,8 @@ return function(__lux_import)
       owner.EndScreen = endScreen
       owner.BeginCommands = beginCommands
       owner.FlushCommands = flushCommands
+      owner._SuspendCommands = suspendCommands
+      owner._ResumeCommands = resumeCommands
       owner.PushClip = pushClip
       owner.PopClip = popClip
       owner.BeginPanelEffectBleed = beginPanelEffectBleed
@@ -1043,6 +1109,8 @@ return function(__lux_import)
   __lux_exports.endPanelEffectBleed = endPanelEffectBleed
   __lux_exports.withPanelEffectBleed = withPanelEffectBleed
   __lux_exports.beginCommands = beginCommands
+  __lux_exports.suspendCommands = suspendCommands
+  __lux_exports.resumeCommands = resumeCommands
   __lux_exports.queue = queue
   __lux_exports.flushCommands = flushCommands
   __lux_exports.debugOverlay = debugOverlay

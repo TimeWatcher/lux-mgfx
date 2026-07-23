@@ -20,7 +20,7 @@ return function(__lux_import)
     local __lux_import_5 = __lux_import("lux/mgfx/shaderpack/chunk05#client")
     local chunk05 = __lux_import_5.chunk05
     tableConcat = table.concat
-    VERSION = "1784734143"
+    VERSION = "1784834577"
     chunks = { chunk01, chunk02, chunk03, chunk04, chunk05 }
     cachedGma = nil
     gma = function()

@@ -135,6 +135,8 @@ High-churn text with shader effects can consume atlas space quickly. Prewarm onl
 - Draw large background panels first, then foreground widgets, then text.
 - Prefer one `StartPanel` / `EndPanel` pair per panel paint.
 - Avoid nested `PushClip` unless the clipped content actually needs it.
+- Reserve `Clip` for mixed content that genuinely needs a shared antialiased boundary. Every scope performs two framebuffer copies and one bounded composite draw; a custom Mask also rasterizes its coverage on a content-revision/extent/subpixel-phase cache miss. Integer translation reuses the raster. Coverage clears and Boolean combines are locally scissored. Reuse Mask objects and call `Invalidate` only when painter inputs change.
+- Clip keeps two full-frame `BGRA8888` snapshot RTs per reached nesting depth and lazily adds a third RT when that depth uses a custom Mask: roughly 15.82/23.73 MiB per depth at 1080p and 63.28/94.92 MiB at 4K. Nesting is capped at four.
 - Reuse gradients, masks, and style tables when they are stable.
 - Avoid constructing many `Color(...)` objects in tight loops.
 - Keep smoke, stripe, and worn surface effects in `pattern` fields.

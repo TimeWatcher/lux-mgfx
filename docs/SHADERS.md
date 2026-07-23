@@ -72,6 +72,23 @@ Rules:
 
 The corrected `i.uv` is reserved for normalized shape coordinates, while `SOURCE_UV` maps it into the source image. Do not bind a source image back to `$basetexture`: changing the material mapping dimensions couples source sampling to procedural SDF coordinates and distorts circle and rounded-mask coverage.
 
+## ShapeClip Composite
+
+`mgfx_shape_clip` is a framebuffer transaction shader, not a stencil mask. Its sampler layout deliberately leaves `TexBase` alone:
+
+- `TexBase`: fixed `color/white`; it is never replaced at draw time.
+- `Tex1`: framebuffer after the Clip callback.
+- `Tex2`: custom coverage RT when the Mask is painter-defined.
+- `Tex3`: framebuffer before the Clip callback.
+
+The shader computes analytical rounded/chamfer/circle/capsule coverage—or samples custom coverage—then returns `lerp(before, after, coverage)`. Custom Mask rasters include up to a one-pixel transparent border on each side; padding is reduced at framebuffer edges so full-screen masks remain valid. The shader samples that border without clamping or multiplying by a second rectangular coverage term; otherwise vector AA approaching the Clip bounds is visibly cut off. A rectangular scissor bounds the composite work only and never defines the shape edge.
+
+### Do not dynamically replace `$basetexture`
+
+`surface.DrawTexturedRectUV` applies an implicit half-texel adjustment derived from the currently bound `$basetexture` dimensions. Changing a shared material's `$basetexture` from its fixed placeholder to a full-screen render target after local UVs were prepared changes that hidden adjustment. The result is a second, wrong UV correction: local Mask coverage shifts, stretches, or loses pixels at its bounds.
+
+For a shader that samples runtime render targets, declare `$texture1`, `$texture2`, and `$texture3` as texture-typed variables when the material is created, bind the RTs there, and keep `$basetexture` stable. A per-target blit material may use an RT as `$basetexture` only when that binding is fixed for the material's lifetime and the submitted UVs were computed for that texture size. This is why the internal coverage-copy materials are safe while the Clip composite material must not replace `$basetexture`.
+
 ## Gradient LUT
 
 Multi-stop gradients use a cached 256x4 `BGRA8888` LUT. Each RGBA channel is
@@ -105,7 +122,7 @@ Checklist:
 - Compile list includes the shader.
 - Generated `.vcs` files are updated.
 - Material creation maps the runtime key to the pixel shader.
-- Fallback behavior is defined.
+- Fallback behavior is defined, or shader-only behavior fails explicitly when a lower-quality result would violate the API contract.
 - API docs describe the field or function that uses the shader.
 
 ## Layering

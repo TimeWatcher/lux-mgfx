@@ -336,6 +336,7 @@ return function(__lux_import)
       "chamfer",
       "chamfer_texture",
       "image_mask",
+      "shape_clip",
       "image_mask_shadow_outer",
       "image_mask_backdrop",
       "chamfer_stroke",
@@ -401,6 +402,7 @@ return function(__lux_import)
       "EndScreen",
       "PushClip",
       "PopClip",
+      "Clip",
       "RoundedBox",
       "RoundedBoxBackdrop",
       "RoundedBoxEx",
@@ -876,6 +878,7 @@ return function(__lux_import)
       { "chamfer", "chamfer" },
       { "chamfer image", "chamferImage" },
       { "image mask", "imageMask" },
+      { "shape clip", "shapeClip" },
       { "image mask shadow outer", "imageMaskShadowOuter" },
       { "image mask backdrop", "imageMaskBackdrop" },
       { "chamfer stroke", "chamferStroke" },
@@ -1012,74 +1015,116 @@ return function(__lux_import)
                             toString(__lux_tmp_fallbacks_85) .. " culled=" .. toString(__lux_tmp_culled_86)
         )
       end
+      do
+        local __lux_tmp_shapeClipCaptures_87 = stats.shapeClipCaptures
+        if __lux_tmp_shapeClipCaptures_87 == nil then
+          __lux_tmp_shapeClipCaptures_87 = 0
+        end
+        local __lux_tmp_shapeClipComposites_88 = stats.shapeClipComposites
+        if __lux_tmp_shapeClipComposites_88 == nil then
+          __lux_tmp_shapeClipComposites_88 = 0
+        end
+        local __lux_tmp_shapeClipDepthMax_89 = stats.shapeClipDepthMax
+        if __lux_tmp_shapeClipDepthMax_89 == nil then
+          __lux_tmp_shapeClipDepthMax_89 = 0
+        end
+        printFn(
+          "[MGFX] Clip captures=" ..
+            toString(__lux_tmp_shapeClipCaptures_87) ..
+              " composites=" ..
+                toString(__lux_tmp_shapeClipComposites_88) ..
+                  " max-depth=" .. toString(__lux_tmp_shapeClipDepthMax_89)
+        )
+      end
+      do
+        local __lux_tmp_maskRasterizations_90 = stats.maskRasterizations
+        if __lux_tmp_maskRasterizations_90 == nil then
+          __lux_tmp_maskRasterizations_90 = 0
+        end
+        local __lux_tmp_maskCacheHits_91 = stats.maskCacheHits
+        if __lux_tmp_maskCacheHits_91 == nil then
+          __lux_tmp_maskCacheHits_91 = 0
+        end
+        local __lux_tmp_maskOperations_92 = stats.maskOperations
+        if __lux_tmp_maskOperations_92 == nil then
+          __lux_tmp_maskOperations_92 = 0
+        end
+        printFn(
+          "[MGFX] Mask rasters=" ..
+            toString(__lux_tmp_maskRasterizations_90) ..
+              " cache-hits=" ..
+                toString(__lux_tmp_maskCacheHits_91) ..
+                  " operations=" .. toString(__lux_tmp_maskOperations_92)
+        )
+      end
       countsLine("draw commands", stats.drawCommandCounts)
       countsLine("immediate draws", stats.drawImmediateCounts)
       countsLine("profile ms", stats.profileTimes)
       local text = textStatus(owner)
       local textRenderer = textRendererStatus(owner)
       do
-        local __lux_tmp_draws_87 = textRenderer.draws
-        if __lux_tmp_draws_87 == nil then
-          __lux_tmp_draws_87 = text.draws
+        local __lux_tmp_draws_93 = textRenderer.draws
+        if __lux_tmp_draws_93 == nil then
+          __lux_tmp_draws_93 = text.draws
         end
-        if __lux_tmp_draws_87 == nil then
-          __lux_tmp_draws_87 = stats.textDraws
+        if __lux_tmp_draws_93 == nil then
+          __lux_tmp_draws_93 = stats.textDraws
         end
-        if __lux_tmp_draws_87 == nil then
-          __lux_tmp_draws_87 = 0
+        if __lux_tmp_draws_93 == nil then
+          __lux_tmp_draws_93 = 0
         end
-        local __lux_tmp_nativeDraws_88 = textRenderer.nativeDraws
-        if __lux_tmp_nativeDraws_88 == nil then
-          __lux_tmp_nativeDraws_88 = stats.textNativeDraws
+        local __lux_tmp_nativeDraws_94 = textRenderer.nativeDraws
+        if __lux_tmp_nativeDraws_94 == nil then
+          __lux_tmp_nativeDraws_94 = stats.textNativeDraws
         end
-        if __lux_tmp_nativeDraws_88 == nil then
-          __lux_tmp_nativeDraws_88 = 0
+        if __lux_tmp_nativeDraws_94 == nil then
+          __lux_tmp_nativeDraws_94 = 0
         end
-        local __lux_tmp_composedDraws_89 = textRenderer.composedDraws
-        if __lux_tmp_composedDraws_89 == nil then
-          __lux_tmp_composedDraws_89 = stats.textComposedDraws
+        local __lux_tmp_composedDraws_95 = textRenderer.composedDraws
+        if __lux_tmp_composedDraws_95 == nil then
+          __lux_tmp_composedDraws_95 = stats.textComposedDraws
         end
-        if __lux_tmp_composedDraws_89 == nil then
-          __lux_tmp_composedDraws_89 = 0
+        if __lux_tmp_composedDraws_95 == nil then
+          __lux_tmp_composedDraws_95 = 0
         end
-        local __lux_tmp_measures_90 = text.measures
-        if __lux_tmp_measures_90 == nil then
-          __lux_tmp_measures_90 = 0
+        local __lux_tmp_measures_96 = text.measures
+        if __lux_tmp_measures_96 == nil then
+          __lux_tmp_measures_96 = 0
         end
         printFn(
           "[MGFX] text draws=" ..
-            toString(__lux_tmp_draws_87) ..
+            toString(__lux_tmp_draws_93) ..
               " native=" ..
-                toString(__lux_tmp_nativeDraws_88) ..
+                toString(__lux_tmp_nativeDraws_94) ..
                   " composed=" ..
-                    toString(__lux_tmp_composedDraws_89) .. " measures=" .. toString(__lux_tmp_measures_90)
+                    toString(__lux_tmp_composedDraws_95) .. " measures=" .. toString(__lux_tmp_measures_96)
         )
       end
       do
-        local __lux_tmp_mode_91 = textRenderer.mode
-        if __lux_tmp_mode_91 == nil then
-          __lux_tmp_mode_91 = "n/a"
+        local __lux_tmp_mode_97 = textRenderer.mode
+        if __lux_tmp_mode_97 == nil then
+          __lux_tmp_mode_97 = "n/a"
         end
-        local __lux_tmp_composedEnabled_92 = textRenderer.composedEnabled
-        if __lux_tmp_composedEnabled_92 == nil then
-          __lux_tmp_composedEnabled_92 = false
+        local __lux_tmp_composedEnabled_98 = textRenderer.composedEnabled
+        if __lux_tmp_composedEnabled_98 == nil then
+          __lux_tmp_composedEnabled_98 = false
         end
-        local __lux_tmp_composedAtlasPages_93 = textRenderer.composedAtlasPages
-        if __lux_tmp_composedAtlasPages_93 == nil then
-          __lux_tmp_composedAtlasPages_93 = 0
+        local __lux_tmp_composedAtlasPages_99 = textRenderer.composedAtlasPages
+        if __lux_tmp_composedAtlasPages_99 == nil then
+          __lux_tmp_composedAtlasPages_99 = 0
         end
-        local __lux_tmp_composedEntries_94 = textRenderer.composedEntries
-        if __lux_tmp_composedEntries_94 == nil then
-          __lux_tmp_composedEntries_94 = 0
+        local __lux_tmp_composedEntries_100 = textRenderer.composedEntries
+        if __lux_tmp_composedEntries_100 == nil then
+          __lux_tmp_composedEntries_100 = 0
         end
         printFn(
           "[MGFX] text renderer mode=" ..
-            toString(__lux_tmp_mode_91) ..
+            toString(__lux_tmp_mode_97) ..
               " composed=" ..
-                toString(__lux_tmp_composedEnabled_92) ..
+                toString(__lux_tmp_composedEnabled_98) ..
                   " atlasPages=" ..
-                    toString(__lux_tmp_composedAtlasPages_93) ..
-                      " entries=" .. toString(__lux_tmp_composedEntries_94)
+                    toString(__lux_tmp_composedAtlasPages_99) ..
+                      " entries=" .. toString(__lux_tmp_composedEntries_100)
         )
       end
       printMaterialStatus(status)
@@ -1093,12 +1138,12 @@ return function(__lux_import)
       end
       local formatRows
       do
-        local __lux_obj_profiler_95 = profiler
-        local __lux_val_FormatRows_96 = nil
-        if __lux_obj_profiler_95 ~= nil then
-          __lux_val_FormatRows_96 = __lux_obj_profiler_95.FormatRows
+        local __lux_obj_profiler_101 = profiler
+        local __lux_val_FormatRows_102 = nil
+        if __lux_obj_profiler_101 ~= nil then
+          __lux_val_FormatRows_102 = __lux_obj_profiler_101.FormatRows
         end
-        formatRows = __lux_val_FormatRows_96
+        formatRows = __lux_val_FormatRows_102
       end
       local formatted
       if formatRows ~= nil then
@@ -1118,12 +1163,12 @@ return function(__lux_import)
       end
       local formatRows
       do
-        local __lux_obj_profiler_97 = profiler
-        local __lux_val_FormatScopeRows_98 = nil
-        if __lux_obj_profiler_97 ~= nil then
-          __lux_val_FormatScopeRows_98 = __lux_obj_profiler_97.FormatScopeRows
+        local __lux_obj_profiler_103 = profiler
+        local __lux_val_FormatScopeRows_104 = nil
+        if __lux_obj_profiler_103 ~= nil then
+          __lux_val_FormatScopeRows_104 = __lux_obj_profiler_103.FormatScopeRows
         end
-        formatRows = __lux_val_FormatScopeRows_98
+        formatRows = __lux_val_FormatScopeRows_104
       end
       local formatted
       if formatRows ~= nil then
@@ -1144,11 +1189,11 @@ return function(__lux_import)
       end
       local parts = {}
       do
-        local __lux_tmp_items_99 = items
-        if __lux_tmp_items_99 == nil then
-          __lux_tmp_items_99 = {}
+        local __lux_tmp_items_105 = items
+        if __lux_tmp_items_105 == nil then
+          __lux_tmp_items_105 = {}
         end
-        for index = 1, #__lux_tmp_items_99 do
+        for index = 1, #__lux_tmp_items_105 do
           if index > maxParts then
             break
           end
@@ -1179,11 +1224,11 @@ return function(__lux_import)
             end
           end
           do
-            local __lux_tmp_name_100 = item.name
-            if __lux_tmp_name_100 == nil then
-              __lux_tmp_name_100 = "?"
+            local __lux_tmp_name_106 = item.name
+            if __lux_tmp_name_106 == nil then
+              __lux_tmp_name_106 = "?"
             end
-            parts[#parts + 1] = stringFormat("%s %.2f/%d", __lux_tmp_name_100, ms, count)
+            parts[#parts + 1] = stringFormat("%s %.2f/%d", __lux_tmp_name_106, ms, count)
           end
         end
       end
@@ -1206,82 +1251,82 @@ return function(__lux_import)
           stats = {}
         end
         do
-          local __lux_tmp_name_101 = row.name
-          if __lux_tmp_name_101 == nil then
-            __lux_tmp_name_101 = row.instance
+          local __lux_tmp_name_107 = row.name
+          if __lux_tmp_name_107 == nil then
+            __lux_tmp_name_107 = row.instance
           end
-          if __lux_tmp_name_101 == nil then
-            __lux_tmp_name_101 = "runtime"
+          if __lux_tmp_name_107 == nil then
+            __lux_tmp_name_107 = "runtime"
           end
-          local __lux_tmp_last_102 = row.last
-          if __lux_tmp_last_102 == nil then
-            __lux_tmp_last_102 = 0
+          local __lux_tmp_last_108 = row.last
+          if __lux_tmp_last_108 == nil then
+            __lux_tmp_last_108 = 0
           end
-          local __lux_tmp_avg_103 = row.avg
-          if __lux_tmp_avg_103 == nil then
-            __lux_tmp_avg_103 = 0
+          local __lux_tmp_avg_109 = row.avg
+          if __lux_tmp_avg_109 == nil then
+            __lux_tmp_avg_109 = 0
           end
-          local __lux_tmp_max_104 = row.max
-          if __lux_tmp_max_104 == nil then
-            __lux_tmp_max_104 = 0
+          local __lux_tmp_max_110 = row.max
+          if __lux_tmp_max_110 == nil then
+            __lux_tmp_max_110 = 0
           end
-          local __lux_tmp_count_105 = row.count
-          if __lux_tmp_count_105 == nil then
-            __lux_tmp_count_105 = 0
+          local __lux_tmp_count_111 = row.count
+          if __lux_tmp_count_111 == nil then
+            __lux_tmp_count_111 = 0
           end
-          local __lux_tmp_avgCount_106 = row.avgCount
-          if __lux_tmp_avgCount_106 == nil then
-            __lux_tmp_avgCount_106 = 0
+          local __lux_tmp_avgCount_112 = row.avgCount
+          if __lux_tmp_avgCount_112 == nil then
+            __lux_tmp_avgCount_112 = 0
           end
-          local __lux_tmp_draws_107 = stats.draws
-          if __lux_tmp_draws_107 == nil then
-            __lux_tmp_draws_107 = 0
+          local __lux_tmp_draws_113 = stats.draws
+          if __lux_tmp_draws_113 == nil then
+            __lux_tmp_draws_113 = 0
           end
-          local __lux_tmp_blurPasses_108 = stats.blurPasses
-          if __lux_tmp_blurPasses_108 == nil then
-            __lux_tmp_blurPasses_108 = 0
+          local __lux_tmp_blurPasses_114 = stats.blurPasses
+          if __lux_tmp_blurPasses_114 == nil then
+            __lux_tmp_blurPasses_114 = 0
           end
-          local __lux_tmp_blurCaptures_109 = stats.blurCaptures
-          if __lux_tmp_blurCaptures_109 == nil then
-            __lux_tmp_blurCaptures_109 = 0
+          local __lux_tmp_blurCaptures_115 = stats.blurCaptures
+          if __lux_tmp_blurCaptures_115 == nil then
+            __lux_tmp_blurCaptures_115 = 0
           end
-          local __lux_tmp_blurReuses_110 = stats.blurReuses
-          if __lux_tmp_blurReuses_110 == nil then
-            __lux_tmp_blurReuses_110 = 0
+          local __lux_tmp_blurReuses_116 = stats.blurReuses
+          if __lux_tmp_blurReuses_116 == nil then
+            __lux_tmp_blurReuses_116 = 0
           end
-          local __lux_tmp_textDraws_111 = stats.textDraws
-          if __lux_tmp_textDraws_111 == nil then
-            __lux_tmp_textDraws_111 = 0
+          local __lux_tmp_textDraws_117 = stats.textDraws
+          if __lux_tmp_textDraws_117 == nil then
+            __lux_tmp_textDraws_117 = 0
           end
-          local __lux_tmp_textComposedBakes_112 = stats.textComposedBakes
-          if __lux_tmp_textComposedBakes_112 == nil then
-            __lux_tmp_textComposedBakes_112 = 0
+          local __lux_tmp_textComposedBakes_118 = stats.textComposedBakes
+          if __lux_tmp_textComposedBakes_118 == nil then
+            __lux_tmp_textComposedBakes_118 = 0
           end
-          local __lux_tmp_fallbacks_113 = stats.fallbacks
-          if __lux_tmp_fallbacks_113 == nil then
-            __lux_tmp_fallbacks_113 = 0
+          local __lux_tmp_fallbacks_119 = stats.fallbacks
+          if __lux_tmp_fallbacks_119 == nil then
+            __lux_tmp_fallbacks_119 = 0
           end
-          local __lux_tmp_samples_114 = row.samples
-          if __lux_tmp_samples_114 == nil then
-            __lux_tmp_samples_114 = 0
+          local __lux_tmp_samples_120 = row.samples
+          if __lux_tmp_samples_120 == nil then
+            __lux_tmp_samples_120 = 0
           end
           printFn(
             stringFormat(
               "[MGFX]   %s last=%.3f avg=%.3f max=%.3f scopes=%d avgScopes=%.1f draws=%d blur=%d captures=%d reuses=%d text=%d bake=%d fallback=%d samples=%d",
-              __lux_tmp_name_101,
-              __lux_tmp_last_102,
-              __lux_tmp_avg_103,
-              __lux_tmp_max_104,
-              __lux_tmp_count_105,
-              __lux_tmp_avgCount_106,
-              __lux_tmp_draws_107,
-              __lux_tmp_blurPasses_108,
-              __lux_tmp_blurCaptures_109,
-              __lux_tmp_blurReuses_110,
-              __lux_tmp_textDraws_111,
-              __lux_tmp_textComposedBakes_112,
-              __lux_tmp_fallbacks_113,
-              __lux_tmp_samples_114
+              __lux_tmp_name_107,
+              __lux_tmp_last_108,
+              __lux_tmp_avg_109,
+              __lux_tmp_max_110,
+              __lux_tmp_count_111,
+              __lux_tmp_avgCount_112,
+              __lux_tmp_draws_113,
+              __lux_tmp_blurPasses_114,
+              __lux_tmp_blurCaptures_115,
+              __lux_tmp_blurReuses_116,
+              __lux_tmp_textDraws_117,
+              __lux_tmp_textComposedBakes_118,
+              __lux_tmp_fallbacks_119,
+              __lux_tmp_samples_120
             )
           )
         end
@@ -1354,29 +1399,29 @@ return function(__lux_import)
     hudText = function(textValue, font, x, y, color, align)
       if drawSimpleText ~= nil then
         do
-          local __lux_tmp_textValue_115 = textValue
-          if __lux_tmp_textValue_115 == nil then
-            __lux_tmp_textValue_115 = ""
+          local __lux_tmp_textValue_121 = textValue
+          if __lux_tmp_textValue_121 == nil then
+            __lux_tmp_textValue_121 = ""
           end
-          local __lux_tmp_font_116 = font
-          if __lux_tmp_font_116 == nil then
-            __lux_tmp_font_116 = "DermaDefault"
+          local __lux_tmp_font_122 = font
+          if __lux_tmp_font_122 == nil then
+            __lux_tmp_font_122 = "DermaDefault"
           end
-          local __lux_tmp_color_117 = color
-          if __lux_tmp_color_117 == nil then
-            __lux_tmp_color_117 = color_white
+          local __lux_tmp_color_123 = color
+          if __lux_tmp_color_123 == nil then
+            __lux_tmp_color_123 = color_white
           end
-          local __lux_tmp_align_118 = align
-          if __lux_tmp_align_118 == nil then
-            __lux_tmp_align_118 = TEXT_ALIGN_LEFT
+          local __lux_tmp_align_124 = align
+          if __lux_tmp_align_124 == nil then
+            __lux_tmp_align_124 = TEXT_ALIGN_LEFT
           end
           drawSimpleText(
-            toString(__lux_tmp_textValue_115),
-            __lux_tmp_font_116,
+            toString(__lux_tmp_textValue_121),
+            __lux_tmp_font_122,
             x,
             y,
-            __lux_tmp_color_117,
-            __lux_tmp_align_118,
+            __lux_tmp_color_123,
+            __lux_tmp_align_124,
             TEXT_ALIGN_TOP
           )
         end
@@ -1385,11 +1430,11 @@ return function(__lux_import)
     shortHotspotName = function(name)
       local text
       do
-        local __lux_tmp_name_119 = name
-        if __lux_tmp_name_119 == nil then
-          __lux_tmp_name_119 = "?"
+        local __lux_tmp_name_125 = name
+        if __lux_tmp_name_125 == nil then
+          __lux_tmp_name_125 = "?"
         end
-        text = toString(__lux_tmp_name_119)
+        text = toString(__lux_tmp_name_125)
       end
       if stringSub(text, 1, 4) == "api." then
         text = stringSub(text, 5)
@@ -1415,26 +1460,26 @@ return function(__lux_import)
         return y + 16
       end
       do
-        local __lux_tmp_maxRows_120 = maxRows
-        if __lux_tmp_maxRows_120 == nil then
-          __lux_tmp_maxRows_120 = profileHudTopRows
+        local __lux_tmp_maxRows_126 = maxRows
+        if __lux_tmp_maxRows_126 == nil then
+          __lux_tmp_maxRows_126 = profileHudTopRows
         end
-        maxRows = mathMin(__lux_tmp_maxRows_120, #items)
+        maxRows = mathMin(__lux_tmp_maxRows_126, #items)
       end
       for index = 1, maxRows do
         local item = items[index]
         hudText(stringFormat("%02d", index), "DermaDefault", x, y, rowColor)
         hudText(shortHotspotName(item.name), "DermaDefault", x + 30, y, rowColor)
         do
-          local __lux_tmp_avg_121 = item.avg
-          if __lux_tmp_avg_121 == nil then
-            __lux_tmp_avg_121 = item.last
+          local __lux_tmp_avg_127 = item.avg
+          if __lux_tmp_avg_127 == nil then
+            __lux_tmp_avg_127 = item.last
           end
-          if __lux_tmp_avg_121 == nil then
-            __lux_tmp_avg_121 = 0
+          if __lux_tmp_avg_127 == nil then
+            __lux_tmp_avg_127 = 0
           end
           hudText(
-            stringFormat("%.2f", __lux_tmp_avg_121),
+            stringFormat("%.2f", __lux_tmp_avg_127),
             "DermaDefault",
             x + 330,
             y,
@@ -1443,15 +1488,15 @@ return function(__lux_import)
           )
         end
         do
-          local __lux_tmp_last_122 = item.last
-          if __lux_tmp_last_122 == nil then
-            __lux_tmp_last_122 = item.avg
+          local __lux_tmp_last_128 = item.last
+          if __lux_tmp_last_128 == nil then
+            __lux_tmp_last_128 = item.avg
           end
-          if __lux_tmp_last_122 == nil then
-            __lux_tmp_last_122 = 0
+          if __lux_tmp_last_128 == nil then
+            __lux_tmp_last_128 = 0
           end
           hudText(
-            stringFormat("%.2f", __lux_tmp_last_122),
+            stringFormat("%.2f", __lux_tmp_last_128),
             "DermaDefault",
             x + 395,
             y,
@@ -1460,12 +1505,12 @@ return function(__lux_import)
           )
         end
         do
-          local __lux_tmp_max_123 = item.max
-          if __lux_tmp_max_123 == nil then
-            __lux_tmp_max_123 = 0
+          local __lux_tmp_max_129 = item.max
+          if __lux_tmp_max_129 == nil then
+            __lux_tmp_max_129 = 0
           end
           hudText(
-            stringFormat("%.2f", __lux_tmp_max_123),
+            stringFormat("%.2f", __lux_tmp_max_129),
             "DermaDefault",
             x + 460,
             y,
@@ -1474,15 +1519,15 @@ return function(__lux_import)
           )
         end
         do
-          local __lux_tmp_avgCount_124 = item.avgCount
-          if __lux_tmp_avgCount_124 == nil then
-            __lux_tmp_avgCount_124 = item.count
+          local __lux_tmp_avgCount_130 = item.avgCount
+          if __lux_tmp_avgCount_130 == nil then
+            __lux_tmp_avgCount_130 = item.count
           end
-          if __lux_tmp_avgCount_124 == nil then
-            __lux_tmp_avgCount_124 = 0
+          if __lux_tmp_avgCount_130 == nil then
+            __lux_tmp_avgCount_130 = 0
           end
           hudText(
-            stringFormat("%.1f", __lux_tmp_avgCount_124),
+            stringFormat("%.1f", __lux_tmp_avgCount_130),
             "DermaDefault",
             x + 535,
             y,
@@ -1554,11 +1599,11 @@ return function(__lux_import)
         end
         local hot
         do
-          local __lux_tmp_last_125 = row.last
-          if __lux_tmp_last_125 == nil then
-            __lux_tmp_last_125 = 0
+          local __lux_tmp_last_131 = row.last
+          if __lux_tmp_last_131 == nil then
+            __lux_tmp_last_131 = 0
           end
-          hot = __lux_tmp_last_125 >= 2
+          hot = __lux_tmp_last_131 >= 2
         end
         local rowColor
         if hot then
@@ -1568,14 +1613,14 @@ return function(__lux_import)
         end
         local name
         do
-          local __lux_tmp_name_126 = row.name
-          if __lux_tmp_name_126 == nil then
-            __lux_tmp_name_126 = row.key
+          local __lux_tmp_name_132 = row.name
+          if __lux_tmp_name_132 == nil then
+            __lux_tmp_name_132 = row.key
           end
-          if __lux_tmp_name_126 == nil then
-            __lux_tmp_name_126 = "scope"
+          if __lux_tmp_name_132 == nil then
+            __lux_tmp_name_132 = "scope"
           end
-          name = toString(__lux_tmp_name_126)
+          name = toString(__lux_tmp_name_132)
         end
         if #name > 58 then
           name = stringSub(name, 1, 55) .. "..."
@@ -1588,32 +1633,32 @@ return function(__lux_import)
           rowColor
         )
         do
-          local __lux_tmp_last_127 = row.last
-          if __lux_tmp_last_127 == nil then
-            __lux_tmp_last_127 = 0
+          local __lux_tmp_last_133 = row.last
+          if __lux_tmp_last_133 == nil then
+            __lux_tmp_last_133 = 0
           end
-          local __lux_tmp_avg_128 = row.avg
-          if __lux_tmp_avg_128 == nil then
-            __lux_tmp_avg_128 = 0
+          local __lux_tmp_avg_134 = row.avg
+          if __lux_tmp_avg_134 == nil then
+            __lux_tmp_avg_134 = 0
           end
-          local __lux_tmp_max_129 = row.max
-          if __lux_tmp_max_129 == nil then
-            __lux_tmp_max_129 = 0
+          local __lux_tmp_max_135 = row.max
+          if __lux_tmp_max_135 == nil then
+            __lux_tmp_max_135 = 0
           end
-          local __lux_tmp_avgCount_130 = row.avgCount
-          if __lux_tmp_avgCount_130 == nil then
-            __lux_tmp_avgCount_130 = row.count
+          local __lux_tmp_avgCount_136 = row.avgCount
+          if __lux_tmp_avgCount_136 == nil then
+            __lux_tmp_avgCount_136 = row.count
           end
-          if __lux_tmp_avgCount_130 == nil then
-            __lux_tmp_avgCount_130 = 0
+          if __lux_tmp_avgCount_136 == nil then
+            __lux_tmp_avgCount_136 = 0
           end
           hudText(
             stringFormat(
               "total last %.2fms   avg %.2fms   max %.2fms   scopes %.0f/frame",
-              __lux_tmp_last_127,
-              __lux_tmp_avg_128,
-              __lux_tmp_max_129,
-              __lux_tmp_avgCount_130
+              __lux_tmp_last_133,
+              __lux_tmp_avg_134,
+              __lux_tmp_max_135,
+              __lux_tmp_avgCount_136
             ),
             "DermaDefaultBold",
             x + 430,
@@ -1623,44 +1668,44 @@ return function(__lux_import)
         end
         rowY = rowY + 17
         do
-          local __lux_tmp_draws_131 = stats.draws
-          if __lux_tmp_draws_131 == nil then
-            __lux_tmp_draws_131 = 0
+          local __lux_tmp_draws_137 = stats.draws
+          if __lux_tmp_draws_137 == nil then
+            __lux_tmp_draws_137 = 0
           end
-          local __lux_tmp_blurPasses_132 = stats.blurPasses
-          if __lux_tmp_blurPasses_132 == nil then
-            __lux_tmp_blurPasses_132 = 0
+          local __lux_tmp_blurPasses_138 = stats.blurPasses
+          if __lux_tmp_blurPasses_138 == nil then
+            __lux_tmp_blurPasses_138 = 0
           end
-          local __lux_tmp_blurCaptures_133 = stats.blurCaptures
-          if __lux_tmp_blurCaptures_133 == nil then
-            __lux_tmp_blurCaptures_133 = 0
+          local __lux_tmp_blurCaptures_139 = stats.blurCaptures
+          if __lux_tmp_blurCaptures_139 == nil then
+            __lux_tmp_blurCaptures_139 = 0
           end
-          local __lux_tmp_blurReuses_134 = stats.blurReuses
-          if __lux_tmp_blurReuses_134 == nil then
-            __lux_tmp_blurReuses_134 = 0
+          local __lux_tmp_blurReuses_140 = stats.blurReuses
+          if __lux_tmp_blurReuses_140 == nil then
+            __lux_tmp_blurReuses_140 = 0
           end
-          local __lux_tmp_textDraws_135 = stats.textDraws
-          if __lux_tmp_textDraws_135 == nil then
-            __lux_tmp_textDraws_135 = 0
+          local __lux_tmp_textDraws_141 = stats.textDraws
+          if __lux_tmp_textDraws_141 == nil then
+            __lux_tmp_textDraws_141 = 0
           end
-          local __lux_tmp_textComposedBakes_136 = stats.textComposedBakes
-          if __lux_tmp_textComposedBakes_136 == nil then
-            __lux_tmp_textComposedBakes_136 = 0
+          local __lux_tmp_textComposedBakes_142 = stats.textComposedBakes
+          if __lux_tmp_textComposedBakes_142 == nil then
+            __lux_tmp_textComposedBakes_142 = 0
           end
-          local __lux_tmp_fallbacks_137 = stats.fallbacks
-          if __lux_tmp_fallbacks_137 == nil then
-            __lux_tmp_fallbacks_137 = 0
+          local __lux_tmp_fallbacks_143 = stats.fallbacks
+          if __lux_tmp_fallbacks_143 == nil then
+            __lux_tmp_fallbacks_143 = 0
           end
           hudText(
             stringFormat(
               "draws %d   blur %d   captures %d   reuses %d   text %d   bakes %d   fallback %d",
-              __lux_tmp_draws_131,
-              __lux_tmp_blurPasses_132,
-              __lux_tmp_blurCaptures_133,
-              __lux_tmp_blurReuses_134,
-              __lux_tmp_textDraws_135,
-              __lux_tmp_textComposedBakes_136,
-              __lux_tmp_fallbacks_137
+              __lux_tmp_draws_137,
+              __lux_tmp_blurPasses_138,
+              __lux_tmp_blurCaptures_139,
+              __lux_tmp_blurReuses_140,
+              __lux_tmp_textDraws_141,
+              __lux_tmp_textComposedBakes_142,
+              __lux_tmp_fallbacks_143
             ),
             "DermaDefault",
             x + 30,
@@ -1723,13 +1768,13 @@ return function(__lux_import)
         end
       end
       do
-        local __lux_tmp_138
+        local __lux_tmp_144
         if profileHudEnabled then
-          __lux_tmp_138 = "ON"
+          __lux_tmp_144 = "ON"
         else
-          __lux_tmp_138 = "OFF"
+          __lux_tmp_144 = "OFF"
         end
-        printFn("[MGFX] profile hud " .. __lux_tmp_138)
+        printFn("[MGFX] profile hud " .. __lux_tmp_144)
       end
       return profileHudEnabled
     end
@@ -1763,279 +1808,279 @@ return function(__lux_import)
       local status = textRendererStatus(owner)
       local fillPct
       do
-        local __lux_tmp_composedAtlasFill_139 = toNumber(status.composedAtlasFill)
-        if __lux_tmp_composedAtlasFill_139 == nil then
-          __lux_tmp_composedAtlasFill_139 = 0
+        local __lux_tmp_composedAtlasFill_145 = toNumber(status.composedAtlasFill)
+        if __lux_tmp_composedAtlasFill_145 == nil then
+          __lux_tmp_composedAtlasFill_145 = 0
         end
-        fillPct = mathFloor(__lux_tmp_composedAtlasFill_139 * 100 + 0.5)
+        fillPct = mathFloor(__lux_tmp_composedAtlasFill_145 * 100 + 0.5)
       end
       do
-        local __lux_tmp_mode_140 = status.mode
-        if __lux_tmp_mode_140 == nil then
-          __lux_tmp_mode_140 = "n/a"
+        local __lux_tmp_mode_146 = status.mode
+        if __lux_tmp_mode_146 == nil then
+          __lux_tmp_mode_146 = "n/a"
         end
-        local __lux_tmp_composedEnabled_141 = status.composedEnabled
-        if __lux_tmp_composedEnabled_141 == nil then
-          __lux_tmp_composedEnabled_141 = false
+        local __lux_tmp_composedEnabled_147 = status.composedEnabled
+        if __lux_tmp_composedEnabled_147 == nil then
+          __lux_tmp_composedEnabled_147 = false
         end
-        local __lux_tmp_composedFailed_142 = status.composedFailed
-        if __lux_tmp_composedFailed_142 == nil then
-          __lux_tmp_composedFailed_142 = false
+        local __lux_tmp_composedFailed_148 = status.composedFailed
+        if __lux_tmp_composedFailed_148 == nil then
+          __lux_tmp_composedFailed_148 = false
         end
         printFn(
           "[MGFX] text mode=" ..
-            toString(__lux_tmp_mode_140) ..
+            toString(__lux_tmp_mode_146) ..
               " composed=" ..
-                toString(__lux_tmp_composedEnabled_141) ..
-                  " failed=" .. toString(__lux_tmp_composedFailed_142)
+                toString(__lux_tmp_composedEnabled_147) ..
+                  " failed=" .. toString(__lux_tmp_composedFailed_148)
         )
       end
       do
-        local __lux_tmp_draws_143 = status.draws
-        if __lux_tmp_draws_143 == nil then
-          __lux_tmp_draws_143 = snapshot.draws
+        local __lux_tmp_draws_149 = status.draws
+        if __lux_tmp_draws_149 == nil then
+          __lux_tmp_draws_149 = snapshot.draws
         end
-        if __lux_tmp_draws_143 == nil then
-          __lux_tmp_draws_143 = stats.textDraws
+        if __lux_tmp_draws_149 == nil then
+          __lux_tmp_draws_149 = stats.textDraws
         end
-        if __lux_tmp_draws_143 == nil then
-          __lux_tmp_draws_143 = 0
+        if __lux_tmp_draws_149 == nil then
+          __lux_tmp_draws_149 = 0
         end
-        local __lux_tmp_nativeDraws_144 = status.nativeDraws
-        if __lux_tmp_nativeDraws_144 == nil then
-          __lux_tmp_nativeDraws_144 = stats.textNativeDraws
+        local __lux_tmp_nativeDraws_150 = status.nativeDraws
+        if __lux_tmp_nativeDraws_150 == nil then
+          __lux_tmp_nativeDraws_150 = stats.textNativeDraws
         end
-        if __lux_tmp_nativeDraws_144 == nil then
-          __lux_tmp_nativeDraws_144 = 0
+        if __lux_tmp_nativeDraws_150 == nil then
+          __lux_tmp_nativeDraws_150 = 0
         end
-        local __lux_tmp_shaderDraws_145 = status.shaderDraws
-        if __lux_tmp_shaderDraws_145 == nil then
-          __lux_tmp_shaderDraws_145 = stats.textShaderDraws
+        local __lux_tmp_shaderDraws_151 = status.shaderDraws
+        if __lux_tmp_shaderDraws_151 == nil then
+          __lux_tmp_shaderDraws_151 = stats.textShaderDraws
         end
-        if __lux_tmp_shaderDraws_145 == nil then
-          __lux_tmp_shaderDraws_145 = 0
+        if __lux_tmp_shaderDraws_151 == nil then
+          __lux_tmp_shaderDraws_151 = 0
         end
-        local __lux_tmp_composedDraws_146 = status.composedDraws
-        if __lux_tmp_composedDraws_146 == nil then
-          __lux_tmp_composedDraws_146 = stats.textComposedDraws
+        local __lux_tmp_composedDraws_152 = status.composedDraws
+        if __lux_tmp_composedDraws_152 == nil then
+          __lux_tmp_composedDraws_152 = stats.textComposedDraws
         end
-        if __lux_tmp_composedDraws_146 == nil then
-          __lux_tmp_composedDraws_146 = 0
+        if __lux_tmp_composedDraws_152 == nil then
+          __lux_tmp_composedDraws_152 = 0
         end
         printFn(
           "[MGFX] text draws=" ..
-            toString(__lux_tmp_draws_143) ..
+            toString(__lux_tmp_draws_149) ..
               " native=" ..
-                toString(__lux_tmp_nativeDraws_144) ..
+                toString(__lux_tmp_nativeDraws_150) ..
                   " shader=" ..
-                    toString(__lux_tmp_shaderDraws_145) ..
-                      " composed=" .. toString(__lux_tmp_composedDraws_146)
+                    toString(__lux_tmp_shaderDraws_151) ..
+                      " composed=" .. toString(__lux_tmp_composedDraws_152)
         )
       end
       do
-        local __lux_tmp_textQueuedBatches_147 = stats.textQueuedBatches
-        if __lux_tmp_textQueuedBatches_147 == nil then
-          __lux_tmp_textQueuedBatches_147 = 0
+        local __lux_tmp_textQueuedBatches_153 = stats.textQueuedBatches
+        if __lux_tmp_textQueuedBatches_153 == nil then
+          __lux_tmp_textQueuedBatches_153 = 0
         end
-        local __lux_tmp_textQueuedRecords_148 = stats.textQueuedRecords
-        if __lux_tmp_textQueuedRecords_148 == nil then
-          __lux_tmp_textQueuedRecords_148 = 0
+        local __lux_tmp_textQueuedRecords_154 = stats.textQueuedRecords
+        if __lux_tmp_textQueuedRecords_154 == nil then
+          __lux_tmp_textQueuedRecords_154 = 0
         end
         printFn(
           "[MGFX] text queued batches=" ..
-            toString(__lux_tmp_textQueuedBatches_147) ..
-              " records=" .. toString(__lux_tmp_textQueuedRecords_148)
+            toString(__lux_tmp_textQueuedBatches_153) ..
+              " records=" .. toString(__lux_tmp_textQueuedRecords_154)
         )
       end
       do
-        local __lux_tmp_textComposedBatchDraws_149 = stats.textComposedBatchDraws
-        if __lux_tmp_textComposedBatchDraws_149 == nil then
-          __lux_tmp_textComposedBatchDraws_149 = 0
+        local __lux_tmp_textComposedBatchDraws_155 = stats.textComposedBatchDraws
+        if __lux_tmp_textComposedBatchDraws_155 == nil then
+          __lux_tmp_textComposedBatchDraws_155 = 0
         end
-        local __lux_tmp_textComposedBatchedRecords_150 = stats.textComposedBatchedRecords
-        if __lux_tmp_textComposedBatchedRecords_150 == nil then
-          __lux_tmp_textComposedBatchedRecords_150 = 0
+        local __lux_tmp_textComposedBatchedRecords_156 = stats.textComposedBatchedRecords
+        if __lux_tmp_textComposedBatchedRecords_156 == nil then
+          __lux_tmp_textComposedBatchedRecords_156 = 0
         end
         printFn(
           "[MGFX] text batch draws=" ..
-            toString(__lux_tmp_textComposedBatchDraws_149) ..
-              " records=" .. toString(__lux_tmp_textComposedBatchedRecords_150)
+            toString(__lux_tmp_textComposedBatchDraws_155) ..
+              " records=" .. toString(__lux_tmp_textComposedBatchedRecords_156)
         )
       end
       do
-        local __lux_tmp_textComposedRequests_151 = stats.textComposedRequests
-        if __lux_tmp_textComposedRequests_151 == nil then
-          __lux_tmp_textComposedRequests_151 = 0
+        local __lux_tmp_textComposedRequests_157 = stats.textComposedRequests
+        if __lux_tmp_textComposedRequests_157 == nil then
+          __lux_tmp_textComposedRequests_157 = 0
         end
-        local __lux_tmp_textComposedBatches_152 = stats.textComposedBatches
-        if __lux_tmp_textComposedBatches_152 == nil then
-          __lux_tmp_textComposedBatches_152 = 0
+        local __lux_tmp_textComposedBatches_158 = stats.textComposedBatches
+        if __lux_tmp_textComposedBatches_158 == nil then
+          __lux_tmp_textComposedBatches_158 = 0
         end
-        local __lux_tmp_textComposedReadyBatches_153 = stats.textComposedReadyBatches
-        if __lux_tmp_textComposedReadyBatches_153 == nil then
-          __lux_tmp_textComposedReadyBatches_153 = 0
+        local __lux_tmp_textComposedReadyBatches_159 = stats.textComposedReadyBatches
+        if __lux_tmp_textComposedReadyBatches_159 == nil then
+          __lux_tmp_textComposedReadyBatches_159 = 0
         end
-        local __lux_tmp_textComposedFallbackBatches_154 = stats.textComposedFallbackBatches
-        if __lux_tmp_textComposedFallbackBatches_154 == nil then
-          __lux_tmp_textComposedFallbackBatches_154 = 0
+        local __lux_tmp_textComposedFallbackBatches_160 = stats.textComposedFallbackBatches
+        if __lux_tmp_textComposedFallbackBatches_160 == nil then
+          __lux_tmp_textComposedFallbackBatches_160 = 0
         end
-        local __lux_tmp_textComposedFallbackRecords_155 = stats.textComposedFallbackRecords
-        if __lux_tmp_textComposedFallbackRecords_155 == nil then
-          __lux_tmp_textComposedFallbackRecords_155 = 0
+        local __lux_tmp_textComposedFallbackRecords_161 = stats.textComposedFallbackRecords
+        if __lux_tmp_textComposedFallbackRecords_161 == nil then
+          __lux_tmp_textComposedFallbackRecords_161 = 0
         end
-        local __lux_tmp_textComposedPrewarmFails_156 = stats.textComposedPrewarmFails
-        if __lux_tmp_textComposedPrewarmFails_156 == nil then
-          __lux_tmp_textComposedPrewarmFails_156 = 0
+        local __lux_tmp_textComposedPrewarmFails_162 = stats.textComposedPrewarmFails
+        if __lux_tmp_textComposedPrewarmFails_162 == nil then
+          __lux_tmp_textComposedPrewarmFails_162 = 0
         end
-        local __lux_tmp_textComposedPrewarmRestarts_157 = stats.textComposedPrewarmRestarts
-        if __lux_tmp_textComposedPrewarmRestarts_157 == nil then
-          __lux_tmp_textComposedPrewarmRestarts_157 = 0
+        local __lux_tmp_textComposedPrewarmRestarts_163 = stats.textComposedPrewarmRestarts
+        if __lux_tmp_textComposedPrewarmRestarts_163 == nil then
+          __lux_tmp_textComposedPrewarmRestarts_163 = 0
         end
         printFn(
           "[MGFX] text composer route requests=" ..
-            toString(__lux_tmp_textComposedRequests_151) ..
+            toString(__lux_tmp_textComposedRequests_157) ..
               " batches=" ..
-                toString(__lux_tmp_textComposedBatches_152) ..
+                toString(__lux_tmp_textComposedBatches_158) ..
                   " readyBatches=" ..
-                    toString(__lux_tmp_textComposedReadyBatches_153) ..
+                    toString(__lux_tmp_textComposedReadyBatches_159) ..
                       " fallbackBatches=" ..
-                        toString(__lux_tmp_textComposedFallbackBatches_154) ..
+                        toString(__lux_tmp_textComposedFallbackBatches_160) ..
                           " fallbackRecords=" ..
-                            toString(__lux_tmp_textComposedFallbackRecords_155) ..
+                            toString(__lux_tmp_textComposedFallbackRecords_161) ..
                               " prewarmFails=" ..
-                                toString(__lux_tmp_textComposedPrewarmFails_156) ..
-                                  " prewarmRestarts=" .. toString(__lux_tmp_textComposedPrewarmRestarts_157)
+                                toString(__lux_tmp_textComposedPrewarmFails_162) ..
+                                  " prewarmRestarts=" .. toString(__lux_tmp_textComposedPrewarmRestarts_163)
         )
       end
       do
-        local __lux_tmp_textEntryCacheHits_158 = stats.textEntryCacheHits
-        if __lux_tmp_textEntryCacheHits_158 == nil then
-          __lux_tmp_textEntryCacheHits_158 = 0
+        local __lux_tmp_textEntryCacheHits_164 = stats.textEntryCacheHits
+        if __lux_tmp_textEntryCacheHits_164 == nil then
+          __lux_tmp_textEntryCacheHits_164 = 0
         end
-        local __lux_tmp_textEntryCacheMisses_159 = stats.textEntryCacheMisses
-        if __lux_tmp_textEntryCacheMisses_159 == nil then
-          __lux_tmp_textEntryCacheMisses_159 = 0
+        local __lux_tmp_textEntryCacheMisses_165 = stats.textEntryCacheMisses
+        if __lux_tmp_textEntryCacheMisses_165 == nil then
+          __lux_tmp_textEntryCacheMisses_165 = 0
         end
         printFn(
           "[MGFX] text entry cache hit/miss=" ..
-            toString(__lux_tmp_textEntryCacheHits_158) ..
-              "/" .. toString(__lux_tmp_textEntryCacheMisses_159)
+            toString(__lux_tmp_textEntryCacheHits_164) ..
+              "/" .. toString(__lux_tmp_textEntryCacheMisses_165)
         )
       end
       do
-        local __lux_tmp_textMeasureHits_160 = stats.textMeasureHits
-        if __lux_tmp_textMeasureHits_160 == nil then
-          __lux_tmp_textMeasureHits_160 = 0
+        local __lux_tmp_textMeasureHits_166 = stats.textMeasureHits
+        if __lux_tmp_textMeasureHits_166 == nil then
+          __lux_tmp_textMeasureHits_166 = 0
         end
-        local __lux_tmp_textMeasureMisses_161 = stats.textMeasureMisses
-        if __lux_tmp_textMeasureMisses_161 == nil then
-          __lux_tmp_textMeasureMisses_161 = 0
+        local __lux_tmp_textMeasureMisses_167 = stats.textMeasureMisses
+        if __lux_tmp_textMeasureMisses_167 == nil then
+          __lux_tmp_textMeasureMisses_167 = 0
         end
-        local __lux_tmp_textCacheSize_162 = stats.textCacheSize
-        if __lux_tmp_textCacheSize_162 == nil then
-          __lux_tmp_textCacheSize_162 = 0
+        local __lux_tmp_textCacheSize_168 = stats.textCacheSize
+        if __lux_tmp_textCacheSize_168 == nil then
+          __lux_tmp_textCacheSize_168 = 0
         end
         printFn(
           "[MGFX] text measure hit/miss=" ..
-            toString(__lux_tmp_textMeasureHits_160) ..
+            toString(__lux_tmp_textMeasureHits_166) ..
               "/" ..
-                toString(__lux_tmp_textMeasureMisses_161) ..
-                  " cache=" .. toString(__lux_tmp_textCacheSize_162)
+                toString(__lux_tmp_textMeasureMisses_167) ..
+                  " cache=" .. toString(__lux_tmp_textCacheSize_168)
         )
       end
       do
-        local __lux_tmp_composedEnabled_163 = status.composedEnabled
-        if __lux_tmp_composedEnabled_163 == nil then
-          __lux_tmp_composedEnabled_163 = false
+        local __lux_tmp_composedEnabled_169 = status.composedEnabled
+        if __lux_tmp_composedEnabled_169 == nil then
+          __lux_tmp_composedEnabled_169 = false
         end
-        local __lux_tmp_fontCount_164 = status.fontCount
-        if __lux_tmp_fontCount_164 == nil then
-          __lux_tmp_fontCount_164 = 0
+        local __lux_tmp_fontCount_170 = status.fontCount
+        if __lux_tmp_fontCount_170 == nil then
+          __lux_tmp_fontCount_170 = 0
         end
-        local __lux_tmp_composedAtlasW_165 = status.composedAtlasW
-        if __lux_tmp_composedAtlasW_165 == nil then
-          __lux_tmp_composedAtlasW_165 = 0
+        local __lux_tmp_composedAtlasW_171 = status.composedAtlasW
+        if __lux_tmp_composedAtlasW_171 == nil then
+          __lux_tmp_composedAtlasW_171 = 0
         end
-        local __lux_tmp_composedAtlasH_166 = status.composedAtlasH
-        if __lux_tmp_composedAtlasH_166 == nil then
-          __lux_tmp_composedAtlasH_166 = 0
+        local __lux_tmp_composedAtlasH_172 = status.composedAtlasH
+        if __lux_tmp_composedAtlasH_172 == nil then
+          __lux_tmp_composedAtlasH_172 = 0
         end
-        local __lux_tmp_composedAtlasPages_167 = status.composedAtlasPages
-        if __lux_tmp_composedAtlasPages_167 == nil then
-          __lux_tmp_composedAtlasPages_167 = 0
+        local __lux_tmp_composedAtlasPages_173 = status.composedAtlasPages
+        if __lux_tmp_composedAtlasPages_173 == nil then
+          __lux_tmp_composedAtlasPages_173 = 0
         end
-        local __lux_tmp_composedAtlasMaxPages_168 = status.composedAtlasMaxPages
-        if __lux_tmp_composedAtlasMaxPages_168 == nil then
-          __lux_tmp_composedAtlasMaxPages_168 = 0
+        local __lux_tmp_composedAtlasMaxPages_174 = status.composedAtlasMaxPages
+        if __lux_tmp_composedAtlasMaxPages_174 == nil then
+          __lux_tmp_composedAtlasMaxPages_174 = 0
         end
-        local __lux_tmp_composedEntries_169 = status.composedEntries
-        if __lux_tmp_composedEntries_169 == nil then
-          __lux_tmp_composedEntries_169 = stats.textComposedEntries
+        local __lux_tmp_composedEntries_175 = status.composedEntries
+        if __lux_tmp_composedEntries_175 == nil then
+          __lux_tmp_composedEntries_175 = stats.textComposedEntries
         end
-        if __lux_tmp_composedEntries_169 == nil then
-          __lux_tmp_composedEntries_169 = 0
+        if __lux_tmp_composedEntries_175 == nil then
+          __lux_tmp_composedEntries_175 = 0
         end
-        local __lux_tmp_styleCount_170 = status.styleCount
-        if __lux_tmp_styleCount_170 == nil then
-          __lux_tmp_styleCount_170 = 0
+        local __lux_tmp_styleCount_176 = status.styleCount
+        if __lux_tmp_styleCount_176 == nil then
+          __lux_tmp_styleCount_176 = 0
         end
-        local __lux_tmp_styleStackDepth_171 = status.styleStackDepth
-        if __lux_tmp_styleStackDepth_171 == nil then
-          __lux_tmp_styleStackDepth_171 = 0
+        local __lux_tmp_styleStackDepth_177 = status.styleStackDepth
+        if __lux_tmp_styleStackDepth_177 == nil then
+          __lux_tmp_styleStackDepth_177 = 0
         end
-        local __lux_tmp_composedFailed_172 = status.composedFailed
-        if __lux_tmp_composedFailed_172 == nil then
-          __lux_tmp_composedFailed_172 = false
+        local __lux_tmp_composedFailed_178 = status.composedFailed
+        if __lux_tmp_composedFailed_178 == nil then
+          __lux_tmp_composedFailed_178 = false
         end
         printFn(
           "[MGFX] text composer enabled=" ..
-            toString(__lux_tmp_composedEnabled_163) ..
+            toString(__lux_tmp_composedEnabled_169) ..
               " aliases=" ..
-                toString(__lux_tmp_fontCount_164) ..
+                toString(__lux_tmp_fontCount_170) ..
                   " atlas=" ..
-                    toString(__lux_tmp_composedAtlasW_165) ..
+                    toString(__lux_tmp_composedAtlasW_171) ..
                       "x" ..
-                        toString(__lux_tmp_composedAtlasH_166) ..
+                        toString(__lux_tmp_composedAtlasH_172) ..
                           " pages=" ..
-                            toString(__lux_tmp_composedAtlasPages_167) ..
+                            toString(__lux_tmp_composedAtlasPages_173) ..
                               "/" ..
-                                toString(__lux_tmp_composedAtlasMaxPages_168) ..
+                                toString(__lux_tmp_composedAtlasMaxPages_174) ..
                                   " fill=" ..
                                     toString(fillPct) ..
                                       "% entries=" ..
-                                        toString(__lux_tmp_composedEntries_169) ..
+                                        toString(__lux_tmp_composedEntries_175) ..
                                           " styles=" ..
-                                            toString(__lux_tmp_styleCount_170) ..
+                                            toString(__lux_tmp_styleCount_176) ..
                                               " stack=" ..
-                                                toString(__lux_tmp_styleStackDepth_171) ..
-                                                  " failed=" .. toString(__lux_tmp_composedFailed_172)
+                                                toString(__lux_tmp_styleStackDepth_177) ..
+                                                  " failed=" .. toString(__lux_tmp_composedFailed_178)
         )
       end
       do
-        local __lux_tmp_composedBakes_173 = status.composedBakes
-        if __lux_tmp_composedBakes_173 == nil then
-          __lux_tmp_composedBakes_173 = stats.textComposedBakes
+        local __lux_tmp_composedBakes_179 = status.composedBakes
+        if __lux_tmp_composedBakes_179 == nil then
+          __lux_tmp_composedBakes_179 = stats.textComposedBakes
         end
-        if __lux_tmp_composedBakes_173 == nil then
-          __lux_tmp_composedBakes_173 = 0
+        if __lux_tmp_composedBakes_179 == nil then
+          __lux_tmp_composedBakes_179 = 0
         end
-        local __lux_tmp_composedBlits_174 = status.composedBlits
-        if __lux_tmp_composedBlits_174 == nil then
-          __lux_tmp_composedBlits_174 = stats.textComposedBlits
+        local __lux_tmp_composedBlits_180 = status.composedBlits
+        if __lux_tmp_composedBlits_180 == nil then
+          __lux_tmp_composedBlits_180 = stats.textComposedBlits
         end
-        if __lux_tmp_composedBlits_174 == nil then
-          __lux_tmp_composedBlits_174 = 0
+        if __lux_tmp_composedBlits_180 == nil then
+          __lux_tmp_composedBlits_180 = 0
         end
-        local __lux_tmp_textComposedFallbackRecords_175 = stats.textComposedFallbackRecords
-        if __lux_tmp_textComposedFallbackRecords_175 == nil then
-          __lux_tmp_textComposedFallbackRecords_175 = 0
+        local __lux_tmp_textComposedFallbackRecords_181 = stats.textComposedFallbackRecords
+        if __lux_tmp_textComposedFallbackRecords_181 == nil then
+          __lux_tmp_textComposedFallbackRecords_181 = 0
         end
         printFn(
           "[MGFX] text compose bakes=" ..
-            toString(__lux_tmp_composedBakes_173) ..
+            toString(__lux_tmp_composedBakes_179) ..
               " blits=" ..
-                toString(__lux_tmp_composedBlits_174) ..
-                  " fallbackRecords=" .. toString(__lux_tmp_textComposedFallbackRecords_175)
+                toString(__lux_tmp_composedBlits_180) ..
+                  " fallbackRecords=" .. toString(__lux_tmp_textComposedFallbackRecords_181)
         )
       end
       return status
@@ -2043,12 +2088,12 @@ return function(__lux_import)
     textCacheClear = function(owner)
       local clearMeasure
       do
-        local __lux_obj_owner_176 = owner
-        local __lux_val_ClearTextMeasureCache_177 = nil
-        if __lux_obj_owner_176 ~= nil then
-          __lux_val_ClearTextMeasureCache_177 = __lux_obj_owner_176.ClearTextMeasureCache
+        local __lux_obj_owner_182 = owner
+        local __lux_val_ClearTextMeasureCache_183 = nil
+        if __lux_obj_owner_182 ~= nil then
+          __lux_val_ClearTextMeasureCache_183 = __lux_obj_owner_182.ClearTextMeasureCache
         end
-        clearMeasure = __lux_val_ClearTextMeasureCache_177
+        clearMeasure = __lux_val_ClearTextMeasureCache_183
       end
       if clearMeasure ~= nil then
         clearMeasure()
@@ -2059,12 +2104,12 @@ return function(__lux_import)
     textComposedClear = function(owner)
       local clearComposed
       do
-        local __lux_obj_owner_178 = owner
-        local __lux_val_ClearTextComposedCache_179 = nil
-        if __lux_obj_owner_178 ~= nil then
-          __lux_val_ClearTextComposedCache_179 = __lux_obj_owner_178.ClearTextComposedCache
+        local __lux_obj_owner_184 = owner
+        local __lux_val_ClearTextComposedCache_185 = nil
+        if __lux_obj_owner_184 ~= nil then
+          __lux_val_ClearTextComposedCache_185 = __lux_obj_owner_184.ClearTextComposedCache
         end
-        clearComposed = __lux_val_ClearTextComposedCache_179
+        clearComposed = __lux_val_ClearTextComposedCache_185
       end
       local ok = false
       if clearComposed ~= nil then
@@ -2109,12 +2154,12 @@ return function(__lux_import)
       end
       local register
       do
-        local __lux_obj_owner_180 = owner
-        local __lux_val_RegisterTextFont_181 = nil
-        if __lux_obj_owner_180 ~= nil then
-          __lux_val_RegisterTextFont_181 = __lux_obj_owner_180.RegisterTextFont
+        local __lux_obj_owner_186 = owner
+        local __lux_val_RegisterTextFont_187 = nil
+        if __lux_obj_owner_186 ~= nil then
+          __lux_val_RegisterTextFont_187 = __lux_obj_owner_186.RegisterTextFont
         end
-        register = __lux_val_RegisterTextFont_181
+        register = __lux_val_RegisterTextFont_187
       end
       if register == nil then
         return false
@@ -2506,49 +2551,49 @@ return function(__lux_import)
         composedLabel = "off"
       end
       do
-        local __lux_tmp_textShaderDraws_182 = stats.textShaderDraws
-        if __lux_tmp_textShaderDraws_182 == nil then
-          __lux_tmp_textShaderDraws_182 = status.shaderDraws
+        local __lux_tmp_textShaderDraws_188 = stats.textShaderDraws
+        if __lux_tmp_textShaderDraws_188 == nil then
+          __lux_tmp_textShaderDraws_188 = status.shaderDraws
         end
-        if __lux_tmp_textShaderDraws_182 == nil then
-          __lux_tmp_textShaderDraws_182 = 0
+        if __lux_tmp_textShaderDraws_188 == nil then
+          __lux_tmp_textShaderDraws_188 = 0
         end
-        local __lux_tmp_textNativeDraws_183 = stats.textNativeDraws
-        if __lux_tmp_textNativeDraws_183 == nil then
-          __lux_tmp_textNativeDraws_183 = status.nativeDraws
+        local __lux_tmp_textNativeDraws_189 = stats.textNativeDraws
+        if __lux_tmp_textNativeDraws_189 == nil then
+          __lux_tmp_textNativeDraws_189 = status.nativeDraws
         end
-        if __lux_tmp_textNativeDraws_183 == nil then
-          __lux_tmp_textNativeDraws_183 = 0
+        if __lux_tmp_textNativeDraws_189 == nil then
+          __lux_tmp_textNativeDraws_189 = 0
         end
-        local __lux_tmp_textComposedBakes_184 = stats.textComposedBakes
-        if __lux_tmp_textComposedBakes_184 == nil then
-          __lux_tmp_textComposedBakes_184 = status.composedBakes
+        local __lux_tmp_textComposedBakes_190 = stats.textComposedBakes
+        if __lux_tmp_textComposedBakes_190 == nil then
+          __lux_tmp_textComposedBakes_190 = status.composedBakes
         end
-        if __lux_tmp_textComposedBakes_184 == nil then
-          __lux_tmp_textComposedBakes_184 = 0
+        if __lux_tmp_textComposedBakes_190 == nil then
+          __lux_tmp_textComposedBakes_190 = 0
         end
-        local __lux_tmp_textComposedBlits_185 = stats.textComposedBlits
-        if __lux_tmp_textComposedBlits_185 == nil then
-          __lux_tmp_textComposedBlits_185 = status.composedBlits
+        local __lux_tmp_textComposedBlits_191 = stats.textComposedBlits
+        if __lux_tmp_textComposedBlits_191 == nil then
+          __lux_tmp_textComposedBlits_191 = status.composedBlits
         end
-        if __lux_tmp_textComposedBlits_185 == nil then
-          __lux_tmp_textComposedBlits_185 = 0
+        if __lux_tmp_textComposedBlits_191 == nil then
+          __lux_tmp_textComposedBlits_191 = 0
         end
-        local __lux_tmp_composedEntries_186 = status.composedEntries
-        if __lux_tmp_composedEntries_186 == nil then
-          __lux_tmp_composedEntries_186 = stats.textComposedEntries
+        local __lux_tmp_composedEntries_192 = status.composedEntries
+        if __lux_tmp_composedEntries_192 == nil then
+          __lux_tmp_composedEntries_192 = stats.textComposedEntries
         end
-        if __lux_tmp_composedEntries_186 == nil then
-          __lux_tmp_composedEntries_186 = 0
+        if __lux_tmp_composedEntries_192 == nil then
+          __lux_tmp_composedEntries_192 = 0
         end
         draw.SimpleText(
           stringFormat(
             "text composed:%d native:%d bakes:%d blits:%d entries:%d fx:%s",
-            __lux_tmp_textShaderDraws_182,
-            __lux_tmp_textNativeDraws_183,
-            __lux_tmp_textComposedBakes_184,
-            __lux_tmp_textComposedBlits_185,
-            __lux_tmp_composedEntries_186,
+            __lux_tmp_textShaderDraws_188,
+            __lux_tmp_textNativeDraws_189,
+            __lux_tmp_textComposedBakes_190,
+            __lux_tmp_textComposedBlits_191,
+            __lux_tmp_composedEntries_192,
             fxLabel
           ),
           "DermaDefault",
@@ -2557,41 +2602,41 @@ return function(__lux_import)
           makeColor(210, 230, 235)
         )
       end
-      local __lux_tmp_textComposedBakes_187 = stats.textComposedBakes
-      if __lux_tmp_textComposedBakes_187 == nil then
-        __lux_tmp_textComposedBakes_187 = status.composedBakes
+      local __lux_tmp_textComposedBakes_193 = stats.textComposedBakes
+      if __lux_tmp_textComposedBakes_193 == nil then
+        __lux_tmp_textComposedBakes_193 = status.composedBakes
       end
-      if __lux_tmp_textComposedBakes_187 == nil then
-        __lux_tmp_textComposedBakes_187 = 0
+      if __lux_tmp_textComposedBakes_193 == nil then
+        __lux_tmp_textComposedBakes_193 = 0
       end
-      local __lux_tmp_textComposedBlits_188 = stats.textComposedBlits
-      if __lux_tmp_textComposedBlits_188 == nil then
-        __lux_tmp_textComposedBlits_188 = status.composedBlits
+      local __lux_tmp_textComposedBlits_194 = stats.textComposedBlits
+      if __lux_tmp_textComposedBlits_194 == nil then
+        __lux_tmp_textComposedBlits_194 = status.composedBlits
       end
-      if __lux_tmp_textComposedBlits_188 == nil then
-        __lux_tmp_textComposedBlits_188 = 0
+      if __lux_tmp_textComposedBlits_194 == nil then
+        __lux_tmp_textComposedBlits_194 = 0
       end
-      local __lux_tmp_textComposedEntries_189 = stats.textComposedEntries
-      if __lux_tmp_textComposedEntries_189 == nil then
-        __lux_tmp_textComposedEntries_189 = status.composedEntries
+      local __lux_tmp_textComposedEntries_195 = stats.textComposedEntries
+      if __lux_tmp_textComposedEntries_195 == nil then
+        __lux_tmp_textComposedEntries_195 = status.composedEntries
       end
-      if __lux_tmp_textComposedEntries_189 == nil then
-        __lux_tmp_textComposedEntries_189 = 0
+      if __lux_tmp_textComposedEntries_195 == nil then
+        __lux_tmp_textComposedEntries_195 = 0
       end
-      local __lux_tmp_textComposedEvicts_190 = stats.textComposedEvicts
-      if __lux_tmp_textComposedEvicts_190 == nil then
-        __lux_tmp_textComposedEvicts_190 = status.composedEvicts
+      local __lux_tmp_textComposedEvicts_196 = stats.textComposedEvicts
+      if __lux_tmp_textComposedEvicts_196 == nil then
+        __lux_tmp_textComposedEvicts_196 = status.composedEvicts
       end
-      if __lux_tmp_textComposedEvicts_190 == nil then
-        __lux_tmp_textComposedEvicts_190 = 0
+      if __lux_tmp_textComposedEvicts_196 == nil then
+        __lux_tmp_textComposedEvicts_196 = 0
       end
       return draw.SimpleText(
         stringFormat(
           "composed bakes:%d blits:%d entries:%d evicts:%d  (mgfx_text_composed %s)",
-          __lux_tmp_textComposedBakes_187,
-          __lux_tmp_textComposedBlits_188,
-          __lux_tmp_textComposedEntries_189,
-          __lux_tmp_textComposedEvicts_190,
+          __lux_tmp_textComposedBakes_193,
+          __lux_tmp_textComposedBlits_194,
+          __lux_tmp_textComposedEntries_195,
+          __lux_tmp_textComposedEvicts_196,
           composedLabel
         ),
         "DermaDefault",
@@ -2629,12 +2674,12 @@ return function(__lux_import)
       ensureTextDemoFonts(owner)
       local resolve
       do
-        local __lux_obj_owner_191 = owner
-        local __lux_val_DebugResolveText_192 = nil
-        if __lux_obj_owner_191 ~= nil then
-          __lux_val_DebugResolveText_192 = __lux_obj_owner_191.DebugResolveText
+        local __lux_obj_owner_197 = owner
+        local __lux_val_DebugResolveText_198 = nil
+        if __lux_obj_owner_197 ~= nil then
+          __lux_val_DebugResolveText_198 = __lux_obj_owner_197.DebugResolveText
         end
-        resolve = __lux_val_DebugResolveText_192
+        resolve = __lux_val_DebugResolveText_198
       end
       if resolve == nil then
         printFn("[MGFX] text trace unavailable")
@@ -2645,46 +2690,46 @@ return function(__lux_import)
         local info = resolve(item[1], item[2])
         local missing
         do
-          local __lux_obj_info_193 = info
-          local __lux_val_missing_194 = nil
-          if __lux_obj_info_193 ~= nil then
-            __lux_val_missing_194 = __lux_obj_info_193.missing
+          local __lux_obj_info_199 = info
+          local __lux_val_missing_200 = nil
+          if __lux_obj_info_199 ~= nil then
+            __lux_val_missing_200 = __lux_obj_info_199.missing
           end
-          missing = __lux_val_missing_194
+          missing = __lux_val_missing_200
           if missing == nil then
             missing = {}
           end
         end
         do
-          local __lux_obj_info_195 = info
-          local __lux_val_atlasKey_196 = nil
-          if __lux_obj_info_195 ~= nil then
-            __lux_val_atlasKey_196 = __lux_obj_info_195.atlasKey
-          end
-          local __lux_obj_info_197 = info
-          local __lux_val_kind_198 = nil
-          if __lux_obj_info_197 ~= nil then
-            __lux_val_kind_198 = __lux_obj_info_197.kind
-          end
-          local __lux_obj_info_199 = info
-          local __lux_val_routeAtlas_200 = nil
-          if __lux_obj_info_199 ~= nil then
-            __lux_val_routeAtlas_200 = __lux_obj_info_199.routeAtlas
-          end
           local __lux_obj_info_201 = info
-          local __lux_val_routeKind_202 = nil
+          local __lux_val_atlasKey_202 = nil
           if __lux_obj_info_201 ~= nil then
-            __lux_val_routeKind_202 = __lux_obj_info_201.routeKind
+            __lux_val_atlasKey_202 = __lux_obj_info_201.atlasKey
+          end
+          local __lux_obj_info_203 = info
+          local __lux_val_kind_204 = nil
+          if __lux_obj_info_203 ~= nil then
+            __lux_val_kind_204 = __lux_obj_info_203.kind
+          end
+          local __lux_obj_info_205 = info
+          local __lux_val_routeAtlas_206 = nil
+          if __lux_obj_info_205 ~= nil then
+            __lux_val_routeAtlas_206 = __lux_obj_info_205.routeAtlas
+          end
+          local __lux_obj_info_207 = info
+          local __lux_val_routeKind_208 = nil
+          if __lux_obj_info_207 ~= nil then
+            __lux_val_routeKind_208 = __lux_obj_info_207.routeKind
           end
           printFn(
             stringFormat(
               "[MGFX] demo text %d font=%s atlas=%s kind=%s route=%s routeKind=%s missing=%d",
               index,
               toString(item[2]),
-              toString(__lux_val_atlasKey_196),
-              toString(__lux_val_kind_198),
-              toString(__lux_val_routeAtlas_200),
-              toString(__lux_val_routeKind_202),
+              toString(__lux_val_atlasKey_202),
+              toString(__lux_val_kind_204),
+              toString(__lux_val_routeAtlas_206),
+              toString(__lux_val_routeKind_208),
               #missing
             )
           )
@@ -2706,12 +2751,12 @@ return function(__lux_import)
       end
       local debugDraw
       do
-        local __lux_obj_owner_203 = owner
-        local __lux_val_DebugDrawTextAtlas_204 = nil
-        if __lux_obj_owner_203 ~= nil then
-          __lux_val_DebugDrawTextAtlas_204 = __lux_obj_owner_203.DebugDrawTextAtlas
+        local __lux_obj_owner_209 = owner
+        local __lux_val_DebugDrawTextAtlas_210 = nil
+        if __lux_obj_owner_209 ~= nil then
+          __lux_val_DebugDrawTextAtlas_210 = __lux_obj_owner_209.DebugDrawTextAtlas
         end
-        debugDraw = __lux_val_DebugDrawTextAtlas_204
+        debugDraw = __lux_val_DebugDrawTextAtlas_210
       end
       if hookAdd ~= nil and debugDraw ~= nil then
         hookAdd(
@@ -2738,12 +2783,12 @@ return function(__lux_import)
       end
       local register
       do
-        local __lux_obj_owner_205 = owner
-        local __lux_val_RegisterTextFont_206 = nil
-        if __lux_obj_owner_205 ~= nil then
-          __lux_val_RegisterTextFont_206 = __lux_obj_owner_205.RegisterTextFont
+        local __lux_obj_owner_211 = owner
+        local __lux_val_RegisterTextFont_212 = nil
+        if __lux_obj_owner_211 ~= nil then
+          __lux_val_RegisterTextFont_212 = __lux_obj_owner_211.RegisterTextFont
         end
-        register = __lux_val_RegisterTextFont_206
+        register = __lux_val_RegisterTextFont_212
       end
       if register ~= nil then
         register(
@@ -3025,17 +3070,17 @@ return function(__lux_import)
     drawParamProbe = function(owner)
       local mat
       do
-        local __lux_obj_owner_207 = owner
-        local __lux_val_Materials_208 = nil
-        if __lux_obj_owner_207 ~= nil then
-          __lux_val_Materials_208 = __lux_obj_owner_207._Materials
+        local __lux_obj_owner_213 = owner
+        local __lux_val_Materials_214 = nil
+        if __lux_obj_owner_213 ~= nil then
+          __lux_val_Materials_214 = __lux_obj_owner_213._Materials
         end
-        local __lux_obj_Materials_209 = __lux_val_Materials_208
-        local __lux_val_param_probe_210 = nil
-        if __lux_obj_Materials_209 ~= nil then
-          __lux_val_param_probe_210 = __lux_obj_Materials_209.param_probe
+        local __lux_obj_Materials_215 = __lux_val_Materials_214
+        local __lux_val_param_probe_216 = nil
+        if __lux_obj_Materials_215 ~= nil then
+          __lux_val_param_probe_216 = __lux_obj_Materials_215.param_probe
         end
-        mat = __lux_val_param_probe_210
+        mat = __lux_val_param_probe_216
       end
       local x = 42
       local y = 300
@@ -3090,12 +3135,12 @@ return function(__lux_import)
     drawParamProbeInv = function(owner)
       local materials
       do
-        local __lux_obj_owner_211 = owner
-        local __lux_val_Materials_212 = nil
-        if __lux_obj_owner_211 ~= nil then
-          __lux_val_Materials_212 = __lux_obj_owner_211._Materials
+        local __lux_obj_owner_217 = owner
+        local __lux_val_Materials_218 = nil
+        if __lux_obj_owner_217 ~= nil then
+          __lux_val_Materials_218 = __lux_obj_owner_217._Materials
         end
-        materials = __lux_val_Materials_212
+        materials = __lux_val_Materials_218
         if materials == nil then
           materials = {}
         end
@@ -3185,11 +3230,11 @@ return function(__lux_import)
     printBenchResult = function(name, iterations, elapsedMs, emptyMs, sink)
       local netMs
       do
-        local __lux_tmp_emptyMs_213 = emptyMs
-        if __lux_tmp_emptyMs_213 == nil then
-          __lux_tmp_emptyMs_213 = 0
+        local __lux_tmp_emptyMs_219 = emptyMs
+        if __lux_tmp_emptyMs_219 == nil then
+          __lux_tmp_emptyMs_219 = 0
         end
-        netMs = mathMax(0, elapsedMs - __lux_tmp_emptyMs_213)
+        netMs = mathMax(0, elapsedMs - __lux_tmp_emptyMs_219)
       end
       return printFn(
         stringFormat(
@@ -3356,12 +3401,12 @@ return function(__lux_import)
     runParamBench = function(owner, args)
       local materials
       do
-        local __lux_obj_owner_214 = owner
-        local __lux_val_Materials_215 = nil
-        if __lux_obj_owner_214 ~= nil then
-          __lux_val_Materials_215 = __lux_obj_owner_214._Materials
+        local __lux_obj_owner_220 = owner
+        local __lux_val_Materials_221 = nil
+        if __lux_obj_owner_220 ~= nil then
+          __lux_val_Materials_221 = __lux_obj_owner_220._Materials
         end
-        materials = __lux_val_Materials_215
+        materials = __lux_val_Materials_221
         if materials == nil then
           materials = {}
         end
@@ -3389,45 +3434,45 @@ return function(__lux_import)
       end
       local iterations
       do
-        local __lux_obj_args_216 = args
-        local __lux_val_args_218 = nil
-        if __lux_obj_args_216 ~= nil then
-          local __lux_key_217 = 1
-          __lux_val_args_218 = __lux_obj_args_216[__lux_key_217]
+        local __lux_obj_args_222 = args
+        local __lux_val_args_224 = nil
+        if __lux_obj_args_222 ~= nil then
+          local __lux_key_223 = 1
+          __lux_val_args_224 = __lux_obj_args_222[__lux_key_223]
         end
-        local __lux_tmp_args_219 = toNumber(__lux_val_args_218)
-        if __lux_tmp_args_219 == nil then
-          __lux_tmp_args_219 = 3000
+        local __lux_tmp_args_225 = toNumber(__lux_val_args_224)
+        if __lux_tmp_args_225 == nil then
+          __lux_tmp_args_225 = 3000
         end
-        iterations = mathClamp(__lux_tmp_args_219, 250, 10000)
+        iterations = mathClamp(__lux_tmp_args_225, 250, 10000)
       end
       local roundCount
       do
-        local __lux_obj_args_220 = args
-        local __lux_val_args_222 = nil
-        if __lux_obj_args_220 ~= nil then
-          local __lux_key_221 = 2
-          __lux_val_args_222 = __lux_obj_args_220[__lux_key_221]
+        local __lux_obj_args_226 = args
+        local __lux_val_args_228 = nil
+        if __lux_obj_args_226 ~= nil then
+          local __lux_key_227 = 2
+          __lux_val_args_228 = __lux_obj_args_226[__lux_key_227]
         end
-        local __lux_tmp_args_223 = toNumber(__lux_val_args_222)
-        if __lux_tmp_args_223 == nil then
-          __lux_tmp_args_223 = 2
+        local __lux_tmp_args_229 = toNumber(__lux_val_args_228)
+        if __lux_tmp_args_229 == nil then
+          __lux_tmp_args_229 = 2
         end
-        roundCount = mathClamp(__lux_tmp_args_223, 1, 5)
+        roundCount = mathClamp(__lux_tmp_args_229, 1, 5)
       end
       local batchSize
       do
-        local __lux_obj_args_224 = args
-        local __lux_val_args_226 = nil
-        if __lux_obj_args_224 ~= nil then
-          local __lux_key_225 = 3
-          __lux_val_args_226 = __lux_obj_args_224[__lux_key_225]
+        local __lux_obj_args_230 = args
+        local __lux_val_args_232 = nil
+        if __lux_obj_args_230 ~= nil then
+          local __lux_key_231 = 3
+          __lux_val_args_232 = __lux_obj_args_230[__lux_key_231]
         end
-        local __lux_tmp_args_227 = toNumber(__lux_val_args_226)
-        if __lux_tmp_args_227 == nil then
-          __lux_tmp_args_227 = 100
+        local __lux_tmp_args_233 = toNumber(__lux_val_args_232)
+        if __lux_tmp_args_233 == nil then
+          __lux_tmp_args_233 = 100
         end
-        batchSize = mathClamp(__lux_tmp_args_227, 10, 250)
+        batchSize = mathClamp(__lux_tmp_args_233, 10, 250)
       end
       timerRemove(paramBenchTimer)
       local tests = {
@@ -3503,12 +3548,12 @@ return function(__lux_import)
       local status = shaderStatus(owner)
       local materials
       do
-        local __lux_obj_owner_228 = owner
-        local __lux_val_Materials_229 = nil
-        if __lux_obj_owner_228 ~= nil then
-          __lux_val_Materials_229 = __lux_obj_owner_228._Materials
+        local __lux_obj_owner_234 = owner
+        local __lux_val_Materials_235 = nil
+        if __lux_obj_owner_234 ~= nil then
+          __lux_val_Materials_235 = __lux_obj_owner_234._Materials
         end
-        materials = __lux_val_Materials_229
+        materials = __lux_val_Materials_235
         if materials == nil then
           materials = {}
         end
@@ -3517,13 +3562,13 @@ return function(__lux_import)
       printFn("[MGFX] selftest begin")
       printFn("[MGFX] version: " .. toString(status.version))
       do
-        local __lux_tmp_230
+        local __lux_tmp_236
         if status.loaded then
-          __lux_tmp_230 = "loaded"
+          __lux_tmp_236 = "loaded"
         else
-          __lux_tmp_230 = "fallback"
+          __lux_tmp_236 = "fallback"
         end
-        printFn("[MGFX] shaders: " .. __lux_tmp_230)
+        printFn("[MGFX] shaders: " .. __lux_tmp_236)
       end
       for index = 1, #requiredMaterialKeys do
         local key = requiredMaterialKeys[index]
@@ -3532,13 +3577,13 @@ return function(__lux_import)
           failed = failed + 1
         end
         do
-          local __lux_tmp_231
+          local __lux_tmp_237
           if ok then
-            __lux_tmp_231 = "ok"
+            __lux_tmp_237 = "ok"
           else
-            __lux_tmp_231 = "error"
+            __lux_tmp_237 = "error"
           end
-          printFn("[MGFX] material " .. key .. ": " .. __lux_tmp_231)
+          printFn("[MGFX] material " .. key .. ": " .. __lux_tmp_237)
         end
       end
       for index = 1, #requiredApis do
@@ -3548,13 +3593,13 @@ return function(__lux_import)
           failed = failed + 1
         end
         do
-          local __lux_tmp_232
+          local __lux_tmp_238
           if ok then
-            __lux_tmp_232 = "ok"
+            __lux_tmp_238 = "ok"
           else
-            __lux_tmp_232 = "missing"
+            __lux_tmp_238 = "missing"
           end
-          printFn("[MGFX] api " .. key .. ": " .. __lux_tmp_232)
+          printFn("[MGFX] api " .. key .. ": " .. __lux_tmp_238)
         end
       end
       for index = 1, #requiredTargets do
@@ -3564,13 +3609,13 @@ return function(__lux_import)
           failed = failed + 1
         end
         do
-          local __lux_tmp_233
+          local __lux_tmp_239
           if ok then
-            __lux_tmp_233 = "ok"
+            __lux_tmp_239 = "ok"
           else
-            __lux_tmp_233 = "missing"
+            __lux_tmp_239 = "missing"
           end
-          printFn("[MGFX] target " .. key .. ": " .. __lux_tmp_233)
+          printFn("[MGFX] target " .. key .. ": " .. __lux_tmp_239)
         end
       end
       printFn("[MGFX] selftest end failures=" .. toString(failed))
@@ -3579,20 +3624,20 @@ return function(__lux_import)
     reloadMGFX = function(owner)
       local reload
       do
-        local __lux_obj_owner_234 = owner
-        local __lux_val_Reload_235 = nil
-        if __lux_obj_owner_234 ~= nil then
-          __lux_val_Reload_235 = __lux_obj_owner_234.Reload
+        local __lux_obj_owner_240 = owner
+        local __lux_val_Reload_241 = nil
+        if __lux_obj_owner_240 ~= nil then
+          __lux_val_Reload_241 = __lux_obj_owner_240.Reload
         end
-        reload = __lux_val_Reload_235
+        reload = __lux_val_Reload_241
         if reload == nil then
           do
-            local __lux_obj_owner_236 = owner
-            local __lux_val_LuxReload_237 = nil
-            if __lux_obj_owner_236 ~= nil then
-              __lux_val_LuxReload_237 = __lux_obj_owner_236._LuxReload
+            local __lux_obj_owner_242 = owner
+            local __lux_val_LuxReload_243 = nil
+            if __lux_obj_owner_242 ~= nil then
+              __lux_val_LuxReload_243 = __lux_obj_owner_242._LuxReload
             end
-            reload = __lux_val_LuxReload_237
+            reload = __lux_val_LuxReload_243
           end
         end
       end
@@ -3615,11 +3660,11 @@ return function(__lux_import)
     end
     install = function(owner)
       do
-        local __lux_tmp_AddCommand_238 = owner._AddCommand
-        if __lux_tmp_AddCommand_238 == nil then
-          __lux_tmp_AddCommand_238 = rawAddCommand
+        local __lux_tmp_AddCommand_244 = owner._AddCommand
+        if __lux_tmp_AddCommand_244 == nil then
+          __lux_tmp_AddCommand_244 = rawAddCommand
         end
-        owner._AddCommand = __lux_tmp_AddCommand_238
+        owner._AddCommand = __lux_tmp_AddCommand_244
       end
       owner._TextDemoStrings = textDemoStrings
       addCommand(
@@ -3658,13 +3703,13 @@ return function(__lux_import)
         owner,
         "mgfx_profile_panels",
         function(_cmd, _argString, args)
-          local __lux_obj_args_239 = args
-          local __lux_val_args_241 = nil
-          if __lux_obj_args_239 ~= nil then
-            local __lux_key_240 = 1
-            __lux_val_args_241 = __lux_obj_args_239[__lux_key_240]
+          local __lux_obj_args_245 = args
+          local __lux_val_args_247 = nil
+          if __lux_obj_args_245 ~= nil then
+            local __lux_key_246 = 1
+            __lux_val_args_247 = __lux_obj_args_245[__lux_key_246]
           end
-          return profilePanels(owner, toNumber(__lux_val_args_241))
+          return profilePanels(owner, toNumber(__lux_val_args_247))
         end,
         "Print MGFX panel/screen profiler rows."
       )
@@ -3672,13 +3717,13 @@ return function(__lux_import)
         owner,
         "mgfx_profile_current",
         function(_cmd, _argString, args)
-          local __lux_obj_args_242 = args
-          local __lux_val_args_244 = nil
-          if __lux_obj_args_242 ~= nil then
-            local __lux_key_243 = 1
-            __lux_val_args_244 = __lux_obj_args_242[__lux_key_243]
+          local __lux_obj_args_248 = args
+          local __lux_val_args_250 = nil
+          if __lux_obj_args_248 ~= nil then
+            local __lux_key_249 = 1
+            __lux_val_args_250 = __lux_obj_args_248[__lux_key_249]
           end
-          return profileCurrent(owner, toNumber(__lux_val_args_244))
+          return profileCurrent(owner, toNumber(__lux_val_args_250))
         end,
         "Print recent MGFX profiler scopes."
       )
@@ -3686,17 +3731,17 @@ return function(__lux_import)
         owner,
         "mgfx_profile_hud",
         function(_cmd, _argString, args)
-          local __lux_obj_args_245 = args
-          local __lux_val_args_247 = nil
-          if __lux_obj_args_245 ~= nil then
-            local __lux_key_246 = 1
-            __lux_val_args_247 = __lux_obj_args_245[__lux_key_246]
+          local __lux_obj_args_251 = args
+          local __lux_val_args_253 = nil
+          if __lux_obj_args_251 ~= nil then
+            local __lux_key_252 = 1
+            __lux_val_args_253 = __lux_obj_args_251[__lux_key_252]
           end
-          local __lux_tmp_args_248 = __lux_val_args_247
-          if __lux_tmp_args_248 == nil then
-            __lux_tmp_args_248 = "toggle"
+          local __lux_tmp_args_254 = __lux_val_args_253
+          if __lux_tmp_args_254 == nil then
+            __lux_tmp_args_254 = "toggle"
           end
-          return toggleProfileHud(owner, __lux_tmp_args_248)
+          return toggleProfileHud(owner, __lux_tmp_args_254)
         end,
         "Toggle MGFX profiler HUD overlay."
       )
@@ -3752,17 +3797,17 @@ return function(__lux_import)
         owner,
         "mgfx_text_demo",
         function(_cmd, _argString, args)
-          local __lux_obj_args_249 = args
-          local __lux_val_args_251 = nil
-          if __lux_obj_args_249 ~= nil then
-            local __lux_key_250 = 1
-            __lux_val_args_251 = __lux_obj_args_249[__lux_key_250]
+          local __lux_obj_args_255 = args
+          local __lux_val_args_257 = nil
+          if __lux_obj_args_255 ~= nil then
+            local __lux_key_256 = 1
+            __lux_val_args_257 = __lux_obj_args_255[__lux_key_256]
           end
-          local __lux_tmp_args_252 = __lux_val_args_251
-          if __lux_tmp_args_252 == nil then
-            __lux_tmp_args_252 = "toggle"
+          local __lux_tmp_args_258 = __lux_val_args_257
+          if __lux_tmp_args_258 == nil then
+            __lux_tmp_args_258 = "toggle"
           end
-          return toggleTextDemo(owner, __lux_tmp_args_252)
+          return toggleTextDemo(owner, __lux_tmp_args_258)
         end,
         "Toggle MGFX text demo overlay."
       )
@@ -3770,17 +3815,17 @@ return function(__lux_import)
         owner,
         "mgfx_stroke_demo",
         function(_cmd, _argString, args)
-          local __lux_obj_args_253 = args
-          local __lux_val_args_255 = nil
-          if __lux_obj_args_253 ~= nil then
-            local __lux_key_254 = 1
-            __lux_val_args_255 = __lux_obj_args_253[__lux_key_254]
+          local __lux_obj_args_259 = args
+          local __lux_val_args_261 = nil
+          if __lux_obj_args_259 ~= nil then
+            local __lux_key_260 = 1
+            __lux_val_args_261 = __lux_obj_args_259[__lux_key_260]
           end
-          local __lux_tmp_args_256 = __lux_val_args_255
-          if __lux_tmp_args_256 == nil then
-            __lux_tmp_args_256 = "toggle"
+          local __lux_tmp_args_262 = __lux_val_args_261
+          if __lux_tmp_args_262 == nil then
+            __lux_tmp_args_262 = "toggle"
           end
-          return toggleStrokeDemo(owner, __lux_tmp_args_256)
+          return toggleStrokeDemo(owner, __lux_tmp_args_262)
         end,
         "Toggle MGFX centered shape stroke demo overlay."
       )

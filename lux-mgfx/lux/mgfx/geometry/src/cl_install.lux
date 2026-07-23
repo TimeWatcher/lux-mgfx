@@ -18,12 +18,17 @@ fn setupBackdropBlurConstants(material, w, h, vertical, intensity) {
 }
 
 export client fn prepareBackdropBlur(amount, recapture = false, level = 0) {
+  -- ShapeClip and atlas work can switch render targets inside one frame.
+  -- Reuse is valid only when the captured source target is unchanged too.
   local currentFrame = frameNumber()
   local intensity = blurIntensity(amount)
   local normalizedLevel = mathFloor(toNumber(level) ?? 0)
+  local currentTarget = renderGetRenderTarget()
+  local targetKey = currentTarget ?? mainRenderTargetKey
   local sameFrame = backdropBlurPreparedFrame == currentFrame
   local sameLevel = backdropBlurPreparedLevel == normalizedLevel
-  if not recapture and sameFrame and sameLevel and mathAbs(backdropBlurPreparedIntensity - intensity) < 0.0001 {
+  local sameTarget = backdropBlurPreparedTarget == targetKey
+  if not recapture and sameFrame and sameLevel and sameTarget and mathAbs(backdropBlurPreparedIntensity - intensity) < 0.0001 {
     stats.blurReuses = (stats.blurReuses ?? 0) + 1
     return backdropBlurPreparedIntensity
   }
@@ -43,7 +48,7 @@ export client fn prepareBackdropBlur(amount, recapture = false, level = 0) {
   local height = ScrH()
   local previousR, previousG, previousB = renderGetColorModulation()
   local previousBlend = renderGetBlend()
-  local captureSource = recapture or not sameFrame or not sameLevel
+  local captureSource = recapture or not sameFrame or not sameLevel or not sameTarget
 
   if captureSource {
     renderCopyRenderTargetToTexture(sourceRT)
@@ -76,6 +81,7 @@ export client fn prepareBackdropBlur(amount, recapture = false, level = 0) {
   backdropBlurPreparedFrame = currentFrame
   backdropBlurPreparedIntensity = intensity
   backdropBlurPreparedLevel = normalizedLevel
+  backdropBlurPreparedTarget = targetKey
   stats.blurPasses = (stats.blurPasses ?? 0) + 2
   intensity
 }
@@ -133,6 +139,7 @@ export client fn install(owner) {
   backdropBlurPreparedFrame = -1
   backdropBlurPreparedIntensity = 0
   backdropBlurPreparedLevel = nil
+  backdropBlurPreparedTarget = nil
   geometryProfiler = owner.Profiler
   bindStats(owner)
   owner.Transform = transform

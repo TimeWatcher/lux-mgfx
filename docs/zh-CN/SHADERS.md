@@ -114,6 +114,21 @@ GMod/Source 的矩阵索引会按列抵达 HLSL：`matrix[0]` 读到的是 `1,5,
 
 修正后的 `i.uv` 只表示归一化 shape 坐标，再由 `SOURCE_UV` 映射到源图。不要把源图重新绑定到 `$basetexture`；否则材质 mapping 尺寸会把源图采样和 procedural SDF 坐标重新耦合，circle 和 rounded mask 的 coverage 会发生畸变。
 
+## Clip Composite 与 `$basetexture` 陷阱
+
+`mgfx_shape_clip` 是 framebuffer transaction shader，不是 stencil mask。Sampler 分工刻意不占用 `TexBase`：
+
+- `TexBase`：固定为 `color/white`，绘制期间绝不替换。
+- `Tex1`：Clip callback 绘制后的 framebuffer。
+- `Tex2`：painter 自定义 Mask 的 coverage RT。
+- `Tex3`：Clip callback 绘制前的 framebuffer。
+
+解析 preset 直接计算 rounded/chamfer/circle/capsule coverage；自定义 Mask 则采样每侧最多带一像素透明边界的 coverage raster。到达 framebuffer 边缘时会减少对应 padding，因此全屏 Mask 仍然合法。自定义分支不能再乘一个矩形 coverage，也不能 clamp 掉透明边界，否则靠近 Clip bounds 的矢量 AA 会再次出现硬截断。矩形 scissor 只限制 composite 工作量，不决定最终边缘。
+
+`surface.DrawTexturedRectUV` 会依据当前 `$basetexture` 的尺寸执行隐式半像素修正。如果在局部 UV 已准备好之后，把共享材质的 `$basetexture` 从固定 placeholder 动态替换成全屏 RT，隐藏的 mapping size 就会改变，相当于又做了一次错误修正：局部 Mask UV 会偏移、拉伸或丢失边缘像素。
+
+需要在 shader 中采样运行时 RT 时，应在创建材质时就把 `$texture1`、`$texture2`、`$texture3` 声明为 texture 类型，运行时只替换这些 sampler，并保持 `$basetexture` 稳定。只有一种情况可以把 RT 放进 `$basetexture`：该 binding 在材质整个生命周期内固定，而且提交的 UV 就是按这张纹理的尺寸计算的。MGFX 的 coverage copy 专用材质符合这一条件；Clip composite 共享材质不符合，所以禁止动态替换 `$basetexture`。
+
 ## 融合 Shape 快速路径
 
 MGFX 允许小型专用 fused shader，但它们必须精确复刻原始分层结果。

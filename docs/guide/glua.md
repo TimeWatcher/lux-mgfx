@@ -88,7 +88,8 @@ Plain GLua uses PascalCase names on the global facade:
 | Frame start | `MGFX.StartPanel(...)` |
 | Shape | `MGFX.RoundedBoxEx(...)` |
 | Gradient | `MGFX.LinearGradient(...)` |
-| Image mask | `MGFX.Mask(...)` |
+| Image mask | `style.mask = {kind = "circle"}` |
+| Shared antialiased clip | `MGFX.Mask(...)` + `MGFX.Clip(...)` |
 | Text | `MGFX.TextEx(...)` |
 
 The Lux equivalents use lowerCamelCase under `mgfx.api`.
@@ -98,3 +99,4 @@ The Lux equivalents use lowerCamelCase under `mgfx.api`.
 - Read [Core Concepts](./concepts) for frame scope, `Name` / `NameEx`, and style tables.
 - Use [API Reference](../api-reference/) when you need exact parameters and fields.
 - Use [Effects](./effects) for `shadow`, `outerGlow`, `backdrop`, and patterns.
+- Use [Masks and Antialiased Clip](./masks-and-clip) when several draws share one non-rectangular boundary.

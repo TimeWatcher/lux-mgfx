@@ -59,9 +59,9 @@ client fn drawPanel() {
 
 | 范围 | 主要 API |
 | --- | --- |
-| 帧作用域 | `StartPanel`、`EndPanel`、`StartScreen`、`EndScreen`、`PushClip`、`PopClip` |
+| 帧作用域与共享 coverage | `StartPanel`、`EndPanel`、`StartScreen`、`EndScreen`、`PushClip`、`PopClip`、`Mask`、`Clip` |
 | 形状与线条 | `RoundedBoxEx`、`ChamferBoxEx`、`RegularPolyEx`、`PolyEx`、`LineEx`、`CircleEx`、`CapsuleEx` |
-| 图像与遮罩 | `ImageEx`、`IconEx`、`Mask` |
+| 图像与单图遮罩 | `ImageEx`、`IconEx`、`style.mask = {kind = ...}` |
 | HUD 数值组件 | `ProgressBarEx`、`SegmentBarEx`、`RingEx`、`ArcEx`、`SectorEx` |
 | 文字 | `Text`、`TextEx`、`TextBoxEx`、`MeasureText`、`PrewarmText` |
 | Paint 与变换 | `LinearGradient`、`RadialGradient`、`EllipticalRadialGradient`、`WornPattern`、`Transform`、`PointerTilt`、`GetCapabilities` |

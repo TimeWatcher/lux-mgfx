@@ -73,6 +73,8 @@ addCommand("mgfx_status", function()
 	print("[MGFX] force fallback: " .. tostring(forceFallback:GetBool()))
 	print("[MGFX] draw counts: " .. tostring(drawCountsEnabled and drawCountsEnabled:GetBool() or false))
 	print("[MGFX] stats draws=" .. tostring(M.stats.draws) .. " blur=" .. tostring(M.stats.blurPasses or 0) .. " captures=" .. tostring(M.stats.blurCaptures or 0) .. " reuses=" .. tostring(M.stats.blurReuses or 0) .. " fallback=" .. tostring(M.stats.fallbacks or 0) .. " culled=" .. tostring(M.stats.culled or 0))
+	print("[MGFX] Clip captures=" .. tostring(M.stats.shapeClipCaptures or 0) .. " composites=" .. tostring(M.stats.shapeClipComposites or 0) .. " max-depth=" .. tostring(M.stats.shapeClipDepthMax or 0))
+	print("[MGFX] Mask rasters=" .. tostring(M.stats.maskRasterizations or 0) .. " cache-hits=" .. tostring(M.stats.maskCacheHits or 0) .. " operations=" .. tostring(M.stats.maskOperations or 0))
 	print("[MGFX] gradient LUT fill-cache hits=" .. tostring(M.stats.gradientLutFillHits or 0))
 	countsLine("draw commands", M.stats.drawCommandCounts)
 	countsLine("immediate draws", M.stats.drawImmediateCounts)
@@ -94,6 +96,7 @@ addCommand("mgfx_status", function()
 	print("[MGFX] chamfer material: " .. tostring(status.chamfer))
 	print("[MGFX] chamfer image material: " .. tostring(status.chamferImage))
 	print("[MGFX] image mask material: " .. tostring(status.imageMask))
+	print("[MGFX] Clip material: " .. tostring(status.shapeClip))
 	print("[MGFX] image mask shadow outer material: " .. tostring(status.imageMaskShadowOuter))
 	print("[MGFX] chamfer stroke material: " .. tostring(status.chamferStroke))
 	print("[MGFX] inner glow material: " .. tostring(status.innerGlow))
@@ -1140,6 +1143,7 @@ addCommand("mgfx_selftest", function()
 		"chamfer",
 		"chamfer_texture",
 		"image_mask",
+		"shape_clip",
 		"image_mask_shadow_outer",
 		"image_mask_backdrop",
 		"image_mask_backdrop_fill",
@@ -1256,6 +1260,7 @@ addCommand("mgfx_selftest", function()
 		"CapsuleEx",
 		"PushClip",
 		"PopClip",
+		"Clip",
 		"Solid",
 		"LinearGradient",
 		"LinearGradientStops",

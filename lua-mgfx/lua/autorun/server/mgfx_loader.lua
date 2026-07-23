@@ -18,6 +18,7 @@ local files = {
 	"cl_mgfx_widgets_text.lua",
 	"cl_mgfx_widgets.lua",
 	"cl_mgfx_frame.lua",
+	"cl_mgfx_shapeclip.lua",
 	"cl_mgfx_console.lua",
 	"cl_mgfx.lua",
 }

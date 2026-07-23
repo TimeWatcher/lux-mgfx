@@ -940,4 +940,9 @@ end
 
 
 	C.drawImageImmediate = drawImageImmediate
+	C.imageTextureSource = textureSource
+	C.imageMaskKindValue = maskKindValue
+	C.imageMaskTextureChannelKind = maskTextureChannelKind
+	C.imageMaskTextureSource = maskTextureSource
+	C.imageMaskTextureUV = maskTextureUV
 end

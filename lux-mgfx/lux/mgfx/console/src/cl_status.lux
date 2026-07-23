@@ -147,6 +147,7 @@ local statusMaterialFields = {
   { "chamfer", "chamfer" },
   { "chamfer image", "chamferImage" },
   { "image mask", "imageMask" },
+  { "shape clip", "shapeClip" },
   { "image mask shadow outer", "imageMaskShadowOuter" },
   { "image mask backdrop", "imageMaskBackdrop" },
   { "chamfer stroke", "chamferStroke" },
@@ -222,6 +223,8 @@ export client fn status(owner) {
   printFn("[MGFX] force fallback: " .. toString(fallback ~= nil and fallback:GetBool() or false))
   printFn("[MGFX] draw counts: " .. toString(drawCounts ~= nil and drawCounts:GetBool() or false))
   printFn("[MGFX] stats draws=" .. toString(stats.draws ?? 0) .. " blur=" .. toString(stats.blurPasses ?? 0) .. " captures=" .. toString(stats.blurCaptures ?? 0) .. " reuses=" .. toString(stats.blurReuses ?? 0) .. " fallback=" .. toString(stats.fallbacks ?? 0) .. " culled=" .. toString(stats.culled ?? 0))
+  printFn("[MGFX] Clip captures=" .. toString(stats.shapeClipCaptures ?? 0) .. " composites=" .. toString(stats.shapeClipComposites ?? 0) .. " max-depth=" .. toString(stats.shapeClipDepthMax ?? 0))
+  printFn("[MGFX] Mask rasters=" .. toString(stats.maskRasterizations ?? 0) .. " cache-hits=" .. toString(stats.maskCacheHits ?? 0) .. " operations=" .. toString(stats.maskOperations ?? 0))
   countsLine("draw commands", stats.drawCommandCounts)
   countsLine("immediate draws", stats.drawImmediateCounts)
   countsLine("profile ms", stats.profileTimes)

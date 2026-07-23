@@ -9,6 +9,7 @@ function MGFX._CreateFrameGeometry(C)
 	local stats = C.stats or M.stats or {}
 	local clipStack = C.clipStack or {}
 	local frameState = C.frameState or {}
+	local renderModeState = C.renderModeState or {}
 	local DisableClipping = DisableClipping
 	local math_floor = math.floor
 	local math_ceil = math.ceil
@@ -32,6 +33,7 @@ function MGFX._CreateFrameGeometry(C)
 			stats.culled = (stats.culled or 0) + 1
 			return true
 		end
+		if renderModeState.coverage then return false end
 
 		local clip = clipStack[#clipStack]
 		if not clip then return false end
@@ -48,6 +50,14 @@ function MGFX._CreateFrameGeometry(C)
 	end
 
 	local function restoreScissor()
+		if renderModeState.coverage then
+			local x = renderModeState.coverageX or 0
+			local y = renderModeState.coverageY or 0
+			local w = renderModeState.coverageW or 0
+			local h = renderModeState.coverageH or 0
+			render.SetScissorRect(x, y, x + w, y + h, true)
+			return
+		end
 		local clip = clipStack[#clipStack]
 		if clip then
 			render.SetScissorRect(clip.x, clip.y, clip.x + clip.w, clip.y + clip.h, true)
@@ -83,6 +93,21 @@ function MGFX._CreateFrameGeometry(C)
 
 	local function withLocalScissor(x, y, w, h, fn)
 		if w <= 0 or h <= 0 then return end
+		if renderModeState.coverage then
+			local bx = renderModeState.coverageX or 0
+			local by = renderModeState.coverageY or 0
+			local ox = renderModeState.coverageOffsetX or 0
+			local oy = renderModeState.coverageOffsetY or 0
+			local sx = math_max(bx, ox + x)
+			local sy = math_max(by, oy + y)
+			local ex = math_min(bx + (renderModeState.coverageW or 0), ox + x + w)
+			local ey = math_min(by + (renderModeState.coverageH or 0), oy + y + h)
+			if ex <= sx or ey <= sy then return end
+			render.SetScissorRect(math_floor(sx), math_floor(sy), math_ceil(ex), math_ceil(ey), true)
+			fn()
+			restoreScissor()
+			return
+		end
 
 		local sx = frameState.screenX + x
 		local sy = frameState.screenY + y
@@ -106,6 +131,19 @@ function MGFX._CreateFrameGeometry(C)
 
 	local function withScreenScissorPixels(sx, sy, ex, ey, fn)
 		if ex <= sx or ey <= sy then return end
+		if renderModeState.coverage then
+			local ox = renderModeState.coverageX or 0
+			local oy = renderModeState.coverageY or 0
+			sx = math_max(ox, sx)
+			sy = math_max(oy, sy)
+			ex = math_min(ox + (renderModeState.coverageW or 0), ex)
+			ey = math_min(oy + (renderModeState.coverageH or 0), ey)
+			if ex <= sx or ey <= sy then return end
+			render.SetScissorRect(sx, sy, ex, ey, true)
+			fn()
+			restoreScissor()
+			return
+		end
 
 		local clip = clipStack[#clipStack]
 		if clip then
@@ -123,6 +161,9 @@ function MGFX._CreateFrameGeometry(C)
 	end
 
 	local function beginPanelEffectBleed(left, top, right, bottom)
+		if renderModeState.coverage then
+			error("MGFX coverage recording does not support panel bleed effects", 2)
+		end
 		left = math_max(0, tonumber(left) or 0)
 		top = math_max(0, tonumber(top) or 0)
 		right = math_max(0, tonumber(right) or 0)
@@ -141,6 +182,9 @@ function MGFX._CreateFrameGeometry(C)
 	end
 
 	local function beginPanelEffectDraw(drawX, drawY, drawW, drawH)
+		if renderModeState.coverage then
+			error("MGFX coverage recording does not support panel bleed effects", 2)
+		end
 		if drawW <= 0 or drawH <= 0 then return nil end
 
 		local current = clipStack[#clipStack]

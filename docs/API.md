@@ -59,9 +59,9 @@ Plain GLua uses PascalCase names on `MGFX.*`. Lux uses lowerCamelCase names on `
 
 | Area | Main APIs |
 | --- | --- |
-| Frame scope | `StartPanel`, `EndPanel`, `StartScreen`, `EndScreen`, `PushClip`, `PopClip` |
+| Frame scope and shared coverage | `StartPanel`, `EndPanel`, `StartScreen`, `EndScreen`, `PushClip`, `PopClip`, `Mask`, `Clip` |
 | Shapes and lines | `RoundedBoxEx`, `ChamferBoxEx`, `RegularPolyEx`, `PolyEx`, `LineEx`, `CircleEx`, `CapsuleEx` |
-| Images and masks | `ImageEx`, `IconEx`, `Mask` |
+| Images and per-image masks | `ImageEx`, `IconEx`, `style.mask = {kind = ...}` |
 | HUD meters and sectors | `ProgressBarEx`, `SegmentBarEx`, `RingEx`, `ArcEx`, `SectorEx` |
 | Text | `Text`, `TextEx`, `TextBoxEx`, `MeasureText`, `PrewarmText` |
 | Paint and transforms | `LinearGradient`, `RadialGradient`, `EllipticalRadialGradient`, `WornPattern`, `Transform`, `PointerTilt`, `GetCapabilities` |

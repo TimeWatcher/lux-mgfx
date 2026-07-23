@@ -68,6 +68,7 @@ local materialKeys = {
   "chamfer",
   "chamfer_texture",
   "image_mask",
+  "shape_clip",
   "image_mask_shadow_outer",
   "image_mask_backdrop",
   "image_mask_backdrop_fill",
@@ -140,6 +141,7 @@ local shaderNames = {
   chamfer = "mgfx_chamfer_ps30",
   chamfer_texture = "mgfx_chamfer_texture_ps30",
   image_mask = "mgfx_image_mask_ps30",
+  shape_clip = "mgfx_shape_clip_ps30",
   image_mask_shadow_outer = "mgfx_image_mask_shadow_outer_ps30",
   image_mask_backdrop = "mgfx_image_mask_backdrop_sample_ps30",
   image_mask_backdrop_fill = "mgfx_image_mask_backdrop_ps30",
@@ -297,6 +299,17 @@ fn textureValues(texture) {
 }
 
 fn materialValues(key, blurRT, horizontalRT, finalRT) {
+  if key == "shape_clip" {
+    -- These must exist as texture-typed variables before runtime binding.
+    -- Keep $basetexture fixed: DrawTexturedRectUV derives its half-texel
+    -- correction from that texture's dimensions.
+    return {
+      ["$texture1"] = "color/white",
+      ["$texture2"] = "color/white",
+      ["$texture3"] = "color/white"
+    }
+  }
+
   if key == "backdrop_blur_horizontal" {
     return textureValues(blurRT)
   }

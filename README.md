@@ -124,6 +124,7 @@ The documentation is shared by both implementations:
 - [Plain GLua Quick Start](docs/guide/glua.md)
 - [Lux Quick Start](docs/guide/lux.md)
 - [Core Concepts](docs/guide/concepts.md)
+- [Coverage Masks And Antialiased Clip](docs/guide/masks-and-clip.md)
 - [API Reference](docs/api-reference/index.md)
 - [Performance Notes](docs/PERFORMANCE.md)
 - [Internal Architecture](docs/ARCHITECTURE.md)
@@ -142,11 +143,24 @@ The generated site is written to `docs-site/`.
 
 ## Changelog
 
+### 2026-07-24
+
+#### Coverage Masks And Antialiased Clip
+
+- Replaced the shape-spec `ShapeClip` experiment with the simpler `MGFX.Mask(painter)` + `MGFX.Clip(mask, bounds, callback)` model. A restricted recorder composes vector coverage through exact `Union`, `Subtract`, `Intersect`, `Xor`, and bounds-local `Invert` operations; reusable circle, capsule, rounded, and chamfer presets implement the same Mask protocol.
+- Added callback-based self clipping to `RoundedBoxEx`, `CircleEx`, `CapsuleEx`, and `ChamferBoxEx`, so container content can reuse the shape's own analytical boundary without defining a second Mask.
+- Added cached custom-mask rasterization with framebuffer-aware transparent AA padding, snapshot/invalidation semantics, Clip/Mask statistics, and a mixed-content demo. Full-screen Masks are valid; integer translation reuses raster coverage while fractional pixel phase participates in the cache key.
+- Made Clip transactions failure-safe across render-target, 2D camera, model-matrix, scissor, blend/alpha-write override, modulation, and surface-alpha changes; made target initialization atomic, custom coverage RT allocation lazy, and coverage clears locally scissored. Callback wrappers now preserve exact return arity, nesting is capped at four, invalid numeric/transform inputs fail before drawing, and self-clipping uses background → children → foreground-stroke ordering.
+- Fixed coverage RT clearing by using an explicit ZERO/ZERO color-and-alpha draw. `render.Clear` preserved opaque alpha on this GMod render-target path and turned every custom Mask into a rectangle.
+- Kept the composite material's `$basetexture` fixed and moved before/work/coverage RTs to `$texture1`–`$texture3`. Dynamically replacing `$basetexture` changes the hidden half-texel correction used by `DrawTexturedRectUV`, which previously distorted local UVs and clipped antialiased Mask edges.
+- Synchronized the verified addon prototype into the Lux source, generated runtime, plain Lua package, Ashline framework copy, shader sources/package, bilingual API guide, and docs site.
+
 ### 2026-07-23
 
 #### Gradient Rendering
 
 - Added `EllipticalRadialGradient(cx, cy, radiusX, radiusY, ...)` for top-origin and anisotropic light fields. It reuses the existing radial shader/material/pass while preserving the pixel-space circle semantics of `RadialGradient`.
+- Fitted `dot`, `dash`, and `dot-dash` periods to each closed shape perimeter, then derived the start phase from the fitted period. This removes the mathematical seam/start mismatch that was visible where a patterned stroke returned to its origin.
 - Added shader-native gradient `curve` presets (`linear`, smooth easing, `exponential`, `gaussian`, and `inverse-square`) across shapes, lines, rings, bars, and composed text. Curves remap `t` before the existing stops LUT sample, add no pass, and keep LUT caching independent of the selected curve.
 - Replaced byte-quantized gradient samples with an RGB-channel-packed 16-bit RGBA LUT and stable screen-space IGN dithering. This removes low-alpha stop plateaus and disperses final 8-bit framebuffer banding without adding a texture resource or draw pass.
 

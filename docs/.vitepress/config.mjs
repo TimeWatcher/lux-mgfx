@@ -124,6 +124,7 @@ const englishSidebar = [
       { text: "Lux Quick Start", link: "/guide/lux" },
       { text: "Core Concepts", link: "/guide/concepts" },
       { text: "Effects", link: "/guide/effects" },
+      { text: "Masks and Antialiased Clip", link: "/guide/masks-and-clip" },
       {
         text: "API Reference",
         collapsed: false,
@@ -168,6 +169,7 @@ const chineseSidebar = [
       { text: "Lux 快速开始", link: "/zh-CN/guide/lux" },
       { text: "核心概念", link: "/zh-CN/guide/concepts" },
       { text: "特效指南", link: "/zh-CN/guide/effects" },
+      { text: "Mask 与抗锯齿 Clip", link: "/zh-CN/guide/masks-and-clip" },
       {
         text: "详细 API",
         collapsed: false,
@@ -240,6 +242,7 @@ export default defineConfig({
           { text: "Lux", link: "/guide/lux" },
           { text: "Core Concepts", link: "/guide/concepts" },
           { text: "Effects", link: "/guide/effects" },
+          { text: "Masks and Clip", link: "/guide/masks-and-clip" },
         ],
       },
       { text: "API Reference", link: "/api-reference/" },
@@ -311,6 +314,7 @@ export default defineConfig({
               { text: "Lux", link: "/zh-CN/guide/lux" },
               { text: "核心概念", link: "/zh-CN/guide/concepts" },
               { text: "特效指南", link: "/zh-CN/guide/effects" },
+              { text: "Mask 与 Clip", link: "/zh-CN/guide/masks-and-clip" },
             ],
           },
           { text: "详细 API", link: "/zh-CN/api-reference/" },

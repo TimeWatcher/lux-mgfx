@@ -2,6 +2,7 @@ return function(__lux_import)
   local __lux_exports = {}
   local api
   local capabilities
+  local clip
   local commands
   local console
   local frame
@@ -20,6 +21,7 @@ return function(__lux_import)
   do
     local api_mod = __lux_import("lux/mgfx/api#client")
     local capabilities_mod = __lux_import("lux/mgfx/capabilities#client")
+    local clip_mod = __lux_import("lux/mgfx/clip#client")
     local commands_mod = __lux_import("lux/mgfx/commands#client")
     local console_mod = __lux_import("lux/mgfx/console#client")
     local frame_mod = __lux_import("lux/mgfx/frame#client")
@@ -34,6 +36,7 @@ return function(__lux_import)
     local widgets_mod = __lux_import("lux/mgfx/widgets#client")
     api = api_mod
     capabilities = capabilities_mod
+    clip = clip_mod
     commands = commands_mod
     console = console_mod
     frame = frame_mod
@@ -70,6 +73,7 @@ return function(__lux_import)
   __lux_exports.create = create
   __lux_exports.api = api
   __lux_exports.capabilities = capabilities
+  __lux_exports.clip = clip
   __lux_exports.commands = commands
   __lux_exports.console = console
   __lux_exports.frame = frame

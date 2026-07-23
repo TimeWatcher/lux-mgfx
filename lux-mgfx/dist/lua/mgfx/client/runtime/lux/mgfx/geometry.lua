@@ -27,6 +27,7 @@ return function(__lux_import)
   local renderDrawScreenQuad
   local renderGetBlend
   local renderGetColorModulation
+  local renderGetRenderTarget
   local renderOverrideAlphaWriteEnable
   local renderOverrideBlend
   local renderPopRenderTarget
@@ -41,6 +42,8 @@ return function(__lux_import)
   local backdropBlurPreparedFrame
   local backdropBlurPreparedIntensity
   local backdropBlurPreparedLevel
+  local backdropBlurPreparedTarget
+  local mainRenderTargetKey
   local backdropBlurParamMatrices
   local backdropBlurMatrixProbe
   local backdropBlurMatrixSetUnpacked
@@ -132,6 +135,7 @@ return function(__lux_import)
     renderDrawScreenQuad = render.DrawScreenQuad
     renderGetBlend = render.GetBlend
     renderGetColorModulation = render.GetColorModulation
+    renderGetRenderTarget = render.GetRenderTarget
     renderOverrideAlphaWriteEnable = render.OverrideAlphaWriteEnable
     renderOverrideBlend = render.OverrideBlend
     renderPopRenderTarget = render.PopRenderTarget
@@ -146,6 +150,8 @@ return function(__lux_import)
     backdropBlurPreparedFrame = -1
     backdropBlurPreparedIntensity = 0
     backdropBlurPreparedLevel = nil
+    backdropBlurPreparedTarget = nil
+    mainRenderTargetKey = {}
     backdropBlurParamMatrices = {}
     do
       local __lux_tmp_1
@@ -1720,9 +1726,15 @@ return function(__lux_import)
         end
         normalizedLevel = mathFloor(__lux_tmp_level_113)
       end
+      local currentTarget = renderGetRenderTarget()
+      local targetKey = currentTarget
+      if targetKey == nil then
+        targetKey = mainRenderTargetKey
+      end
       local sameFrame = backdropBlurPreparedFrame == currentFrame
       local sameLevel = backdropBlurPreparedLevel == normalizedLevel
-      local __lux_tmp_116 = not recapture and sameFrame and sameLevel
+      local sameTarget = backdropBlurPreparedTarget == targetKey
+      local __lux_tmp_116 = not recapture and sameFrame and sameLevel and sameTarget
       if __lux_tmp_116 then
         local __lux_cmp_115 = false
         if mathAbs(backdropBlurPreparedIntensity - intensity) ~= nil then
@@ -1762,7 +1774,7 @@ return function(__lux_import)
       local height = ScrH()
       local previousR, previousG, previousB = renderGetColorModulation()
       local previousBlend = renderGetBlend()
-      local captureSource = recapture or not sameFrame or not sameLevel
+      local captureSource = recapture or not sameFrame or not sameLevel or not sameTarget
       if captureSource then
         renderCopyRenderTargetToTexture(sourceRT)
         do
@@ -1818,6 +1830,7 @@ return function(__lux_import)
       backdropBlurPreparedFrame = currentFrame
       backdropBlurPreparedIntensity = intensity
       backdropBlurPreparedLevel = normalizedLevel
+      backdropBlurPreparedTarget = targetKey
       do
         local __lux_tmp_blurPasses_123 = stats.blurPasses
         if __lux_tmp_blurPasses_123 == nil then
@@ -1944,6 +1957,7 @@ return function(__lux_import)
       backdropBlurPreparedFrame = -1
       backdropBlurPreparedIntensity = 0
       backdropBlurPreparedLevel = nil
+      backdropBlurPreparedTarget = nil
       geometryProfiler = owner.Profiler
       bindStats(owner)
       owner.Transform = transform

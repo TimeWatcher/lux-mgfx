@@ -6,7 +6,7 @@
 
 - 在 `PANEL:Paint` 里使用 `StartPanel` / `EndPanel`。
 - 在 `HUDPaint` 或屏幕空间 overlay 里使用 `StartScreen` / `EndScreen`。
-- `PushClip` / `PopClip` 只做矩形 scissor，不是任意形状 mask。
+- `PushClip` / `PopClip` 只做矩形 scissor；任意内容共享的抗锯齿边界使用 `Mask` + `Clip`，且不使用 stencil。
 
 ## 本页 API
 
@@ -16,6 +16,7 @@
 - [EndScreen](#endscreen) - 结束当前屏幕帧并刷新已排队的命令。
 - [PushClip](#pushclip) - 压入一个相对于当前帧的矩形 scissor 裁剪。
 - [PopClip](#popclip) - 弹出当前矩形裁剪，并恢复上一个 scissor 矩形。
+- [Mask 与 Clip](#mask-与-clip) - 定义 coverage，并通过回调事务裁剪任意混合绘制。
 - [DebugOverlay](#debugoverlay) - 绘制一个小型内部渲染统计叠层。
 
 ## 常用帧模板
@@ -97,7 +98,7 @@ MGFX.PopClip()
 MGFX.EndPanel()
 ```
 
-`PushClip` 是矩形 scissor。圆形头像、切角图、扇区等形状裁剪应使用各自的 mask/style，不要试图用 clip 栈表达。
+`PushClip` 是矩形 scissor。单张圆形头像继续使用 `ImageEx` 的 `style.mask`；需要让 shape、文字、图像或原生 surface 绘制共同服从一个边界时，使用 `Mask` + `Clip`。
 
 ## 函数参考
 
@@ -251,6 +252,23 @@ MGFX.PushClip(x, y, w, h)
 -- clipped MGFX draws here
 MGFX.PopClip()
 ```
+
+## Mask 与 Clip
+
+```lua
+local rounded = MGFX.Masks.Rounded({radius = 18, units = "local"})
+
+MGFX.Clip(rounded, x, y, w, h, function()
+    MGFX.Image(x - 20, y, w + 40, h, material)
+    MGFX.Text("READY", "DermaLarge", x + w / 2, y + h / 2, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+end)
+```
+
+`MGFX.Mask(function(m, w, h) ... end)` 使用受限 recorder 定义自定义矢量 coverage，`MGFX.Clip(mask, x, y, w, h, callback)` 将它应用到一段任意混合绘制并精确转发 callback 返回值。也可以使用 `mask:Clip(...)`。Circle、Capsule、Rounded、Chamfer preset 位于 `MGFX.Masks`。
+
+Clip 完全不用 stencil。它捕获 callback 前后的 framebuffer，再用连续 coverage 合成，因此不会退化为二值边缘。每层需要两次 framebuffer copy 与一次有界 composite draw；自定义 Mask 只在 revision/extent 缓存未命中时重新栅格化。
+
+完整的 coverage 公式、`Invalidate`、cache key、单位语义、快照行为和 shape 自身裁剪见 [Coverage Mask 与抗锯齿 Clip](../guide/masks-and-clip)。Clip 会在 callback 出错时完成清理并重新抛错；只接受有限数、轴对齐 frame mapping、不大于 framebuffer 的尺寸和最多四层嵌套。不要在 Clip 或 Mask painter 中调用 `BeginCommands`，也不要在调用方自己持有 `OverrideBlend` / `OverrideAlphaWriteEnable` scope 时进入 Clip，因为 GMod 没有对应状态 getter。
 
 ## DebugOverlay
 
