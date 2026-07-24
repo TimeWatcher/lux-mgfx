@@ -48,7 +48,7 @@ end)
 badgeMask:Clip(x, y, 120, 72, drawContents)
 ```
 
-painter 使用 `[0, w] x [0, h]` 的局部坐标；内容回调仍使用当前 frame 的正常坐标。Mask 没有公开的像素尺寸。MGFX 会按实际 device extent 栅格化自定义 coverage，每侧最多保留一像素透明边界；到达 framebuffer 边缘时会减少对应 padding，因此全屏自定义 Mask 也是合法的。
+painter 使用 `[0, w] x [0, h]` 的局部坐标；内容回调仍使用当前 frame 的正常坐标。Mask 没有公开的像素尺寸。MGFX 会按实际 device extent 栅格化自定义 coverage，并保留透明 padding 与右/下 guard texel 供抗锯齿采样，因此全屏自定义 Mask 也是合法的。
 
 raster cache key 包含 Mask content revision、目标尺寸、framebuffer/device 尺寸和屏幕像素的小数 phase。整数像素平移复用同一 raster，亚像素平移可能不会。当前 backend 只支持轴对齐 frame mapping，因此 MGFX transform 会被明确拒绝；调用方自己 Push 的 `cam` model matrix 无法被观察，同样不属于 Clip contract。
 
@@ -85,9 +85,9 @@ end)
 
 Clip 只提供回调形式，这样即使内容抛错，MGFX 也能可靠结束 render-target 事务。实现完全不用 stencil：每层 Clip 捕获回调前后的 framebuffer，再通过连续 shader coverage 合成。矩形 scissor 只限制工作区域，不决定可见边缘。
 
-每层 Clip 需要两次 framebuffer copy 和一次有界 composite draw。自定义 Mask 只在缓存未命中时栅格化；解析 preset 不需要 coverage RT。coverage clear 与布尔组合 draw 都会 scissor 到实际 raster extent。Clip 最多嵌套四层；Mask painter 内禁止 `BeginCommands` 和嵌套 Clip scope。
+每层 Clip 需要两次 framebuffer copy 和一次有界 composite draw。自定义 Mask 只在缓存未命中时栅格化；解析 preset 不需要 coverage RT。cache miss 会直接在按尺寸分桶的局部 accumulator/scratch RT 中完成组合，并将 accumulator 本身作为缓存，因此不再清理全屏 coverage target，也不再把 accumulator 复制到单独的 mask RT。Clip 最多嵌套四层；Mask painter 内禁止 `BeginCommands` 和嵌套 Clip scope。
 
-每个实际使用到的深度常驻两个全屏 `BGRA8888` snapshot RT；只有该深度第一次使用自定义 Mask 时，才延迟分配第三个 coverage RT。1920x1080 下解析 preset 每层约 15.82 MiB、自定义 Mask 每层约 23.73 MiB；3840x2160 下约为 63.28/94.92 MiB。
+每个实际使用到的深度常驻两个全屏 `BGRA8888` snapshot RT：1920x1080 下约 15.82 MiB，3840x2160 下约 63.28 MiB。自定义 Mask 会在该深度为每个实际遇到的尺寸桶额外分配两个局部 `BGRA8888` coverage RT。尺寸桶从 32 像素开始按 2 的幂增长，并在略大于 framebuffer extent 处封顶，因此它们的显存、clear 与 combine 带宽随 Mask bounds 而不是全屏大小增长。
 
 MGFX 自己修改的 render target、2D camera、matrix、scissor、blend、alpha-write、color modulation、blend factor 与 surface alpha 都走受保护的对称清理路径。但 GMod 没有提供读取既有 `OverrideBlend` / `OverrideAlphaWriteEnable` descriptor 的 getter，因此不要在调用方自己持有的 override scope 内进入 `Clip`；引擎不暴露的状态无法被 MGFX 重建。
 

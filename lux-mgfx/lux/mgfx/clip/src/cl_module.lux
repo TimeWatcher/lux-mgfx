@@ -5,7 +5,7 @@ import * as primitives from "@lux/mgfx/primitives"
 local typeOf = type
 
 export client fn install(M) {
-  const installVersion = "coverage-v2.1"
+  const installVersion = "coverage-v2.3"
   local installed = M._internal?.clipInstall
   if installed ~= nil {
     if installed.version == installVersion {
@@ -24,7 +24,7 @@ export client fn install(M) {
   local recordPool = {}
   local beforeTargets = {}
   local workTargets = {}
-  local maskTargets = {}
+  local coverageTargetBuckets = {}
   local sourceMaterials = {}
   local maskSlots = {}
   local contextMatrices = {}
@@ -105,6 +105,26 @@ export client fn install(M) {
     target
   }
 
+  fn createCoverageTarget(name, width, height) {
+    if GetRenderTargetEx == nil or bit == nil or bit.bor == nil {
+      error("MGFX Clip requires render-target support", 3)
+    }
+    local target = GetRenderTargetEx(
+      name,
+      width,
+      height,
+      RT_SIZE_LITERAL,
+      MATERIAL_RT_DEPTH_NONE,
+      bit.bor(2, 256, 4, 8),
+      0,
+      IMAGE_FORMAT_BGRA8888
+    )
+    if target == nil {
+      error("MGFX Clip failed to allocate a local coverage render target", 3)
+    }
+    target
+  }
+
   fn createSourceMaterial(target, role, depth) {
     local material = CreateMaterial(
       "mgfx_clip_source_" .. role .. tostring(depth) .. "_" .. ensureNamespace(),
@@ -137,13 +157,43 @@ export client fn install(M) {
     return beforeTargets[depth], workTargets[depth]
   }
 
-  fn ensureMaskTarget(depth) {
-    local target = maskTargets[depth]
-    if target == nil {
-      target = createTarget("mgfxsc_m" .. tostring(depth) .. "_" .. ensureNamespace())
-      maskTargets[depth] = target
+  fn coverageBucketSize(required, screenSize) {
+    local maximum = math.ceil(screenSize) + 4
+    local size = math.min(32, maximum)
+    while size < required {
+      size = math.min(size * 2, maximum)
+      breakif size == maximum
     }
-    target
+    size
+  }
+
+  fn ensureCoverageTargets(depth, rasterW, rasterH, screenW, screenH) {
+    -- The extra transparent guard texel keeps right/bottom bleed samples away
+    -- from uncleared or unrelated texture data.
+    local targetW = coverageBucketSize(rasterW + 1, screenW)
+    local targetH = coverageBucketSize(rasterH + 1, screenH)
+    local key = `${targetW}x${targetH}`
+    local buckets = coverageTargetBuckets[depth]
+    local pair = buckets?.[key]
+    if pair ~= nil {
+      return pair.accumulator, pair.scratch, targetW, targetH
+    }
+
+    local ns = ensureNamespace()
+    local accumulator = createCoverageTarget(`mgfxsc_ma${depth}_${key}_${ns}`, targetW, targetH)
+    local scratch = createCoverageTarget(`mgfxsc_ms${depth}_${key}_${ns}`, targetW, targetH)
+    local sourceMaterial = createSourceMaterial(scratch, `mask_scratch_${key}_`, depth)
+    pair = {
+      accumulator = accumulator,
+      scratch = scratch
+    }
+    if buckets == nil {
+      buckets = {}
+      coverageTargetBuckets[depth] = buckets
+    }
+    buckets[key] = pair
+    sourceMaterials[scratch] = sourceMaterial
+    return accumulator, scratch, targetW, targetH
   }
 
   fn contextTransform(depth, x, y) {
@@ -228,11 +278,11 @@ export client fn install(M) {
     return finishScope(results, cleanupError, 4)
   }
 
-  fn withRenderTarget2D(target, screenW, screenH, callback) {
+  fn withRenderTarget2D(target, targetW, targetH, callback) {
     local targetPushed = false
     local contextStarted = false
     local results = pack(xpcall(() => {
-      render.PushRenderTarget(target, 0, 0, screenW, screenH)
+      render.PushRenderTarget(target, 0, 0, targetW, targetH)
       targetPushed = true
       cam.Start2D()
       contextStarted = true
@@ -263,43 +313,43 @@ export client fn install(M) {
     return finishScope(results, cleanupError, 4)
   }
 
-  fn clearCoverageTarget(target, rasterW, rasterH, screenW, screenH) {
-    return withRenderTarget2D(target, screenW, screenH, () => {
-      render.SetScissorRect(0, 0, rasterW, rasterH, true)
+  fn clearCoverageTarget(target, targetW, targetH) {
+    return withRenderTarget2D(target, targetW, targetH, () => {
+      render.SetScissorRect(0, 0, targetW, targetH, true)
       return withRenderState(() => {
         setNeutralRenderState()
         -- render.Clear leaves alpha at one on this RT path. A ZERO/ZERO draw is
         -- the deterministic clear for both color and coverage alpha.
         render.OverrideBlend(true, BLEND_ZERO, BLEND_ZERO, BLENDFUNC_ADD, BLEND_ZERO, BLEND_ZERO, BLENDFUNC_ADD)
         surface.SetDrawColor(255, 255, 255, 255)
-        surface.DrawRect(0, 0, rasterW, rasterH)
+        surface.DrawRect(0, 0, targetW, targetH)
       })
     })
   }
 
-  fn drawCoverageSource(source, rasterW, rasterH, screenW, screenH) {
+  fn drawCoverageSource(source, rasterW, rasterH, targetW, targetH) {
     local material = sourceMaterials[source]
     if material == nil {
       error("MGFX Clip has no coverage source material for an internal target", 3)
     }
     surface.SetMaterial(material)
     surface.SetDrawColor(255, 255, 255, 255)
-    surface.DrawTexturedRectUV(0, 0, rasterW, rasterH, 0, 0, rasterW / screenW, rasterH / screenH)
+    surface.DrawTexturedRectUV(0, 0, rasterW, rasterH, 0, 0, rasterW / targetW, rasterH / targetH)
   }
 
-  fn combineCoverage(destination, source, sourceAlphaFactor, destinationAlphaFactor, blendFunction, rasterW, rasterH, screenW, screenH) {
-    return withRenderTarget2D(destination, screenW, screenH, () => {
+  fn combineCoverage(destination, source, sourceAlphaFactor, destinationAlphaFactor, blendFunction, rasterW, rasterH, targetW, targetH) {
+    return withRenderTarget2D(destination, targetW, targetH, () => {
       render.SetScissorRect(0, 0, rasterW, rasterH, true)
       return withRenderState(() => {
         setNeutralRenderState()
         render.OverrideBlend(true, BLEND_ZERO, BLEND_ZERO, BLENDFUNC_ADD, sourceAlphaFactor, destinationAlphaFactor, blendFunction)
-        drawCoverageSource(source, rasterW, rasterH, screenW, screenH)
+        drawCoverageSource(source, rasterW, rasterH, targetW, targetH)
       })
     })
   }
 
-  fn invertCoverage(target, w, h, rasterW, rasterH, screenW, screenH, padLeft, padTop) {
-    return withRenderTarget2D(target, screenW, screenH, () => {
+  fn invertCoverage(target, w, h, rasterW, rasterH, targetW, targetH, padLeft, padTop) {
+    return withRenderTarget2D(target, targetW, targetH, () => {
       render.SetScissorRect(0, 0, rasterW, rasterH, true)
       return withRenderState(() => {
         setNeutralRenderState()
@@ -326,9 +376,9 @@ export client fn install(M) {
     if typeOf(callback) ~= "function" {
       error("MGFX Mask coverage operations require a callback", 3)
     }
-    clearCoverageTarget(recorder.scratch, recorder.rasterW, recorder.rasterH, recorder.screenW, recorder.screenH)
+    clearCoverageTarget(recorder.scratch, recorder.targetW, recorder.targetH)
     local results = pack(xpcall(() => {
-      return withRenderTarget2D(recorder.scratch, recorder.screenW, recorder.screenH, () => {
+      return withRenderTarget2D(recorder.scratch, recorder.targetW, recorder.targetH, () => {
         return withModelMatrix(coverageTransform(recorder.depth, recorder.padLeft, recorder.padTop), () => {
           frameState.coverage = true
           frameState.coverageDrawing = true
@@ -359,10 +409,10 @@ export client fn install(M) {
     local ok, message = xpcall(() => {
       drawOperationCoverage(self, callback)
       match operation {
-        "union" => combineCoverage(self.accumulator, self.scratch, BLEND_ONE, BLEND_ONE, BLENDFUNC_MAX, self.rasterW, self.rasterH, self.screenW, self.screenH)
-        "subtract" => combineCoverage(self.accumulator, self.scratch, BLEND_ZERO, BLEND_ONE_MINUS_SRC_ALPHA, BLENDFUNC_ADD, self.rasterW, self.rasterH, self.screenW, self.screenH)
-        "intersect" => combineCoverage(self.accumulator, self.scratch, BLEND_ZERO, BLEND_SRC_ALPHA, BLENDFUNC_ADD, self.rasterW, self.rasterH, self.screenW, self.screenH)
-        "xor" => combineCoverage(self.accumulator, self.scratch, BLEND_ONE_MINUS_DST_ALPHA, BLEND_ONE_MINUS_SRC_ALPHA, BLENDFUNC_ADD, self.rasterW, self.rasterH, self.screenW, self.screenH)
+        "union" => combineCoverage(self.accumulator, self.scratch, BLEND_ONE, BLEND_ONE, BLENDFUNC_MAX, self.rasterW, self.rasterH, self.targetW, self.targetH)
+        "subtract" => combineCoverage(self.accumulator, self.scratch, BLEND_ZERO, BLEND_ONE_MINUS_SRC_ALPHA, BLENDFUNC_ADD, self.rasterW, self.rasterH, self.targetW, self.targetH)
+        "intersect" => combineCoverage(self.accumulator, self.scratch, BLEND_ZERO, BLEND_SRC_ALPHA, BLENDFUNC_ADD, self.rasterW, self.rasterH, self.targetW, self.targetH)
+        "xor" => combineCoverage(self.accumulator, self.scratch, BLEND_ONE_MINUS_DST_ALPHA, BLEND_ONE_MINUS_SRC_ALPHA, BLENDFUNC_ADD, self.rasterW, self.rasterH, self.targetW, self.targetH)
         _ => error("MGFX Mask encountered an unsupported coverage operation", 2)
       }
     }, traceback)
@@ -383,7 +433,7 @@ export client fn install(M) {
     requireActiveRecorder(self, "Invert")
     self.inOperation = true
     local ok, message = xpcall(() => {
-      invertCoverage(self.accumulator, self.w, self.h, self.rasterW, self.rasterH, self.screenW, self.screenH, self.padLeft, self.padTop)
+      invertCoverage(self.accumulator, self.w, self.h, self.rasterW, self.rasterH, self.targetW, self.targetH, self.padLeft, self.padTop)
     }, traceback)
     self.inOperation = false
     if not ok {
@@ -447,9 +497,9 @@ export client fn install(M) {
     Chamfer = (options = nil) => presetMask("chamfer", options)
   }
 
-  fn rasterizeCustomMask(mask, state, w, h, phaseX, phaseY, depth, accumulator, scratch, screenW, screenH) {
-    local rasterW = math.min(screenW, math.ceil(w + phaseX) + 2)
-    local rasterH = math.min(screenH, math.ceil(h + phaseY) + 2)
+  fn rasterizeCustomMask(mask, state, w, h, phaseX, phaseY, depth, screenW, screenH) {
+    local rasterW = math.ceil(w + phaseX) + 2
+    local rasterH = math.ceil(h + phaseY) + 2
     local extraX = math.max(0, rasterW - w - phaseX)
     local extraY = math.max(0, rasterH - h - phaseY)
     local padLeft = math.min(1, extraX * 0.5)
@@ -458,22 +508,22 @@ export client fn install(M) {
     local originY = padTop + phaseY
     local padRight = math.min(1, math.max(0, rasterW - originX - w))
     local padBottom = math.min(1, math.max(0, rasterH - originY - h))
-    local target = ensureMaskTarget(depth)
+    local accumulator, scratch, targetW, targetH = ensureCoverageTargets(depth, rasterW, rasterH, screenW, screenH)
     local slot = maskSlots[depth]
     if slot == nil {
       slot = { maskRef = setmetatable({}, { __mode = "v" }) }
       maskSlots[depth] = slot
     }
     local revision = state.revision
-    if slot.maskRef[1] == mask and slot.revision == revision and slot.w == w and slot.h == h and slot.phaseX == phaseX and slot.phaseY == phaseY and slot.screenW == screenW and slot.screenH == screenH {
+    if slot.maskRef[1] == mask and slot.revision == revision and slot.w == w and slot.h == h and slot.phaseX == phaseX and slot.phaseY == phaseY and slot.target == accumulator and slot.targetW == targetW and slot.targetH == targetH {
       M.stats.maskCacheHits = (M.stats.maskCacheHits ?? 0) + 1
-      return target,
-        originX / screenW, originY / screenH,
-        (originX + w) / screenW, (originY + h) / screenH,
+      return accumulator,
+        originX / targetW, originY / targetH,
+        (originX + w) / targetW, (originY + h) / targetH,
         originX, originY, padRight, padBottom
     }
 
-    clearCoverageTarget(accumulator, rasterW, rasterH, screenW, screenH)
+    clearCoverageTarget(accumulator, targetW, targetH)
     local recorder = coverageRecorders[depth]
     if recorder == nil {
       recorder = setmetatable({}, Recorder)
@@ -486,8 +536,8 @@ export client fn install(M) {
     recorder.h = h
     recorder.rasterW = rasterW
     recorder.rasterH = rasterH
-    recorder.screenW = screenW
-    recorder.screenH = screenH
+    recorder.targetW = targetW
+    recorder.targetH = targetH
     recorder.accumulator = accumulator
     recorder.scratch = scratch
     recorder.padLeft = originX
@@ -507,19 +557,19 @@ export client fn install(M) {
       error(message, 3)
     }
 
-    render.CopyTexture(accumulator, target)
     slot.maskRef[1] = mask
+    slot.target = accumulator
     slot.revision = revision
     slot.w = w
     slot.h = h
     slot.phaseX = phaseX
     slot.phaseY = phaseY
-    slot.screenW = screenW
-    slot.screenH = screenH
+    slot.targetW = targetW
+    slot.targetH = targetH
     M.stats.maskRasterizations = (M.stats.maskRasterizations ?? 0) + 1
-    return target,
-      originX / screenW, originY / screenH,
-      (originX + w) / screenW, (originY + h) / screenH,
+    return accumulator,
+      originX / targetW, originY / targetH,
+      (originX + w) / targetW, (originY + h) / targetH,
       originX, originY, padRight, padBottom
   }
 
@@ -561,7 +611,7 @@ export client fn install(M) {
     }
   }
 
-  fn resolveMask(mask, w, h, phaseX, phaseY, depth, accumulator, scratch, screenW, screenH) {
+  fn resolveMask(mask, w, h, phaseX, phaseY, depth, screenW, screenH) {
     if typeOf(mask) ~= "table" {
       error("MGFX.Clip requires an MGFX Mask or preset", 3)
     }
@@ -570,7 +620,7 @@ export client fn install(M) {
       error("MGFX.Clip requires an MGFX Mask or preset", 3)
     }
     if state.type == "custom" {
-      local texture, u0, v0, u1, v1, bleedLeft, bleedTop, bleedRight, bleedBottom = rasterizeCustomMask(mask, state, w, h, phaseX, phaseY, depth, accumulator, scratch, screenW, screenH)
+      local texture, u0, v0, u1, v1, bleedLeft, bleedTop, bleedRight, bleedBottom = rasterizeCustomMask(mask, state, w, h, phaseX, phaseY, depth, screenW, screenH)
       return 10, 0, u0, v0, u1, v1, texture, bleedLeft, bleedTop, bleedRight, bleedBottom
     }
 
@@ -729,7 +779,7 @@ export client fn install(M) {
       local sy = finiteNumber(frameY + y, "screen y")
       local phaseX = sx - math.floor(sx)
       local phaseY = sy - math.floor(sy)
-      local kind, radius, p0, p1, p2, p3, maskTexture, bleedLeft, bleedTop, bleedRight, bleedBottom = resolveMask(mask, w, h, phaseX, phaseY, depth, before, work, screenW, screenH)
+      local kind, radius, p0, p1, p2, p3, maskTexture, bleedLeft, bleedTop, bleedRight, bleedBottom = resolveMask(mask, w, h, phaseX, phaseY, depth, screenW, screenH)
       record.localX = x
       record.localY = y
       record.w = w

@@ -40,6 +40,7 @@ function MGFX._InstallRoundRect(C)
 	local setupExtraParamsRaw = C.setupExtraParamsRaw or C.setupExtraParams
 	local drawTexturedQuad = C.drawTexturedQuad
 	local drawTexturedQuadUV = C.drawTexturedQuadUV
+	local renderModeState = C.renderModeState or {}
 	local drawTransformedPoly = C.drawTransformedPoly or surface.DrawPoly
 	local withTransform = C.withTransform or function(_, _, _, _, _, fn) return fn() end
 	local splitStyleTransform = C.splitStyleTransform or function(style) return nil, style end
@@ -185,14 +186,22 @@ local function drawSolidRoundFast(x, y, w, h, radiusValue, fill)
 	surface_SetDrawColor(255, 255, 255, 255)
 	if profiling then profileEnd("round.fast.solidRound.setup", setupProfile) end
 	local drawProfile = profiling and profileStart() or nil
-	drawTexturedQuad(x, y, w, h, mat)
+	if renderModeState.coverage then
+		drawTexturedQuadUV(
+			x - 1, y - 1, w + 2, h + 2,
+			-1 / w, -1 / h, 1 + 1 / w, 1 + 1 / h,
+			mat
+		)
+	else
+		drawTexturedQuad(x, y, w, h, mat)
+	end
 	if profiling then profileEnd("round.fast.solidRound.draw", drawProfile) end
 	return true
 end
 
 local function drawRoundRectBaseQuad(x, y, w, h, mat, strokeWidth)
 	local pad = math_ceil(math_max(0, tonumber(strokeWidth) or 0) * 0.5 + 1)
-	if pad <= 1 or w <= 0 or h <= 0 then
+	if (pad <= 1 and not renderModeState.coverage) or w <= 0 or h <= 0 then
 		drawTexturedQuad(x, y, w, h, mat)
 		return
 	end

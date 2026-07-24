@@ -4,7 +4,7 @@ MGFX = MGFX or {}
 
 function MGFX._InstallShapeClip(C)
 	local M = C.M
-	local INSTALL_VERSION = "coverage-v2.1"
+	local INSTALL_VERSION = "coverage-v2.3"
 	local installed = M._internal and M._internal.clipInstall
 	if installed then
 		if installed.version == INSTALL_VERSION then return M end
@@ -58,7 +58,7 @@ function MGFX._InstallShapeClip(C)
 	local recordPool = {}
 	local beforeTargets = {}
 	local workTargets = {}
-	local maskTargets = {}
+	local coverageTargetBuckets = {}
 	local sourceMaterials = {}
 	local maskSlots = {}
 	local contextMatrices = {}
@@ -145,6 +145,26 @@ function MGFX._InstallShapeClip(C)
 		return target
 	end
 
+	local function createCoverageTarget(name, width, height)
+		if not GetRenderTargetEx then
+			error("MGFX Clip requires render-target support", 3)
+		end
+		local target = GetRenderTargetEx(
+			name,
+			width,
+			height,
+			RT_SIZE_LITERAL,
+			MATERIAL_RT_DEPTH_NONE,
+			bit_bor(2, 256, 4, 8),
+			0,
+			IMAGE_FORMAT_BGRA8888
+		)
+		if not target then
+			error("MGFX Clip failed to allocate a local coverage render target", 3)
+		end
+		return target
+	end
+
 	local function createSourceMaterial(target, role, depth)
 		local material = CreateMaterial(
 			"mgfx_clip_source_" .. role .. depth .. "_" .. ensureNamespace(),
@@ -178,12 +198,43 @@ function MGFX._InstallShapeClip(C)
 		return beforeTargets[depth], workTargets[depth]
 	end
 
-	local function ensureMaskTarget(depth)
-		local target = maskTargets[depth]
-		if target then return target end
-		target = createTarget("mgfxsc_m" .. depth .. "_" .. ensureNamespace())
-		maskTargets[depth] = target
-		return target
+	local function coverageBucketSize(required, screenSize)
+		local maximum = math_ceil(screenSize) + 4
+		local size = math_min(32, maximum)
+		while size < required do
+			size = math_min(size * 2, maximum)
+			if size == maximum then break end
+		end
+		return size
+	end
+
+	local function ensureCoverageTargets(depth, rasterW, rasterH, screenW, screenH)
+		-- One transparent guard texel after the raster prevents the right/bottom
+		-- composite bleed sample from touching uncleared or unrelated texture data.
+		local targetW = coverageBucketSize(rasterW + 1, screenW)
+		local targetH = coverageBucketSize(rasterH + 1, screenH)
+		local key = targetW .. "x" .. targetH
+		local buckets = coverageTargetBuckets[depth]
+		local pair = buckets and buckets[key]
+		if pair then
+			return pair.accumulator, pair.scratch, targetW, targetH
+		end
+
+		local ns = ensureNamespace()
+		local accumulator = createCoverageTarget("mgfxsc_ma" .. depth .. "_" .. key .. "_" .. ns, targetW, targetH)
+		local scratch = createCoverageTarget("mgfxsc_ms" .. depth .. "_" .. key .. "_" .. ns, targetW, targetH)
+		local sourceMaterial = createSourceMaterial(scratch, "mask_scratch_" .. key .. "_", depth)
+		pair = {
+			accumulator = accumulator,
+			scratch = scratch,
+		}
+		if not buckets then
+			buckets = {}
+			coverageTargetBuckets[depth] = buckets
+		end
+		buckets[key] = pair
+		sourceMaterials[scratch] = sourceMaterial
+		return accumulator, scratch, targetW, targetH
 	end
 
 	local function contextTransform(depth, x, y)
@@ -260,11 +311,11 @@ function MGFX._InstallShapeClip(C)
 		return finishScope(results, cleanupError, 4)
 	end
 
-	local function withRenderTarget2D(target, screenW, screenH, callback)
+	local function withRenderTarget2D(target, targetW, targetH, callback)
 		local targetPushed = false
 		local contextStarted = false
 		local results = pack(xpcall(function()
-			render_PushRenderTarget(target, 0, 0, screenW, screenH)
+			render_PushRenderTarget(target, 0, 0, targetW, targetH)
 			targetPushed = true
 			cam_Start2D()
 			contextStarted = true
@@ -289,41 +340,41 @@ function MGFX._InstallShapeClip(C)
 		return finishScope(results, cleanupError, 4)
 	end
 
-	local function clearCoverageTarget(target, rasterW, rasterH, screenW, screenH)
-		return withRenderTarget2D(target, screenW, screenH, function()
-			render_SetScissorRect(0, 0, rasterW, rasterH, true)
+	local function clearCoverageTarget(target, targetW, targetH)
+		return withRenderTarget2D(target, targetW, targetH, function()
+			render_SetScissorRect(0, 0, targetW, targetH, true)
 			return withRenderState(function()
 				setNeutralRenderState()
 				render_OverrideBlend(true, BLEND_ZERO, BLEND_ZERO, BLENDFUNC_ADD, BLEND_ZERO, BLEND_ZERO, BLENDFUNC_ADD)
 				surface_SetDrawColor(255, 255, 255, 255)
-				surface_DrawRect(0, 0, rasterW, rasterH)
+				surface_DrawRect(0, 0, targetW, targetH)
 			end)
 		end)
 	end
 
-	local function drawCoverageSource(source, rasterW, rasterH, screenW, screenH)
+	local function drawCoverageSource(source, rasterW, rasterH, targetW, targetH)
 		local material = sourceMaterials[source]
 		if not material then
 			error("MGFX Clip has no coverage source material for an internal target", 3)
 		end
 		surface_SetMaterial(material)
 		surface_SetDrawColor(255, 255, 255, 255)
-		surface_DrawTexturedRectUV(0, 0, rasterW, rasterH, 0, 0, rasterW / screenW, rasterH / screenH)
+		surface_DrawTexturedRectUV(0, 0, rasterW, rasterH, 0, 0, rasterW / targetW, rasterH / targetH)
 	end
 
-	local function combineCoverage(destination, source, sourceAlphaFactor, destinationAlphaFactor, blendFunction, rasterW, rasterH, screenW, screenH)
-		return withRenderTarget2D(destination, screenW, screenH, function()
+	local function combineCoverage(destination, source, sourceAlphaFactor, destinationAlphaFactor, blendFunction, rasterW, rasterH, targetW, targetH)
+		return withRenderTarget2D(destination, targetW, targetH, function()
 			render_SetScissorRect(0, 0, rasterW, rasterH, true)
 			return withRenderState(function()
 				setNeutralRenderState()
 				render_OverrideBlend(true, BLEND_ZERO, BLEND_ZERO, BLENDFUNC_ADD, sourceAlphaFactor, destinationAlphaFactor, blendFunction)
-				drawCoverageSource(source, rasterW, rasterH, screenW, screenH)
+				drawCoverageSource(source, rasterW, rasterH, targetW, targetH)
 			end)
 		end)
 	end
 
-	local function invertCoverage(target, w, h, rasterW, rasterH, screenW, screenH, padLeft, padTop)
-		return withRenderTarget2D(target, screenW, screenH, function()
+	local function invertCoverage(target, w, h, rasterW, rasterH, targetW, targetH, padLeft, padTop)
+		return withRenderTarget2D(target, targetW, targetH, function()
 			render_SetScissorRect(0, 0, rasterW, rasterH, true)
 			return withRenderState(function()
 				setNeutralRenderState()
@@ -350,10 +401,10 @@ function MGFX._InstallShapeClip(C)
 		if not isfunction(callback) then
 			error("MGFX Mask coverage operations require a callback", 3)
 		end
-		clearCoverageTarget(recorder.scratch, recorder.rasterW, recorder.rasterH, recorder.screenW, recorder.screenH)
+		clearCoverageTarget(recorder.scratch, recorder.targetW, recorder.targetH)
 
 		local results = pack(xpcall(function()
-			return withRenderTarget2D(recorder.scratch, recorder.screenW, recorder.screenH, function()
+			return withRenderTarget2D(recorder.scratch, recorder.targetW, recorder.targetH, function()
 				return withModelMatrix(coverageTransform(recorder.depth, recorder.padLeft, recorder.padTop), function()
 					renderModeState.coverage = true
 					renderModeState.coverageDrawing = true
@@ -384,13 +435,13 @@ function MGFX._InstallShapeClip(C)
 		local ok, message = xpcall(function()
 			drawOperationCoverage(self, callback)
 			if operation == "union" then
-				combineCoverage(self.accumulator, self.scratch, BLEND_ONE, BLEND_ONE, BLENDFUNC_MAX, self.rasterW, self.rasterH, self.screenW, self.screenH)
+				combineCoverage(self.accumulator, self.scratch, BLEND_ONE, BLEND_ONE, BLENDFUNC_MAX, self.rasterW, self.rasterH, self.targetW, self.targetH)
 			elseif operation == "subtract" then
-				combineCoverage(self.accumulator, self.scratch, BLEND_ZERO, BLEND_ONE_MINUS_SRC_ALPHA, BLENDFUNC_ADD, self.rasterW, self.rasterH, self.screenW, self.screenH)
+				combineCoverage(self.accumulator, self.scratch, BLEND_ZERO, BLEND_ONE_MINUS_SRC_ALPHA, BLENDFUNC_ADD, self.rasterW, self.rasterH, self.targetW, self.targetH)
 			elseif operation == "intersect" then
-				combineCoverage(self.accumulator, self.scratch, BLEND_ZERO, BLEND_SRC_ALPHA, BLENDFUNC_ADD, self.rasterW, self.rasterH, self.screenW, self.screenH)
+				combineCoverage(self.accumulator, self.scratch, BLEND_ZERO, BLEND_SRC_ALPHA, BLENDFUNC_ADD, self.rasterW, self.rasterH, self.targetW, self.targetH)
 			elseif operation == "xor" then
-				combineCoverage(self.accumulator, self.scratch, BLEND_ONE_MINUS_DST_ALPHA, BLEND_ONE_MINUS_SRC_ALPHA, BLENDFUNC_ADD, self.rasterW, self.rasterH, self.screenW, self.screenH)
+				combineCoverage(self.accumulator, self.scratch, BLEND_ONE_MINUS_DST_ALPHA, BLEND_ONE_MINUS_SRC_ALPHA, BLENDFUNC_ADD, self.rasterW, self.rasterH, self.targetW, self.targetH)
 			else
 				error("MGFX Mask encountered an unsupported coverage operation", 2)
 			end
@@ -424,7 +475,7 @@ function MGFX._InstallShapeClip(C)
 		requireActiveRecorder(self, "Invert")
 		self.inOperation = true
 		local ok, message = xpcall(function()
-			invertCoverage(self.accumulator, self.w, self.h, self.rasterW, self.rasterH, self.screenW, self.screenH, self.padLeft, self.padTop)
+			invertCoverage(self.accumulator, self.w, self.h, self.rasterW, self.rasterH, self.targetW, self.targetH, self.padLeft, self.padTop)
 		end, traceback)
 		self.inOperation = false
 		if not ok then error(message, 3) end
@@ -491,9 +542,9 @@ function MGFX._InstallShapeClip(C)
 		end,
 	}
 
-	local function rasterizeCustomMask(mask, state, w, h, phaseX, phaseY, depth, accumulator, scratch, screenW, screenH)
-		local rasterW = math_min(screenW, math_ceil(w + phaseX) + 2)
-		local rasterH = math_min(screenH, math_ceil(h + phaseY) + 2)
+	local function rasterizeCustomMask(mask, state, w, h, phaseX, phaseY, depth, screenW, screenH)
+		local rasterW = math_ceil(w + phaseX) + 2
+		local rasterH = math_ceil(h + phaseY) + 2
 		local extraX = math_max(0, rasterW - w - phaseX)
 		local extraY = math_max(0, rasterH - h - phaseY)
 		local padLeft = math_min(1, extraX * 0.5)
@@ -502,7 +553,7 @@ function MGFX._InstallShapeClip(C)
 		local originY = padTop + phaseY
 		local padRight = math_min(1, math_max(0, rasterW - originX - w))
 		local padBottom = math_min(1, math_max(0, rasterH - originY - h))
-		local target = ensureMaskTarget(depth)
+		local accumulator, scratch, targetW, targetH = ensureCoverageTargets(depth, rasterW, rasterH, screenW, screenH)
 
 		local slot = maskSlots[depth]
 		if not slot then
@@ -512,15 +563,15 @@ function MGFX._InstallShapeClip(C)
 		local revision = state.revision
 		if slot.maskRef[1] == mask and slot.revision == revision and slot.w == w and slot.h == h
 			and slot.phaseX == phaseX and slot.phaseY == phaseY
-			and slot.screenW == screenW and slot.screenH == screenH then
+			and slot.target == accumulator and slot.targetW == targetW and slot.targetH == targetH then
 			M.stats.maskCacheHits = (M.stats.maskCacheHits or 0) + 1
-			return target,
-				originX / screenW, originY / screenH,
-				(originX + w) / screenW, (originY + h) / screenH,
+			return accumulator,
+				originX / targetW, originY / targetH,
+				(originX + w) / targetW, (originY + h) / targetH,
 				originX, originY, padRight, padBottom
 		end
 
-		clearCoverageTarget(accumulator, rasterW, rasterH, screenW, screenH)
+		clearCoverageTarget(accumulator, targetW, targetH)
 		local recorder = coverageRecorders[depth]
 		if not recorder then
 			recorder = setmetatable({}, Recorder)
@@ -533,8 +584,8 @@ function MGFX._InstallShapeClip(C)
 		recorder.h = h
 		recorder.rasterW = rasterW
 		recorder.rasterH = rasterH
-		recorder.screenW = screenW
-		recorder.screenH = screenH
+		recorder.targetW = targetW
+		recorder.targetH = targetH
 		recorder.accumulator = accumulator
 		recorder.scratch = scratch
 		recorder.padLeft = originX
@@ -554,19 +605,19 @@ function MGFX._InstallShapeClip(C)
 		recorder.inOperation = false
 		if not ok then error(message, 3) end
 
-		render_CopyTexture(accumulator, target)
 		slot.maskRef[1] = mask
+		slot.target = accumulator
 		slot.revision = revision
 		slot.w = w
 		slot.h = h
 		slot.phaseX = phaseX
 		slot.phaseY = phaseY
-		slot.screenW = screenW
-		slot.screenH = screenH
+		slot.targetW = targetW
+		slot.targetH = targetH
 		M.stats.maskRasterizations = (M.stats.maskRasterizations or 0) + 1
-		return target,
-			originX / screenW, originY / screenH,
-			(originX + w) / screenW, (originY + h) / screenH,
+		return accumulator,
+			originX / targetW, originY / targetH,
+			(originX + w) / targetW, (originY + h) / targetH,
 			originX, originY, padRight, padBottom
 	end
 
@@ -604,7 +655,7 @@ function MGFX._InstallShapeClip(C)
 		}
 	end
 
-	local function resolveMask(mask, w, h, phaseX, phaseY, depth, accumulator, scratch, screenW, screenH)
+	local function resolveMask(mask, w, h, phaseX, phaseY, depth, screenW, screenH)
 		if not istable(mask) then
 			error("MGFX.Clip requires an MGFX Mask or preset", 3)
 		end
@@ -613,7 +664,7 @@ function MGFX._InstallShapeClip(C)
 			error("MGFX.Clip requires an MGFX Mask or preset", 3)
 		end
 		if state.type == "custom" then
-			local texture, u0, v0, u1, v1, bleedLeft, bleedTop, bleedRight, bleedBottom = rasterizeCustomMask(mask, state, w, h, phaseX, phaseY, depth, accumulator, scratch, screenW, screenH)
+			local texture, u0, v0, u1, v1, bleedLeft, bleedTop, bleedRight, bleedBottom = rasterizeCustomMask(mask, state, w, h, phaseX, phaseY, depth, screenW, screenH)
 			return 10, 0, u0, v0, u1, v1, texture, bleedLeft, bleedTop, bleedRight, bleedBottom
 		end
 		local values = state.values
@@ -754,7 +805,7 @@ function MGFX._InstallShapeClip(C)
 			local sy = finiteNumber(finiteNumber(frameState.screenY, "frame screen y", 0) + y, "screen y")
 			local phaseX = sx - math_floor(sx)
 			local phaseY = sy - math_floor(sy)
-			local kind, radius, p0, p1, p2, p3, maskTexture, bleedLeft, bleedTop, bleedRight, bleedBottom = resolveMask(mask, w, h, phaseX, phaseY, depth, before, work, screenW, screenH)
+			local kind, radius, p0, p1, p2, p3, maskTexture, bleedLeft, bleedTop, bleedRight, bleedBottom = resolveMask(mask, w, h, phaseX, phaseY, depth, screenW, screenH)
 			record.localX, record.localY, record.w, record.h = x, y, w, h
 			record.screenU, record.screenV = sx / screenW, sy / screenH
 			record.screenUW, record.screenVH = w / screenW, h / screenH

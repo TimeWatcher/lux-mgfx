@@ -17,14 +17,16 @@ return function(__lux_import)
       local combineCoverage
       local composite
       local contextTransform
+      local coverageBucketSize
       local coverageTransform
+      local createCoverageTarget
       local createSourceMaterial
       local createTarget
       local customMask
       local drawCoverageSource
       local drawOperationCoverage
       local endClipFrame
-      local ensureMaskTarget
+      local ensureCoverageTargets
       local ensureNamespace
       local ensureTargets
       local finishScope
@@ -53,7 +55,7 @@ return function(__lux_import)
       local withRenderState
       local withRenderTarget2D
 
-      local installVersion = "coverage-v2.1"
+      local installVersion = "coverage-v2.3"
       local installed
       do
         local __lux_obj_internal_1 = M._internal
@@ -91,7 +93,7 @@ return function(__lux_import)
       local recordPool = {}
       local beforeTargets = {}
       local workTargets = {}
-      local maskTargets = {}
+      local coverageTargetBuckets = {}
       local sourceMaterials = {}
       local maskSlots = {}
       local contextMatrices = {}
@@ -178,6 +180,25 @@ return function(__lux_import)
         end
         return target
       end
+      createCoverageTarget = function(name, width, height)
+        if GetRenderTargetEx == nil or bit == nil or bit.bor == nil then
+          error("MGFX Clip requires render-target support", 3)
+        end
+        local target = GetRenderTargetEx(
+          name,
+          width,
+          height,
+          RT_SIZE_LITERAL,
+          MATERIAL_RT_DEPTH_NONE,
+          bit.bor(2, 256, 4, 8),
+          0,
+          IMAGE_FORMAT_BGRA8888
+        )
+        if target == nil then
+          error("MGFX Clip failed to allocate a local coverage render target", 3)
+        end
+        return target
+      end
       createSourceMaterial = function(target, role, depth)
         local material = CreateMaterial(
           "mgfx_clip_source_" .. role .. tostring(depth) .. "_" .. ensureNamespace(),
@@ -208,13 +229,55 @@ return function(__lux_import)
         end
         return beforeTargets[depth], workTargets[depth]
       end
-      ensureMaskTarget = function(depth)
-        local target = maskTargets[depth]
-        if target == nil then
-          target = createTarget("mgfxsc_m" .. tostring(depth) .. "_" .. ensureNamespace())
-          maskTargets[depth] = target
+      coverageBucketSize = function(required, screenSize)
+        local maximum = math.ceil(screenSize) + 4
+        local size = math.min(32, maximum)
+        while size < required do
+          size = math.min(size * 2, maximum)
+          if size == maximum then
+            break
+          end
         end
-        return target
+        return size
+      end
+      ensureCoverageTargets = function(depth, rasterW, rasterH, screenW, screenH)
+        local targetW = coverageBucketSize(rasterW + 1, screenW)
+        local targetH = coverageBucketSize(rasterH + 1, screenH)
+        local key = tostring(targetW) .. "x" .. tostring(targetH)
+        local buckets = coverageTargetBuckets[depth]
+        local pair
+        do
+          local __lux_obj_buckets_7 = buckets
+          local __lux_val_buckets_9 = nil
+          if __lux_obj_buckets_7 ~= nil then
+            local __lux_key_key_8 = key
+            __lux_val_buckets_9 = __lux_obj_buckets_7[__lux_key_key_8]
+          end
+          pair = __lux_val_buckets_9
+        end
+        if pair ~= nil then
+          return pair.accumulator, pair.scratch, targetW, targetH
+        end
+        local ns = ensureNamespace()
+        local accumulator = createCoverageTarget(
+          "mgfxsc_ma" .. tostring(depth) .. "_" .. tostring(key) .. "_" .. tostring(ns),
+          targetW,
+          targetH
+        )
+        local scratch = createCoverageTarget(
+          "mgfxsc_ms" .. tostring(depth) .. "_" .. tostring(key) .. "_" .. tostring(ns),
+          targetW,
+          targetH
+        )
+        local sourceMaterial = createSourceMaterial(scratch, "mask_scratch_" .. tostring(key) .. "_", depth)
+        pair = { accumulator = accumulator, scratch = scratch }
+        if buckets == nil then
+          buckets = {}
+          coverageTargetBuckets[depth] = buckets
+        end
+        buckets[key] = pair
+        sourceMaterials[scratch] = sourceMaterial
+        return accumulator, scratch, targetW, targetH
       end
       contextTransform = function(depth, x, y)
         local matrix = contextMatrices[depth]
@@ -332,13 +395,13 @@ return function(__lux_import)
         end
         return finishScope(results, cleanupError, 4)
       end
-      withRenderTarget2D = function(target, screenW, screenH, callback)
+      withRenderTarget2D = function(target, targetW, targetH, callback)
         local targetPushed = false
         local contextStarted = false
         local results = pack(
           xpcall(
             function()
-              render.PushRenderTarget(target, 0, 0, screenW, screenH)
+              render.PushRenderTarget(target, 0, 0, targetW, targetH)
               targetPushed = true
               cam.Start2D()
               contextStarted = true
@@ -375,13 +438,13 @@ return function(__lux_import)
         end
         return finishScope(results, cleanupError, 4)
       end
-      clearCoverageTarget = function(target, rasterW, rasterH, screenW, screenH)
+      clearCoverageTarget = function(target, targetW, targetH)
         return withRenderTarget2D(
           target,
-          screenW,
-          screenH,
+          targetW,
+          targetH,
           function()
-            render.SetScissorRect(0, 0, rasterW, rasterH, true)
+            render.SetScissorRect(0, 0, targetW, targetH, true)
             return withRenderState(
               function()
                 setNeutralRenderState()
@@ -395,13 +458,13 @@ return function(__lux_import)
                   BLENDFUNC_ADD
                 )
                 surface.SetDrawColor(255, 255, 255, 255)
-                return surface.DrawRect(0, 0, rasterW, rasterH)
+                return surface.DrawRect(0, 0, targetW, targetH)
               end
             )
           end
         )
       end
-      drawCoverageSource = function(source, rasterW, rasterH, screenW, screenH)
+      drawCoverageSource = function(source, rasterW, rasterH, targetW, targetH)
         local material = sourceMaterials[source]
         if material == nil then
           error("MGFX Clip has no coverage source material for an internal target", 3)
@@ -415,15 +478,15 @@ return function(__lux_import)
           rasterH,
           0,
           0,
-          rasterW / screenW,
-          rasterH / screenH
+          rasterW / targetW,
+          rasterH / targetH
         )
       end
-      combineCoverage = function(destination, source, sourceAlphaFactor, destinationAlphaFactor, blendFunction, rasterW, rasterH, screenW, screenH)
+      combineCoverage = function(destination, source, sourceAlphaFactor, destinationAlphaFactor, blendFunction, rasterW, rasterH, targetW, targetH)
         return withRenderTarget2D(
           destination,
-          screenW,
-          screenH,
+          targetW,
+          targetH,
           function()
             render.SetScissorRect(0, 0, rasterW, rasterH, true)
             return withRenderState(
@@ -438,17 +501,17 @@ return function(__lux_import)
                   destinationAlphaFactor,
                   blendFunction
                 )
-                return drawCoverageSource(source, rasterW, rasterH, screenW, screenH)
+                return drawCoverageSource(source, rasterW, rasterH, targetW, targetH)
               end
             )
           end
         )
       end
-      invertCoverage = function(target, w, h, rasterW, rasterH, screenW, screenH, padLeft, padTop)
+      invertCoverage = function(target, w, h, rasterW, rasterH, targetW, targetH, padLeft, padTop)
         return withRenderTarget2D(
           target,
-          screenW,
-          screenH,
+          targetW,
+          targetH,
           function()
             render.SetScissorRect(0, 0, rasterW, rasterH, true)
             return withRenderState(
@@ -487,20 +550,14 @@ return function(__lux_import)
         if typeOf(callback) ~= "function" then
           error("MGFX Mask coverage operations require a callback", 3)
         end
-        clearCoverageTarget(
-          recorder.scratch,
-          recorder.rasterW,
-          recorder.rasterH,
-          recorder.screenW,
-          recorder.screenH
-        )
+        clearCoverageTarget(recorder.scratch, recorder.targetW, recorder.targetH)
         local results = pack(
           xpcall(
             function()
               return withRenderTarget2D(
                 recorder.scratch,
-                recorder.screenW,
-                recorder.screenH,
+                recorder.targetW,
+                recorder.targetH,
                 function()
                   return withModelMatrix(
                     coverageTransform(recorder.depth, recorder.padLeft, recorder.padTop),
@@ -541,11 +598,11 @@ return function(__lux_import)
         frameState.coverage = false
         finishScope(results, nil, 3)
         do
-          local __lux_tmp_maskOperations_7 = M.stats.maskOperations
-          if __lux_tmp_maskOperations_7 == nil then
-            __lux_tmp_maskOperations_7 = 0
+          local __lux_tmp_maskOperations_10 = M.stats.maskOperations
+          if __lux_tmp_maskOperations_10 == nil then
+            __lux_tmp_maskOperations_10 = 0
           end
-          M.stats.maskOperations = __lux_tmp_maskOperations_7 + 1
+          M.stats.maskOperations = __lux_tmp_maskOperations_10 + 1
         end
       end
       function Recorder:_combine(operation, callback)
@@ -554,8 +611,8 @@ return function(__lux_import)
         local ok, message = xpcall(
           function()
             drawOperationCoverage(self, callback)
-            local __lux_match_8 = operation
-            if __lux_match_8 == "union" then
+            local __lux_match_11 = operation
+            if __lux_match_11 == "union" then
               return combineCoverage(
                 self.accumulator,
                 self.scratch,
@@ -564,10 +621,10 @@ return function(__lux_import)
                 BLENDFUNC_MAX,
                 self.rasterW,
                 self.rasterH,
-                self.screenW,
-                self.screenH
+                self.targetW,
+                self.targetH
               )
-            elseif __lux_match_8 == "subtract" then
+            elseif __lux_match_11 == "subtract" then
               return combineCoverage(
                 self.accumulator,
                 self.scratch,
@@ -576,10 +633,10 @@ return function(__lux_import)
                 BLENDFUNC_ADD,
                 self.rasterW,
                 self.rasterH,
-                self.screenW,
-                self.screenH
+                self.targetW,
+                self.targetH
               )
-            elseif __lux_match_8 == "intersect" then
+            elseif __lux_match_11 == "intersect" then
               return combineCoverage(
                 self.accumulator,
                 self.scratch,
@@ -588,10 +645,10 @@ return function(__lux_import)
                 BLENDFUNC_ADD,
                 self.rasterW,
                 self.rasterH,
-                self.screenW,
-                self.screenH
+                self.targetW,
+                self.targetH
               )
-            elseif __lux_match_8 == "xor" then
+            elseif __lux_match_11 == "xor" then
               return combineCoverage(
                 self.accumulator,
                 self.scratch,
@@ -600,8 +657,8 @@ return function(__lux_import)
                 BLENDFUNC_ADD,
                 self.rasterW,
                 self.rasterH,
-                self.screenW,
-                self.screenH
+                self.targetW,
+                self.targetH
               )
             else
               return error("MGFX Mask encountered an unsupported coverage operation", 2)
@@ -641,8 +698,8 @@ return function(__lux_import)
               self.h,
               self.rasterW,
               self.rasterH,
-              self.screenW,
-              self.screenH,
+              self.targetW,
+              self.targetH,
               self.padLeft,
               self.padTop
             )
@@ -654,11 +711,11 @@ return function(__lux_import)
           error(message, 3)
         end
         do
-          local __lux_tmp_maskOperations_9 = M.stats.maskOperations
-          if __lux_tmp_maskOperations_9 == nil then
-            __lux_tmp_maskOperations_9 = 0
+          local __lux_tmp_maskOperations_12 = M.stats.maskOperations
+          if __lux_tmp_maskOperations_12 == nil then
+            __lux_tmp_maskOperations_12 = 0
           end
-          M.stats.maskOperations = __lux_tmp_maskOperations_9 + 1
+          M.stats.maskOperations = __lux_tmp_maskOperations_12 + 1
         end
         return self
       end
@@ -717,9 +774,9 @@ return function(__lux_import)
           return presetMask("chamfer", options)
         end,
       }
-      rasterizeCustomMask = function(mask, state, w, h, phaseX, phaseY, depth, accumulator, scratch, screenW, screenH)
-        local rasterW = math.min(screenW, math.ceil(w + phaseX) + 2)
-        local rasterH = math.min(screenH, math.ceil(h + phaseY) + 2)
+      rasterizeCustomMask = function(mask, state, w, h, phaseX, phaseY, depth, screenW, screenH)
+        local rasterW = math.ceil(w + phaseX) + 2
+        local rasterH = math.ceil(h + phaseY) + 2
         local extraX = math.max(0, rasterW - w - phaseX)
         local extraY = math.max(0, rasterH - h - phaseY)
         local padLeft = math.min(1, extraX * 0.5)
@@ -728,24 +785,24 @@ return function(__lux_import)
         local originY = padTop + phaseY
         local padRight = math.min(1, math.max(0, rasterW - originX - w))
         local padBottom = math.min(1, math.max(0, rasterH - originY - h))
-        local target = ensureMaskTarget(depth)
+        local accumulator, scratch, targetW, targetH = ensureCoverageTargets(depth, rasterW, rasterH, screenW, screenH)
         local slot = maskSlots[depth]
         if slot == nil then
           slot = { maskRef = setmetatable({}, { __mode = "v" }) }
           maskSlots[depth] = slot
         end
         local revision = state.revision
-        if slot.maskRef[1] == mask and slot.revision == revision and slot.w == w and slot.h == h and slot.phaseX == phaseX and slot.phaseY == phaseY and slot.screenW == screenW and slot.screenH == screenH then
+        if slot.maskRef[1] == mask and slot.revision == revision and slot.w == w and slot.h == h and slot.phaseX == phaseX and slot.phaseY == phaseY and slot.target == accumulator and slot.targetW == targetW and slot.targetH == targetH then
           do
-            local __lux_tmp_maskCacheHits_10 = M.stats.maskCacheHits
-            if __lux_tmp_maskCacheHits_10 == nil then
-              __lux_tmp_maskCacheHits_10 = 0
+            local __lux_tmp_maskCacheHits_13 = M.stats.maskCacheHits
+            if __lux_tmp_maskCacheHits_13 == nil then
+              __lux_tmp_maskCacheHits_13 = 0
             end
-            M.stats.maskCacheHits = __lux_tmp_maskCacheHits_10 + 1
+            M.stats.maskCacheHits = __lux_tmp_maskCacheHits_13 + 1
           end
-          return target, originX / screenW, originY / screenH, (originX + w) / screenW, (originY + h) / screenH, originX, originY, padRight, padBottom
+          return accumulator, originX / targetW, originY / targetH, (originX + w) / targetW, (originY + h) / targetH, originX, originY, padRight, padBottom
         end
-        clearCoverageTarget(accumulator, rasterW, rasterH, screenW, screenH)
+        clearCoverageTarget(accumulator, targetW, targetH)
         local recorder = coverageRecorders[depth]
         if recorder == nil then
           recorder = setmetatable({}, Recorder)
@@ -758,8 +815,8 @@ return function(__lux_import)
         recorder.h = h
         recorder.rasterW = rasterW
         recorder.rasterH = rasterH
-        recorder.screenW = screenW
-        recorder.screenH = screenH
+        recorder.targetW = targetW
+        recorder.targetH = targetH
         recorder.accumulator = accumulator
         recorder.scratch = scratch
         recorder.padLeft = originX
@@ -781,37 +838,37 @@ return function(__lux_import)
         if not ok then
           error(message, 3)
         end
-        render.CopyTexture(accumulator, target)
         slot.maskRef[1] = mask
+        slot.target = accumulator
         slot.revision = revision
         slot.w = w
         slot.h = h
         slot.phaseX = phaseX
         slot.phaseY = phaseY
-        slot.screenW = screenW
-        slot.screenH = screenH
+        slot.targetW = targetW
+        slot.targetH = targetH
         do
-          local __lux_tmp_maskRasterizations_11 = M.stats.maskRasterizations
-          if __lux_tmp_maskRasterizations_11 == nil then
-            __lux_tmp_maskRasterizations_11 = 0
+          local __lux_tmp_maskRasterizations_14 = M.stats.maskRasterizations
+          if __lux_tmp_maskRasterizations_14 == nil then
+            __lux_tmp_maskRasterizations_14 = 0
           end
-          M.stats.maskRasterizations = __lux_tmp_maskRasterizations_11 + 1
+          M.stats.maskRasterizations = __lux_tmp_maskRasterizations_14 + 1
         end
-        return target, originX / screenW, originY / screenH, (originX + w) / screenW, (originY + h) / screenH, originX, originY, padRight, padBottom
+        return accumulator, originX / targetW, originY / targetH, (originX + w) / targetW, (originY + h) / targetH, originX, originY, padRight, padBottom
       end
       finiteNumber = function(value, label, defaultValue)
         if value == nil and defaultValue ~= nil then
           return defaultValue
         end
-        local __lux_tmp_14 = typeOf(value) ~= "number" or value ~= value or value == math.huge or value == -math.huge
-        if not __lux_tmp_14 then
-          local __lux_cmp_13 = false
+        local __lux_tmp_17 = typeOf(value) ~= "number" or value ~= value or value == math.huge or value == -math.huge
+        if not __lux_tmp_17 then
+          local __lux_cmp_16 = false
           if math.abs(value) ~= nil then
-            __lux_cmp_13 = math.abs(value) > maxClipValue
+            __lux_cmp_16 = math.abs(value) > maxClipValue
           end
-          __lux_tmp_14 = __lux_cmp_13
+          __lux_tmp_17 = __lux_cmp_16
         end
-        if __lux_tmp_14 then
+        if __lux_tmp_17 then
           error("MGFX Clip requires a finite " .. label, 3)
         end
         return value
@@ -840,42 +897,42 @@ return function(__lux_import)
         if typeOf(cuts) ~= "table" then
           return math.min(math.max(0, finiteNumber(cuts, "Mask cuts", 0) * scale), limit)
         end
-        local __lux_tmp_tl_15 = cuts.tl
-        if __lux_tmp_tl_15 == nil then
-          __lux_tmp_tl_15 = cuts[1]
+        local __lux_tmp_tl_18 = cuts.tl
+        if __lux_tmp_tl_18 == nil then
+          __lux_tmp_tl_18 = cuts[1]
         end
-        local __lux_tmp_tr_16 = cuts.tr
-        if __lux_tmp_tr_16 == nil then
-          __lux_tmp_tr_16 = cuts[2]
+        local __lux_tmp_tr_19 = cuts.tr
+        if __lux_tmp_tr_19 == nil then
+          __lux_tmp_tr_19 = cuts[2]
         end
-        local __lux_tmp_br_17 = cuts.br
-        if __lux_tmp_br_17 == nil then
-          __lux_tmp_br_17 = cuts[3]
+        local __lux_tmp_br_20 = cuts.br
+        if __lux_tmp_br_20 == nil then
+          __lux_tmp_br_20 = cuts[3]
         end
-        local __lux_tmp_bl_18 = cuts.bl
-        if __lux_tmp_bl_18 == nil then
-          __lux_tmp_bl_18 = cuts[4]
+        local __lux_tmp_bl_21 = cuts.bl
+        if __lux_tmp_bl_21 == nil then
+          __lux_tmp_bl_21 = cuts[4]
         end
         return {
           tl = math.min(
-            math.max(0, finiteNumber(__lux_tmp_tl_15, "Mask top-left cut", 0) * scale),
+            math.max(0, finiteNumber(__lux_tmp_tl_18, "Mask top-left cut", 0) * scale),
             limit
           ),
           tr = math.min(
-            math.max(0, finiteNumber(__lux_tmp_tr_16, "Mask top-right cut", 0) * scale),
+            math.max(0, finiteNumber(__lux_tmp_tr_19, "Mask top-right cut", 0) * scale),
             limit
           ),
           br = math.min(
-            math.max(0, finiteNumber(__lux_tmp_br_17, "Mask bottom-right cut", 0) * scale),
+            math.max(0, finiteNumber(__lux_tmp_br_20, "Mask bottom-right cut", 0) * scale),
             limit
           ),
           bl = math.min(
-            math.max(0, finiteNumber(__lux_tmp_bl_18, "Mask bottom-left cut", 0) * scale),
+            math.max(0, finiteNumber(__lux_tmp_bl_21, "Mask bottom-left cut", 0) * scale),
             limit
           ),
         }
       end
-      resolveMask = function(mask, w, h, phaseX, phaseY, depth, accumulator, scratch, screenW, screenH)
+      resolveMask = function(mask, w, h, phaseX, phaseY, depth, screenW, screenH)
         if typeOf(mask) ~= "table" then
           error("MGFX.Clip requires an MGFX Mask or preset", 3)
         end
@@ -884,31 +941,19 @@ return function(__lux_import)
           error("MGFX.Clip requires an MGFX Mask or preset", 3)
         end
         if state.type == "custom" then
-          local texture, u0, v0, u1, v1, bleedLeft, bleedTop, bleedRight, bleedBottom = rasterizeCustomMask(
-            mask,
-            state,
-            w,
-            h,
-            phaseX,
-            phaseY,
-            depth,
-            accumulator,
-            scratch,
-            screenW,
-            screenH
-          )
+          local texture, u0, v0, u1, v1, bleedLeft, bleedTop, bleedRight, bleedBottom = rasterizeCustomMask(mask, state, w, h, phaseX, phaseY, depth, screenW, screenH)
           return 10, 0, u0, v0, u1, v1, texture, bleedLeft, bleedTop, bleedRight, bleedBottom
         end
         local values = state.values
-        local __lux_match_19 = state.kind
-        if __lux_match_19 == "rounded" then
+        local __lux_match_22 = state.kind
+        if __lux_match_22 == "rounded" then
           return 0, relativeValue(values.radius, values.units, w, h), 0, 0, 0, 0, nil, 1, 1, 1, 1
-        elseif __lux_match_19 == "chamfer" then
+        elseif __lux_match_22 == "chamfer" then
           local p0, p1, p2, p3 = chamferTuple(relativeCuts(values.cuts, values.units, w, h), w, h)
           return 1, 0, p0, p1, p2, p3, nil, 1, 1, 1, 1
-        elseif __lux_match_19 == "circle" then
+        elseif __lux_match_22 == "circle" then
           return 2, 0, 0, 0, 0, 0, nil, 1, 1, 1, 1
-        elseif __lux_match_19 == "capsule" then
+        elseif __lux_match_22 == "capsule" then
           return 3, 0, 0, 0, 0, 0, nil, 1, 1, 1, 1
         else
           return error("MGFX.Clip received an unsupported Mask preset", 3)
@@ -1066,7 +1111,7 @@ return function(__lux_import)
             local sy = finiteNumber(frameY + y, "screen y")
             local phaseX = sx - math.floor(sx)
             local phaseY = sy - math.floor(sy)
-            local kind, radius, p0, p1, p2, p3, maskTexture, bleedLeft, bleedTop, bleedRight, bleedBottom = resolveMask(mask, w, h, phaseX, phaseY, depth, before, work, screenW, screenH)
+            local kind, radius, p0, p1, p2, p3, maskTexture, bleedLeft, bleedTop, bleedRight, bleedBottom = resolveMask(mask, w, h, phaseX, phaseY, depth, screenW, screenH)
             record.localX = x
             record.localY = y
             record.w = w
@@ -1115,18 +1160,18 @@ return function(__lux_import)
         end
         shapeClipStack[depth] = record
         do
-          local __lux_tmp_shapeClipCaptures_20 = M.stats.shapeClipCaptures
-          if __lux_tmp_shapeClipCaptures_20 == nil then
-            __lux_tmp_shapeClipCaptures_20 = 0
+          local __lux_tmp_shapeClipCaptures_23 = M.stats.shapeClipCaptures
+          if __lux_tmp_shapeClipCaptures_23 == nil then
+            __lux_tmp_shapeClipCaptures_23 = 0
           end
-          M.stats.shapeClipCaptures = __lux_tmp_shapeClipCaptures_20 + 1
+          M.stats.shapeClipCaptures = __lux_tmp_shapeClipCaptures_23 + 1
         end
         do
-          local __lux_tmp_shapeClipDepthMax_21 = M.stats.shapeClipDepthMax
-          if __lux_tmp_shapeClipDepthMax_21 == nil then
-            __lux_tmp_shapeClipDepthMax_21 = 0
+          local __lux_tmp_shapeClipDepthMax_24 = M.stats.shapeClipDepthMax
+          if __lux_tmp_shapeClipDepthMax_24 == nil then
+            __lux_tmp_shapeClipDepthMax_24 = 0
           end
-          M.stats.shapeClipDepthMax = math.max(__lux_tmp_shapeClipDepthMax_21, depth)
+          M.stats.shapeClipDepthMax = math.max(__lux_tmp_shapeClipDepthMax_24, depth)
         end
       end
       popMaskClip = function()
@@ -1159,11 +1204,11 @@ return function(__lux_import)
         end
         retireRecord(depth, record)
         do
-          local __lux_tmp_shapeClipComposites_22 = M.stats.shapeClipComposites
-          if __lux_tmp_shapeClipComposites_22 == nil then
-            __lux_tmp_shapeClipComposites_22 = 0
+          local __lux_tmp_shapeClipComposites_25 = M.stats.shapeClipComposites
+          if __lux_tmp_shapeClipComposites_25 == nil then
+            __lux_tmp_shapeClipComposites_25 = 0
           end
-          M.stats.shapeClipComposites = __lux_tmp_shapeClipComposites_22 + 1
+          M.stats.shapeClipComposites = __lux_tmp_shapeClipComposites_25 + 1
         end
       end
       M.Clip = function(mask, x, y, w, h, callback)
@@ -1362,14 +1407,14 @@ return function(__lux_import)
         end
         local background
         do
-          local __lux_table_23 = {}
-          local __lux_spread_24 = drawStyle
-          if __lux_spread_24 ~= nil then
-            for __lux_k_25, __lux_v_26 in pairs(__lux_spread_24) do
-              __lux_table_23[__lux_k_25] = __lux_v_26
+          local __lux_table_26 = {}
+          local __lux_spread_27 = drawStyle
+          if __lux_spread_27 ~= nil then
+            for __lux_k_28, __lux_v_29 in pairs(__lux_spread_27) do
+              __lux_table_26[__lux_k_28] = __lux_v_29
             end
           end
-          background = __lux_table_23
+          background = __lux_table_26
         end
         background.stroke = nil
         background.strokeWidth = nil
@@ -1387,19 +1432,19 @@ return function(__lux_import)
         if w <= 0 or h <= 0 then
           error("MGFX self clipping requires positive width and height", 3)
         end
-        local __lux_cmp_29 = false
+        local __lux_cmp_32 = false
         if finiteNumber(ScrW(), "screen width") ~= nil then
-          __lux_cmp_29 = w > finiteNumber(ScrW(), "screen width")
+          __lux_cmp_32 = w > finiteNumber(ScrW(), "screen width")
         end
-        local __lux_tmp_31 = __lux_cmp_29
-        if not __lux_tmp_31 then
-          local __lux_cmp_30 = false
+        local __lux_tmp_34 = __lux_cmp_32
+        if not __lux_tmp_34 then
+          local __lux_cmp_33 = false
           if finiteNumber(ScrH(), "screen height") ~= nil then
-            __lux_cmp_30 = h > finiteNumber(ScrH(), "screen height")
+            __lux_cmp_33 = h > finiteNumber(ScrH(), "screen height")
           end
-          __lux_tmp_31 = __lux_cmp_30
+          __lux_tmp_34 = __lux_cmp_33
         end
-        if __lux_tmp_31 then
+        if __lux_tmp_34 then
           error("MGFX self-clip bounds cannot exceed the framebuffer dimensions", 3)
         end
         return x, y, w, h
@@ -1516,16 +1561,16 @@ return function(__lux_import)
         x, y, w, h = checkedSelfClipBounds(x, y, w, h)
         local cuts
         do
-          local __lux_tmp_32
+          local __lux_tmp_35
           if typeOf(drawStyle) == "table" then
-            __lux_tmp_32 = drawStyle.cuts
-            if __lux_tmp_32 == nil then
-              __lux_tmp_32 = 0
+            __lux_tmp_35 = drawStyle.cuts
+            if __lux_tmp_35 == nil then
+              __lux_tmp_35 = 0
             end
           else
-            __lux_tmp_32 = 0
+            __lux_tmp_35 = 0
           end
-          cuts = relativeCuts(__lux_tmp_32, "local", w, h)
+          cuts = relativeCuts(__lux_tmp_35, "local", w, h)
         end
         local values = maskState[selfChamferPreset].values
         values.cuts = cuts

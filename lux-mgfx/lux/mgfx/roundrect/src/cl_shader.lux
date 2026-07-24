@@ -246,7 +246,7 @@ fn setupRoundRectConstants(material, w, h, fill, stroke, strokeWidth, radius) {
 
 fn drawRoundRectBaseQuad(x, y, w, h, material, strokeWidth = 0) {
   local pad = mathCeil(mathMax(0, toNumber(strokeWidth) ?? 0) * 0.5 + 1)
-  if pad <= 1 or w <= 0 or h <= 0 {
+  if (pad <= 1 and not frameState.coverage) or w <= 0 or h <= 0 {
     drawTexturedQuad(x, y, w, h, material)
     return
   }
@@ -366,7 +366,15 @@ fn drawSolidRoundFast(x, y, w, h, radiusValue, fill) {
     roundRectProfileEnd("round.fast.solidRound.setup", setupProfile)
   }
   local drawProfile = profiling then roundRectProfileStart() else nil
-  drawTexturedQuad(x, y, w, h, material)
+  if frameState.coverage {
+    drawTexturedQuadUV(
+      x - 1, y - 1, w + 2, h + 2,
+      -1 / w, -1 / h, 1 + 1 / w, 1 + 1 / h,
+      material
+    )
+  } else {
+    drawTexturedQuad(x, y, w, h, material)
+  }
   if profiling {
     roundRectProfileEnd("round.fast.solidRound.draw", drawProfile)
   }

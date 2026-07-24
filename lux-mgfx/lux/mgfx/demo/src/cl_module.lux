@@ -145,13 +145,10 @@ fn text(value, font, x, y, color, ax = nil, ay = nil) {
 fn demoIcon() {
   if iconMaterial ~= nil { return iconMaterial }
 
-  iconMaterial = makeMaterial("color/white", "smooth noclamp")
-  if iconMaterial and not iconMaterial:IsError() { return iconMaterial }
-
   for _, path in ipairs({
-    "icon16/user.png",
-    "icon16/star.png",
-    "gui/silkicons/user",
+    "console/background01_widescreen",
+    "console/background01",
+    "gui/dupe_bg",
   }) {
     local mat = makeMaterial(path, "smooth noclamp")
     if mat and not mat:IsError() {
@@ -215,7 +212,7 @@ fn BUTTON:Paint(w, h) {
 local PANEL = {}
 
 fn PANEL:Init() {
-  self:SetSize(mathMin(ScrW() * 0.9, 1160), mathMin(ScrH() * 0.82, 720))
+  self:SetSize(mathMin(ScrW() * 0.94, 1400), mathMin(ScrH() * 0.88, 840))
   self:Center()
   self:MakePopup()
   self:SetKeyboardInputEnabled(false)
@@ -742,68 +739,60 @@ fn PANEL:Paint(w, h) {
 
         x, y, cw, ch = card(4, "Masks & Clip", "image masks / custom coverage", COLORS.gold)
         if mat {
-          local size = mathMin(48, cw * 0.24)
-          local leftX = x + 28
-          local rightX = x + cw - 28 - size
-          local topY = y + 46
-          local bottomY = y + 96
+          local sampleGap = 8
+          local size = mathMin(58, (cw - 36 - sampleGap * 3) / 4)
+          local sampleW = size * 4 + sampleGap * 3
+          local sampleX = x + (cw - sampleW) * 0.5
+          local sampleY = y + 52
+          local roundedX = sampleX
+          local circleX = sampleX + size + sampleGap
+          local chamferX = sampleX + (size + sampleGap) * 2
+          local customX = sampleX + (size + sampleGap) * 3
 
-          api.ImageEx(leftX, topY, size, size, mat, {
+          api.ImageEx(roundedX, sampleY, size, size, mat, {
             mask = {kind = "rounded", radius = 11},
             fit = "cover",
-            tint = makeColor(42, 150, 255, 238),
+            tint = color_white,
             stroke = makeColor(255, 255, 255, 46),
             strokeWidth = 1,
-            fill = makeColor(4, 18, 26, 220),
+            fill = makeColor(7, 18, 24, 240),
           })
-          api.ImageEx(rightX, topY, size, size, mat, {
+          api.ImageEx(circleX, sampleY, size, size, mat, {
             mask = {kind = "circle"},
             fit = "cover",
-            tint = makeColor(72, 224, 170, 238),
-            stroke = makeColor(70, 210, 255, 88),
+            tint = color_white,
+            stroke = makeColor(255, 255, 255, 62),
             strokeWidth = 1,
-            fill = makeColor(4, 18, 26, 220),
+            fill = makeColor(7, 18, 24, 240),
           })
-          api.ImageEx(leftX, bottomY, size, size, mat, {
+          api.ImageEx(chamferX, sampleY, size, size, mat, {
             mask = {kind = "chamfer", cuts = {tl = 14, tr = 3, br = 14, bl = 3}},
             fit = "cover",
-            tint = makeColor(255, 190, 66, 235),
-            stroke = makeColor(255, 190, 66, 90),
+            tint = color_white,
+            stroke = makeColor(255, 255, 255, 62),
             strokeWidth = 1,
-            fill = makeColor(24, 14, 8, 220),
+            fill = makeColor(7, 18, 24, 240),
           })
           if loaded and not fallback and api.Clip ~= nil {
-            api.Clip(customMaskDemo, rightX, bottomY, size, size, () => {
-              api.RoundedBoxEx(rightX - 6, bottomY - 6, size + 12, size + 12, {
-                radius = 0,
-                fill = api.LinearGradient(0, 0, 1, 1, makeColor(255, 82, 96, 248), makeColor(46, 202, 255, 248)),
+            api.Clip(customMaskDemo, customX, sampleY, size, size, () => {
+              api.ImageEx(customX - 6, sampleY - 6, size + 12, size + 12, mat, {
+                fit = "cover",
+                tint = color_white,
               })
-              api.RoundedBoxEx(rightX - 4, bottomY - 4, size * 0.52, size + 8, {
-                radius = 0,
-                fill = makeColor(255, 194, 70, 164),
-              })
-              api.LineEx(rightX - 8, bottomY + size, rightX + size, bottomY - 8, {
-                width = 3,
-                fill = makeColor(255, 255, 255, 224),
-              })
-              api.LineEx(rightX, bottomY - 8, rightX + size + 8, bottomY + size, {
-                width = 2,
-                fill = makeColor(6, 18, 26, 180),
-              })
-              api.TextEx("AA", "MGFXDemoTiny", rightX + size * 0.5, bottomY + size * 0.5, makeColor(4, 12, 18, 245), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
             })
           } else {
-            api.ImageEx(rightX, bottomY, size, size, mat, {
+            api.ImageEx(customX, sampleY, size, size, mat, {
               mask = {kind = "rounded", radius = 12},
               fit = "cover",
               tint = makeColor(255, 112, 92, 238),
             })
           }
 
-          addText("rounded", "MGFXDemoTiny", leftX + size * 0.5, topY + size + 4, COLORS.muted, TEXT_ALIGN_CENTER)
-          addText("circle", "MGFXDemoTiny", rightX + size * 0.5, topY + size + 4, COLORS.muted, TEXT_ALIGN_CENTER)
-          addText("chamfer", "MGFXDemoTiny", leftX + size * 0.5, bottomY + size + 4, COLORS.muted, TEXT_ALIGN_CENTER)
-          addText("Custom Mask", "MGFXDemoTiny", rightX + size * 0.5, bottomY + size + 4, COLORS.muted, TEXT_ALIGN_CENTER)
+          local labelY = sampleY + size + 7
+          addText("rounded", "MGFXDemoTiny", roundedX + size * 0.5, labelY, COLORS.muted, TEXT_ALIGN_CENTER)
+          addText("circle", "MGFXDemoTiny", circleX + size * 0.5, labelY, COLORS.muted, TEXT_ALIGN_CENTER)
+          addText("chamfer", "MGFXDemoTiny", chamferX + size * 0.5, labelY, COLORS.muted, TEXT_ALIGN_CENTER)
+          addText("custom", "MGFXDemoTiny", customX + size * 0.5, labelY, COLORS.muted, TEXT_ALIGN_CENTER)
         }
 
         x, y, cw, ch = card(5, "Segment Bar", "SegmentBarEx: scoreboard threat", COLORS.red)

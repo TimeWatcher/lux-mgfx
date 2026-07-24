@@ -48,7 +48,7 @@ end)
 badgeMask:Clip(x, y, 120, 72, drawContents)
 ```
 
-The painter uses local coordinates `[0, w] x [0, h]`; the content callback keeps the normal current-frame coordinates. A Mask has no public pixel size. MGFX rasterizes custom coverage at the effective device extent. It preserves up to one transparent pixel on each side for antialiasing and reduces that padding at framebuffer edges, so a full-screen custom Mask is valid.
+The painter uses local coordinates `[0, w] x [0, h]`; the content callback keeps the normal current-frame coordinates. A Mask has no public pixel size. MGFX rasterizes custom coverage at the effective device extent and preserves transparent padding plus a right/bottom guard texel for antialiasing, so a full-screen custom Mask is valid.
 
 The raster cache key includes the Mask content revision, destination size, framebuffer/device size, and fractional screen-pixel phase. Whole-pixel translation reuses the same raster; subpixel translation may not. MGFX transforms are rejected because the current backend supports axis-aligned frame mapping only. Caller-owned `cam.PushModelMatrix` state is not observable and is likewise outside the Clip contract.
 
@@ -85,9 +85,9 @@ end)
 
 Clip is callback-only so MGFX can always close the render-target transaction, even when the callback fails. It does not use stencil. Each active Clip captures the framebuffer before and after its body, then composites those snapshots with continuous shader coverage. The coarse rectangular scissor limits work but never defines the visible edge.
 
-One Clip performs two framebuffer copies plus one bounded composite draw. Custom Mask coverage is rasterized only on a cache miss; analytical presets do not need a coverage RT. Coverage clears and Boolean-combine draws are scissored to the effective raster extent. Nesting is capped at four levels; `BeginCommands` and nested Clip scopes inside a Mask painter are rejected.
+One Clip performs two framebuffer copies plus one bounded composite draw. Custom Mask coverage is rasterized only on a cache miss; analytical presets do not need a coverage RT. A cache miss composes directly into a bucketed local accumulator/scratch pair and retains the accumulator as the cached texture, so it neither clears a full-frame coverage target nor copies an accumulator into a separate mask RT. Nesting is capped at four levels; `BeginCommands` and nested Clip scopes inside a Mask painter are rejected.
 
-Each reached depth keeps two full-frame `BGRA8888` snapshot RTs; the third coverage RT is allocated lazily only after a custom Mask is used at that depth. This is about 15.82 MiB per analytical depth or 23.73 MiB per custom depth at 1920x1080, and 63.28/94.92 MiB at 3840x2160.
+Each reached depth keeps two full-frame `BGRA8888` snapshot RTs: about 15.82 MiB at 1920x1080 or 63.28 MiB at 3840x2160. Custom Masks additionally allocate two local `BGRA8888` coverage RTs per encountered size bucket at that depth. Buckets start at 32 pixels, grow by powers of two, and are capped just beyond the framebuffer extent; their memory and clear/combine bandwidth therefore scale with the Mask bounds instead of the full screen.
 
 All MGFX-owned render-target, 2D camera, matrix, scissor, blend, alpha-write, modulation, blend-factor, and surface-alpha changes use protected cleanup paths. GMod does not expose getters for existing `OverrideBlend` or `OverrideAlphaWriteEnable` descriptors, so `Clip` must not be entered inside a caller-owned override scope; MGFX cannot reconstruct state the engine does not expose.
 

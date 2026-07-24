@@ -5,6 +5,7 @@ import * as styleImport from "@lux/mgfx/style"
 local frame = frameImport
 local geometry = geometryImport
 local style = styleImport
+local frameState = frame.current()
 
 local drawRoundedBox = _G.draw.RoundedBox
 local getConVar = GetConVar

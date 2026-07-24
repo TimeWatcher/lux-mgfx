@@ -3,6 +3,7 @@ return function(__lux_import)
   local frame
   local geometry
   local style
+  local frameState
   local drawRoundedBox
   local getConVar
   local matrixCtor
@@ -145,6 +146,7 @@ return function(__lux_import)
     frame = frameImport
     geometry = geometryImport
     style = styleImport
+    frameState = frame.current()
     drawRoundedBox = _G.draw.RoundedBox
     getConVar = GetConVar
     matrixCtor = Matrix
@@ -2093,7 +2095,7 @@ return function(__lux_import)
         end
         pad = mathCeil(mathMax(0, __lux_tmp_strokeWidth_150) * 0.5 + 1)
       end
-      if pad <= 1 or w <= 0 or h <= 0 then
+      if pad <= 1 and not frameState.coverage or w <= 0 or h <= 0 then
         drawTexturedQuad(x, y, w, h, material)
         return
       end
@@ -2447,7 +2449,21 @@ return function(__lux_import)
       else
         drawProfile = nil
       end
-      drawTexturedQuad(x, y, w, h, material)
+      if frameState.coverage then
+        drawTexturedQuadUV(
+          x - 1,
+          y - 1,
+          w + 2,
+          h + 2,
+          -1 / w,
+          -1 / h,
+          1 + 1 / w,
+          1 + 1 / h,
+          material
+        )
+      else
+        drawTexturedQuad(x, y, w, h, material)
+      end
       if profiling then
         roundRectProfileEnd("round.fast.solidRound.draw", drawProfile)
       end
