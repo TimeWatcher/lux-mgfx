@@ -1,88 +1,219 @@
 # MGFX
 
-**Source-available, shader-backed immediate rendering for Garry's Mod UI.**
+<p align="center">
+  <strong>Shader-backed immediate rendering for modern Garry's Mod interfaces.</strong>
+</p>
 
-![MGFX overview](lux-mgfx/images/hero.png)
+<p align="center">
+  Smooth analytical shapes · rich gradients · procedural materials · text effects<br>
+  antialiased coverage clipping · shared backdrop blur · Plain GLua + Lux
+</p>
 
-This repository now carries two maintained MGFX implementations:
+<p align="center">
+  <a href="https://timewatcher.github.io/mgfx-docs-site/"><img alt="Documentation" src="https://img.shields.io/badge/docs-online-5eead4?style=flat-square"></a>
+  <img alt="Garry's Mod" src="https://img.shields.io/badge/Garry's%20Mod-client-49a9e8?style=flat-square">
+  <img alt="Implementations" src="https://img.shields.io/badge/runtime-GLua%20%2B%20Lux-8b5cf6?style=flat-square">
+  <img alt="Rendering" src="https://img.shields.io/badge/rendering-shader%20%2B%20fallback-f59e0b?style=flat-square">
+  <a href="LICENSE-MGFX-NC"><img alt="License" src="https://img.shields.io/badge/license-non--commercial-ef4444?style=flat-square"></a>
+</p>
 
-- `lua-mgfx/` is the plain GLua addon. This is the source to copy or package for non-Lux Garry's Mod projects.
-- `lux-mgfx/` is the Lux package project. It contains the Lux source tree, shader tooling, and the legacy generated loader output.
-- `docs/` is the shared documentation source for both implementations.
+MGFX helps build polished HUDs, scoreboards, shops, inventories, status panels,
+radial menus, and other game interfaces without turning every visual effect
+into a pile of temporary geometry and Lua-side bookkeeping.
 
-MGFX is a renderer, not a UI framework. It provides immediate draw calls for rounded shapes, chamfers, polygons, rings, progress widgets, images, text effects, gradients, masks, glow layers, backdrop effects, and shader-backed polish. Layout, input, focus, animation state, and panel lifecycle stay in caller code.
+> **MGFX is a renderer, not a UI framework.** It owns drawing, effects,
+> clipping, and shader/fallback routing. Your code still owns layout, input,
+> focus, animation state, hit testing, component lifecycle, and panel behavior.
 
-## Install
+**[Read the docs](https://timewatcher.github.io/mgfx-docs-site/)** ·
+**[Plain GLua quick start](docs/guide/glua.md)** ·
+**[Lux quick start](docs/guide/lux.md)** ·
+**[API reference](docs/api-reference/index.md)**
 
-For a plain Lua addon, use `lua-mgfx/` as the addon root:
+---
 
-```text
-garrysmod/addons/mgfx/
-  lua/
-  materials/
-  resource/
-  addon.json
-```
+## ✨ Why MGFX?
 
-Garry's Mod loads the autorun files automatically and exposes `MGFX.*` on the client.
-`MGFX.api` points to the same table for code that wants the same facade shape as Lux.
+A modern Source UI often needs more than a flat `draw.RoundedBox`: gradients,
+soft shadows, worn materials, masked images, glowing headings, non-rectangular
+clipping, and blurred surfaces all have different rendering and state needs.
+MGFX gives those operations one consistent immediate API.
 
-For a Lux project, install the package set from the repository root:
+| Common hand-built approach | MGFX approach |
+| --- | --- |
+| High-segment Lua polygons for smooth shapes | Analytical/SDF shape coverage on focused shader paths |
+| Stacked boxes or generated textures for gradients | Multi-stop shader gradients with curves, high-precision LUTs, and dithering |
+| Repeating a complete shape for each shadow layer | Explicit layered shadows; the source body is drawn once |
+| Capturing and blurring the framebuffer per glass panel | Shared backdrop capture and separable blur per frame/level |
+| Binary stencil edges for a mixed-content shape clip | Continuous coverage composite with real antialiased edges |
+| Geometry recipes for stripes, smoke, and wear | Procedural pattern paint clipped inside the existing shape pass |
+| One expensive text route for every label | Native text by default; composed shader text only when effects need it |
 
-```powershell
-luxc install @lux/mgfx --from github:TimeWatcher/lux-mgfx --tag v0.1.0
-```
+This is not a promise that every effect costs one draw. Blur, framebuffer
+transactions, shadows, and glows still have real GPU costs. MGFX makes those
+costs explicit, reusable where possible, and diagnosable at runtime.
 
-Local checkout:
+### A short hot path
 
-```powershell
-luxc install @lux/mgfx --from C:\Development\gmod\lux-mgfx
-```
-
-The root `lux.package.toml` points to `lux-mgfx/lux/mgfx`, so existing Lux install commands can keep using the repository root.
-Lux code should use `@lux/mgfx` and its unified `mgfx.api` facade; the old paint-layer module is gone, and internal primitive/widget packages are not application entry points. The Lux facade initializes its default runtime automatically; `installGlobal("MGFX")` is only needed when you want to expose a global GLua-style table.
-
-## Effects
-
-`shadow`, `outerGlow`, and `backdrop` are separate effects:
-
-- `shadow` is an external soft pass for shader-backed shapes. It supports `x/y`, `offsetX/offsetY`, `dx/dy`, `offset = {x, y}`, `blur`, `spread`, `opacity`, `softness`, and color/tint. Shader paths now render shadow from the full solid shape mask, while `outerGlow` remains exterior-only.
-- `outerGlow` is an external glow pass. It supports the same offset aliases, but defaults to no offset.
-- `backdrop` samples and tints the background inside the current shape or image mask. It is not a shadow.
-
-Backdrop blur is shared per engine render frame. The first blurred backdrop
-captures the framebuffer and builds the completed two-pass full-screen blur;
-later shapes reuse it through a single masked texture sample. Use
-`backdrop = {blur = 6, recapture = true}` only when a later draw must include
-newly rendered framebuffer content or deliberately start a different blur
-intensity. That explicit recapture becomes the shared source for subsequent
-backdrops in the same frame.
-
-The API fields stay separate, but the renderer may fuse compatible `shadow` and `outerGlow` layers into one shader pass for rounded boxes, chamfers, rings, and image masks. That optimization preserves the CSS-like visual result while avoiding duplicate Lua setup and material parameter uploads.
-
-`RoundedBoxEx.shadow` also accepts CSS-style multiple layers:
+Simple drawing stays simple and immediate:
 
 ```lua
-shadow = {
-    {x = 0, y = 1, blur = 2, color = Color(0, 0, 0, 90)},
-    {x = 0, y = 8, blur = 24, color = Color(0, 0, 0, 80)},
-}
+MGFX.RoundedBox(40, 40, 320, 72, 10, Color(18, 25, 34, 235))
 ```
 
-Use this instead of stacking multiple full `RoundedBoxEx` calls just to create
-layered shadows. MGFX parses the layer list once at the API boundary, draws only
-the shadow passes for each layer, then draws fill/stroke/backdrop/innerGlow once.
+No style table, command object, intermediate target, or general end-of-frame
+scheduler is created for that call.
 
-`innerGlow` remains clipped inside the shape and does not use offset.
+### A richer surface
 
-## Material Patterns
-
-Patterns are shader paint slots for surfaces, not recipes for drawing extra
-geometry. Use `MGFX.WornPattern(...)` when a flat fill or simple gradient needs
-subtle material texture:
+Use an `Ex` style when the design needs named effects:
 
 ```lua
-pattern = MGFX.WornPattern({
+local cardStyle = MGFX.CompileStyle({
+    radius = 14,
+
+    fill = MGFX.LinearGradientStops(0, 0, 1, 1, {
+        {0.00, Color(25, 36, 47, 238)},
+        {0.55, Color(15, 25, 34, 232)},
+        {1.00, Color(8, 15, 22, 238)},
+    }, "smoothstep"),
+
+    stroke = {
+        color = Color(130, 255, 174, 72),
+        width = 2,
+        kind = "dash",
+        length = 12,
+        gap = 6,
+    },
+
+    shadow = {
+        x = 0,
+        y = 8,
+        blur = 22,
+        spread = 2,
+        color = Color(0, 0, 0, 135),
+    },
+
+    backdrop = {
+        blur = 10,
+        level = 0,
+        tint = Color(7, 15, 22, 110),
+    },
+
+    pattern = MGFX.WornPattern({
+        color = Color(0, 0, 0, 34),
+        edgeColor = Color(150, 255, 180, 45),
+        grain = 0.55,
+        fractal = 0.34,
+        scratches = 0.18,
+        edge = 0.38,
+        seed = "scoreboard-card",
+    }),
+})
+
+MGFX.RoundedBoxEx(40, 40, 420, 180, cardStyle)
+```
+
+---
+
+## 🧩 Two maintained implementations
+
+| Directory | Use it when | Public API |
+| --- | --- | --- |
+| [`lua-mgfx/`](lua-mgfx/) | Your addon or gamemode uses ordinary GLua | global `MGFX.*` |
+| [`lux-mgfx/`](lux-mgfx/) | Your project is compiled with Lux | `mgfx.api.*` |
+| [`docs/`](docs/) | You need shared behavior and API documentation | applies to both runtimes |
+
+The implementations share the same renderer model and are maintained in
+behavioral sync. Plain GLua is not generated from Lux; `lua-mgfx/` is the
+canonical ordinary-addon implementation.
+
+```lua
+-- Plain GLua
+MGFX.RoundedBoxEx(x, y, w, h, style)
+```
+
+```lux
+// Lux
+import * as mgfx from "@lux/mgfx"
+
+mgfx.api.roundedBoxEx(x, y, w, h, style)
+```
+
+---
+
+## 🎨 Feature map
+
+MGFX is substantially more than a rounded-box replacement.
+
+### Shapes, strokes, and HUD primitives
+
+- Rounded rectangles with scalar or independent corner radii
+- Chamfered rectangles with independent corner cuts
+- Circles, capsules, convex polygons, and regular polygons
+- Diamonds, directional carets, lines, and capless lines
+- Progress bars and segmented bars
+- Rings, arcs, and straight-edged sectors
+- Centered `solid`, `dot`, `dash`, and `dot-dash` strokes
+
+Patterned strokes use an isolated shader pass and retain a CPU fallback.
+Closed-shape periods are fitted to the perimeter so the returning pattern does
+not visibly disagree with its mathematical start phase.
+
+```lua
+MGFX.RoundedBoxEx(x, y, w, h, {
+    radius = 12,
+    fill = Color(18, 24, 32),
+    stroke = {
+        color = Color(90, 190, 255),
+        width = 3,
+        kind = "dot-dash",
+        length = 12,
+        gap = 6,
+        offset = 0,
+    },
+})
+```
+
+The legacy `stroke = Color(...)` plus `strokeWidth` form remains supported.
+
+### Gradients and light fields
+
+- Solid colors
+- Two-color and multi-stop linear gradients
+- Circular and elliptical radial gradients
+- Conic gradients
+- Shape-, ring-, and sector-local radial/angular gradients
+- Shader-native gradient curves: `linear`, `smoothstep`, `smootherstep`,
+  `ease-in`, `ease-out`, `ease-in-out`, `exponential`, `gaussian`, and
+  `inverse-square`
+
+Curves remap the existing shader coordinate before LUT sampling; they do not
+add a draw pass. Multi-stop gradients use a packed 16-bit RGBA LUT and stable
+screen-space dithering to reduce visible low-alpha banding.
+
+```lua
+local topLight = MGFX.EllipticalRadialGradient(0.5, -0.15, 0.72, 1.35, {
+    {0.00, Color(132, 255, 148, 224)},
+    {1.00, Color(18, 48, 30, 0)},
+}, nil, "exponential")
+```
+
+Centers may sit outside the primitive, which makes top-origin spotlights and
+wide non-circular light fields possible without a separate shader or pass.
+
+### Procedural material patterns
+
+Patterns are shader paint slots clipped to their shape—not recipes that emit
+dozens of extra boxes, lines, or polygons.
+
+- `StripePattern`
+- `SmokePattern`
+- `WornPattern`
+- Image and material paint sources
+
+```lua
+local worn = MGFX.WornPattern({
     color = Color(0, 0, 0, 44),
     edgeColor = Color(218, 208, 184, 78),
     fractal = 0.44,
@@ -100,38 +231,375 @@ pattern = MGFX.WornPattern({
 })
 ```
 
-The intended look is a dulled rough surface with sparse scuffs, short scratches,
-and broken edge wear. `grain` is the main roughness control, `fractal` adds soft
-irregular scuffs, `scratches` should stay sparse, and `edge` controls local
-edge damage. Full parameter guidance is in the
-[Paint Reference](docs/api-reference/paint.md#wornpattern).
+`WornPattern` is tuned for subdued roughness, sparse scuffs, short directional
+scratches, and broken edge wear—not as a generic smoke overlay.
 
-## Performance Status
+### Effects with distinct semantics
 
-The current hot path is optimized around direct immediate drawing, not a
-general batching scheduler. Public `NameEx(..., style)` calls still accept style
-tables, but renderer internals now flatten those records at the API boundary and
-pass prepared scalar/fill/effect parameters through the actual draw layers.
+| Effect | What it means |
+| --- | --- |
+| `shadow` | A projected soft pass derived from the full solid shape mask; supports offset, blur, spread, softness, opacity, and multiple layers. |
+| `outerGlow` | Exterior-only edge light; offset biases the glow without turning it into a projected shadow. |
+| `innerGlow` | Edge light clipped inside the source shape. |
+| `backdrop` | Samples and tints the framebuffer inside the current shape or image mask; it is not a shadow. |
 
-Recent in-game testing on a complex shop UI showed stable 130+ FPS with a full
-item list and 160+ FPS in lighter categories with diagnostics disabled.
+Compatible `shadow + outerGlow` work is fused for rounded boxes, chamfers,
+rings, and image masks while their style fields and visual semantics remain
+separate.
 
-## Documentation
+Layered shadows avoid redrawing the entire source shape for each layer:
 
-The documentation is shared by both implementations:
+```lua
+shadow = {
+    {x = 0, y = 1, blur = 2,  color = Color(0, 0, 0, 90)},
+    {x = 0, y = 8, blur = 24, color = Color(0, 0, 0, 80)},
+}
+```
 
-- [Online Documentation](https://timewatcher.github.io/mgfx-docs-site/)
-- [Plain GLua Quick Start](docs/guide/glua.md)
-- [Lux Quick Start](docs/guide/lux.md)
-- [Core Concepts](docs/guide/concepts.md)
-- [Coverage Masks And Antialiased Clip](docs/guide/masks-and-clip.md)
-- [API Reference](docs/api-reference/index.md)
-- [Performance Notes](docs/PERFORMANCE.md)
-- [Internal Architecture](docs/ARCHITECTURE.md)
-- [Text Renderer](docs/TEXT.md)
-- [Shader Build And Packaging](docs/SHADERS.md)
+Backdrop blur is shared by engine frame and integer `backdrop.level`. The first
+blurred backdrop at a level captures the framebuffer and runs the horizontal
+and vertical axes; matching later shapes reuse that prepared result. Use
+`recapture = true` only when a later draw must deliberately include newer
+framebuffer content at the same level.
 
-The docs website is built with VitePress from the repository root:
+### Images and icons
+
+- Materials, textures, render targets, texture names, and icons
+- `contain`, `cover`, `fill`, and `stretch` fit modes
+- UV and crop control
+- Rounded, chamfer, circle, capsule, and texture masks
+- Image-local shadow, glow, backdrop, stroke, and transforms
+- Allocation-light positional `ImageUV(...)`
+
+An image style mask belongs to one image draw. Reusable mixed-content clipping
+uses the separate coverage Mask API below.
+
+### 🔠 Text: native when cheap, composed when expressive
+
+Plain labels, player names, table rows, and changing counters stay on the
+native GMod text path by default. The composer route is used only when a style
+needs gradient fill, stroke, glow, shadow, weight, italic, or tracking.
+
+```lua
+MGFX.TextEx("OVERTIME", "DermaLarge", x, y, nil,
+    TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, {
+        fill = MGFX.LinearGradient(0, 0, 1, 0,
+            Color(255, 210, 90), Color(255, 80, 70)),
+        glow = {color = Color(255, 96, 78, 120), blur = 10},
+        shadow = {x = 0, y = 2, blur = 4, color = Color(0, 0, 0, 150)},
+    })
+```
+
+Useful APIs include `Text`, `TextEx`, `TextBoxEx`, `MeasureText`,
+`MeasureTextBox`, and `PrewarmText`. Prewarm predictable display strings, not
+ordinary native labels.
+
+### ✂️ Reusable antialiased coverage clipping
+
+MGFX deliberately separates two concepts:
+
+1. `ImageEx(..., {mask = ...})` masks one image draw.
+2. `MGFX.Mask(painter)` defines reusable coverage for `MGFX.Clip(...)`, which
+   can clip any mixture of MGFX shapes, images, text, and native drawing.
+
+```lua
+local badgeMask = MGFX.Mask(function(m, w, h)
+    local radius = math.min(w, h) * 0.48
+
+    m:Draw(function()
+        MGFX.Circle(w * 0.5, h * 0.5, radius, color_white)
+    end)
+
+    m:Subtract(function()
+        MGFX.Circle(w * 0.69, h * 0.31, radius * 0.38, color_white)
+    end)
+end)
+
+MGFX.Clip(badgeMask, x, y, 120, 72, function()
+    MGFX.Image(x - 16, y, 152, 72, material)
+    MGFX.Text("READY", "DermaLarge", x + 60, y + 36, color_white,
+        TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+end)
+```
+
+The recorder supports exact coverage operations:
+
+| Operation | Coverage formula |
+| --- | --- |
+| `Draw` / `Union` | `max(A, B)` |
+| `Subtract` | `A * (1 - B)` |
+| `Intersect` | `A * B` |
+| `Xor` | `A + B - 2AB` |
+| `Invert` | `1 - A` inside the current bounds |
+
+Built-in analytical presets include `Masks.Circle`, `Masks.Capsule`,
+`Masks.Rounded(...)`, and `Masks.Chamfer(...)`. Custom coverage is rasterized
+into local bucketed accumulator/scratch targets and cached. Integer translation
+normally reuses the raster; call `mask:Invalidate()` when painter inputs change.
+
+Supported shapes can also clip their own children without repeating a Mask:
+
+```lua
+MGFX.RoundedBoxEx(x, y, w, h, {
+    radius = 18,
+    fill = Color(8, 18, 24, 230),
+    stroke = Color(100, 220, 170, 180),
+    strokeWidth = 2,
+}, function(cx, cy, cw, ch)
+    MGFX.ImageEx(cx, cy, cw, ch, material, {fit = "cover"})
+end)
+```
+
+The container order is `background/effects → clipped children → foreground
+stroke`, so children cannot cover the inner half of a centered border.
+
+Coverage Clip is antialiased and does **not** use stencil or a binary fallback.
+It is a framebuffer transaction, so use the cheaper rectangular scissor stack
+for ordinary scrolling regions. See the [complete Mask and Clip reference](docs/api-reference/masks-and-clip.md)
+for cache, nesting, return-value, and state guarantees.
+
+### Visual transforms
+
+MGFX can rotate, scale, translate, tilt, and project drawing without taking
+ownership of layout or input mapping.
+
+```lua
+local lift = MGFX.Transform({
+    origin = "50% 50%",
+    rotate = 4,
+    scale = 1.02,
+    translate = {x = 0, y = -2},
+})
+
+MGFX.RoundedBoxEx(x, y, w, h, {
+    radius = 12,
+    fill = Color(12, 20, 28, 220),
+    transform = lift,
+})
+```
+
+Use `PushTransform` / `PopTransform` to apply one transform to multiple draws.
+`PointerTilt` and `ProjectedQuad` cover common 2.5D presentation cases.
+Transforms are visual only; callers remain responsible for matching hit tests
+and interaction coordinates.
+
+---
+
+## ⚡ Performance model
+
+MGFX optimizes immediate rendering rather than hiding all work behind a large
+general batching scheduler. Garry's Mod UI time is often lost to temporary
+tables, repeated normalization, material parameter churn, and unnecessary
+Source API calls—not draw count alone.
+
+### What the hot path does
+
+- Keeps common shape calls direct and immediate
+- Parses public style tables once at the API boundary
+- Passes prepared scalar/fill/stroke/effect values through internal layers
+- Uploads hot parameters through shared matrix pages instead of many floats
+- Reuses Matrix objects and material state
+- Pools temporary frame, command, and rectangular-clip records
+- Fuses only effect combinations that remain visually equivalent
+- Caches pattern seeds, text measurements, glyph runs, and reusable coverage
+- Offers allocation-light `RoundedBoxBackdrop`, `LineNoCaps`, and `ImageUV`
+- Keeps readable CPU fallback routes where fidelity can degrade safely
+
+Stable styles can be normalized once:
+
+```lua
+local style = MGFX.CompileStyle({
+    radius = 12,
+    fill = Color(15, 22, 30, 235),
+    backdrop = {blur = 8, tint = Color(5, 12, 18, 100)},
+})
+```
+
+### Shared backdrop comparison
+
+For `N` blurred backdrop shapes at one level with no forced recapture:
+
+```text
+MGFX:       1 framebuffer capture + 2 separable blur passes + N masked samples
+Naive path: N framebuffer captures + 2N blur passes + N masked samples
+```
+
+This reuse is level- and frame-specific; it does not make blur free.
+
+### Measured baseline
+
+A representative complex shop UI with many rounded surfaces, gradients,
+strokes, shadows, glows, images, and text rows recently held:
+
+```text
+Full item list       stable 130+ FPS
+Lighter categories   stable 160+ FPS
+```
+
+These are local in-game observations, not universal guarantees. A useful
+benchmark should also report resolution, GPU/CPU, FPS cap/VSync, other HUD and
+addon workload, median frame time, tail frame times, and enabled diagnostics.
+Disable profiling and draw counters before measuring normal production cost.
+
+See [Performance Notes](docs/PERFORMANCE.md) for the practical checklist and
+current architecture.
+
+---
+
+## 📦 Installation
+
+### Plain GLua addon
+
+Use [`lua-mgfx/`](lua-mgfx/) as the addon root:
+
+```text
+garrysmod/
+└── addons/
+    └── mgfx/
+        ├── lua/
+        ├── materials/
+        ├── resource/
+        └── addon.json
+```
+
+Garry's Mod loads the autorun files automatically and exposes `MGFX.*` on the
+client. Do not manually include internal files from `lua/mgfx`.
+
+### Lux package
+
+Install the public package from the repository root:
+
+```powershell
+luxc install @lux/mgfx --from github:TimeWatcher/lux-mgfx --tag v0.1.0
+```
+
+Or use a local checkout:
+
+```powershell
+luxc install @lux/mgfx --from C:\Development\gmod\lux-mgfx
+```
+
+```lux
+import * as mgfx from "@lux/mgfx"
+
+local draw = mgfx.api
+draw.roundedBox(...)
+draw.roundedBoxEx(...)
+draw.imageEx(...)
+draw.textEx(...)
+```
+
+The facade initializes its default runtime automatically. Only call
+`mgfx.installGlobal("MGFX")` when non-Lux code intentionally needs the global
+GLua-style table. Application code should not import primitive, widget, text,
+or style internals as separate rendering entry points.
+
+---
+
+## 🚀 Quick start
+
+```lua
+function PANEL:Paint(w, h)
+    MGFX.StartPanel(self, w, h)
+
+    MGFX.RoundedBoxEx(0, 0, w, h, {
+        radius = 10,
+        fill = MGFX.LinearGradient(0, 0, 1, 1,
+            Color(18, 28, 38, 235),
+            Color(8, 14, 22, 240),
+            "smoothstep"),
+        shadow = {
+            x = 0,
+            y = 6,
+            blur = 14,
+            color = Color(0, 0, 0, 110),
+        },
+    })
+
+    MGFX.ProgressBarEx(16, h - 24, w - 32, 8, 0.72, {
+        radius = 4,
+        track = Color(255, 255, 255, 18),
+        fill = MGFX.LinearGradient(0, 0, 1, 0,
+            Color(72, 220, 138),
+            Color(120, 255, 186)),
+    })
+
+    MGFX.Text("READY", "DermaDefaultBold", 16, 18, color_white,
+        TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+
+    MGFX.EndPanel()
+end
+```
+
+`StartPanel` makes coordinates panel-local. Use `StartScreen` / `EndScreen`
+for `HUDPaint` and screen-space overlays. Direct primitive calls remain valid
+when coordinated frame state is not needed.
+
+---
+
+## 🧪 Runtime tools
+
+Useful client commands:
+
+| Command | Purpose |
+| --- | --- |
+| `mgfx_status` | Shader mount, draw, blur, Clip, gradient, text, and material status |
+| `mgfx_selftest` | Validate the installed public API and runtime invariants |
+| `mgfx_reload` / `mgfx_hot_reload` | Reload MGFX development files |
+| `mgfx_demo` | Open the main visual feature demo |
+| `mgfx_stroke_demo` | Compare solid and patterned stroke variants |
+| `mgfx_perf_demo` | Open the controlled renderer workload demo |
+| `mgfx_wheel_demo` | Open the radial wheel demo |
+| `mgfx_profile_status` | Print rolling profiler totals |
+| `mgfx_profile_panels` | Inspect panel/screen scope costs |
+| `mgfx_profile_hud` | Toggle the profiling overlay |
+| `mgfx_profile_reset` | Reset profiler samples |
+| `mgfx_text_status` | Inspect text composer/cache state |
+| `mgfx_text_cache_clear` | Clear text measurement/cache state |
+| `mgfx_text_atlas` | Inspect composed text atlas contents |
+
+Useful client CVars:
+
+```text
+mgfx_force_fallback 0/1
+mgfx_profile 0/1
+mgfx_profile_window 120
+mgfx_profile_top 18
+mgfx_draw_counts 0/1
+mgfx_text_composed 0/1
+mgfx_text_composed_budget 6
+```
+
+Profiling and draw counters are opt-in because observation has a cost.
+
+---
+
+## 🛡️ Shader and fallback routing
+
+Shader rendering is the normal path. Capability detection and readable CPU
+fallbacks keep basic interfaces usable when shaders are missing, disabled, or
+unsupported on a platform.
+
+```lua
+PrintTable(MGFX.ShaderStatus())
+
+if MGFX.Supports(MGFX.TARGET.TEXT, "gradient") then
+    -- Use composed display text.
+end
+```
+
+Fallbacks may simplify procedural patterns, exact blur softness, glow, or text
+composition. APIs that cannot degrade without violating their contract fail
+explicitly instead: reusable coverage `Clip`, for example, has no stencil or
+binary-edge fallback.
+
+---
+
+## 🛠️ Development and packaging
+
+### Documentation site
+
+The shared source lives in [`docs/`](docs/):
 
 ```powershell
 npm install
@@ -139,110 +607,52 @@ npm run docs:dev
 npm run docs:build
 ```
 
-The generated site is written to `docs-site/`.
+The local VitePress output is written to `docs-site/`. The public Pages site is
+published from the separate `mgfx-docs-site` repository.
 
-## Changelog
+### Shader build
 
-### 2026-07-24
+MGFX embeds compiled Source `.vcs` shaders in a Lua/Lux shaderpack that the
+runtime mounts as a temporary GMA.
 
-#### Coverage Masks And Antialiased Clip
+From the repository root:
 
-- Replaced the shape-spec `ShapeClip` experiment with the simpler `MGFX.Mask(painter)` + `MGFX.Clip(mask, bounds, callback)` model. A restricted recorder composes vector coverage through exact `Union`, `Subtract`, `Intersect`, `Xor`, and bounds-local `Invert` operations; reusable circle, capsule, rounded, and chamfer presets implement the same Mask protocol.
-- Added callback-based self clipping to `RoundedBoxEx`, `CircleEx`, `CapsuleEx`, and `ChamferBoxEx`, so container content can reuse the shape's own analytical boundary without defining a second Mask.
-- Added cached custom-mask rasterization with framebuffer-aware transparent AA padding, snapshot/invalidation semantics, Clip/Mask statistics, and a mixed-content demo. Full-screen Masks are valid; integer translation reuses raster coverage while fractional pixel phase participates in the cache key.
-- Made Clip transactions failure-safe across render-target, 2D camera, model-matrix, scissor, blend/alpha-write override, modulation, and surface-alpha changes; made target initialization atomic, custom coverage RT allocation lazy, and coverage clears locally scissored. Callback wrappers now preserve exact return arity, nesting is capped at four, invalid numeric/transform inputs fail before drawing, and self-clipping uses background → children → foreground-stroke ordering.
-- Fixed coverage RT clearing by using an explicit ZERO/ZERO color-and-alpha draw. `render.Clear` preserved opaque alpha on this GMod render-target path and turned every custom Mask into a rectangle.
-- Kept the composite material's `$basetexture` fixed and moved before/work/coverage RTs to `$texture1`–`$texture3`. Dynamically replacing `$basetexture` changes the hidden half-texel correction used by `DrawTexturedRectUV`, which previously distorted local UVs and clipped antialiased Mask edges.
-- Moved custom Mask composition from full-frame coverage targets to bucketed local accumulator/scratch RTs. The accumulator now serves directly as the cached coverage texture, removing the cache-miss full-frame accumulator-to-mask copy.
-- Added a transparent right/bottom guard texel and expanded round-rectangle SDF quads by one pixel while recording coverage, preventing stale edge samples and geometric-bound clipping of antialiased fringes.
-- Reworked the Mask demo into a readable single-row comparison using a normal Source background image for rounded, circle, chamfer, and custom coverage examples.
-- Made same-version runtime and Clip installation genuinely idempotent. Loading the addon and an identical embedded copy now returns before rebuilding APIs or allocating render resources, while a different runtime version fails before mutating the active facade.
-- Synchronized the verified addon prototype into the Lux source, generated runtime, plain Lua package, Ashline framework copy, shader sources/package, bilingual API guide, and docs site.
+```powershell
+python .\lua-mgfx\shadersrc\mgfx\build.py
+python .\lux-mgfx\lux\mgfx\shadersrc\build.py
+```
 
-### 2026-07-23
+Both source trees must remain synchronized when shared HLSL behavior changes.
+The SDK helper tools are build-time infrastructure and must not ship in the
+runtime addon.
 
-#### Gradient Rendering
+### Lux precompiled output
 
-- Added `EllipticalRadialGradient(cx, cy, radiusX, radiusY, ...)` for top-origin and anisotropic light fields. It reuses the existing radial shader/material/pass while preserving the pixel-space circle semantics of `RadialGradient`.
-- Fitted `dot`, `dash`, and `dot-dash` periods to each closed shape perimeter, then derived the start phase from the fitted period. This removes the mathematical seam/start mismatch that was visible where a patterned stroke returned to its origin.
-- Added shader-native gradient `curve` presets (`linear`, smooth easing, `exponential`, `gaussian`, and `inverse-square`) across shapes, lines, rings, bars, and composed text. Curves remap `t` before the existing stops LUT sample, add no pass, and keep LUT caching independent of the selected curve.
-- Replaced byte-quantized gradient samples with an RGB-channel-packed 16-bit RGBA LUT and stable screen-space IGN dithering. This removes low-alpha stop plateaus and disperses final 8-bit framebuffer banding without adding a texture resource or draw pass.
+```powershell
+.\lux-mgfx\tools\build-precompiled.ps1
+```
 
-### 2026-07-22
+### Plain addon validation
 
-#### Shape Strokes And Rendering
+The plain tree is intended to be GMA-valid:
 
-- Added centered shape strokes with `solid`, `dot`, `dash`, and `dot-dash` kinds across rounded rectangles, chamfers, polygons, rings, arcs, sectors, progress bars, and segment bars. Non-solid strokes use an isolated shader pass with a CPU fallback, while the legacy `stroke = Color(...)` plus `strokeWidth` API remains supported.
-- Added matching stroke shader sources, compiled shader assets, plain Lua support, and interactive `mgfx_demo` / `mgfx_stroke_demo` examples.
-- Fixed backdrop-only rounded rectangles so they stop after the backdrop pass instead of submitting a transparent base shape.
-- Added layered backdrop blur through integer `backdrop.level`. Matching frame/level/intensity requests reuse the prepared result, intensity changes rerun the separable blur without another framebuffer copy, and higher levels recapture after lower UI layers have drawn.
+```powershell
+gmad.exe create -folder ".\lua-mgfx" -out "$env:TEMP\mgfx.gma"
+```
 
-#### API And Performance
+`lua-mgfx/addon.json` excludes shader source, build tools, and Markdown from
+the published runtime package.
 
-- Added `CompileStyle` / `CompileBackdrop` and normalized style markers so callers can reuse prepared backdrop and pattern specs without repeated table normalization.
-- Added allocation-light `RoundedBoxBackdrop`, `LineNoCaps`, and `ImageUV` APIs in both the Lux and plain Lua implementations.
-- Reduced `StartPanel` overhead by avoiding profiler metadata while profiling is disabled, pooling clip/command records, and skipping empty command-frame setup.
-- Removed deep style copying from transformed draw paths and cached pattern seeds, font heights, UTF-8 character runs, and per-character widths used by native text fallback rendering.
-- Fixed `lineHeightFor` font measurement and removed per-character `GetTextSize` calls from `drawLayout`.
-- Synchronized the Lux sources, generated precompiled runtime, plain Lua implementation, shader packs, API reference, performance notes, and bilingual documentation.
+---
 
-### Recent Development: 2026-06-19 to 2026-06-26
-
-#### Rendering Fixes
-
-- 2026-06-26 Replaced the old internal effect style/spec table pipeline with direct prepared parameters across the hot drawing layers. Public `NameEx(..., style)` calls still accept style tables, but rounded boxes, chamfers, progress/segment widgets, line-backed rectangles, and round/chamfer image effect paths now expand style fields at the boundary and pass scalar effect parameters internally.
-- 2026-06-26 Removed internal shadow/outerGlow/innerGlow spec caches from the shader path. The measured cost was not GPU work; it was Lua-side table normalization, cache-key checking, repeated field lookups, and unnecessary pass forwarding.
-- 2026-06-26 Added prepared `roundrect`, `progress`, `segment`, `image`, `line`, `poly`, and `chamfer` paths for composite widgets and primitive helpers so internal callers no longer construct temporary style tables just to call another MGFX shape renderer.
-- 2026-06-26 Verified the optimized shop path in-game: full item lists hold 130+ FPS, and lighter categories hold 160+ FPS with diagnostics disabled.
-- 2026-06-25 (`7096062`) Merged compatible `shadow` and `outerGlow` rendering for rounded boxes, chamfers, rings, and image masks into focused shader passes. The effects remain separate style fields, but matching draw bounds now share one material setup and one draw.
-- 2026-06-25 (`7096062`) Moved hot-path auxiliary shader parameters from repeated `$c0..$c3` float uploads to the `$invviewprojmat` / `c15` matrix page where possible. `$viewprojmat` / `c11` remains the main 16-float page.
-- 2026-06-25 (`7096062`) Added real profiler-driven round-rect chain tracing and cleaned the performance demo so hot sections can measure API resolve, setup, effect preparation, pass execution, and draw cost directly.
-- 2026-06-25 (`7096062`) Fixed draw-color state leakage in shader-backed round-rect paths so later UI rows keep their intended fill instead of inheriting tinted material state.
-- 2026-06-24 (`4fbd8f8`) Improved convex polygon shader antialiasing and moved polygon textured-quad paths away from lower-quality `DrawPoly` output where the Source UV path required correction.
-- 2026-06-23 (`2788385`) Fixed text atlas isolation across independently bundled MGFX runtimes. Each text renderer now gets a process-wide unique atlas namespace, and render targets/materials use the same atlas page name. This prevents text shadows or composed text effects in one addon or window from sampling glyphs rendered by another addon.
-- 2026-06-23 (`2788385`) Restored deterministic text atlas bake state for both Lua and Lux runtimes by enabling alpha writes and explicit blend state while drawing glyphs into the atlas, then restoring render state immediately after the bake pass.
-- 2026-06-23 (`95eac72`) Fixed text effect atlas sampling so face, stroke, glow, and shadow passes read glyph coverage from the atlas rect only. This prevents text effect blur kernels from bleeding outside the intended glyph allocation.
-- 2026-06-23 (`934d91a`) Fixed effect rendering semantics across the Lua and Lux implementations. `shadow` now uses a full blurred shape alpha mask like CSS `box-shadow`; it no longer reuses the exterior-only `outerGlow` formula that could leave hard transparent holes when offsets were applied.
-- 2026-06-23 (`934d91a`) Added dedicated shadow draw paths and shader materials for rounded rectangles, chamfers, rings, image masks, and convex polygons. Shadow, outer glow, inner glow, and backdrop are now routed as separate effects instead of sharing ambiguous fallback behavior.
-- 2026-06-23 (`934d91a`) Added automatic panel effect bleed handling. Effects that should extend outside the panel, such as `shadow` and `outerGlow`, temporarily expand clipping and scissor bounds based on their computed blur/spread extent, while fill, stroke, backdrop, and inner glow stay clipped to the panel.
-- 2026-06-23 (`934d91a`) Reworked effect extent calculation to use the blur/falloff tail instead of fixed `width * 1.8` style padding. This reduces clipped shadow edges when blur radius or offset is large.
-- 2026-06-23 (`934d91a`) Improved shape-aware backdrop and blur routing for round rects, chamfers, rings, polygons, and image masks, including better padding handling and shader-backed tint passes.
-- 2026-06-21 (`c940f2d`) Fixed blurred polygon backdrop rendering in the plain Lua implementation, including the `drawMaterialPoly` binding issue hit by polygon backdrop blur.
-- 2026-06-19 (`8ad24b2`) Fixed outer glow offset bias so offset glows are drawn with the correct expanded bounds instead of leaving asymmetric hard edges.
-- 2026-06-19 (`7cee3b2`) Added true convex polygon shadow shaders, replacing lower-quality polygon shadow approximations.
-
-#### Features And API
-
-- 2026-06-27 Added shader-native `WornPattern` documentation and synchronized its defaults across the plain Lua and Lux shader paths. The worn model is tuned around subtle roughness, sparse scuffs, short scratches, and broken edge wear instead of smoke/noise overlays.
-- 2026-06-19 (`dab15db`, `205be62`) Initialized and fixed the unified `MGFX.api` facade runtime for Lux. Lux users can call the unified API surface without choosing between primitive, widget, text, or style internals.
-- 2026-06-19 (`d0018ae`) Unified the MGFX API facade and polygon helper APIs across Lua and Lux, including dedicated helpers for common polygon construction and shader-backed polygon effects.
-- 2026-06-19 (`bacf4fd`) Loaded Lua MGFX demo commands by default so plain GLua users can run demo and inspection commands without manual includes.
-- 2026-06-19 (`0b5e3b3`) Restructured the repository into `lua-mgfx/` and `lux-mgfx/`, with the plain Lua addon and the Lux package maintained side by side.
-
-#### Documentation
-
-- 2026-06-23 (`9f1809e`, `e98c392`) Documented the text atlas fixes and recent rendering changes in the shared README and documentation.
-- 2026-06-20 (`5eea18a`) Added the English MGFX documentation site and VitePress build output workflow.
-- 2026-06-19 (`c955c0f`) Linked the documentation site from project documentation.
-- 2026-06-19 (`d99da27`) Expanded API documentation with practical examples, parameter guidance, effect semantics, and usage notes instead of only listing parameters.
-- 2026-06-19 (`f50b128`) Moved MGFX documentation into the shared root `docs/` tree so both Lua and Lux implementations use one documentation source.
-
-#### Build And Packaging
-
-- 2026-06-25 (`7096062`) Rebuilt the shaderpack and Lux generated dist after adding fused effect shaders for both Lux and plain Lua runtimes.
-- 2026-06-23 (`2788385`) Rebuilt the shaderpack at version `1782220800` and regenerated the Lux `dist/lua` output after the text atlas isolation fix.
-- 2026-06-23 (`c9964cd`) Rebuilt the shaderpack at version `1782205200`, including the new dedicated shadow, outer glow, stroke, backdrop, and polygon shader outputs.
-- 2026-06-23 (`959122c`) Rebuilt the Lux generated `dist/lua` output from the updated Lux sources.
-- 2026-06-17 (`6b28641`, `92d3792`) Added and refreshed the precompiled MGFX Lua loader distribution for Lux consumers that need generated GLua output.
-- 2026-06-17 (`ce1a7e1`) Fixed package diagnostics in MGFX source packages so Lux build/install errors are easier to identify.
-
-## Layout
+## 🗂️ Repository layout
 
 ```text
-docs/           Shared documentation source
-lua-mgfx/       Plain GLua addon source
-lux-mgfx/       Lux package source, shader tools, and legacy generated dist
-scripts/        Shared documentation/tooling scripts
+docs/           Shared English and Chinese documentation source
+lua-mgfx/       Canonical Plain GLua addon and its shader source
+lux-mgfx/       Lux packages, shader source/tools, and generated distribution
+scripts/        Shared repository/documentation tooling
+
 package.json
 lux.package.toml
 README.md
@@ -250,8 +660,99 @@ LICENSE*
 NOTICE
 ```
 
-`lux-mgfx/dist/lua` is the old Lux-generated GLua loader tree. The canonical non-Lux implementation is `lua-mgfx/`; future release packaging should prefer that pure Lua tree.
+`lux-mgfx/dist/lua` is the Lux-generated loader distribution. It does not
+replace `lua-mgfx/` as the canonical non-Lux implementation.
 
-## License
+---
 
-MGFX source is available under the Lux MGFX Non-Commercial License. Commercial use requires separate written authorization. See `LICENSE`, `LICENSE-MGFX-NC`, and `NOTICE`.
+## 🧭 Maintenance principles
+
+- Public draw calls remain immediate and explicit.
+- Public style tables are normalized at the API boundary.
+- Internal hot layers receive prepared values instead of repeatedly copying
+  and normalizing style records.
+- Common drawing calls avoid per-frame allocation.
+- Patterns remain shader paint fields rather than geometry recipes.
+- Coverage clipping uses continuous shader coverage, never stencil emulation.
+- Native text stays the default for ordinary operational labels.
+- Shader text is reserved for effects that need composition.
+- Render-target, camera, matrix, scissor, blend, and alpha-write mutations use
+  symmetric protected cleanup paths.
+- Plain GLua, Lux, generated output, shaderpacks, Ashline integrations, and docs
+  stay synchronized when shared behavior changes.
+- A general batching layer requires representative in-game evidence, not only
+  a synthetic microbenchmark.
+
+---
+
+## 📚 Documentation
+
+- [Online documentation](https://timewatcher.github.io/mgfx-docs-site/)
+- [Plain GLua quick start](docs/guide/glua.md)
+- [Lux quick start](docs/guide/lux.md)
+- [Core concepts](docs/guide/concepts.md)
+- [Effects](docs/guide/effects.md)
+- [Coverage Masks and antialiased Clip](docs/guide/masks-and-clip.md)
+- [Complete Mask and Clip API](docs/api-reference/masks-and-clip.md)
+- [API reference](docs/api-reference/index.md)
+- [Performance notes](docs/PERFORMANCE.md)
+- [Internal architecture](docs/ARCHITECTURE.md)
+- [Text renderer](docs/TEXT.md)
+- [Shader build and packaging](docs/SHADERS.md)
+
+---
+
+## 🌟 Recent highlights
+
+- Reusable antialiased coverage Masks with exact Boolean composition
+- Shape self-clipping callbacks and foreground stroke ordering
+- Local bucketed custom-Mask accumulator/scratch targets
+- Elliptical radial gradients for top-origin and anisotropic light fields
+- Shader-native gradient curves, 16-bit stops LUTs, and stable dithering
+- Mathematically fitted patterned-stroke periods and corrected start phases
+- Centered `solid`, `dot`, `dash`, and `dot-dash` strokes across shape families
+- Layered and shared backdrop blur
+- Layered shadows and compatible shadow/outer-glow fusion
+- Prepared style records and allocation-light raw helpers
+- Native text measurement and per-character layout caching
+- Failure-safe Clip render-state transactions and idempotent runtime install
+- Synchronized Plain GLua, Lux, shaderpack, Ashline, and bilingual docs output
+
+For exact implementation history, see the
+[commit log](https://github.com/TimeWatcher/lux-mgfx/commits/main/).
+
+---
+
+## 🚧 What MGFX deliberately does not own
+
+- Panel, flex, or grid layout
+- Input dispatch and focus management
+- Navigation and component state
+- Data binding and animation timelines
+- Panel lifecycle
+- Hit testing and interaction-coordinate transforms
+
+Use MGFX beneath Derma, a custom component system, Lux UI code, or an existing
+gamemode framework. Keeping this boundary narrow is what lets MGFX focus on
+rendering quality and predictable cost.
+
+---
+
+## 📜 License
+
+MGFX source under `lux-mgfx/lux/mgfx/`, `lua-mgfx/lua/mgfx/`, and the shader
+tooling is available under the **Lux MGFX Non-Commercial License**. Commercial
+use requires separate written authorization from the copyright holder.
+
+Documentation prose is available under CC BY 4.0. Documentation code examples
+are licensed MIT OR Apache-2.0. Branding assets are not licensed for reuse by
+those licenses.
+
+Review [`LICENSE`](LICENSE), [`LICENSE-MGFX-NC`](LICENSE-MGFX-NC), and
+[`NOTICE`](NOTICE) before distribution or commercial integration.
+
+---
+
+<p align="center">
+  Built for Garry's Mod interfaces that need more than another stack of boxes. ✦
+</p>
