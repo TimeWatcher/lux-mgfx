@@ -5,6 +5,7 @@ return function(__lux_import)
   local makeColor
   local colorDrawStyleCache
   local transparentFillColor
+  local runtimeInstallVersion
   local installTargets
   local clearFrameStatTables
   local resetFrameStats
@@ -147,6 +148,7 @@ return function(__lux_import)
     makeColor = Color
     colorDrawStyleCache = setmetatable({}, { __mode = "k" })
     transparentFillColor = makeColor(0, 0, 0, 0)
+    runtimeInstallVersion = "coverage-v2-runtime-1"
     installTargets = function(owner)
       owner.TARGET = capabilities.TARGET
       owner.TARGET_NAME = capabilities.TARGET_NAME
@@ -595,6 +597,23 @@ return function(__lux_import)
       if out == nil then
         out = {}
       end
+      do
+        local __lux_tmp_internal_20 = out._internal
+        if __lux_tmp_internal_20 == nil then
+          __lux_tmp_internal_20 = {}
+        end
+        out._internal = __lux_tmp_internal_20
+      end
+      local installedRuntime = out._internal.runtimeInstall
+      if installedRuntime ~= nil then
+        if installedRuntime.version == runtimeInstallVersion then
+          return out
+        end
+        error(
+          "another MGFX runtime version is already installed; perform a full client Lua refresh before replacing it",
+          2
+        )
+      end
       out.Reload = function()
         return install(out)
       end
@@ -619,6 +638,7 @@ return function(__lux_import)
       out.CompileStyle = compileDrawStyle
       installFrameStatsReset(out)
       installProfileWrappers(out)
+      out._internal.runtimeInstall = { version = runtimeInstallVersion }
       return out
     end
     installGlobal = function(name)

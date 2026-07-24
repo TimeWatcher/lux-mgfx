@@ -53,7 +53,7 @@ return function(__lux_import)
       local withRenderState
       local withRenderTarget2D
 
-      local installVersion = "coverage-v2"
+      local installVersion = "coverage-v2.1"
       local installed
       do
         local __lux_obj_internal_1 = M._internal
@@ -64,7 +64,7 @@ return function(__lux_import)
         installed = __lux_val_clipInstall_2
       end
       if installed ~= nil then
-        if installed.version == installVersion and installed.clip == M.Clip and installed.roundedBoxEx == M.RoundedBoxEx and installed.endPanel == M.EndPanel then
+        if installed.version == installVersion then
           return M
         end
         error(
@@ -1601,12 +1601,7 @@ return function(__lux_import)
       M.EndScreen = function()
         return endClipFrame(rawEndScreen, "EndScreen")
       end
-      M._internal.clipInstall = {
-        version = installVersion,
-        clip = M.Clip,
-        roundedBoxEx = M.RoundedBoxEx,
-        endPanel = M.EndPanel,
-      }
+      M._internal.clipInstall = { version = installVersion }
       return M
     end
   end

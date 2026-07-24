@@ -5,10 +5,10 @@ import * as primitives from "@lux/mgfx/primitives"
 local typeOf = type
 
 export client fn install(M) {
-  const installVersion = "coverage-v2"
+  const installVersion = "coverage-v2.1"
   local installed = M._internal?.clipInstall
   if installed ~= nil {
-    if installed.version == installVersion and installed.clip == M.Clip and installed.roundedBoxEx == M.RoundedBoxEx and installed.endPanel == M.EndPanel {
+    if installed.version == installVersion {
       return M
     }
     error("MGFX Clip runtime changed during hot reload; perform a full client Lua refresh before installing the new version", 2)
@@ -1109,10 +1109,7 @@ export client fn install(M) {
   M.EndPanel = () => endClipFrame(rawEndPanel, "EndPanel")
   M.EndScreen = () => endClipFrame(rawEndScreen, "EndScreen")
   M._internal.clipInstall = {
-    version = installVersion,
-    clip = M.Clip,
-    roundedBoxEx = M.RoundedBoxEx,
-    endPanel = M.EndPanel
+    version = installVersion
   }
   M
 }

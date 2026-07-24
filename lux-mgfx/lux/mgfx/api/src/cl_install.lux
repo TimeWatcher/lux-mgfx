@@ -18,6 +18,7 @@ local typeOf = type
 local makeColor = Color
 local colorDrawStyleCache = setmetatable({}, { __mode = "k" })
 local transparentFillColor = makeColor(0, 0, 0, 0)
+const runtimeInstallVersion = "coverage-v2-runtime-1"
 
 fn installTargets(owner) {
   owner.TARGET = capabilities.TARGET
@@ -329,6 +330,14 @@ fn installProfileWrappers(owner) {
 
 export client fn install(owner = nil) {
   local out = owner ?? {}
+  out._internal = out._internal ?? {}
+  local installedRuntime = out._internal.runtimeInstall
+  if installedRuntime ~= nil {
+    if installedRuntime.version == runtimeInstallVersion {
+      return out
+    }
+    error("another MGFX runtime version is already installed; perform a full client Lua refresh before replacing it", 2)
+  }
   out.Reload = () => install(out)
   out._LuxReload = out.Reload
   out.api = out
@@ -352,6 +361,9 @@ export client fn install(owner = nil) {
   out.CompileStyle = compileDrawStyle
   installFrameStatsReset(out)
   installProfileWrappers(out)
+  out._internal.runtimeInstall = {
+    version = runtimeInstallVersion
+  }
 
   out
 }

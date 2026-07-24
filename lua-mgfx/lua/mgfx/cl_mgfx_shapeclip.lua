@@ -4,13 +4,10 @@ MGFX = MGFX or {}
 
 function MGFX._InstallShapeClip(C)
 	local M = C.M
-	local INSTALL_VERSION = "coverage-v2"
+	local INSTALL_VERSION = "coverage-v2.1"
 	local installed = M._internal and M._internal.clipInstall
 	if installed then
-		if installed.version == INSTALL_VERSION and installed.clip == M.Clip
-			and installed.roundedBoxEx == M.RoundedBoxEx and installed.endPanel == M.EndPanel then
-			return M
-		end
+		if installed.version == INSTALL_VERSION then return M end
 		error("MGFX Clip runtime changed during hot reload; perform a full client Lua refresh before installing the new version", 2)
 	end
 	local materials = C.materials
@@ -1114,9 +1111,6 @@ function MGFX._InstallShapeClip(C)
 	M.EndScreen = function() return endClipFrame(rawEndScreen, "EndScreen") end
 	M._internal.clipInstall = {
 		version = INSTALL_VERSION,
-		clip = M.Clip,
-		roundedBoxEx = M.RoundedBoxEx,
-		endPanel = M.EndPanel,
 	}
 	return M
 end

@@ -153,6 +153,7 @@ The generated site is written to `docs-site/`.
 - Made Clip transactions failure-safe across render-target, 2D camera, model-matrix, scissor, blend/alpha-write override, modulation, and surface-alpha changes; made target initialization atomic, custom coverage RT allocation lazy, and coverage clears locally scissored. Callback wrappers now preserve exact return arity, nesting is capped at four, invalid numeric/transform inputs fail before drawing, and self-clipping uses background → children → foreground-stroke ordering.
 - Fixed coverage RT clearing by using an explicit ZERO/ZERO color-and-alpha draw. `render.Clear` preserved opaque alpha on this GMod render-target path and turned every custom Mask into a rectangle.
 - Kept the composite material's `$basetexture` fixed and moved before/work/coverage RTs to `$texture1`–`$texture3`. Dynamically replacing `$basetexture` changes the hidden half-texel correction used by `DrawTexturedRectUV`, which previously distorted local UVs and clipped antialiased Mask edges.
+- Made same-version runtime and Clip installation genuinely idempotent. Loading the addon and an identical embedded copy now returns before rebuilding APIs or allocating render resources, while a different runtime version fails before mutating the active facade.
 - Synchronized the verified addon prototype into the Lux source, generated runtime, plain Lua package, Ashline framework copy, shader sources/package, bilingual API guide, and docs site.
 
 ### 2026-07-23

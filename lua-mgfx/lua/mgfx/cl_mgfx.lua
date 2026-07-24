@@ -1,10 +1,19 @@
 if SERVER then return end
 
 MGFX = MGFX or {}
+local M = MGFX
+local RUNTIME_INSTALL_VERSION = "coverage-v2-runtime-1"
+M._internal = M._internal or {}
+
+local installedRuntime = M._internal.runtimeInstall
+if installedRuntime then
+	if installedRuntime.version == RUNTIME_INSTALL_VERSION then return end
+	error("another MGFX runtime version is already installed; perform a full client Lua refresh before replacing it", 2)
+end
+
 MGFX.api = MGFX
 mgfx = nil
 
-local M = MGFX
 local string_sub = string.sub
 local bit_bor = bit.bor
 
@@ -1443,3 +1452,7 @@ if type(M._InstallConsole) == "function" then
 else
 	print("[MGFX] console module unavailable")
 end
+
+M._internal.runtimeInstall = {
+	version = RUNTIME_INSTALL_VERSION,
+}
