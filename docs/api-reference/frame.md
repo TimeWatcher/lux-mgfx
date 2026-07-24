@@ -90,7 +90,7 @@ MGFX.Clip(rounded, x, y, w, h, function()
 end)
 ```
 
-`MGFX.Mask(function(m, w, h) ... end)` records custom vector coverage. The recorder exposes `Draw`/`Union`, `Subtract`, `Intersect`, `Xor`, and `Invert`; see [Coverage Masks and Antialiased Clip](../guide/masks-and-clip) for exact formulas, presets, invalidation, cache keys, and self-clipping callbacks.
+`MGFX.Mask(function(m, w, h) ... end)` records custom vector coverage. The recorder exposes `Draw`/`Union`, `Subtract`, `Intersect`, `Xor`, and `Invert`; see the complete [Coverage Masks, Clip, and Self-Clipping API](./masks-and-clip) for signatures, formulas, presets, invalidation, cache behavior, and shape children callbacks.
 
 Clip does not use stencil. It captures the framebuffer before and after the callback and composites those snapshots through continuous shader coverage. This preserves antialiased edges even when the content mixes MGFX shapes, text, images, native `surface` drawing, and backdrop effects.
 

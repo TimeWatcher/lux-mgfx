@@ -11,6 +11,8 @@ These pages are documentation groups only. Application code should call `MGFX.*`
 | `MGFX.StartPanel(...)` | `mgfx.api.startPanel(...)` |
 | `MGFX.RoundedBoxEx(...)` | `mgfx.api.roundedBoxEx(...)` |
 | `MGFX.ImageEx(...)` | `mgfx.api.imageEx(...)` |
+| `MGFX.Mask(...)` | `mgfx.api.mask(...)` |
+| `MGFX.Clip(...)` | `mgfx.api.clip(...)` |
 | `MGFX.ProgressBarEx(...)` | `mgfx.api.progressBarEx(...)` |
 | `MGFX.LinearGradient(...)` | `mgfx.api.linearGradient(...)` |
 | `MGFX.TextEx(...)` | `mgfx.api.textEx(...)` |
@@ -21,9 +23,10 @@ API names, Lua parameter names, and shader terms are kept in English.
 
 | Area | Page | Main APIs |
 | --- | --- | --- |
-| Frame scope and diagnostics | [Frame and Debug](./frame) | `StartPanel`, `EndPanel`, `StartScreen`, `EndScreen`, `PushClip`, `PopClip`, `Mask`, `Clip`, `ShaderStatus` |
+| Frame scope and diagnostics | [Frame and Debug](./frame) | `StartPanel`, `EndPanel`, `StartScreen`, `EndScreen`, `PushClip`, `PopClip`, `ShaderStatus` |
+| Reusable antialiased clipping | [Coverage Masks, Clip, and Self-Clipping](./masks-and-clip) | `Mask`, `Clip`, `Masks`, `Invalidate`, shape `children` callbacks |
 | Shapes and lines | [Shapes and Lines](./primitives) | `RoundedBoxEx`, `ChamferBoxEx`, `PolyEx`, `LineEx`, `CircleEx`, `CapsuleEx` |
-| Images | [Images and Masks](./images) | `ImageEx`, `IconEx`, `Mask`, `MaterialSource`, `TextureSource` |
+| Images | [Images and Per-Image Masks](./images) | `ImageEx`, `IconEx`, image `style.mask`, `MaterialSource`, `TextureSource` |
 | HUD meters and sectors | [HUD Meters and Sectors](./widgets) | `ProgressBarEx`, `SegmentBarEx`, `RingEx`, `ArcEx`, `SectorEx` |
 | Text | [Text API](./text-api) | `Text`, `TextEx`, `TextBoxEx`, `MeasureText`, `PrewarmText` |
 | Paint records and transforms | [Paint, Patterns, Transforms](./paint) | `LinearGradient`, `SmokePattern`, `WornPattern`, `Transform`, `PointerTilt`, `GetCapabilities` |

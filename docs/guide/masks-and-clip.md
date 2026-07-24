@@ -7,6 +7,10 @@ MGFX has two separate masking concepts:
 
 Keeping these concepts separate is intentional: a coverage Mask describes geometry, while `Clip` decides where and when that geometry is applied.
 
+This page teaches the model and common recipes. For every public signature,
+return value, preset option, restriction, and self-clipping callback rule, use
+the [complete Mask and Clip API reference](../api-reference/masks-and-clip).
+
 ## Create coverage
 
 ```lua
@@ -68,18 +72,31 @@ MGFX.Masks.Chamfer({cuts = {tl = 12, tr = 2, br = 12, bl = 2}, units = "local"})
 
 ## Clip to the shape itself
 
-The common container case does not need a second Mask definition. The supported shape APIs accept an optional child callback:
+The common container case does not need a second Mask definition. Four shape APIs accept an optional final child callback and reuse their own analytical boundary:
+
+```lua
+MGFX.RoundedBoxEx(x, y, w, h, style, children)
+MGFX.CircleEx(cx, cy, radius, style, children)
+MGFX.CapsuleEx(x, y, w, h, style, children)
+MGFX.ChamferBoxEx(x, y, w, h, style, children)
+```
 
 ```lua
 MGFX.RoundedBoxEx(x, y, w, h, {
     radius = 18,
     fill = Color(8, 18, 24, 230),
-}, function(cx, cy, cw, ch)
-    MGFX.Image(cx, cy, cw, ch, material)
+    stroke = Color(100, 220, 170, 180),
+    strokeWidth = 2,
+}, function(childX, childY, childW, childH)
+    MGFX.ImageEx(childX, childY, childW, childH, material, {fit = "cover"})
 end)
 ```
 
-`RoundedBoxEx`, `CircleEx`, `CapsuleEx`, and `ChamferBoxEx` validate the complete self-clip request before drawing. Their container order is background/effects, clipped children, then foreground stroke, so children cannot cover the inner half of a centered border. Transformed self-clipping is rejected because Clip mapping is currently axis-aligned and frame-local.
+Rounded, capsule, and chamfer callbacks receive `x, y, w, h`. A circle callback receives its bounding square: `cx - radius, cy - radius, radius * 2, radius * 2`. The callback keeps normal frame coordinates; it does not switch to `(0, 0)` like a custom Mask painter.
+
+The container order is background/effects, clipped children, then foreground stroke, so children cannot cover the inner half of a centered border. The complete request is validated before anything draws. Self-clipping rejects active or style-level transforms, non-positive dimensions, dimensions larger than the framebuffer, and per-corner radius tables on `RoundedBoxEx`; ordinary non-container drawing still supports those radius tables.
+
+See [Coverage Masks, Clip, and Self-Clipping](../api-reference/masks-and-clip) for every signature, callback coordinate rule, preset option, recorder method, and cache constraint.
 
 ## Rendering and cost
 

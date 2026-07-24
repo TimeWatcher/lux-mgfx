@@ -1,4 +1,4 @@
-# 图像与遮罩
+# 图像与单图遮罩
 
 图像 API 用于绘制材质、render target、纹理来源和图标，并支持 fit、crop、单图遮罩、描边、阴影、backdrop 与 glow。
 
@@ -89,7 +89,7 @@ MGFX.ImageEx(x, y, w, h, sourceMaterial, {
 })
 ```
 
-常见 rounded/chamfer/circle/capsule 情况应优先使用 procedural mask。上述 record 只属于当前一次 `ImageEx` 绘制，与 [`MGFX.Mask(painter)` + `MGFX.Clip`](../guide/masks-and-clip) 使用的可复用 coverage Mask 是两个刻意分开的概念。
+常见 rounded/chamfer/circle/capsule 情况应优先使用 procedural mask。上述 record 只属于当前一次 `ImageEx` 绘制，与 [`MGFX.Mask(painter)` + `MGFX.Clip`](./masks-and-clip) 使用的可复用 coverage Mask 是两个刻意分开的概念。
 
 感知 mask 的 `shadow` 与 `outerGlow` 可以共享 fused shader pass；`backdrop` 仍然只采样并 tint 图像或 mask coverage 后方的内容。
 

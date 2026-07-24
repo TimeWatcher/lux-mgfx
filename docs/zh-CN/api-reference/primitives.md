@@ -252,7 +252,7 @@ MGFX.RoundedBox(16, 16, 220, 48, 8, Color(28, 34, 46, 230), Color(255, 255, 255,
 ## RoundedBoxEx
 
 ```lua
-MGFX.RoundedBoxEx(x, y, w, h, style)
+MGFX.RoundedBoxEx(x, y, w, h, style, children)
 ```
 
 表格式样式的高级圆角矩形。
@@ -266,11 +266,13 @@ MGFX.RoundedBoxEx(x, y, w, h, style)
 | style.stroke / strokeWidth | 可选描边。 |
 | style.shadow, innerGlow, outerGlow | 受支持路径上的可选特效。 |
 | style.pattern | StripePattern、SmokePattern 或 WornPattern 叠加。 |
+| children | 可选 callback；使用当前 rounded boundary 裁剪其内容。 |
 
 #### 用法说明
 
 - 精细面板建议默认用它，因为高级字段都有名字。
 - radius 会被规范化，避免相对角超过矩形尺寸。
+- 提供 children 时，绘制层级为背景/效果 → 裁剪内容 → 前景描边；完整约束见 [Coverage Mask、Clip 与 Shape 自遮罩](./masks-and-clip)。
 
 #### 半径与单角写法
 
@@ -351,7 +353,7 @@ MGFX.ChamferBox(16, 80, 220, 44, {tl = 10, tr = 0, br = 10, bl = 0}, Color(28, 3
 ## ChamferBoxEx
 
 ```lua
-MGFX.ChamferBoxEx(x, y, w, h, style)
+MGFX.ChamferBoxEx(x, y, w, h, style, children)
 ```
 
 使用 style.cuts 的高级切角矩形。
@@ -364,11 +366,13 @@ MGFX.ChamferBoxEx(x, y, w, h, style)
 | style.fill | Color 或渐变填充。 |
 | style.pattern | 可选 StripePattern、SmokePattern 或 WornPattern。 |
 | style.innerGlow / outerGlow | 可选的切角感知发光效果。 |
+| children | 可选 callback；使用当前 chamfer boundary 裁剪其内容。 |
 
 #### 用法说明
 
 - 适合棱角 HUD 面板、警告标记和科幻风 scoreboard 行。
 - 省略 style.cuts 时，形状基本等同矩形。
+- children 收到 `x, y, w, h`，描边会在 children 之后作为前景层绘制。
 
 #### 切角写法
 
@@ -754,7 +758,7 @@ MGFX.Circle(x + 12, y + 12, 6, Color(90, 220, 180), Color(255, 255, 255, 40), 1)
 ## CircleEx
 
 ```lua
-MGFX.CircleEx(cx, cy, radius, style)
+MGFX.CircleEx(cx, cy, radius, style, children)
 ```
 
 使用圆角矩形样式模型的高级圆形。
@@ -766,11 +770,13 @@ MGFX.CircleEx(cx, cy, radius, style)
 | style.fill | Color 或渐变填充。 |
 | style.stroke / strokeWidth | 可选描边。 |
 | style.shadow, innerGlow, outerGlow, pattern | 可选形状特效。 |
+| children | 可选 callback；收到圆形外接方框 `x, y, size, size`。 |
 
 #### 用法说明
 
 - MGFX 会根据圆心和半径计算盒子，再应用圆形半径。
 - 圆形图片请使用 `ImageEx(..., {mask = {kind = "circle"}})`；`MGFX.Mask(painter)` 属于多次绘制共享 coverage 的 Clip API。
+- children 形式直接以圆自身为抗锯齿 Clip，不需要再创建 `MGFX.Masks.Circle`。
 
 #### 示例
 
@@ -810,7 +816,7 @@ MGFX.Capsule(x, y, 96, 24, Color(80, 170, 255, 180), Color(255, 255, 255, 36), 1
 ## CapsuleEx
 
 ```lua
-MGFX.CapsuleEx(x, y, w, h, style)
+MGFX.CapsuleEx(x, y, w, h, style, children)
 ```
 
 使用圆角矩形样式模型的高级胶囊。
@@ -822,11 +828,13 @@ MGFX.CapsuleEx(x, y, w, h, style)
 | style.fill | Color 或渐变填充。 |
 | style.stroke / strokeWidth | 可选描边。 |
 | style.shadow, innerGlow, outerGlow, pattern | 可选特效。 |
+| children | 可选 callback；收到 `x, y, w, h` 并由胶囊边界裁剪。 |
 
 #### 用法说明
 
 - CapsuleEx 会根据当前渲染尺寸设置半径；胶囊形状本身不需要传 style.radius。
 - 当胶囊表示一个 clamp 后的数值时使用 ProgressBarEx。
+- children 形式的 transform 与 bounds 限制见 [自遮罩 API](./masks-and-clip#shape-自遮罩)。
 
 #### 示例
 

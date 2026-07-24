@@ -7,6 +7,9 @@ MGFX 有两个刻意分开的遮罩概念：
 
 这种区分让心智模型保持简单：Mask 只描述几何 coverage，Clip 决定它应用到哪个区域、哪段绘制。
 
+本页说明心智模型与常用配方。所有 public 签名、返回值、preset 选项、限制和自遮罩
+callback 规则统一列在 [完整 Mask 与 Clip API 参考](../api-reference/masks-and-clip)。
+
 ## 创建 coverage
 
 ```lua
@@ -68,18 +71,31 @@ MGFX.Masks.Chamfer({cuts = {tl = 12, tr = 2, br = 12, bl = 2}, units = "local"})
 
 ## 以 shape 自身为 Clip
 
-容器 shape 不需要再重复写一个 Mask。支持的 shape API 接受可选 child callback：
+常见容器不需要再重复写一个 Mask。四种 shape API 接受可选的最后一个 child callback，并直接复用自身解析边界：
+
+```lua
+MGFX.RoundedBoxEx(x, y, w, h, style, children)
+MGFX.CircleEx(cx, cy, radius, style, children)
+MGFX.CapsuleEx(x, y, w, h, style, children)
+MGFX.ChamferBoxEx(x, y, w, h, style, children)
+```
 
 ```lua
 MGFX.RoundedBoxEx(x, y, w, h, {
     radius = 18,
     fill = Color(8, 18, 24, 230),
-}, function(cx, cy, cw, ch)
-    MGFX.Image(cx, cy, cw, ch, material)
+    stroke = Color(100, 220, 170, 180),
+    strokeWidth = 2,
+}, function(childX, childY, childW, childH)
+    MGFX.ImageEx(childX, childY, childW, childH, material, {fit = "cover"})
 end)
 ```
 
-`RoundedBoxEx`、`CircleEx`、`CapsuleEx`、`ChamferBoxEx` 会在任何绘制前完成自身裁剪参数校验。容器层级固定为“背景/效果 → 裁剪后的 children → 前景描边”，children 不会覆盖居中描边的内侧一半。当前会拒绝 transform，因为 Clip mapping 仍是轴对齐的 frame-local 空间。
+Rounded、Capsule 与 Chamfer callback 收到 `x, y, w, h`。Circle callback 收到它的外接方框：`cx - radius, cy - radius, radius * 2, radius * 2`。callback 仍使用正常 frame 坐标，不会像 custom Mask painter 那样切换为 `(0, 0)`。
+
+容器层级固定为“背景/效果 → 裁剪后的 children → 前景描边”，children 不会覆盖居中描边的内侧一半。MGFX 会在任何绘制前完成完整参数校验。自遮罩会拒绝 active 或 style-level transform、非正数尺寸、超过 framebuffer 的尺寸，以及 `RoundedBoxEx` 的 per-corner radius table；普通非容器绘制仍支持该 radius table。
+
+所有签名、callback 坐标规则、preset 选项、recorder 方法与缓存限制见 [Coverage Mask、Clip 与 Shape 自遮罩](../api-reference/masks-and-clip)。
 
 ## 渲染方式与成本
 

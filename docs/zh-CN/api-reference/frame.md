@@ -264,7 +264,7 @@ MGFX.Clip(rounded, x, y, w, h, function()
 end)
 ```
 
-`MGFX.Mask(function(m, w, h) ... end)` 使用受限 recorder 定义自定义矢量 coverage，`MGFX.Clip(mask, x, y, w, h, callback)` 将它应用到一段任意混合绘制并精确转发 callback 返回值。也可以使用 `mask:Clip(...)`。Circle、Capsule、Rounded、Chamfer preset 位于 `MGFX.Masks`。
+`MGFX.Mask(function(m, w, h) ... end)` 使用受限 recorder 定义自定义矢量 coverage，`MGFX.Clip(mask, x, y, w, h, callback)` 将它应用到一段任意混合绘制并精确转发 callback 返回值。也可以使用 `mask:Clip(...)`。完整签名、布尔公式、preset、失效/缓存和 shape children callback 请查阅 [Coverage Mask、Clip 与 Shape 自遮罩](./masks-and-clip)。
 
 Clip 完全不用 stencil。它捕获 callback 前后的 framebuffer，再用连续 coverage 合成，因此不会退化为二值边缘。每层需要两次 framebuffer copy 与一次有界 composite draw；自定义 Mask 只在 revision/extent 缓存未命中时重新栅格化。
 

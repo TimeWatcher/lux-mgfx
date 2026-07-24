@@ -9,10 +9,10 @@ Plain GLua calls `MGFX.*`. Lux calls the same APIs as lowerCamelCase methods on 
 ```lua [GLua]
 MGFX.RoundedBox(x, y, w, h, radius, fill, stroke, strokeWidth)
 MGFX.RoundedBoxBackdrop(x, y, w, h, radius, backdrop)
-MGFX.RoundedBoxEx(x, y, w, h, style)
+MGFX.RoundedBoxEx(x, y, w, h, style, children)
 
 MGFX.ChamferBox(x, y, w, h, cuts, fill, stroke, strokeWidth)
-MGFX.ChamferBoxEx(x, y, w, h, style)
+MGFX.ChamferBoxEx(x, y, w, h, style, children)
 
 MGFX.RegularPoly(cx, cy, radius, sides, rotation, fill, stroke, strokeWidth)
 MGFX.RegularPolyEx(cx, cy, radius, sides, style)
@@ -31,10 +31,10 @@ MGFX.LineNoCaps(x1, y1, x2, y2, width, fill)
 MGFX.LineEx(x1, y1, x2, y2, style)
 
 MGFX.Circle(cx, cy, radius, fill, stroke, strokeWidth)
-MGFX.CircleEx(cx, cy, radius, style)
+MGFX.CircleEx(cx, cy, radius, style, children)
 
 MGFX.Capsule(x, y, w, h, fill, stroke, strokeWidth)
-MGFX.CapsuleEx(x, y, w, h, style)
+MGFX.CapsuleEx(x, y, w, h, style, children)
 ```
 
 ## Shared Style Fields
@@ -55,6 +55,12 @@ For repeated hot-path draws, normalize tables once with
 reuse the returned record. `RoundedBoxBackdrop` is the positional backdrop-only
 path; `LineNoCaps` draws a line whose endpoints are not extended by half its
 width. These APIs avoid constructing a temporary style table per draw.
+
+`RoundedBoxEx`, `ChamferBoxEx`, `CircleEx`, and `CapsuleEx` accept an optional
+final `children` callback. When supplied, the shape draws its background and
+effects, clips the callback to its own antialiased boundary, then redraws its
+stroke in the foreground. See [Coverage Masks, Clip, and Self-Clipping](./masks-and-clip)
+for callback bounds, restrictions, and complete examples.
 
 ## Shape Stroke Styles
 

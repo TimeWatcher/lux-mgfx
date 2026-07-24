@@ -1,4 +1,4 @@
-# Images and Masks
+# Images and Per-Image Masks
 
 Image APIs draw materials, render targets, texture sources, and icons with optional fit, crop, mask, stroke, shadow, backdrop, and glow.
 
@@ -78,7 +78,7 @@ Use `cover` for avatars and `contain` for icons or item art that must remain ful
 
 Texture masks can use alpha or color channels depending on the source. Prefer procedural masks for common rounded/chamfer/circle/capsule cases.
 
-These records belong to one `ImageEx` draw. They are intentionally different from reusable `MGFX.Mask(painter)` coverage objects used by [`MGFX.Clip`](../guide/masks-and-clip).
+These records belong to one `ImageEx` draw. They are intentionally different from reusable `MGFX.Mask(painter)` coverage objects used by [`MGFX.Clip`](./masks-and-clip).
 
 Mask-aware `shadow` and `outerGlow` can share one fused shader pass. `backdrop` still samples and tints only the content behind the image or mask coverage.
 
